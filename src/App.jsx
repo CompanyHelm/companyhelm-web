@@ -241,14 +241,25 @@ async function executeGraphQL(query, variables) {
   return payload.data;
 }
 
-function CompanyRequiredPanel() {
+function CompanyRequiredPanel({ hasCompanies }) {
   return (
     <section className="panel hero-panel">
       <p className="eyebrow">Company Scope</p>
-      <h1>Select a company</h1>
-      <p className="subcopy">
-        Create a company or choose an existing company id in the sidebar to scope all queries.
-      </p>
+      {hasCompanies ? (
+        <>
+          <h1>Select a company</h1>
+          <p className="subcopy">
+            Choose an existing company in the sidebar to scope all queries.
+          </p>
+        </>
+      ) : (
+        <>
+          <h1>Create your first company</h1>
+          <p className="subcopy">
+            No companies found yet. Use the create form in the sidebar to get started.
+          </p>
+        </>
+      )}
     </section>
   );
 }
@@ -747,6 +758,7 @@ function App() {
   const [parentTaskId, setParentTaskId] = useState("");
   const [dependsOnTaskId, setDependsOnTaskId] = useState("");
   const [relationshipDrafts, setRelationshipDrafts] = useState({});
+  const hasCompanies = companies.length > 0;
 
   const selectedCompany = useMemo(() => {
     return companies.find((company) => company.id === selectedCompanyId) || null;
@@ -1121,49 +1133,54 @@ function App() {
           <h2>CompanyHelm</h2>
         </div>
 
-        <nav className="side-nav" aria-label="Main navigation">
-          {NAV_ITEMS.map((item) => (
-            <a
-              key={item.id}
-              href={item.href}
-              className={`nav-link nav-link-${item.tone} ${
-                activePage === item.id ? "nav-link-active" : ""
-              }`}
-            >
-              {item.label}
-            </a>
-          ))}
-        </nav>
+        {hasCompanies ? (
+          <nav className="side-nav" aria-label="Main navigation">
+            {NAV_ITEMS.map((item) => (
+              <a
+                key={item.id}
+                href={item.href}
+                className={`nav-link nav-link-${item.tone} ${
+                  activePage === item.id ? "nav-link-active" : ""
+                }`}
+              >
+                {item.label}
+              </a>
+            ))}
+          </nav>
+        ) : null}
 
         <section className="company-scope-panel">
           <p className="side-overline">Company scope</p>
-          <label className="side-input-label" htmlFor="company-select">
-            Active company
-          </label>
-          <select
-            id="company-select"
-            className="side-select"
-            value={selectedCompanyId}
-            onChange={(event) => setSelectedCompanyId(event.target.value)}
-            disabled={isLoadingCompanies}
-          >
-            <option value="">
-              {isLoadingCompanies ? "Loading companies..." : "Select a company"}
-            </option>
-            {companies.map((company) => (
-              <option key={company.id} value={company.id}>
-                {company.name} ({company.id.slice(0, 8)})
-              </option>
-            ))}
-          </select>
-
-          <p className="side-company-id">
-            {selectedCompany ? selectedCompany.id : "No company selected"}
-          </p>
+          {hasCompanies ? (
+            <>
+              <label className="side-input-label" htmlFor="company-select">
+                Active company
+              </label>
+              <select
+                id="company-select"
+                className="side-select"
+                value={selectedCompanyId}
+                onChange={(event) => setSelectedCompanyId(event.target.value)}
+                disabled={isLoadingCompanies}
+              >
+                <option value="">
+                  {isLoadingCompanies ? "Loading companies..." : "Select a company"}
+                </option>
+                {companies.map((company) => (
+                  <option key={company.id} value={company.id}>
+                    {company.name} ({company.id.slice(0, 8)})
+                  </option>
+                ))}
+              </select>
+              <p className="side-company-id">
+                {selectedCompany ? selectedCompany.id : "No company selected"}
+              </p>
+            </>
+          ) : null}
 
           <form className="company-create-form" onSubmit={handleCreateCompany}>
             <label className="side-input-label" htmlFor="new-company-name">
-              Create company
+              {hasCompanies ? "Create company" : "Create your first company"}
             </label>
             <input
               id="new-company-name"
@@ -1177,28 +1194,34 @@ function App() {
             </button>
           </form>
 
-          <button
-            type="button"
-            className="danger-btn side-danger-btn"
-            onClick={handleDeleteCompany}
-            disabled={!selectedCompany || isDeletingCompany || isLoadingCompanies}
-          >
-            {isDeletingCompany ? "Deleting..." : "Delete active company"}
-          </button>
-          <p className="side-hint">Deleting a company cascades to its tasks and runners.</p>
+          {hasCompanies ? (
+            <>
+              <button
+                type="button"
+                className="danger-btn side-danger-btn"
+                onClick={handleDeleteCompany}
+                disabled={!selectedCompany || isDeletingCompany || isLoadingCompanies}
+              >
+                {isDeletingCompany ? "Deleting..." : "Delete active company"}
+              </button>
+              <p className="side-hint">Deleting a company cascades to its tasks and runners.</p>
+            </>
+          ) : null}
 
           {companyError ? <p className="side-error">{companyError}</p> : null}
         </section>
 
-        <div className="side-status">
-          <p>Company: {selectedCompany ? selectedCompany.name : "none"}</p>
-          <p>Tasks: {selectedCompanyId ? tasks.length : "n/a"}</p>
-          <p>Runners: {selectedCompanyId ? agentRunners.length : "n/a"}</p>
-        </div>
+        {hasCompanies ? (
+          <div className="side-status">
+            <p>Company: {selectedCompany ? selectedCompany.name : "none"}</p>
+            <p>Tasks: {selectedCompanyId ? tasks.length : "n/a"}</p>
+            <p>Runners: {selectedCompanyId ? agentRunners.length : "n/a"}</p>
+          </div>
+        ) : null}
       </aside>
 
       <main className="page-shell">
-        {!selectedCompanyId ? <CompanyRequiredPanel /> : null}
+        {!selectedCompanyId ? <CompanyRequiredPanel hasCompanies={hasCompanies} /> : null}
 
         {selectedCompanyId && activePage === "dashboard" ? (
           <DashboardPage
