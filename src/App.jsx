@@ -220,6 +220,18 @@ const DELETE_AGENT_MUTATION = `
   }
 `;
 
+const INITIALIZE_AGENT_MUTATION = `
+  mutation InitializeAgentRunner($companyId: String!, $runnerId: String!, $agentId: String!) {
+    initializeAgentRunner(companyId: $companyId, runnerId: $runnerId, agentId: $agentId) {
+      ok
+      error
+      commandId
+      runnerId
+      agentId
+    }
+  }
+`;
+
 const NAV_ITEMS = [
   { id: "dashboard", label: "Dashboard", href: "#dashboard", tone: "mint" },
   { id: "tasks", label: "Tasks", href: "#tasks", tone: "sand" },
@@ -838,6 +850,8 @@ function AgentsPage({
   isCreatingAgent,
   savingAgentId,
   deletingAgentId,
+  initializingAgentId,
+  canInitializeAgents,
   agentName,
   agentSdk,
   agentModel,
@@ -852,6 +866,7 @@ function AgentsPage({
   onRefreshAgents,
   onAgentDraftChange,
   onSaveAgent,
+  onInitializeAgent,
   onDeleteAgent,
 }) {
   return (
@@ -1004,15 +1019,36 @@ function AgentsPage({
                       type="button"
                       className="secondary-btn relationship-save-btn"
                       onClick={() => onSaveAgent(agent.id)}
-                      disabled={savingAgentId === agent.id || deletingAgentId === agent.id}
+                      disabled={
+                        savingAgentId === agent.id ||
+                        deletingAgentId === agent.id ||
+                        initializingAgentId === agent.id
+                      }
                     >
                       {savingAgentId === agent.id ? "Saving..." : "Save"}
                     </button>
                     <button
                       type="button"
+                      className="secondary-btn"
+                      onClick={() => onInitializeAgent(agent.id)}
+                      disabled={
+                        !canInitializeAgents ||
+                        savingAgentId === agent.id ||
+                        deletingAgentId === agent.id ||
+                        initializingAgentId === agent.id
+                      }
+                    >
+                      {initializingAgentId === agent.id ? "Initializing..." : "Initialize"}
+                    </button>
+                    <button
+                      type="button"
                       className="danger-btn"
                       onClick={() => onDeleteAgent(agent.id, agent.name)}
-                      disabled={savingAgentId === agent.id || deletingAgentId === agent.id}
+                      disabled={
+                        savingAgentId === agent.id ||
+                        deletingAgentId === agent.id ||
+                        initializingAgentId === agent.id
+                      }
                     >
                       {deletingAgentId === agent.id ? "Deleting..." : "Delete"}
                     </button>
@@ -1052,6 +1088,7 @@ function App() {
   const [isCreatingAgent, setIsCreatingAgent] = useState(false);
   const [savingAgentId, setSavingAgentId] = useState(null);
   const [deletingAgentId, setDeletingAgentId] = useState(null);
+  const [initializingAgentId, setInitializingAgentId] = useState(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [parentTaskId, setParentTaskId] = useState("");
@@ -1515,6 +1552,40 @@ function App() {
     }
   }
 
+  async function handleInitializeAgent(agentId) {
+    if (!selectedCompanyId) {
+      setAgentError("Select a company before initializing agents.");
+      return;
+    }
+
+    const readyRunner = agentRunners.find(
+      (runner) => normalizeRunnerStatus(runner.status) === "ready",
+    );
+    if (!readyRunner) {
+      setAgentError("No ready runner found. Start a runner before initializing agents.");
+      return;
+    }
+
+    try {
+      setInitializingAgentId(agentId);
+      setAgentError("");
+      const data = await executeGraphQL(INITIALIZE_AGENT_MUTATION, {
+        companyId: selectedCompanyId,
+        runnerId: readyRunner.id,
+        agentId,
+      });
+      const result = data.initializeAgentRunner;
+      if (!result.ok) {
+        throw new Error(result.error || "Initialize agent failed.");
+      }
+      await loadAgentRunners({ silently: true });
+    } catch (initializeError) {
+      setAgentError(initializeError.message);
+    } finally {
+      setInitializingAgentId(null);
+    }
+  }
+
   function handleDraftChange(taskId, field, value) {
     setRelationshipDrafts((currentDrafts) => ({
       ...currentDrafts,
@@ -1580,6 +1651,10 @@ function App() {
     }
     return `${agents.length} agents`;
   }, [agents.length]);
+
+  const hasReadyRunner = useMemo(() => {
+    return agentRunners.some((runner) => normalizeRunnerStatus(runner.status) === "ready");
+  }, [agentRunners]);
 
   const renderTaskLink = useCallback(
     (taskId) => {
@@ -1759,6 +1834,8 @@ function App() {
             isCreatingAgent={isCreatingAgent}
             savingAgentId={savingAgentId}
             deletingAgentId={deletingAgentId}
+            initializingAgentId={initializingAgentId}
+            canInitializeAgents={hasReadyRunner}
             agentName={agentName}
             agentSdk={agentSdk}
             agentModel={agentModel}
@@ -1773,6 +1850,7 @@ function App() {
             onRefreshAgents={loadAgents}
             onAgentDraftChange={handleAgentDraftChange}
             onSaveAgent={handleSaveAgent}
+            onInitializeAgent={handleInitializeAgent}
             onDeleteAgent={handleDeleteAgent}
           />
         ) : null}
