@@ -1,4 +1,4 @@
-# product-flow-os
+# CompanyHelm
 
 Minimal React SPA scaffolded with Vite.
 
