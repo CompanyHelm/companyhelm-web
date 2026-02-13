@@ -82,6 +82,66 @@ h3 {
   gap: 0.45rem;
 }
 
+.company-scope-panel {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.72rem;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.side-input-label {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.92);
+  letter-spacing: 0.03em;
+}
+
+.side-select,
+.company-create-form input {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  background: rgba(12, 16, 20, 0.42);
+  color: #ffffff;
+  padding: 0.5rem 0.58rem;
+  font-size: 0.85rem;
+  font-family: "DM Sans", sans-serif;
+}
+
+.side-select:focus,
+.company-create-form input:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.62);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12);
+}
+
+.side-company-id {
+  margin: 0;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.72);
+  overflow-wrap: anywhere;
+}
+
+.company-create-form {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.company-create-form button {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.9);
+  color: #182025;
+}
+
+.side-error {
+  margin: 0;
+  color: #ffb4b7;
+  font-size: 0.78rem;
+}
+
 .nav-link {
   display: block;
   text-decoration: none;
@@ -200,6 +260,20 @@ h2 {
   margin: 0;
   color: var(--ink-1);
   max-width: 62ch;
+}
+
+.context-pill {
+  margin: 0.7rem 0 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.74rem;
+  color: var(--ink-1);
+  background: rgba(15, 118, 110, 0.08);
+  border: 1px solid rgba(15, 118, 110, 0.24);
+  border-radius: 999px;
+  padding: 0.22rem 0.58rem;
 }
 
 .hero-actions {

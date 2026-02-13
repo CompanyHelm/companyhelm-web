@@ -1,11 +1,35 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 const GRAPHQL_URL = import.meta.env.VITE_GRAPHQL_URL || "/graphql";
+const SELECTED_COMPANY_STORAGE_KEY = "companyhelm.selectedCompanyId";
+
+const LIST_COMPANIES_QUERY = `
+  query ListCompanies {
+    companies {
+      id
+      name
+    }
+  }
+`;
+
+const CREATE_COMPANY_MUTATION = `
+  mutation CreateCompany($name: String!, $id: String) {
+    createCompany(name: $name, id: $id) {
+      ok
+      error
+      company {
+        id
+        name
+      }
+    }
+  }
+`;
 
 const LIST_TASKS_QUERY = `
-  query ListTasks {
-    tasks {
+  query ListTasks($companyId: String!) {
+    tasks(companyId: $companyId) {
       id
+      companyId
       name
       description
       parentTaskId
@@ -15,9 +39,10 @@ const LIST_TASKS_QUERY = `
 `;
 
 const LIST_AGENT_RUNNERS_QUERY = `
-  query ListAgentRunners {
-    agentRunners {
+  query ListAgentRunners($companyId: String!) {
+    agentRunners(companyId: $companyId) {
       id
+      companyId
       callbackUrl
       status
       lastHealthCheckAt
@@ -28,12 +53,14 @@ const LIST_AGENT_RUNNERS_QUERY = `
 
 const CREATE_TASK_MUTATION = `
   mutation CreateTask(
+    $companyId: String!
     $name: String!
     $description: String
     $parentTaskId: Int
     $dependsOnTaskId: Int
   ) {
     createTask(
+      companyId: $companyId
       name: $name
       description: $description
       parentTaskId: $parentTaskId
@@ -43,6 +70,7 @@ const CREATE_TASK_MUTATION = `
       error
       task {
         id
+        companyId
         name
         description
         parentTaskId
@@ -53,12 +81,23 @@ const CREATE_TASK_MUTATION = `
 `;
 
 const UPDATE_TASK_MUTATION = `
-  mutation UpdateTask($id: Int!, $parentTaskId: Int, $dependsOnTaskId: Int) {
-    updateTask(id: $id, parentTaskId: $parentTaskId, dependsOnTaskId: $dependsOnTaskId) {
+  mutation UpdateTask(
+    $companyId: String!
+    $id: Int!
+    $parentTaskId: Int
+    $dependsOnTaskId: Int
+  ) {
+    updateTask(
+      companyId: $companyId
+      id: $id
+      parentTaskId: $parentTaskId
+      dependsOnTaskId: $dependsOnTaskId
+    ) {
       ok
       error
       task {
         id
+        companyId
         name
         description
         parentTaskId
@@ -96,6 +135,26 @@ function getPageFromHash() {
     return parsed;
   }
   return NAV_ITEMS[0].id;
+}
+
+function getPersistedCompanyId() {
+  try {
+    return window.localStorage.getItem(SELECTED_COMPANY_STORAGE_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function persistCompanyId(companyId) {
+  try {
+    if (!companyId) {
+      window.localStorage.removeItem(SELECTED_COMPANY_STORAGE_KEY);
+      return;
+    }
+    window.localStorage.setItem(SELECTED_COMPANY_STORAGE_KEY, companyId);
+  } catch {
+    // Ignore local storage write failures.
+  }
 }
 
 function createRelationshipDrafts(tasks) {
@@ -152,7 +211,20 @@ async function executeGraphQL(query, variables) {
   return payload.data;
 }
 
+function CompanyRequiredPanel() {
+  return (
+    <section className="panel hero-panel">
+      <p className="eyebrow">Company Scope</p>
+      <h1>Select a company</h1>
+      <p className="subcopy">
+        Create a company or choose an existing company id in the sidebar to scope all queries.
+      </p>
+    </section>
+  );
+}
+
 function DashboardPage({
+  selectedCompanyId,
   tasks,
   agentRunners,
   isLoadingTasks,
@@ -190,6 +262,7 @@ function DashboardPage({
         <p className="subcopy">
           Monitor task volume, runner connectivity, and jump into details from a single page.
         </p>
+        <p className="context-pill">Company: {selectedCompanyId}</p>
         <div className="hero-actions">
           <button type="button" className="secondary-btn" onClick={onRefreshTasks}>
             Refresh tasks
@@ -306,6 +379,7 @@ function DashboardPage({
 }
 
 function TasksPage({
+  selectedCompanyId,
   tasks,
   isLoadingTasks,
   taskError,
@@ -335,6 +409,7 @@ function TasksPage({
         <p className="subcopy">
           Create tasks, update dependency links, and keep planning relationships in sync.
         </p>
+        <p className="context-pill">Company: {selectedCompanyId}</p>
       </section>
 
       <section className="panel composer-panel">
@@ -502,6 +577,7 @@ function TasksPage({
 }
 
 function AgentRunnerPage({
+  selectedCompanyId,
   agentRunners,
   isLoadingRunners,
   runnerError,
@@ -525,6 +601,7 @@ function AgentRunnerPage({
         <p className="subcopy">
           Track callback endpoints, status signals, and heartbeat timestamps for each runner.
         </p>
+        <p className="context-pill">Company: {selectedCompanyId}</p>
       </section>
 
       <section className="runner-summary-grid">
@@ -594,10 +671,16 @@ function AgentRunnerPage({
 
 function App() {
   const [activePage, setActivePage] = useState(() => getPageFromHash());
+  const [companies, setCompanies] = useState([]);
+  const [isLoadingCompanies, setIsLoadingCompanies] = useState(true);
+  const [companyError, setCompanyError] = useState("");
+  const [selectedCompanyId, setSelectedCompanyId] = useState(() => getPersistedCompanyId());
+  const [newCompanyName, setNewCompanyName] = useState("");
+  const [isCreatingCompany, setIsCreatingCompany] = useState(false);
   const [tasks, setTasks] = useState([]);
   const [agentRunners, setAgentRunners] = useState([]);
-  const [isLoadingTasks, setIsLoadingTasks] = useState(true);
-  const [isLoadingRunners, setIsLoadingRunners] = useState(true);
+  const [isLoadingTasks, setIsLoadingTasks] = useState(false);
+  const [isLoadingRunners, setIsLoadingRunners] = useState(false);
   const [taskError, setTaskError] = useState("");
   const [runnerError, setRunnerError] = useState("");
   const [isSubmittingTask, setIsSubmittingTask] = useState(false);
@@ -608,10 +691,44 @@ function App() {
   const [dependsOnTaskId, setDependsOnTaskId] = useState("");
   const [relationshipDrafts, setRelationshipDrafts] = useState({});
 
+  const selectedCompany = useMemo(() => {
+    return companies.find((company) => company.id === selectedCompanyId) || null;
+  }, [companies, selectedCompanyId]);
+
+  const loadCompanies = useCallback(async () => {
+    try {
+      setCompanyError("");
+      setIsLoadingCompanies(true);
+      const data = await executeGraphQL(LIST_COMPANIES_QUERY);
+      const nextCompanies = data.companies || [];
+      setCompanies(nextCompanies);
+      setSelectedCompanyId((currentId) => {
+        const preferredId = currentId || getPersistedCompanyId();
+        if (preferredId && nextCompanies.some((company) => company.id === preferredId)) {
+          return preferredId;
+        }
+        return nextCompanies[0]?.id || "";
+      });
+    } catch (loadError) {
+      setCompanyError(loadError.message);
+    } finally {
+      setIsLoadingCompanies(false);
+    }
+  }, []);
+
   const loadTasks = useCallback(async () => {
+    if (!selectedCompanyId) {
+      setTaskError("");
+      setTasks([]);
+      setRelationshipDrafts({});
+      setIsLoadingTasks(false);
+      return;
+    }
+
     try {
       setTaskError("");
-      const data = await executeGraphQL(LIST_TASKS_QUERY);
+      setIsLoadingTasks(true);
+      const data = await executeGraphQL(LIST_TASKS_QUERY, { companyId: selectedCompanyId });
       const nextTasks = data.tasks || [];
       setTasks(nextTasks);
       setRelationshipDrafts(createRelationshipDrafts(nextTasks));
@@ -620,15 +737,26 @@ function App() {
     } finally {
       setIsLoadingTasks(false);
     }
-  }, []);
+  }, [selectedCompanyId]);
 
   const loadAgentRunners = useCallback(async ({ silently = false } = {}) => {
+    if (!selectedCompanyId) {
+      setAgentRunners([]);
+      if (!silently) {
+        setRunnerError("");
+        setIsLoadingRunners(false);
+      }
+      return;
+    }
+
     try {
       if (!silently) {
         setRunnerError("");
         setIsLoadingRunners(true);
       }
-      const data = await executeGraphQL(LIST_AGENT_RUNNERS_QUERY);
+      const data = await executeGraphQL(LIST_AGENT_RUNNERS_QUERY, {
+        companyId: selectedCompanyId,
+      });
       setAgentRunners(data.agentRunners || []);
     } catch (loadError) {
       if (!silently) {
@@ -639,12 +767,20 @@ function App() {
         setIsLoadingRunners(false);
       }
     }
-  }, []);
+  }, [selectedCompanyId]);
+
+  useEffect(() => {
+    loadCompanies();
+  }, [loadCompanies]);
+
+  useEffect(() => {
+    persistCompanyId(selectedCompanyId);
+  }, [selectedCompanyId]);
 
   useEffect(() => {
     loadTasks();
     loadAgentRunners();
-  }, [loadAgentRunners, loadTasks]);
+  }, [loadAgentRunners, loadTasks, selectedCompanyId]);
 
   useEffect(() => {
     if (!window.location.hash) {
@@ -660,14 +796,49 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!selectedCompanyId) {
+      return undefined;
+    }
     const pollId = window.setInterval(() => {
       loadAgentRunners({ silently: true });
     }, 10000);
     return () => window.clearInterval(pollId);
-  }, [loadAgentRunners]);
+  }, [loadAgentRunners, selectedCompanyId]);
+
+  async function handleCreateCompany(event) {
+    event.preventDefault();
+    if (!newCompanyName.trim()) {
+      setCompanyError("Company name is required.");
+      return;
+    }
+
+    try {
+      setIsCreatingCompany(true);
+      setCompanyError("");
+      const data = await executeGraphQL(CREATE_COMPANY_MUTATION, {
+        name: newCompanyName.trim(),
+      });
+      const result = data.createCompany;
+      if (!result.ok) {
+        throw new Error(result.error || "Company creation failed.");
+      }
+      const createdCompany = result.company;
+      setNewCompanyName("");
+      await loadCompanies();
+      setSelectedCompanyId(createdCompany.id);
+    } catch (createError) {
+      setCompanyError(createError.message);
+    } finally {
+      setIsCreatingCompany(false);
+    }
+  }
 
   async function handleCreateTask(event) {
     event.preventDefault();
+    if (!selectedCompanyId) {
+      setTaskError("Select a company before creating tasks.");
+      return;
+    }
     if (!name.trim()) {
       setTaskError("Task name is required.");
       return;
@@ -677,6 +848,7 @@ function App() {
       setIsSubmittingTask(true);
       setTaskError("");
       const data = await executeGraphQL(CREATE_TASK_MUTATION, {
+        companyId: selectedCompanyId,
         name: name.trim(),
         description: description.trim() || null,
         parentTaskId: toGraphQLTaskId(parentTaskId),
@@ -701,6 +873,10 @@ function App() {
   }
 
   async function handleRelationshipSave(taskId) {
+    if (!selectedCompanyId) {
+      setTaskError("Select a company before updating tasks.");
+      return;
+    }
     const draft = relationshipDrafts[taskId] || {
       parentTaskId: "",
       dependsOnTaskId: "",
@@ -711,6 +887,7 @@ function App() {
       setTaskError("");
 
       const data = await executeGraphQL(UPDATE_TASK_MUTATION, {
+        companyId: selectedCompanyId,
         id: taskId,
         parentTaskId: toGraphQLTaskId(draft.parentTaskId),
         dependsOnTaskId: toGraphQLTaskId(draft.dependsOnTaskId),
@@ -806,15 +983,64 @@ function App() {
           ))}
         </nav>
 
+        <section className="company-scope-panel">
+          <p className="side-overline">Company scope</p>
+          <label className="side-input-label" htmlFor="company-select">
+            Active company
+          </label>
+          <select
+            id="company-select"
+            className="side-select"
+            value={selectedCompanyId}
+            onChange={(event) => setSelectedCompanyId(event.target.value)}
+            disabled={isLoadingCompanies}
+          >
+            <option value="">
+              {isLoadingCompanies ? "Loading companies..." : "Select a company"}
+            </option>
+            {companies.map((company) => (
+              <option key={company.id} value={company.id}>
+                {company.name} ({company.id.slice(0, 8)})
+              </option>
+            ))}
+          </select>
+
+          <p className="side-company-id">
+            {selectedCompany ? selectedCompany.id : "No company selected"}
+          </p>
+
+          <form className="company-create-form" onSubmit={handleCreateCompany}>
+            <label className="side-input-label" htmlFor="new-company-name">
+              Create company
+            </label>
+            <input
+              id="new-company-name"
+              value={newCompanyName}
+              onChange={(event) => setNewCompanyName(event.target.value)}
+              placeholder="e.g. Acme Labs"
+              disabled={isCreatingCompany}
+            />
+            <button type="submit" disabled={isCreatingCompany}>
+              {isCreatingCompany ? "Creating..." : "Create"}
+            </button>
+          </form>
+
+          {companyError ? <p className="side-error">{companyError}</p> : null}
+        </section>
+
         <div className="side-status">
-          <p>Tasks: {tasks.length}</p>
-          <p>Runners: {agentRunners.length}</p>
+          <p>Company: {selectedCompany ? selectedCompany.name : "none"}</p>
+          <p>Tasks: {selectedCompanyId ? tasks.length : "n/a"}</p>
+          <p>Runners: {selectedCompanyId ? agentRunners.length : "n/a"}</p>
         </div>
       </aside>
 
       <main className="page-shell">
-        {activePage === "dashboard" ? (
+        {!selectedCompanyId ? <CompanyRequiredPanel /> : null}
+
+        {selectedCompanyId && activePage === "dashboard" ? (
           <DashboardPage
+            selectedCompanyId={selectedCompanyId}
             tasks={tasks}
             agentRunners={agentRunners}
             isLoadingTasks={isLoadingTasks}
@@ -827,8 +1053,9 @@ function App() {
           />
         ) : null}
 
-        {activePage === "tasks" ? (
+        {selectedCompanyId && activePage === "tasks" ? (
           <TasksPage
+            selectedCompanyId={selectedCompanyId}
             tasks={tasks}
             isLoadingTasks={isLoadingTasks}
             taskError={taskError}
@@ -852,8 +1079,9 @@ function App() {
           />
         ) : null}
 
-        {activePage === "agent-runner" ? (
+        {selectedCompanyId && activePage === "agent-runner" ? (
           <AgentRunnerPage
+            selectedCompanyId={selectedCompanyId}
             agentRunners={agentRunners}
             isLoadingRunners={isLoadingRunners}
             runnerError={runnerError}
