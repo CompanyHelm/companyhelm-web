@@ -61,6 +61,19 @@ const LIST_AGENT_RUNNERS_QUERY = `
   }
 `;
 
+const LIST_AGENTS_QUERY = `
+  query ListAgents($companyId: String!) {
+    agents(companyId: $companyId) {
+      id
+      companyId
+      name
+      agentSdk
+      model
+      modelReasoningLevel
+    }
+  }
+`;
+
 const CREATE_TASK_MUTATION = `
   mutation CreateTask(
     $companyId: String!
@@ -137,10 +150,81 @@ const DELETE_AGENT_RUNNER_MUTATION = `
   }
 `;
 
+const CREATE_AGENT_MUTATION = `
+  mutation CreateAgent(
+    $companyId: String!
+    $name: String!
+    $agentSdk: String!
+    $model: String!
+    $modelReasoningLevel: String!
+  ) {
+    createAgent(
+      companyId: $companyId
+      name: $name
+      agentSdk: $agentSdk
+      model: $model
+      modelReasoningLevel: $modelReasoningLevel
+    ) {
+      ok
+      error
+      agent {
+        id
+        companyId
+        name
+        agentSdk
+        model
+        modelReasoningLevel
+      }
+    }
+  }
+`;
+
+const UPDATE_AGENT_MUTATION = `
+  mutation UpdateAgent(
+    $companyId: String!
+    $id: String!
+    $name: String!
+    $agentSdk: String!
+    $model: String!
+    $modelReasoningLevel: String!
+  ) {
+    updateAgent(
+      companyId: $companyId
+      id: $id
+      name: $name
+      agentSdk: $agentSdk
+      model: $model
+      modelReasoningLevel: $modelReasoningLevel
+    ) {
+      ok
+      error
+      agent {
+        id
+        companyId
+        name
+        agentSdk
+        model
+        modelReasoningLevel
+      }
+    }
+  }
+`;
+
+const DELETE_AGENT_MUTATION = `
+  mutation DeleteAgent($companyId: String!, $id: String!) {
+    deleteAgent(companyId: $companyId, id: $id) {
+      ok
+      error
+      deletedAgentId
+    }
+  }
+`;
+
 const NAV_ITEMS = [
   { id: "dashboard", label: "Dashboard", href: "#dashboard", tone: "mint" },
   { id: "tasks", label: "Tasks", href: "#tasks", tone: "sand" },
   { id: "agent-runner", label: "Agent Runner", href: "#agent-runner", tone: "sky" },
+  { id: "agents", label: "Agents", href: "#agents", tone: "coral" },
 ];
 
 const PAGE_IDS = new Set(NAV_ITEMS.map((item) => item.id));
@@ -192,6 +276,18 @@ function createRelationshipDrafts(tasks) {
     drafts[task.id] = {
       parentTaskId: toSelectValue(task.parentTaskId),
       dependsOnTaskId: toSelectValue(task.dependsOnTaskId),
+    };
+    return drafts;
+  }, {});
+}
+
+function createAgentDrafts(agents) {
+  return agents.reduce((drafts, agent) => {
+    drafts[agent.id] = {
+      name: agent.name || "",
+      agentSdk: agent.agentSdk || "",
+      model: agent.model || "",
+      modelReasoningLevel: agent.modelReasoningLevel || "",
     };
     return drafts;
   }, {});
@@ -734,6 +830,203 @@ function AgentRunnerPage({
   );
 }
 
+function AgentsPage({
+  selectedCompanyId,
+  agents,
+  isLoadingAgents,
+  agentError,
+  isCreatingAgent,
+  savingAgentId,
+  deletingAgentId,
+  agentName,
+  agentSdk,
+  agentModel,
+  agentModelReasoningLevel,
+  agentDrafts,
+  agentCountLabel,
+  onAgentNameChange,
+  onAgentSdkChange,
+  onAgentModelChange,
+  onAgentModelReasoningLevelChange,
+  onCreateAgent,
+  onRefreshAgents,
+  onAgentDraftChange,
+  onSaveAgent,
+  onDeleteAgent,
+}) {
+  return (
+    <div className="page-stack">
+      <section className="panel hero-panel">
+        <p className="eyebrow">Agent Registry</p>
+        <h1>Agents page</h1>
+        <p className="subcopy">
+          Register AI agents by SDK, model, and reasoning profile for the active company.
+        </p>
+        <p className="context-pill">Company: {selectedCompanyId}</p>
+      </section>
+
+      <section className="panel composer-panel">
+        <header className="panel-header">
+          <h2>Create agent</h2>
+        </header>
+        <form className="task-form" onSubmit={onCreateAgent}>
+          <label htmlFor="agent-name">Name</label>
+          <input
+            id="agent-name"
+            name="name"
+            placeholder="e.g. CEO Agent"
+            value={agentName}
+            onChange={(event) => onAgentNameChange(event.target.value)}
+            required
+          />
+
+          <label htmlFor="agent-sdk">Agent SDK</label>
+          <input
+            id="agent-sdk"
+            name="agentSdk"
+            placeholder="e.g. codex, claude-code"
+            value={agentSdk}
+            onChange={(event) => onAgentSdkChange(event.target.value)}
+            required
+          />
+
+          <label htmlFor="agent-model">Model</label>
+          <input
+            id="agent-model"
+            name="model"
+            placeholder="e.g. gpt-5"
+            value={agentModel}
+            onChange={(event) => onAgentModelChange(event.target.value)}
+            required
+          />
+
+          <label htmlFor="agent-reasoning-level">Model reasoning level</label>
+          <input
+            id="agent-reasoning-level"
+            name="modelReasoningLevel"
+            placeholder="e.g. low, medium, high"
+            value={agentModelReasoningLevel}
+            onChange={(event) => onAgentModelReasoningLevelChange(event.target.value)}
+            required
+          />
+
+          <button type="submit" disabled={isCreatingAgent}>
+            {isCreatingAgent ? "Creating..." : "Create agent"}
+          </button>
+        </form>
+      </section>
+
+      <section className="panel list-panel">
+        <header className="panel-header panel-header-row">
+          <h2>Agents</h2>
+          <div className="task-meta">
+            <span>{agentCountLabel}</span>
+            <button type="button" className="secondary-btn" onClick={onRefreshAgents}>
+              Refresh
+            </button>
+          </div>
+        </header>
+
+        {agentError ? <p className="error-banner">{agentError}</p> : null}
+        {isLoadingAgents ? <p className="empty-hint">Loading agents...</p> : null}
+        {!isLoadingAgents && agents.length === 0 ? (
+          <p className="empty-hint">No agents created for this company yet.</p>
+        ) : null}
+
+        {agents.length > 0 ? (
+          <ul className="task-list">
+            {agents.map((agent) => (
+              <li key={agent.id} className="task-card">
+                <div className="task-card-top">
+                  <strong>{agent.name}</strong>
+                  <code className="runner-id">{agent.id}</code>
+                </div>
+                <p className="agent-subcopy">
+                  SDK: <strong>{agent.agentSdk}</strong> • model: <strong>{agent.model}</strong> •
+                  reasoning: <strong>{agent.modelReasoningLevel}</strong>
+                </p>
+
+                <div className="relationship-editor">
+                  <div className="agent-edit-grid">
+                    <label className="relationship-field" htmlFor={`agent-name-${agent.id}`}>
+                      Name
+                    </label>
+                    <input
+                      id={`agent-name-${agent.id}`}
+                      value={agentDrafts[agent.id]?.name ?? ""}
+                      onChange={(event) =>
+                        onAgentDraftChange(agent.id, "name", event.target.value)
+                      }
+                      disabled={savingAgentId === agent.id || deletingAgentId === agent.id}
+                    />
+
+                    <label className="relationship-field" htmlFor={`agent-sdk-${agent.id}`}>
+                      SDK
+                    </label>
+                    <input
+                      id={`agent-sdk-${agent.id}`}
+                      value={agentDrafts[agent.id]?.agentSdk ?? ""}
+                      onChange={(event) =>
+                        onAgentDraftChange(agent.id, "agentSdk", event.target.value)
+                      }
+                      disabled={savingAgentId === agent.id || deletingAgentId === agent.id}
+                    />
+
+                    <label className="relationship-field" htmlFor={`agent-model-${agent.id}`}>
+                      Model
+                    </label>
+                    <input
+                      id={`agent-model-${agent.id}`}
+                      value={agentDrafts[agent.id]?.model ?? ""}
+                      onChange={(event) =>
+                        onAgentDraftChange(agent.id, "model", event.target.value)
+                      }
+                      disabled={savingAgentId === agent.id || deletingAgentId === agent.id}
+                    />
+
+                    <label
+                      className="relationship-field"
+                      htmlFor={`agent-reasoning-${agent.id}`}
+                    >
+                      Reasoning
+                    </label>
+                    <input
+                      id={`agent-reasoning-${agent.id}`}
+                      value={agentDrafts[agent.id]?.modelReasoningLevel ?? ""}
+                      onChange={(event) =>
+                        onAgentDraftChange(agent.id, "modelReasoningLevel", event.target.value)
+                      }
+                      disabled={savingAgentId === agent.id || deletingAgentId === agent.id}
+                    />
+                  </div>
+                  <div className="task-card-actions">
+                    <button
+                      type="button"
+                      className="secondary-btn relationship-save-btn"
+                      onClick={() => onSaveAgent(agent.id)}
+                      disabled={savingAgentId === agent.id || deletingAgentId === agent.id}
+                    >
+                      {savingAgentId === agent.id ? "Saving..." : "Save"}
+                    </button>
+                    <button
+                      type="button"
+                      className="danger-btn"
+                      onClick={() => onDeleteAgent(agent.id, agent.name)}
+                      disabled={savingAgentId === agent.id || deletingAgentId === agent.id}
+                    >
+                      {deletingAgentId === agent.id ? "Deleting..." : "Delete"}
+                    </button>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </section>
+    </div>
+  );
+}
+
 function App() {
   const [activePage, setActivePage] = useState(() => getPageFromHash());
   const [companies, setCompanies] = useState([]);
@@ -745,19 +1038,30 @@ function App() {
   const [isDeletingCompany, setIsDeletingCompany] = useState(false);
   const [tasks, setTasks] = useState([]);
   const [agentRunners, setAgentRunners] = useState([]);
+  const [agents, setAgents] = useState([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
   const [isLoadingRunners, setIsLoadingRunners] = useState(false);
+  const [isLoadingAgents, setIsLoadingAgents] = useState(false);
   const [taskError, setTaskError] = useState("");
   const [runnerError, setRunnerError] = useState("");
+  const [agentError, setAgentError] = useState("");
   const [isSubmittingTask, setIsSubmittingTask] = useState(false);
   const [savingTaskId, setSavingTaskId] = useState(null);
   const [deletingTaskId, setDeletingTaskId] = useState(null);
   const [deletingRunnerId, setDeletingRunnerId] = useState(null);
+  const [isCreatingAgent, setIsCreatingAgent] = useState(false);
+  const [savingAgentId, setSavingAgentId] = useState(null);
+  const [deletingAgentId, setDeletingAgentId] = useState(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [parentTaskId, setParentTaskId] = useState("");
   const [dependsOnTaskId, setDependsOnTaskId] = useState("");
   const [relationshipDrafts, setRelationshipDrafts] = useState({});
+  const [agentName, setAgentName] = useState("");
+  const [agentSdk, setAgentSdk] = useState("");
+  const [agentModel, setAgentModel] = useState("");
+  const [agentModelReasoningLevel, setAgentModelReasoningLevel] = useState("");
+  const [agentDrafts, setAgentDrafts] = useState({});
   const hasCompanies = companies.length > 0;
 
   const selectedCompany = useMemo(() => {
@@ -838,6 +1142,29 @@ function App() {
     }
   }, [selectedCompanyId]);
 
+  const loadAgents = useCallback(async () => {
+    if (!selectedCompanyId) {
+      setAgentError("");
+      setAgents([]);
+      setAgentDrafts({});
+      setIsLoadingAgents(false);
+      return;
+    }
+
+    try {
+      setAgentError("");
+      setIsLoadingAgents(true);
+      const data = await executeGraphQL(LIST_AGENTS_QUERY, { companyId: selectedCompanyId });
+      const nextAgents = data.agents || [];
+      setAgents(nextAgents);
+      setAgentDrafts(createAgentDrafts(nextAgents));
+    } catch (loadError) {
+      setAgentError(loadError.message);
+    } finally {
+      setIsLoadingAgents(false);
+    }
+  }, [selectedCompanyId]);
+
   useEffect(() => {
     loadCompanies();
   }, [loadCompanies]);
@@ -849,7 +1176,8 @@ function App() {
   useEffect(() => {
     loadTasks();
     loadAgentRunners();
-  }, [loadAgentRunners, loadTasks, selectedCompanyId]);
+    loadAgents();
+  }, [loadAgentRunners, loadAgents, loadTasks, selectedCompanyId]);
 
   useEffect(() => {
     if (!window.location.hash) {
@@ -909,7 +1237,7 @@ function App() {
     }
 
     const confirmed = window.confirm(
-      `Delete company "${selectedCompany.name}"? This will also delete all tasks and agent runners in that company.`,
+      `Delete company "${selectedCompany.name}"? This will also delete all tasks, agents, and agent runners in that company.`,
     );
     if (!confirmed) {
       return;
@@ -928,6 +1256,8 @@ function App() {
 
       setTasks([]);
       setRelationshipDrafts({});
+      setAgents([]);
+      setAgentDrafts({});
       setAgentRunners([]);
       await loadCompanies();
     } catch (deleteError) {
@@ -1070,11 +1400,141 @@ function App() {
     }
   }
 
+  async function handleCreateAgent(event) {
+    event.preventDefault();
+    if (!selectedCompanyId) {
+      setAgentError("Select a company before creating agents.");
+      return;
+    }
+    if (!agentName.trim()) {
+      setAgentError("Agent name is required.");
+      return;
+    }
+    if (!agentSdk.trim() || !agentModel.trim() || !agentModelReasoningLevel.trim()) {
+      setAgentError("agentSdk, model, and modelReasoningLevel are required.");
+      return;
+    }
+
+    try {
+      setIsCreatingAgent(true);
+      setAgentError("");
+      const data = await executeGraphQL(CREATE_AGENT_MUTATION, {
+        companyId: selectedCompanyId,
+        name: agentName.trim(),
+        agentSdk: agentSdk.trim(),
+        model: agentModel.trim(),
+        modelReasoningLevel: agentModelReasoningLevel.trim(),
+      });
+      const result = data.createAgent;
+      if (!result.ok) {
+        throw new Error(result.error || "Agent creation failed.");
+      }
+      setAgentName("");
+      setAgentSdk("");
+      setAgentModel("");
+      setAgentModelReasoningLevel("");
+      await loadAgents();
+    } catch (createError) {
+      setAgentError(createError.message);
+    } finally {
+      setIsCreatingAgent(false);
+    }
+  }
+
+  async function handleSaveAgent(agentId) {
+    if (!selectedCompanyId) {
+      setAgentError("Select a company before updating agents.");
+      return;
+    }
+    const draft = agentDrafts[agentId] || {
+      name: "",
+      agentSdk: "",
+      model: "",
+      modelReasoningLevel: "",
+    };
+    if (
+      !draft.name.trim() ||
+      !draft.agentSdk.trim() ||
+      !draft.model.trim() ||
+      !draft.modelReasoningLevel.trim()
+    ) {
+      setAgentError("All agent fields are required to save.");
+      return;
+    }
+
+    try {
+      setSavingAgentId(agentId);
+      setAgentError("");
+      const data = await executeGraphQL(UPDATE_AGENT_MUTATION, {
+        companyId: selectedCompanyId,
+        id: agentId,
+        name: draft.name.trim(),
+        agentSdk: draft.agentSdk.trim(),
+        model: draft.model.trim(),
+        modelReasoningLevel: draft.modelReasoningLevel.trim(),
+      });
+      const result = data.updateAgent;
+      if (!result.ok) {
+        throw new Error(result.error || "Agent update failed.");
+      }
+      await loadAgents();
+    } catch (updateError) {
+      setAgentError(updateError.message);
+    } finally {
+      setSavingAgentId(null);
+    }
+  }
+
+  async function handleDeleteAgent(agentId, agentDisplayName) {
+    if (!selectedCompanyId) {
+      setAgentError("Select a company before deleting agents.");
+      return;
+    }
+
+    const confirmed = window.confirm(`Delete agent "${agentDisplayName}"?`);
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setDeletingAgentId(agentId);
+      setAgentError("");
+      const data = await executeGraphQL(DELETE_AGENT_MUTATION, {
+        companyId: selectedCompanyId,
+        id: agentId,
+      });
+      const result = data.deleteAgent;
+      if (!result.ok) {
+        throw new Error(result.error || "Agent deletion failed.");
+      }
+      await loadAgents();
+    } catch (deleteError) {
+      setAgentError(deleteError.message);
+    } finally {
+      setDeletingAgentId(null);
+    }
+  }
+
   function handleDraftChange(taskId, field, value) {
     setRelationshipDrafts((currentDrafts) => ({
       ...currentDrafts,
       [taskId]: {
         ...(currentDrafts[taskId] || { parentTaskId: "", dependsOnTaskId: "" }),
+        [field]: value,
+      },
+    }));
+  }
+
+  function handleAgentDraftChange(agentId, field, value) {
+    setAgentDrafts((currentDrafts) => ({
+      ...currentDrafts,
+      [agentId]: {
+        ...(currentDrafts[agentId] || {
+          name: "",
+          agentSdk: "",
+          model: "",
+          modelReasoningLevel: "",
+        }),
         [field]: value,
       },
     }));
@@ -1110,6 +1570,16 @@ function App() {
     }
     return `${agentRunners.length} runners`;
   }, [agentRunners.length]);
+
+  const agentCountLabel = useMemo(() => {
+    if (agents.length === 0) {
+      return "No agents";
+    }
+    if (agents.length === 1) {
+      return "1 agent";
+    }
+    return `${agents.length} agents`;
+  }, [agents.length]);
 
   const renderTaskLink = useCallback(
     (taskId) => {
@@ -1215,6 +1685,7 @@ function App() {
           <div className="side-status">
             <p>Company: {selectedCompany ? selectedCompany.name : "none"}</p>
             <p>Tasks: {selectedCompanyId ? tasks.length : "n/a"}</p>
+            <p>Agents: {selectedCompanyId ? agents.length : "n/a"}</p>
             <p>Runners: {selectedCompanyId ? agentRunners.length : "n/a"}</p>
           </div>
         ) : null}
@@ -1276,6 +1747,33 @@ function App() {
             runnerCountLabel={runnerCountLabel}
             onRefreshRunners={() => loadAgentRunners()}
             onDeleteRunner={handleDeleteRunner}
+          />
+        ) : null}
+
+        {selectedCompanyId && activePage === "agents" ? (
+          <AgentsPage
+            selectedCompanyId={selectedCompanyId}
+            agents={agents}
+            isLoadingAgents={isLoadingAgents}
+            agentError={agentError}
+            isCreatingAgent={isCreatingAgent}
+            savingAgentId={savingAgentId}
+            deletingAgentId={deletingAgentId}
+            agentName={agentName}
+            agentSdk={agentSdk}
+            agentModel={agentModel}
+            agentModelReasoningLevel={agentModelReasoningLevel}
+            agentDrafts={agentDrafts}
+            agentCountLabel={agentCountLabel}
+            onAgentNameChange={setAgentName}
+            onAgentSdkChange={setAgentSdk}
+            onAgentModelChange={setAgentModel}
+            onAgentModelReasoningLevelChange={setAgentModelReasoningLevel}
+            onCreateAgent={handleCreateAgent}
+            onRefreshAgents={loadAgents}
+            onAgentDraftChange={handleAgentDraftChange}
+            onSaveAgent={handleSaveAgent}
+            onDeleteAgent={handleDeleteAgent}
           />
         ) : null}
       </main>
