@@ -142,6 +142,12 @@ h3 {
   font-size: 0.78rem;
 }
 
+.side-hint {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 0.72rem;
+}
+
 .nav-link {
   display: block;
   text-decoration: none;
@@ -423,6 +429,18 @@ button:disabled {
   font-size: 0.8rem;
 }
 
+.danger-btn {
+  background: rgba(158, 29, 36, 0.14);
+  border: 1px solid rgba(158, 29, 36, 0.34);
+  color: var(--danger);
+  padding: 0.42rem 0.62rem;
+  font-size: 0.8rem;
+}
+
+.side-danger-btn {
+  width: 100%;
+}
+
 .error-banner {
   margin: 0;
   color: var(--danger);
@@ -527,6 +545,17 @@ button:disabled {
 
 .relationship-save-btn {
   justify-self: start;
+}
+
+.task-card-actions,
+.runner-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.runner-card-actions {
+  margin-top: 0.72rem;
 }
 
 .runner-status {

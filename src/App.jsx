@@ -25,6 +25,16 @@ const CREATE_COMPANY_MUTATION = `
   }
 `;
 
+const DELETE_COMPANY_MUTATION = `
+  mutation DeleteCompany($id: String!) {
+    deleteCompany(id: $id) {
+      ok
+      error
+      companyId
+    }
+  }
+`;
+
 const LIST_TASKS_QUERY = `
   query ListTasks($companyId: String!) {
     tasks(companyId: $companyId) {
@@ -103,6 +113,26 @@ const UPDATE_TASK_MUTATION = `
         parentTaskId
         dependsOnTaskId
       }
+    }
+  }
+`;
+
+const DELETE_TASK_MUTATION = `
+  mutation DeleteTask($companyId: String!, $id: Int!) {
+    deleteTask(companyId: $companyId, id: $id) {
+      ok
+      error
+      deletedTaskId
+    }
+  }
+`;
+
+const DELETE_AGENT_RUNNER_MUTATION = `
+  mutation DeleteAgentRunner($companyId: String!, $id: String!) {
+    deleteAgentRunner(companyId: $companyId, id: $id) {
+      ok
+      error
+      deletedAgentRunnerId
     }
   }
 `;
@@ -385,6 +415,7 @@ function TasksPage({
   taskError,
   isSubmittingTask,
   savingTaskId,
+  deletingTaskId,
   name,
   description,
   parentTaskId,
@@ -399,6 +430,7 @@ function TasksPage({
   onRefreshTasks,
   onDraftChange,
   onSaveRelationships,
+  onDeleteTask,
   renderTaskLink,
 }) {
   return (
@@ -519,7 +551,7 @@ function TasksPage({
                       onChange={(event) =>
                         onDraftChange(task.id, "parentTaskId", event.target.value)
                       }
-                      disabled={savingTaskId === task.id}
+                      disabled={savingTaskId === task.id || deletingTaskId === task.id}
                     >
                       <option value="">None</option>
                       {tasks
@@ -543,7 +575,7 @@ function TasksPage({
                       onChange={(event) =>
                         onDraftChange(task.id, "dependsOnTaskId", event.target.value)
                       }
-                      disabled={savingTaskId === task.id}
+                      disabled={savingTaskId === task.id || deletingTaskId === task.id}
                     >
                       <option value="">None</option>
                       {tasks
@@ -558,14 +590,24 @@ function TasksPage({
                         ))}
                     </select>
                   </div>
-                  <button
-                    type="button"
-                    className="secondary-btn relationship-save-btn"
-                    onClick={() => onSaveRelationships(task.id)}
-                    disabled={savingTaskId === task.id}
-                  >
-                    {savingTaskId === task.id ? "Saving links..." : "Save links"}
-                  </button>
+                  <div className="task-card-actions">
+                    <button
+                      type="button"
+                      className="secondary-btn relationship-save-btn"
+                      onClick={() => onSaveRelationships(task.id)}
+                      disabled={savingTaskId === task.id || deletingTaskId === task.id}
+                    >
+                      {savingTaskId === task.id ? "Saving links..." : "Save links"}
+                    </button>
+                    <button
+                      type="button"
+                      className="danger-btn"
+                      onClick={() => onDeleteTask(task.id, task.name)}
+                      disabled={savingTaskId === task.id || deletingTaskId === task.id}
+                    >
+                      {deletingTaskId === task.id ? "Deleting..." : "Delete task"}
+                    </button>
+                  </div>
                 </div>
               </li>
             ))}
@@ -581,8 +623,10 @@ function AgentRunnerPage({
   agentRunners,
   isLoadingRunners,
   runnerError,
+  deletingRunnerId,
   runnerCountLabel,
   onRefreshRunners,
+  onDeleteRunner,
 }) {
   const readyRunnerCount = useMemo(() => {
     return agentRunners.filter((runner) => normalizeRunnerStatus(runner.status) === "ready")
@@ -659,6 +703,16 @@ function AgentRunnerPage({
                     <p className="runner-last-seen">
                       Last health check: <em>{formatTimestamp(runner.lastHealthCheckAt)}</em>
                     </p>
+                    <div className="runner-card-actions">
+                      <button
+                        type="button"
+                        className="danger-btn"
+                        onClick={() => onDeleteRunner(runner.id)}
+                        disabled={deletingRunnerId === runner.id}
+                      >
+                        {deletingRunnerId === runner.id ? "Deleting..." : "Delete runner"}
+                      </button>
+                    </div>
                   </li>
                 );
               })}
@@ -677,6 +731,7 @@ function App() {
   const [selectedCompanyId, setSelectedCompanyId] = useState(() => getPersistedCompanyId());
   const [newCompanyName, setNewCompanyName] = useState("");
   const [isCreatingCompany, setIsCreatingCompany] = useState(false);
+  const [isDeletingCompany, setIsDeletingCompany] = useState(false);
   const [tasks, setTasks] = useState([]);
   const [agentRunners, setAgentRunners] = useState([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
@@ -685,6 +740,8 @@ function App() {
   const [runnerError, setRunnerError] = useState("");
   const [isSubmittingTask, setIsSubmittingTask] = useState(false);
   const [savingTaskId, setSavingTaskId] = useState(null);
+  const [deletingTaskId, setDeletingTaskId] = useState(null);
+  const [deletingRunnerId, setDeletingRunnerId] = useState(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [parentTaskId, setParentTaskId] = useState("");
@@ -833,6 +890,41 @@ function App() {
     }
   }
 
+  async function handleDeleteCompany() {
+    if (!selectedCompany) {
+      setCompanyError("Select a company before deleting.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete company "${selectedCompany.name}"? This will also delete all tasks and agent runners in that company.`,
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setIsDeletingCompany(true);
+      setCompanyError("");
+      const data = await executeGraphQL(DELETE_COMPANY_MUTATION, {
+        id: selectedCompany.id,
+      });
+      const result = data.deleteCompany;
+      if (!result.ok) {
+        throw new Error(result.error || "Company deletion failed.");
+      }
+
+      setTasks([]);
+      setRelationshipDrafts({});
+      setAgentRunners([]);
+      await loadCompanies();
+    } catch (deleteError) {
+      setCompanyError(deleteError.message);
+    } finally {
+      setIsDeletingCompany(false);
+    }
+  }
+
   async function handleCreateTask(event) {
     event.preventDefault();
     if (!selectedCompanyId) {
@@ -872,6 +964,36 @@ function App() {
     }
   }
 
+  async function handleDeleteTask(taskId, taskName) {
+    if (!selectedCompanyId) {
+      setTaskError("Select a company before deleting tasks.");
+      return;
+    }
+
+    const confirmed = window.confirm(`Delete task "${taskName}" (#${taskId})?`);
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setDeletingTaskId(taskId);
+      setTaskError("");
+      const data = await executeGraphQL(DELETE_TASK_MUTATION, {
+        companyId: selectedCompanyId,
+        id: taskId,
+      });
+      const result = data.deleteTask;
+      if (!result.ok) {
+        throw new Error(result.error || "Task deletion failed.");
+      }
+      await loadTasks();
+    } catch (deleteError) {
+      setTaskError(deleteError.message);
+    } finally {
+      setDeletingTaskId(null);
+    }
+  }
+
   async function handleRelationshipSave(taskId) {
     if (!selectedCompanyId) {
       setTaskError("Select a company before updating tasks.");
@@ -903,6 +1025,36 @@ function App() {
       setTaskError(updateError.message);
     } finally {
       setSavingTaskId(null);
+    }
+  }
+
+  async function handleDeleteRunner(runnerId) {
+    if (!selectedCompanyId) {
+      setRunnerError("Select a company before deleting runners.");
+      return;
+    }
+
+    const confirmed = window.confirm(`Delete runner ${runnerId}?`);
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setDeletingRunnerId(runnerId);
+      setRunnerError("");
+      const data = await executeGraphQL(DELETE_AGENT_RUNNER_MUTATION, {
+        companyId: selectedCompanyId,
+        id: runnerId,
+      });
+      const result = data.deleteAgentRunner;
+      if (!result.ok) {
+        throw new Error(result.error || "Runner deletion failed.");
+      }
+      await loadAgentRunners();
+    } catch (deleteError) {
+      setRunnerError(deleteError.message);
+    } finally {
+      setDeletingRunnerId(null);
     }
   }
 
@@ -1025,6 +1177,16 @@ function App() {
             </button>
           </form>
 
+          <button
+            type="button"
+            className="danger-btn side-danger-btn"
+            onClick={handleDeleteCompany}
+            disabled={!selectedCompany || isDeletingCompany || isLoadingCompanies}
+          >
+            {isDeletingCompany ? "Deleting..." : "Delete active company"}
+          </button>
+          <p className="side-hint">Deleting a company cascades to its tasks and runners.</p>
+
           {companyError ? <p className="side-error">{companyError}</p> : null}
         </section>
 
@@ -1061,6 +1223,7 @@ function App() {
             taskError={taskError}
             isSubmittingTask={isSubmittingTask}
             savingTaskId={savingTaskId}
+            deletingTaskId={deletingTaskId}
             name={name}
             description={description}
             parentTaskId={parentTaskId}
@@ -1075,6 +1238,7 @@ function App() {
             onRefreshTasks={loadTasks}
             onDraftChange={handleDraftChange}
             onSaveRelationships={handleRelationshipSave}
+            onDeleteTask={handleDeleteTask}
             renderTaskLink={renderTaskLink}
           />
         ) : null}
@@ -1085,8 +1249,10 @@ function App() {
             agentRunners={agentRunners}
             isLoadingRunners={isLoadingRunners}
             runnerError={runnerError}
+            deletingRunnerId={deletingRunnerId}
             runnerCountLabel={runnerCountLabel}
             onRefreshRunners={() => loadAgentRunners()}
+            onDeleteRunner={handleDeleteRunner}
           />
         ) : null}
       </main>
