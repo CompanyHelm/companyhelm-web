@@ -465,6 +465,20 @@ h2 {
   font-size: 0.82rem;
 }
 
+.icon-create-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border-radius: 999px;
+  background: var(--action);
+  color: var(--action-ink);
+  font-size: 1.18rem;
+  line-height: 1;
+}
+
 .task-form {
   display: grid;
   gap: 0.55rem;
@@ -479,7 +493,10 @@ h2 {
 .task-form textarea,
 .task-form select,
 .relationship-editor select,
-.agent-edit-grid input {
+.agent-edit-grid input,
+.agent-edit-grid select,
+.skill-edit-grid input,
+.skill-edit-grid textarea {
   width: 100%;
   border-radius: 11px;
   border: 1px solid rgba(26, 32, 38, 0.24);
@@ -494,7 +511,10 @@ h2 {
 .task-form textarea:focus,
 .task-form select:focus,
 .relationship-editor select:focus,
-.agent-edit-grid input:focus {
+.agent-edit-grid input:focus,
+.agent-edit-grid select:focus,
+.skill-edit-grid input:focus,
+.skill-edit-grid textarea:focus {
   outline: none;
   border-color: var(--action);
   box-shadow: 0 0 0 4px var(--ring);
@@ -558,6 +578,47 @@ button:disabled {
 .empty-hint {
   margin: 0;
   color: var(--ink-1);
+}
+
+.empty-state {
+  display: grid;
+  gap: 0.62rem;
+  justify-items: start;
+}
+
+.empty-create-btn {
+  font-size: 0.82rem;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.05rem;
+  background: rgba(12, 16, 20, 0.42);
+  backdrop-filter: blur(3px);
+}
+
+.modal-card {
+  width: min(620px, 100%);
+  max-height: calc(100vh - 2.1rem);
+  overflow-y: auto;
+}
+
+.modal-header {
+  align-items: flex-start;
+}
+
+.modal-description {
+  margin-top: 0.32rem;
+  font-size: 0.9rem;
+}
+
+.modal-close-btn {
+  flex-shrink: 0;
 }
 
 .compact-list,
@@ -655,6 +716,13 @@ button:disabled {
   align-items: center;
 }
 
+.skill-edit-grid {
+  display: grid;
+  grid-template-columns: minmax(90px, auto) 1fr;
+  gap: 0.45rem 0.64rem;
+  align-items: start;
+}
+
 .relationship-field {
   font-family: "IBM Plex Mono", monospace;
   font-size: 0.74rem;
@@ -663,6 +731,10 @@ button:disabled {
 
 .relationship-save-btn {
   justify-self: start;
+}
+
+.multi-select-input {
+  min-height: 6.8rem;
 }
 
 .task-card-actions,
@@ -714,6 +786,31 @@ button:disabled {
   font-size: 0.8rem;
 }
 
+.runner-cli-block {
+  margin-top: 0.72rem;
+  padding-top: 0.72rem;
+  border-top: 1px dashed rgba(26, 32, 38, 0.14);
+  display: grid;
+  gap: 0.45rem;
+}
+
+.runner-secret-input {
+  width: 100%;
+  border-radius: 11px;
+  border: 1px solid rgba(26, 32, 38, 0.24);
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--ink-0);
+  padding: 0.62rem 0.72rem;
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+
+.runner-secret-input:focus {
+  outline: none;
+  border-color: var(--action);
+  box-shadow: 0 0 0 4px var(--ring);
+}
+
 .runner-command-panel {
   display: grid;
   gap: 0.45rem;
@@ -735,6 +832,16 @@ button:disabled {
   font-family: "IBM Plex Mono", monospace;
   font-size: 0.79rem;
   line-height: 1.45;
+}
+
+.runner-command-inline {
+  margin: 0;
+}
+
+.runner-command-hint {
+  margin: 0;
+  color: var(--ink-1);
+  font-size: 0.8rem;
 }
 
 @keyframes lift-in {
@@ -815,11 +922,28 @@ button:disabled {
     align-items: flex-start;
   }
 
+  .task-meta {
+    flex-wrap: wrap;
+  }
+
   .relationship-grid {
     grid-template-columns: 1fr;
   }
 
   .agent-edit-grid {
     grid-template-columns: 1fr;
+  }
+
+  .skill-edit-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-overlay {
+    padding: 0.7rem;
+    align-items: flex-end;
+  }
+
+  .modal-card {
+    max-height: calc(100vh - 1.4rem);
   }
 }

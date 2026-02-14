@@ -4,7 +4,6 @@ const GRAPHQL_URL = import.meta.env.VITE_GRAPHQL_URL || "/graphql";
 const SELECTED_COMPANY_STORAGE_KEY = "companyhelm.selectedCompanyId";
 const DEFAULT_RUNNER_GRPC_TARGET =
   import.meta.env.VITE_AGENT_RUNNER_GRPC_TARGET || "localhost:50051";
-const DEFAULT_RUNNER_LAUNCH_COMMAND = `agent-runner --backend-grpc-target ${DEFAULT_RUNNER_GRPC_TARGET}`;
 
 const LIST_COMPANIES_QUERY = `
   query ListCompanies {
@@ -57,6 +56,7 @@ const LIST_AGENT_RUNNERS_QUERY = `
       id
       companyId
       callbackUrl
+      hasAuthSecret
       status
       lastHealthCheckAt
       lastSeenAt
@@ -85,6 +85,7 @@ const CREATE_AGENT_RUNNER_MUTATION = `
         id
         companyId
         callbackUrl
+        hasAuthSecret
         status
         lastHealthCheckAt
         lastSeenAt
@@ -99,10 +100,23 @@ const LIST_AGENTS_QUERY = `
       id
       companyId
       agentRunnerId
+      skillIds
       name
       agentSdk
       model
       modelReasoningLevel
+    }
+  }
+`;
+
+const LIST_SKILLS_QUERY = `
+  query ListSkills($companyId: String!) {
+    skills(companyId: $companyId) {
+      id
+      companyId
+      name
+      description
+      instructions
     }
   }
 `;
@@ -187,6 +201,7 @@ const CREATE_AGENT_MUTATION = `
   mutation CreateAgent(
     $companyId: String!
     $agentRunnerId: String
+    $skillIds: [String!]
     $name: String!
     $agentSdk: String!
     $model: String!
@@ -195,6 +210,7 @@ const CREATE_AGENT_MUTATION = `
     createAgent(
       companyId: $companyId
       agentRunnerId: $agentRunnerId
+      skillIds: $skillIds
       name: $name
       agentSdk: $agentSdk
       model: $model
@@ -206,6 +222,7 @@ const CREATE_AGENT_MUTATION = `
         id
         companyId
         agentRunnerId
+        skillIds
         name
         agentSdk
         model
@@ -220,6 +237,7 @@ const UPDATE_AGENT_MUTATION = `
     $companyId: String!
     $id: String!
     $agentRunnerId: String
+    $skillIds: [String!]
     $name: String!
     $agentSdk: String!
     $model: String!
@@ -229,6 +247,7 @@ const UPDATE_AGENT_MUTATION = `
       companyId: $companyId
       id: $id
       agentRunnerId: $agentRunnerId
+      skillIds: $skillIds
       name: $name
       agentSdk: $agentSdk
       model: $model
@@ -240,6 +259,7 @@ const UPDATE_AGENT_MUTATION = `
         id
         companyId
         agentRunnerId
+        skillIds
         name
         agentSdk
         model
@@ -255,6 +275,70 @@ const DELETE_AGENT_MUTATION = `
       ok
       error
       deletedAgentId
+    }
+  }
+`;
+
+const CREATE_SKILL_MUTATION = `
+  mutation CreateSkill(
+    $companyId: String!
+    $name: String!
+    $description: String!
+    $instructions: String!
+  ) {
+    createSkill(
+      companyId: $companyId
+      name: $name
+      description: $description
+      instructions: $instructions
+    ) {
+      ok
+      error
+      skill {
+        id
+        companyId
+        name
+        description
+        instructions
+      }
+    }
+  }
+`;
+
+const UPDATE_SKILL_MUTATION = `
+  mutation UpdateSkill(
+    $companyId: String!
+    $id: String!
+    $name: String!
+    $description: String!
+    $instructions: String!
+  ) {
+    updateSkill(
+      companyId: $companyId
+      id: $id
+      name: $name
+      description: $description
+      instructions: $instructions
+    ) {
+      ok
+      error
+      skill {
+        id
+        companyId
+        name
+        description
+        instructions
+      }
+    }
+  }
+`;
+
+const DELETE_SKILL_MUTATION = `
+  mutation DeleteSkill($companyId: String!, $id: String!) {
+    deleteSkill(companyId: $companyId, id: $id) {
+      ok
+      error
+      deletedSkillId
     }
   }
 `;
@@ -280,6 +364,7 @@ const PRIMARY_NAV_ITEMS = [
     requiresCompany: true,
   },
   { id: "tasks", label: "Tasks", href: "#tasks", tone: "sand", requiresCompany: true },
+  { id: "skills", label: "Skills", href: "#skills", tone: "sand", requiresCompany: true },
   {
     id: "agent-runner",
     label: "Agent Runner",
@@ -326,6 +411,10 @@ function toSelectValue(value) {
   return String(value);
 }
 
+function getSelectedMultiValues(selectElement) {
+  return Array.from(selectElement.selectedOptions, (option) => option.value);
+}
+
 function getPageFromHash() {
   const parsed = window.location.hash.replace("#", "").toLowerCase();
   if (PAGE_IDS.has(parsed)) {
@@ -368,10 +457,22 @@ function createAgentDrafts(agents) {
   return agents.reduce((drafts, agent) => {
     drafts[agent.id] = {
       agentRunnerId: agent.agentRunnerId || "",
+      skillIds: [...(agent.skillIds || [])],
       name: agent.name || "",
       agentSdk: agent.agentSdk || "",
       model: agent.model || "",
       modelReasoningLevel: agent.modelReasoningLevel || "",
+    };
+    return drafts;
+  }, {});
+}
+
+function createSkillDrafts(skills) {
+  return skills.reduce((drafts, skill) => {
+    drafts[skill.id] = {
+      name: skill.name || "",
+      description: skill.description || "",
+      instructions: skill.instructions || "",
     };
     return drafts;
   }, {});
@@ -408,6 +509,27 @@ function formatTimestamp(value) {
     return value;
   }
   return parsedDate.toLocaleString();
+}
+
+function quoteShellArg(value) {
+  const normalizedValue = String(value ?? "");
+  if (/^[A-Za-z0-9_./:-]+$/.test(normalizedValue)) {
+    return normalizedValue;
+  }
+  return `'${normalizedValue.replace(/'/g, `'\"'\"'`)}'`;
+}
+
+function buildRunnerStartCommand({
+  backendGrpcTarget,
+  runnerSecret,
+}) {
+  return [
+    "agent-runner",
+    "--backend-grpc-target",
+    quoteShellArg(backendGrpcTarget),
+    "--runner-secret",
+    quoteShellArg(runnerSecret),
+  ].join(" ");
 }
 
 async function executeGraphQL(query, variables) {
@@ -961,12 +1083,14 @@ function AgentRunnerPage({
   runnerIdDraft,
   runnerCallbackUrlDraft,
   runnerSecretDraft,
-  runnerLaunchCommand,
+  runnerGrpcTarget,
+  runnerSecretsById,
   deletingRunnerId,
   runnerCountLabel,
   onRunnerIdChange,
   onRunnerCallbackUrlChange,
   onRunnerSecretChange,
+  onRunnerCommandSecretChange,
   onCreateRunner,
   onRefreshRunners,
   onDeleteRunner,
@@ -1000,19 +1124,7 @@ function AgentRunnerPage({
         <p className="context-pill">Company: {selectedCompanyId}</p>
       </section>
 
-      <section className="panel runner-command-panel">
-        <header className="panel-header">
-          <h2>Runner start command</h2>
-        </header>
-        <p className="subcopy">
-          Run this one-liner on the machine where the `agent-runner` binary is installed.
-        </p>
-        <pre className="runner-command">
-          <code>{runnerLaunchCommand}</code>
-        </pre>
-      </section>
-
-      <section className="runner-summary-grid">
+      <section className="dashboard-grid">
         <article className="panel stat-panel">
           <p className="stat-label">Registered</p>
           <p className="stat-value">{agentRunners.length}</p>
@@ -1070,6 +1182,11 @@ function AgentRunnerPage({
               .sort((a, b) => toSortableTimestamp(b.lastSeenAt) - toSortableTimestamp(a.lastSeenAt))
               .map((runner) => {
                 const runnerStatus = normalizeRunnerStatus(runner.status);
+                const runnerSecret = runnerSecretsById[runner.id] || "";
+                const runnerCommand = buildRunnerStartCommand({
+                  backendGrpcTarget: runnerGrpcTarget,
+                  runnerSecret: runnerSecret || "<RUNNER_SECRET>",
+                });
                 return (
                   <li key={runner.id} className="runner-card">
                     <div className="runner-card-top">
@@ -1087,6 +1204,35 @@ function AgentRunnerPage({
                     <p className="runner-last-seen">
                       Last health check: <em>{formatTimestamp(runner.lastHealthCheckAt)}</em>
                     </p>
+                    <div className="runner-cli-block">
+                      <label
+                        className="relationship-field"
+                        htmlFor={`runner-secret-command-${runner.id}`}
+                      >
+                        Runner secret for CLI
+                      </label>
+                      <input
+                        id={`runner-secret-command-${runner.id}`}
+                        className="runner-secret-input"
+                        type="text"
+                        value={runnerSecret}
+                        onChange={(event) =>
+                          onRunnerCommandSecretChange(runner.id, event.target.value)
+                        }
+                        placeholder="Paste runner secret to complete command"
+                        autoComplete="off"
+                        spellCheck={false}
+                      />
+                      <pre className="runner-command runner-command-inline">
+                        <code>{runnerCommand}</code>
+                      </pre>
+                      {!runnerSecret ? (
+                        <p className="runner-command-hint">
+                          Secret is only shown at provisioning time. Paste it here to run this
+                          command.
+                        </p>
+                      ) : null}
+                    </div>
                     <div className="runner-card-actions">
                       <button
                         type="button"
@@ -1152,6 +1298,7 @@ function AgentRunnerPage({
 function AgentsPage({
   selectedCompanyId,
   agents,
+  skills,
   agentRunners,
   agentRunnerLookup,
   isLoadingAgents,
@@ -1162,6 +1309,7 @@ function AgentsPage({
   initializingAgentId,
   canInitializeAgents,
   agentRunnerId,
+  agentSkillIds,
   agentName,
   agentSdk,
   agentModel,
@@ -1169,6 +1317,7 @@ function AgentsPage({
   agentDrafts,
   agentCountLabel,
   onAgentRunnerChange,
+  onAgentSkillIdsChange,
   onAgentNameChange,
   onAgentSdkChange,
   onAgentModelChange,
@@ -1181,6 +1330,12 @@ function AgentsPage({
   onDeleteAgent,
 }) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const skillLookup = useMemo(() => {
+    return skills.reduce((map, skill) => {
+      map.set(skill.id, skill);
+      return map;
+    }, new Map());
+  }, [skills]);
 
   async function handleCreateAgentSubmit(event) {
     const didCreate = await onCreateAgent(event);
@@ -1247,6 +1402,12 @@ function AgentsPage({
               const assignedRunnerLabel = assignedRunner
                 ? formatRunnerLabel(assignedRunner)
                 : "Unassigned";
+              const assignedSkillLabels = (agent.skillIds || []).map((skillId) => {
+                const skill = skillLookup.get(skillId);
+                return skill ? skill.name : skillId;
+              });
+              const assignedSkillSummary =
+                assignedSkillLabels.length > 0 ? assignedSkillLabels.join(", ") : "none";
 
               return (
                 <li key={agent.id} className="task-card">
@@ -1260,6 +1421,9 @@ function AgentsPage({
                   </p>
                   <p className="agent-subcopy">
                     Runner: <strong>{assignedRunnerLabel}</strong>
+                  </p>
+                  <p className="agent-subcopy">
+                    Skills: <strong>{assignedSkillSummary}</strong>
                   </p>
 
                   <div className="relationship-editor">
@@ -1330,6 +1494,31 @@ function AgentsPage({
                         }
                         disabled={savingAgentId === agent.id || deletingAgentId === agent.id}
                       />
+
+                      <label className="relationship-field" htmlFor={`agent-skills-${agent.id}`}>
+                        Skills
+                      </label>
+                      <select
+                        id={`agent-skills-${agent.id}`}
+                        className="multi-select-input"
+                        multiple
+                        size={Math.min(6, Math.max(3, skills.length || 3))}
+                        value={agentDrafts[agent.id]?.skillIds ?? []}
+                        onChange={(event) =>
+                          onAgentDraftChange(
+                            agent.id,
+                            "skillIds",
+                            getSelectedMultiValues(event.target),
+                          )
+                        }
+                        disabled={savingAgentId === agent.id || deletingAgentId === agent.id}
+                      >
+                        {skills.map((skill) => (
+                          <option key={`agent-skill-option-${agent.id}-${skill.id}`} value={skill.id}>
+                            {skill.name}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                     <div className="task-card-actions">
                       <button
@@ -1401,6 +1590,23 @@ function AgentsPage({
             ))}
           </select>
 
+          <label htmlFor="agent-skill-ids">Assigned skills (optional)</label>
+          <select
+            id="agent-skill-ids"
+            className="multi-select-input"
+            name="skillIds"
+            multiple
+            size={Math.min(6, Math.max(3, skills.length || 3))}
+            value={agentSkillIds}
+            onChange={(event) => onAgentSkillIdsChange(getSelectedMultiValues(event.target))}
+          >
+            {skills.map((skill) => (
+              <option key={`create-agent-skill-${skill.id}`} value={skill.id}>
+                {skill.name}
+              </option>
+            ))}
+          </select>
+
           <label htmlFor="agent-name">Name</label>
           <input
             id="agent-name"
@@ -1444,6 +1650,213 @@ function AgentsPage({
 
           <button type="submit" disabled={isCreatingAgent}>
             {isCreatingAgent ? "Creating..." : "Create agent"}
+          </button>
+        </form>
+      </CreationModal>
+    </div>
+  );
+}
+
+function SkillsPage({
+  selectedCompanyId,
+  skills,
+  isLoadingSkills,
+  skillError,
+  isCreatingSkill,
+  savingSkillId,
+  deletingSkillId,
+  skillName,
+  skillDescription,
+  skillInstructions,
+  skillDrafts,
+  skillCountLabel,
+  onSkillNameChange,
+  onSkillDescriptionChange,
+  onSkillInstructionsChange,
+  onCreateSkill,
+  onRefreshSkills,
+  onSkillDraftChange,
+  onSaveSkill,
+  onDeleteSkill,
+}) {
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  async function handleCreateSkillSubmit(event) {
+    const didCreate = await onCreateSkill(event);
+    if (didCreate) {
+      setIsCreateModalOpen(false);
+    }
+  }
+
+  return (
+    <div className="page-stack">
+      <section className="panel hero-panel">
+        <p className="eyebrow">Skill Library</p>
+        <h1>Skills page</h1>
+        <p className="subcopy">
+          Capture reusable skills with clear descriptions and detailed instructions.
+        </p>
+        <p className="context-pill">Company: {selectedCompanyId}</p>
+      </section>
+
+      <section className="panel list-panel">
+        <header className="panel-header panel-header-row">
+          <h2>Skills</h2>
+          <div className="task-meta">
+            <span>{skillCountLabel}</span>
+            <button type="button" className="secondary-btn" onClick={onRefreshSkills}>
+              Refresh
+            </button>
+            <button
+              type="button"
+              className="icon-create-btn"
+              aria-label="Create skill"
+              title="Create skill"
+              onClick={() => setIsCreateModalOpen(true)}
+            >
+              +
+            </button>
+          </div>
+        </header>
+
+        {skillError ? <p className="error-banner">{skillError}</p> : null}
+        {isLoadingSkills ? <p className="empty-hint">Loading skills...</p> : null}
+        {!isLoadingSkills && skills.length === 0 ? (
+          <div className="empty-state">
+            <p className="empty-hint">No skills created for this company yet.</p>
+            <button
+              type="button"
+              className="secondary-btn empty-create-btn"
+              onClick={() => setIsCreateModalOpen(true)}
+            >
+              + Create skill
+            </button>
+          </div>
+        ) : null}
+
+        {skills.length > 0 ? (
+          <ul className="task-list">
+            {skills.map((skill) => (
+              <li key={skill.id} className="task-card">
+                <div className="task-card-top">
+                  <strong>{skill.name}</strong>
+                  <code className="runner-id">{skill.id}</code>
+                </div>
+                <p className="agent-subcopy">{skill.description}</p>
+                <div className="relationship-editor">
+                  <div className="skill-edit-grid">
+                    <label className="relationship-field" htmlFor={`skill-name-${skill.id}`}>
+                      Name
+                    </label>
+                    <input
+                      id={`skill-name-${skill.id}`}
+                      value={skillDrafts[skill.id]?.name ?? ""}
+                      onChange={(event) =>
+                        onSkillDraftChange(skill.id, "name", event.target.value)
+                      }
+                      disabled={savingSkillId === skill.id || deletingSkillId === skill.id}
+                    />
+
+                    <label
+                      className="relationship-field"
+                      htmlFor={`skill-description-${skill.id}`}
+                    >
+                      Description
+                    </label>
+                    <textarea
+                      id={`skill-description-${skill.id}`}
+                      rows={2}
+                      value={skillDrafts[skill.id]?.description ?? ""}
+                      onChange={(event) =>
+                        onSkillDraftChange(skill.id, "description", event.target.value)
+                      }
+                      disabled={savingSkillId === skill.id || deletingSkillId === skill.id}
+                    />
+
+                    <label
+                      className="relationship-field"
+                      htmlFor={`skill-instructions-${skill.id}`}
+                    >
+                      Instructions
+                    </label>
+                    <textarea
+                      id={`skill-instructions-${skill.id}`}
+                      rows={4}
+                      value={skillDrafts[skill.id]?.instructions ?? ""}
+                      onChange={(event) =>
+                        onSkillDraftChange(skill.id, "instructions", event.target.value)
+                      }
+                      disabled={savingSkillId === skill.id || deletingSkillId === skill.id}
+                    />
+                  </div>
+                  <div className="task-card-actions">
+                    <button
+                      type="button"
+                      className="secondary-btn relationship-save-btn"
+                      onClick={() => onSaveSkill(skill.id)}
+                      disabled={savingSkillId === skill.id || deletingSkillId === skill.id}
+                    >
+                      {savingSkillId === skill.id ? "Saving..." : "Save"}
+                    </button>
+                    <button
+                      type="button"
+                      className="danger-btn"
+                      onClick={() => onDeleteSkill(skill.id, skill.name)}
+                      disabled={savingSkillId === skill.id || deletingSkillId === skill.id}
+                    >
+                      {deletingSkillId === skill.id ? "Deleting..." : "Delete"}
+                    </button>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </section>
+
+      <CreationModal
+        modalId="create-skill-modal"
+        title="Create skill"
+        description="Add a reusable skill for the active company."
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+      >
+        <form className="task-form" onSubmit={handleCreateSkillSubmit}>
+          <label htmlFor="skill-name">Name</label>
+          <input
+            id="skill-name"
+            name="name"
+            placeholder="e.g. Sprint Planning"
+            value={skillName}
+            onChange={(event) => onSkillNameChange(event.target.value)}
+            required
+            autoFocus
+          />
+
+          <label htmlFor="skill-description">Description</label>
+          <textarea
+            id="skill-description"
+            name="description"
+            rows={2}
+            placeholder="One sentence summary..."
+            value={skillDescription}
+            onChange={(event) => onSkillDescriptionChange(event.target.value)}
+            required
+          />
+
+          <label htmlFor="skill-instructions">Instructions</label>
+          <textarea
+            id="skill-instructions"
+            name="instructions"
+            rows={5}
+            placeholder="Detailed instructions..."
+            value={skillInstructions}
+            onChange={(event) => onSkillInstructionsChange(event.target.value)}
+            required
+          />
+
+          <button type="submit" disabled={isCreatingSkill}>
+            {isCreatingSkill ? "Creating..." : "Create skill"}
           </button>
         </form>
       </CreationModal>
@@ -1502,7 +1915,7 @@ function SettingsPage({
             <h2>Danger zone</h2>
           </header>
           <p className="subcopy">
-            Delete the currently selected company and all of its tasks, agents, and runners.
+            Delete the currently selected company and all of its tasks, skills, agents, and runners.
           </p>
           <div className="hero-actions">
             <button
@@ -1522,7 +1935,7 @@ function SettingsPage({
   );
 }
 
-function ProfilePage({ selectedCompany, tasks, agents, agentRunners }) {
+function ProfilePage({ selectedCompany, tasks, skills, agents, agentRunners }) {
   return (
     <div className="page-stack">
       <section className="panel hero-panel">
@@ -1539,6 +1952,10 @@ function ProfilePage({ selectedCompany, tasks, agents, agentRunners }) {
         <article className="panel stat-panel">
           <p className="stat-label">Tasks</p>
           <p className="stat-value">{tasks.length}</p>
+        </article>
+        <article className="panel stat-panel">
+          <p className="stat-label">Skills</p>
+          <p className="stat-value">{skills.length}</p>
         </article>
         <article className="panel stat-panel">
           <p className="stat-label">Agents</p>
@@ -1563,23 +1980,29 @@ function App() {
   const [isCreatingCompany, setIsCreatingCompany] = useState(false);
   const [isDeletingCompany, setIsDeletingCompany] = useState(false);
   const [tasks, setTasks] = useState([]);
+  const [skills, setSkills] = useState([]);
   const [agentRunners, setAgentRunners] = useState([]);
   const [agents, setAgents] = useState([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
+  const [isLoadingSkills, setIsLoadingSkills] = useState(false);
   const [isLoadingRunners, setIsLoadingRunners] = useState(false);
   const [isLoadingAgents, setIsLoadingAgents] = useState(false);
   const [taskError, setTaskError] = useState("");
+  const [skillError, setSkillError] = useState("");
   const [runnerError, setRunnerError] = useState("");
   const [agentError, setAgentError] = useState("");
   const [isSubmittingTask, setIsSubmittingTask] = useState(false);
+  const [isCreatingSkill, setIsCreatingSkill] = useState(false);
   const [savingTaskId, setSavingTaskId] = useState(null);
+  const [savingSkillId, setSavingSkillId] = useState(null);
   const [deletingTaskId, setDeletingTaskId] = useState(null);
+  const [deletingSkillId, setDeletingSkillId] = useState(null);
   const [deletingRunnerId, setDeletingRunnerId] = useState(null);
   const [isCreatingRunner, setIsCreatingRunner] = useState(false);
   const [runnerIdDraft, setRunnerIdDraft] = useState("");
   const [runnerCallbackUrlDraft, setRunnerCallbackUrlDraft] = useState("");
   const [runnerSecretDraft, setRunnerSecretDraft] = useState("");
-  const [latestRunnerLaunchCommand, setLatestRunnerLaunchCommand] = useState("");
+  const [runnerSecretsById, setRunnerSecretsById] = useState({});
   const [isCreatingAgent, setIsCreatingAgent] = useState(false);
   const [savingAgentId, setSavingAgentId] = useState(null);
   const [deletingAgentId, setDeletingAgentId] = useState(null);
@@ -1589,14 +2012,18 @@ function App() {
   const [parentTaskId, setParentTaskId] = useState("");
   const [dependsOnTaskId, setDependsOnTaskId] = useState("");
   const [relationshipDrafts, setRelationshipDrafts] = useState({});
+  const [skillName, setSkillName] = useState("");
+  const [skillDescription, setSkillDescription] = useState("");
+  const [skillInstructions, setSkillInstructions] = useState("");
+  const [skillDrafts, setSkillDrafts] = useState({});
   const [agentName, setAgentName] = useState("");
   const [agentRunnerId, setAgentRunnerId] = useState("");
+  const [agentSkillIds, setAgentSkillIds] = useState([]);
   const [agentSdk, setAgentSdk] = useState("");
   const [agentModel, setAgentModel] = useState("");
   const [agentModelReasoningLevel, setAgentModelReasoningLevel] = useState("");
   const [agentDrafts, setAgentDrafts] = useState({});
   const hasCompanies = companies.length > 0;
-  const runnerLaunchCommand = latestRunnerLaunchCommand || DEFAULT_RUNNER_LAUNCH_COMMAND;
 
   const selectedCompany = useMemo(() => {
     return companies.find((company) => company.id === selectedCompanyId) || null;
@@ -1653,6 +2080,29 @@ function App() {
     }
   }, [selectedCompanyId]);
 
+  const loadSkills = useCallback(async () => {
+    if (!selectedCompanyId) {
+      setSkillError("");
+      setSkills([]);
+      setSkillDrafts({});
+      setIsLoadingSkills(false);
+      return;
+    }
+
+    try {
+      setSkillError("");
+      setIsLoadingSkills(true);
+      const data = await executeGraphQL(LIST_SKILLS_QUERY, { companyId: selectedCompanyId });
+      const nextSkills = data.skills || [];
+      setSkills(nextSkills);
+      setSkillDrafts(createSkillDrafts(nextSkills));
+    } catch (loadError) {
+      setSkillError(loadError.message);
+    } finally {
+      setIsLoadingSkills(false);
+    }
+  }, [selectedCompanyId]);
+
   const loadAgentRunners = useCallback(async ({ silently = false } = {}) => {
     if (!selectedCompanyId) {
       setAgentRunners([]);
@@ -1689,6 +2139,7 @@ function App() {
       setAgents([]);
       setAgentDrafts({});
       setAgentRunnerId("");
+      setAgentSkillIds([]);
       setIsLoadingAgents(false);
       return;
     }
@@ -1717,17 +2168,22 @@ function App() {
 
   useEffect(() => {
     setAgentRunnerId("");
+    setAgentSkillIds([]);
     setRunnerIdDraft("");
     setRunnerCallbackUrlDraft("");
     setRunnerSecretDraft("");
-    setLatestRunnerLaunchCommand("");
+    setRunnerSecretsById({});
+    setSkillName("");
+    setSkillDescription("");
+    setSkillInstructions("");
   }, [selectedCompanyId]);
 
   useEffect(() => {
     loadTasks();
+    loadSkills();
     loadAgentRunners();
     loadAgents();
-  }, [loadAgentRunners, loadAgents, loadTasks, selectedCompanyId]);
+  }, [loadAgentRunners, loadAgents, loadSkills, loadTasks, selectedCompanyId]);
 
   useEffect(() => {
     if (!window.location.hash) {
@@ -1797,7 +2253,7 @@ function App() {
     }
 
     const confirmed = window.confirm(
-      `Delete company "${selectedCompany.name}"? This will also delete all tasks, agents, and agent runners in that company.`,
+      `Delete company "${selectedCompany.name}"? This will also delete all tasks, skills, agents, and agent runners in that company.`,
     );
     if (!confirmed) {
       return;
@@ -1816,6 +2272,8 @@ function App() {
 
       setTasks([]);
       setRelationshipDrafts({});
+      setSkills([]);
+      setSkillDrafts({});
       setAgents([]);
       setAgentDrafts({});
       setAgentRunners([]);
@@ -1932,6 +2390,110 @@ function App() {
     }
   }
 
+  async function handleCreateSkill(event) {
+    event.preventDefault();
+    if (!selectedCompanyId) {
+      setSkillError("Select a company before creating skills.");
+      return false;
+    }
+    if (!skillName.trim() || !skillDescription.trim() || !skillInstructions.trim()) {
+      setSkillError("Skill name, description, and instructions are required.");
+      return false;
+    }
+
+    try {
+      setIsCreatingSkill(true);
+      setSkillError("");
+      const data = await executeGraphQL(CREATE_SKILL_MUTATION, {
+        companyId: selectedCompanyId,
+        name: skillName.trim(),
+        description: skillDescription.trim(),
+        instructions: skillInstructions.trim(),
+      });
+      const result = data.createSkill;
+      if (!result.ok) {
+        throw new Error(result.error || "Skill creation failed.");
+      }
+      setSkillName("");
+      setSkillDescription("");
+      setSkillInstructions("");
+      await loadSkills();
+      return true;
+    } catch (createError) {
+      setSkillError(createError.message);
+      return false;
+    } finally {
+      setIsCreatingSkill(false);
+    }
+  }
+
+  async function handleSaveSkill(skillId) {
+    if (!selectedCompanyId) {
+      setSkillError("Select a company before updating skills.");
+      return;
+    }
+    const draft = skillDrafts[skillId] || {
+      name: "",
+      description: "",
+      instructions: "",
+    };
+    if (!draft.name.trim() || !draft.description.trim() || !draft.instructions.trim()) {
+      setSkillError("Skill name, description, and instructions are required to save.");
+      return;
+    }
+
+    try {
+      setSavingSkillId(skillId);
+      setSkillError("");
+      const data = await executeGraphQL(UPDATE_SKILL_MUTATION, {
+        companyId: selectedCompanyId,
+        id: skillId,
+        name: draft.name.trim(),
+        description: draft.description.trim(),
+        instructions: draft.instructions.trim(),
+      });
+      const result = data.updateSkill;
+      if (!result.ok) {
+        throw new Error(result.error || "Skill update failed.");
+      }
+      await loadSkills();
+    } catch (updateError) {
+      setSkillError(updateError.message);
+    } finally {
+      setSavingSkillId(null);
+    }
+  }
+
+  async function handleDeleteSkill(skillId, skillDisplayName) {
+    if (!selectedCompanyId) {
+      setSkillError("Select a company before deleting skills.");
+      return;
+    }
+
+    const confirmed = window.confirm(`Delete skill "${skillDisplayName}"?`);
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setDeletingSkillId(skillId);
+      setSkillError("");
+      const data = await executeGraphQL(DELETE_SKILL_MUTATION, {
+        companyId: selectedCompanyId,
+        id: skillId,
+      });
+      const result = data.deleteSkill;
+      if (!result.ok) {
+        throw new Error(result.error || "Skill deletion failed.");
+      }
+      await loadSkills();
+    } catch (deleteError) {
+      setSkillError(deleteError.message);
+    } finally {
+      setDeletingSkillId(null);
+    }
+  }
+
   async function handleDeleteRunner(runnerId) {
     if (!selectedCompanyId) {
       setRunnerError("Select a company before deleting runners.");
@@ -1954,6 +2516,14 @@ function App() {
       if (!result.ok) {
         throw new Error(result.error || "Runner deletion failed.");
       }
+      setRunnerSecretsById((currentSecrets) => {
+        if (!(runnerId in currentSecrets)) {
+          return currentSecrets;
+        }
+        const nextSecrets = { ...currentSecrets };
+        delete nextSecrets[runnerId];
+        return nextSecrets;
+      });
       await loadAgentRunners();
     } catch (deleteError) {
       setRunnerError(deleteError.message);
@@ -1972,21 +2542,30 @@ function App() {
     try {
       setIsCreatingRunner(true);
       setRunnerError("");
+      const requestedRunnerSecret = runnerSecretDraft.trim();
       const data = await executeGraphQL(CREATE_AGENT_RUNNER_MUTATION, {
         companyId: selectedCompanyId,
         id: runnerIdDraft.trim() || null,
         callbackUrl: runnerCallbackUrlDraft.trim() || null,
-        authSecret: runnerSecretDraft.trim() || null,
+        authSecret: requestedRunnerSecret || null,
       });
       const result = data.createAgentRunner;
       if (!result.ok) {
         throw new Error(result.error || "Runner creation failed.");
       }
 
+      const createdRunnerId = result.agentRunner?.id;
+      const effectiveRunnerSecret = requestedRunnerSecret || result.provisionedAuthSecret || "";
+      if (createdRunnerId && effectiveRunnerSecret) {
+        setRunnerSecretsById((currentSecrets) => ({
+          ...currentSecrets,
+          [createdRunnerId]: effectiveRunnerSecret,
+        }));
+      }
+
       setRunnerIdDraft("");
       setRunnerCallbackUrlDraft("");
       setRunnerSecretDraft("");
-      setLatestRunnerLaunchCommand(result.runnerLaunchCommand || "");
       await loadAgentRunners();
       return true;
     } catch (createError) {
@@ -2018,6 +2597,7 @@ function App() {
       const data = await executeGraphQL(CREATE_AGENT_MUTATION, {
         companyId: selectedCompanyId,
         agentRunnerId: agentRunnerId || null,
+        skillIds: agentSkillIds,
         name: agentName.trim(),
         agentSdk: agentSdk.trim(),
         model: agentModel.trim(),
@@ -2029,6 +2609,7 @@ function App() {
       }
       setAgentName("");
       setAgentRunnerId("");
+      setAgentSkillIds([]);
       setAgentSdk("");
       setAgentModel("");
       setAgentModelReasoningLevel("");
@@ -2049,6 +2630,7 @@ function App() {
     }
     const draft = agentDrafts[agentId] || {
       agentRunnerId: "",
+      skillIds: [],
       name: "",
       agentSdk: "",
       model: "",
@@ -2071,6 +2653,7 @@ function App() {
         companyId: selectedCompanyId,
         id: agentId,
         agentRunnerId: draft.agentRunnerId || null,
+        skillIds: draft.skillIds || [],
         name: draft.name.trim(),
         agentSdk: draft.agentSdk.trim(),
         model: draft.model.trim(),
@@ -2180,12 +2763,23 @@ function App() {
     }));
   }
 
+  function handleSkillDraftChange(skillId, field, value) {
+    setSkillDrafts((currentDrafts) => ({
+      ...currentDrafts,
+      [skillId]: {
+        ...(currentDrafts[skillId] || { name: "", description: "", instructions: "" }),
+        [field]: value,
+      },
+    }));
+  }
+
   function handleAgentDraftChange(agentId, field, value) {
     setAgentDrafts((currentDrafts) => ({
       ...currentDrafts,
       [agentId]: {
         ...(currentDrafts[agentId] || {
           agentRunnerId: "",
+          skillIds: [],
           name: "",
           agentSdk: "",
           model: "",
@@ -2216,6 +2810,16 @@ function App() {
     }
     return `${tasks.length} tasks`;
   }, [tasks.length]);
+
+  const skillCountLabel = useMemo(() => {
+    if (skills.length === 0) {
+      return "No skills";
+    }
+    if (skills.length === 1) {
+      return "1 skill";
+    }
+    return `${skills.length} skills`;
+  }, [skills.length]);
 
   const runnerCountLabel = useMemo(() => {
     if (agentRunners.length === 0) {
@@ -2303,6 +2907,7 @@ function App() {
           <div className="side-status">
             <p>Company: {selectedCompany ? selectedCompany.name : "none"}</p>
             <p>Tasks: {selectedCompanyId ? tasks.length : "n/a"}</p>
+            <p>Skills: {selectedCompanyId ? skills.length : "n/a"}</p>
             <p>Agents: {selectedCompanyId ? agents.length : "n/a"}</p>
             <p>Runners: {selectedCompanyId ? agentRunners.length : "n/a"}</p>
           </div>
@@ -2368,6 +2973,31 @@ function App() {
           />
         ) : null}
 
+        {selectedCompanyId && activePage === "skills" ? (
+          <SkillsPage
+            selectedCompanyId={selectedCompanyId}
+            skills={skills}
+            isLoadingSkills={isLoadingSkills}
+            skillError={skillError}
+            isCreatingSkill={isCreatingSkill}
+            savingSkillId={savingSkillId}
+            deletingSkillId={deletingSkillId}
+            skillName={skillName}
+            skillDescription={skillDescription}
+            skillInstructions={skillInstructions}
+            skillDrafts={skillDrafts}
+            skillCountLabel={skillCountLabel}
+            onSkillNameChange={setSkillName}
+            onSkillDescriptionChange={setSkillDescription}
+            onSkillInstructionsChange={setSkillInstructions}
+            onCreateSkill={handleCreateSkill}
+            onRefreshSkills={loadSkills}
+            onSkillDraftChange={handleSkillDraftChange}
+            onSaveSkill={handleSaveSkill}
+            onDeleteSkill={handleDeleteSkill}
+          />
+        ) : null}
+
         {selectedCompanyId && activePage === "agent-runner" ? (
           <AgentRunnerPage
             selectedCompanyId={selectedCompanyId}
@@ -2378,12 +3008,19 @@ function App() {
             runnerIdDraft={runnerIdDraft}
             runnerCallbackUrlDraft={runnerCallbackUrlDraft}
             runnerSecretDraft={runnerSecretDraft}
-            runnerLaunchCommand={runnerLaunchCommand}
+            runnerGrpcTarget={DEFAULT_RUNNER_GRPC_TARGET}
+            runnerSecretsById={runnerSecretsById}
             deletingRunnerId={deletingRunnerId}
             runnerCountLabel={runnerCountLabel}
             onRunnerIdChange={setRunnerIdDraft}
             onRunnerCallbackUrlChange={setRunnerCallbackUrlDraft}
             onRunnerSecretChange={setRunnerSecretDraft}
+            onRunnerCommandSecretChange={(runnerId, value) =>
+              setRunnerSecretsById((currentSecrets) => ({
+                ...currentSecrets,
+                [runnerId]: value,
+              }))
+            }
             onCreateRunner={handleCreateRunner}
             onRefreshRunners={() => loadAgentRunners()}
             onDeleteRunner={handleDeleteRunner}
@@ -2394,6 +3031,7 @@ function App() {
           <AgentsPage
             selectedCompanyId={selectedCompanyId}
             agents={agents}
+            skills={skills}
             agentRunners={agentRunners}
             agentRunnerLookup={agentRunnerLookup}
             isLoadingAgents={isLoadingAgents}
@@ -2404,6 +3042,7 @@ function App() {
             initializingAgentId={initializingAgentId}
             canInitializeAgents={hasReadyRunner}
             agentRunnerId={agentRunnerId}
+            agentSkillIds={agentSkillIds}
             agentName={agentName}
             agentSdk={agentSdk}
             agentModel={agentModel}
@@ -2411,6 +3050,7 @@ function App() {
             agentDrafts={agentDrafts}
             agentCountLabel={agentCountLabel}
             onAgentRunnerChange={setAgentRunnerId}
+            onAgentSkillIdsChange={setAgentSkillIds}
             onAgentNameChange={setAgentName}
             onAgentSdkChange={setAgentSdk}
             onAgentModelChange={setAgentModel}
@@ -2442,6 +3082,7 @@ function App() {
           <ProfilePage
             selectedCompany={selectedCompany}
             tasks={tasks}
+            skills={skills}
             agents={agents}
             agentRunners={agentRunners}
           />
