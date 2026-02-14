@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 const GRAPHQL_URL = import.meta.env.VITE_GRAPHQL_URL || "/graphql";
 const SELECTED_COMPANY_STORAGE_KEY = "companyhelm.selectedCompanyId";
+const DEFAULT_RUNNER_GRPC_TARGET =
+  import.meta.env.VITE_AGENT_RUNNER_GRPC_TARGET || "localhost:50051";
+const DEFAULT_RUNNER_LAUNCH_COMMAND = `agent-runner --backend-grpc-target ${DEFAULT_RUNNER_GRPC_TARGET}`;
 
 const LIST_COMPANIES_QUERY = `
   query ListCompanies {
@@ -268,13 +271,45 @@ const INITIALIZE_AGENT_MUTATION = `
   }
 `;
 
-const NAV_ITEMS = [
-  { id: "dashboard", label: "Dashboard", href: "#dashboard", tone: "mint" },
-  { id: "tasks", label: "Tasks", href: "#tasks", tone: "sand" },
-  { id: "agent-runner", label: "Agent Runner", href: "#agent-runner", tone: "sky" },
-  { id: "agents", label: "Agents", href: "#agents", tone: "coral" },
+const PRIMARY_NAV_ITEMS = [
+  {
+    id: "dashboard",
+    label: "Dashboard",
+    href: "#dashboard",
+    tone: "mint",
+    requiresCompany: true,
+  },
+  { id: "tasks", label: "Tasks", href: "#tasks", tone: "sand", requiresCompany: true },
+  {
+    id: "agent-runner",
+    label: "Agent Runner",
+    href: "#agent-runner",
+    tone: "sky",
+    requiresCompany: true,
+  },
+  { id: "agents", label: "Agents", href: "#agents", tone: "coral", requiresCompany: true },
+  {
+    id: "settings",
+    label: "Settings",
+    href: "#settings",
+    tone: "slate",
+    requiresCompany: false,
+  },
 ];
 
+const PROFILE_NAV_ITEM = {
+  id: "profile",
+  label: "Profile",
+  href: "#profile",
+  tone: "stone",
+  requiresCompany: false,
+};
+
+const NAV_ITEMS = [...PRIMARY_NAV_ITEMS, PROFILE_NAV_ITEM];
+const NAV_ITEM_LOOKUP = NAV_ITEMS.reduce((map, item) => {
+  map.set(item.id, item);
+  return map;
+}, new Map());
 const PAGE_IDS = new Set(NAV_ITEMS.map((item) => item.id));
 
 function toGraphQLTaskId(value) {
@@ -401,18 +436,123 @@ function CompanyRequiredPanel({ hasCompanies }) {
         <>
           <h1>Select a company</h1>
           <p className="subcopy">
-            Choose an existing company in the sidebar to scope all queries.
+            Choose an existing company from the header dropdown to scope all queries.
           </p>
         </>
       ) : (
         <>
           <h1>Create your first company</h1>
           <p className="subcopy">
-            No companies found yet. Use the create form in the sidebar to get started.
+            No companies found yet. Open Settings to create your first company.
           </p>
         </>
       )}
     </section>
+  );
+}
+
+function CreationModal({ modalId, title, description, isOpen, onClose, children }) {
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined;
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) {
+    return null;
+  }
+
+  return (
+    <div className="modal-overlay" role="presentation" onClick={onClose}>
+      <section
+        className="panel modal-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={`${modalId}-title`}
+        aria-describedby={description ? `${modalId}-description` : undefined}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <header className="panel-header panel-header-row modal-header">
+          <div>
+            <h2 id={`${modalId}-title`}>{title}</h2>
+            {description ? (
+              <p id={`${modalId}-description`} className="subcopy modal-description">
+                {description}
+              </p>
+            ) : null}
+          </div>
+          <button type="button" className="secondary-btn modal-close-btn" onClick={onClose}>
+            Close
+          </button>
+        </header>
+        {children}
+      </section>
+    </div>
+  );
+}
+
+function AppHeader({
+  hasCompanies,
+  companies,
+  selectedCompanyId,
+  selectedCompany,
+  isLoadingCompanies,
+  companyError,
+  onCompanyChange,
+  onOpenSettings,
+}) {
+  return (
+    <header className="panel app-header">
+      <div className="app-header-title">
+        <p className="eyebrow">Workspace</p>
+        <h2>Company scope</h2>
+      </div>
+
+      <div className="app-header-controls">
+        <label className="header-select-label" htmlFor="header-company-select">
+          Active company
+        </label>
+        <div className="header-select-row">
+          <select
+            id="header-company-select"
+            className="header-select"
+            value={selectedCompanyId}
+            onChange={(event) => onCompanyChange(event.target.value)}
+            disabled={isLoadingCompanies}
+          >
+            <option value="">
+              {isLoadingCompanies ? "Loading companies..." : "Select a company"}
+            </option>
+            {companies.map((company) => (
+              <option key={company.id} value={company.id}>
+                {company.name} ({company.id.slice(0, 8)})
+              </option>
+            ))}
+          </select>
+          <button type="button" className="secondary-btn" onClick={onOpenSettings}>
+            Open settings
+          </button>
+        </div>
+      </div>
+
+      <p className="header-company-meta">
+        {selectedCompany
+          ? `${selectedCompany.name} (${selectedCompany.id.slice(0, 8)})`
+          : hasCompanies
+            ? "No company selected"
+            : "No companies yet. Use Settings to create one."}
+      </p>
+      {companyError ? <p className="header-error">Company error: {companyError}</p> : null}
+    </header>
   );
 }
 
@@ -596,6 +736,15 @@ function TasksPage({
   onDeleteTask,
   renderTaskLink,
 }) {
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  async function handleCreateTaskSubmit(event) {
+    const didCreate = await onCreateTask(event);
+    if (didCreate) {
+      setIsCreateModalOpen(false);
+    }
+  }
+
   return (
     <div className="page-stack">
       <section className="panel hero-panel">
@@ -607,67 +756,6 @@ function TasksPage({
         <p className="context-pill">Company: {selectedCompanyId}</p>
       </section>
 
-      <section className="panel composer-panel">
-        <header className="panel-header">
-          <h2>Create task</h2>
-        </header>
-        <form className="task-form" onSubmit={onCreateTask}>
-          <label htmlFor="task-name">Name</label>
-          <input
-            id="task-name"
-            name="name"
-            placeholder="e.g. Build API docs"
-            value={name}
-            onChange={(event) => onNameChange(event.target.value)}
-            required
-          />
-
-          <label htmlFor="task-description">Description</label>
-          <textarea
-            id="task-description"
-            name="description"
-            rows={3}
-            placeholder="Optional details..."
-            value={description}
-            onChange={(event) => onDescriptionChange(event.target.value)}
-          />
-
-          <label htmlFor="task-parent">Parent task</label>
-          <select
-            id="task-parent"
-            name="parentTaskId"
-            value={parentTaskId}
-            onChange={(event) => onParentTaskChange(event.target.value)}
-          >
-            <option value="">None</option>
-            {tasks.map((task) => (
-              <option key={`create-parent-${task.id}`} value={String(task.id)}>
-                #{task.id} {task.name}
-              </option>
-            ))}
-          </select>
-
-          <label htmlFor="task-dependency">Depends on</label>
-          <select
-            id="task-dependency"
-            name="dependsOnTaskId"
-            value={dependsOnTaskId}
-            onChange={(event) => onDependsOnTaskChange(event.target.value)}
-          >
-            <option value="">None</option>
-            {tasks.map((task) => (
-              <option key={`create-dependency-${task.id}`} value={String(task.id)}>
-                #{task.id} {task.name}
-              </option>
-            ))}
-          </select>
-
-          <button type="submit" disabled={isSubmittingTask}>
-            {isSubmittingTask ? "Creating..." : "Create task"}
-          </button>
-        </form>
-      </section>
-
       <section className="panel list-panel">
         <header className="panel-header panel-header-row">
           <h2>Tasks</h2>
@@ -676,13 +764,31 @@ function TasksPage({
             <button type="button" className="secondary-btn" onClick={onRefreshTasks}>
               Refresh
             </button>
+            <button
+              type="button"
+              className="icon-create-btn"
+              aria-label="Create task"
+              title="Create task"
+              onClick={() => setIsCreateModalOpen(true)}
+            >
+              +
+            </button>
           </div>
         </header>
 
         {taskError ? <p className="error-banner">{taskError}</p> : null}
         {isLoadingTasks ? <p className="empty-hint">Loading tasks...</p> : null}
         {!isLoadingTasks && tasks.length === 0 ? (
-          <p className="empty-hint">Create your first task to populate this board.</p>
+          <div className="empty-state">
+            <p className="empty-hint">Create your first task to populate this board.</p>
+            <button
+              type="button"
+              className="secondary-btn empty-create-btn"
+              onClick={() => setIsCreateModalOpen(true)}
+            >
+              + Create task
+            </button>
+          </div>
         ) : null}
 
         {tasks.length > 0 ? (
@@ -777,6 +883,71 @@ function TasksPage({
           </ul>
         ) : null}
       </section>
+
+      <CreationModal
+        modalId="create-task-modal"
+        title="Create task"
+        description="Add a new task for the current company."
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+      >
+        <form className="task-form" onSubmit={handleCreateTaskSubmit}>
+          <label htmlFor="task-name">Name</label>
+          <input
+            id="task-name"
+            name="name"
+            placeholder="e.g. Build API docs"
+            value={name}
+            onChange={(event) => onNameChange(event.target.value)}
+            required
+            autoFocus
+          />
+
+          <label htmlFor="task-description">Description</label>
+          <textarea
+            id="task-description"
+            name="description"
+            rows={3}
+            placeholder="Optional details..."
+            value={description}
+            onChange={(event) => onDescriptionChange(event.target.value)}
+          />
+
+          <label htmlFor="task-parent">Parent task</label>
+          <select
+            id="task-parent"
+            name="parentTaskId"
+            value={parentTaskId}
+            onChange={(event) => onParentTaskChange(event.target.value)}
+          >
+            <option value="">None</option>
+            {tasks.map((task) => (
+              <option key={`create-parent-${task.id}`} value={String(task.id)}>
+                #{task.id} {task.name}
+              </option>
+            ))}
+          </select>
+
+          <label htmlFor="task-dependency">Depends on</label>
+          <select
+            id="task-dependency"
+            name="dependsOnTaskId"
+            value={dependsOnTaskId}
+            onChange={(event) => onDependsOnTaskChange(event.target.value)}
+          >
+            <option value="">None</option>
+            {tasks.map((task) => (
+              <option key={`create-dependency-${task.id}`} value={String(task.id)}>
+                #{task.id} {task.name}
+              </option>
+            ))}
+          </select>
+
+          <button type="submit" disabled={isSubmittingTask}>
+            {isSubmittingTask ? "Creating..." : "Create task"}
+          </button>
+        </form>
+      </CreationModal>
     </div>
   );
 }
@@ -790,7 +961,7 @@ function AgentRunnerPage({
   runnerIdDraft,
   runnerCallbackUrlDraft,
   runnerSecretDraft,
-  latestRunnerLaunchCommand,
+  runnerLaunchCommand,
   deletingRunnerId,
   runnerCountLabel,
   onRunnerIdChange,
@@ -800,6 +971,8 @@ function AgentRunnerPage({
   onRefreshRunners,
   onDeleteRunner,
 }) {
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
   const readyRunnerCount = useMemo(() => {
     return agentRunners.filter((runner) => normalizeRunnerStatus(runner.status) === "ready")
       .length;
@@ -808,6 +981,13 @@ function AgentRunnerPage({
   const disconnectedRunnerCount = useMemo(() => {
     return agentRunners.length - readyRunnerCount;
   }, [agentRunners.length, readyRunnerCount]);
+
+  async function handleCreateRunnerSubmit(event) {
+    const didCreate = await onCreateRunner(event);
+    if (didCreate) {
+      setIsCreateModalOpen(false);
+    }
+  }
 
   return (
     <div className="page-stack">
@@ -820,57 +1000,17 @@ function AgentRunnerPage({
         <p className="context-pill">Company: {selectedCompanyId}</p>
       </section>
 
-      <section className="panel composer-panel">
+      <section className="panel runner-command-panel">
         <header className="panel-header">
-          <h2>Create agent runner</h2>
+          <h2>Runner start command</h2>
         </header>
-        <form className="task-form" onSubmit={onCreateRunner}>
-          <label htmlFor="runner-id">Runner UUID (optional)</label>
-          <input
-            id="runner-id"
-            name="runnerId"
-            placeholder="Leave blank to auto-generate"
-            value={runnerIdDraft}
-            onChange={(event) => onRunnerIdChange(event.target.value)}
-          />
-
-          <label htmlFor="runner-callback-url">Callback URL (optional)</label>
-          <input
-            id="runner-callback-url"
-            name="callbackUrl"
-            placeholder="e.g. http://127.0.0.1:9100"
-            value={runnerCallbackUrlDraft}
-            onChange={(event) => onRunnerCallbackUrlChange(event.target.value)}
-          />
-
-          <label htmlFor="runner-secret">Runner secret (optional)</label>
-          <input
-            id="runner-secret"
-            name="runnerSecret"
-            placeholder="Leave blank to auto-generate"
-            value={runnerSecretDraft}
-            onChange={(event) => onRunnerSecretChange(event.target.value)}
-          />
-
-          <button type="submit" disabled={isCreatingRunner}>
-            {isCreatingRunner ? "Creating..." : "Create runner"}
-          </button>
-        </form>
+        <p className="subcopy">
+          Run this one-liner on the machine where the `agent-runner` binary is installed.
+        </p>
+        <pre className="runner-command">
+          <code>{runnerLaunchCommand}</code>
+        </pre>
       </section>
-
-      {latestRunnerLaunchCommand ? (
-        <section className="panel runner-command-panel">
-          <header className="panel-header">
-            <h2>Runner start command</h2>
-          </header>
-          <p className="subcopy">
-            Run this one-liner on the machine where the `agent-runner` binary is installed.
-          </p>
-          <pre className="runner-command">
-            <code>{latestRunnerLaunchCommand}</code>
-          </pre>
-        </section>
-      ) : null}
 
       <section className="runner-summary-grid">
         <article className="panel stat-panel">
@@ -893,15 +1033,35 @@ function AgentRunnerPage({
       <section className="panel runner-panel">
         <header className="panel-header panel-header-row">
           <h2>Agent runners</h2>
-          <button type="button" className="secondary-btn" onClick={onRefreshRunners}>
-            Refresh
-          </button>
+          <div className="task-meta">
+            <button type="button" className="secondary-btn" onClick={onRefreshRunners}>
+              Refresh
+            </button>
+            <button
+              type="button"
+              className="icon-create-btn"
+              aria-label="Create agent runner"
+              title="Create agent runner"
+              onClick={() => setIsCreateModalOpen(true)}
+            >
+              +
+            </button>
+          </div>
         </header>
 
         {runnerError ? <p className="error-banner">{runnerError}</p> : null}
         {isLoadingRunners ? <p className="empty-hint">Loading runners...</p> : null}
         {!isLoadingRunners && agentRunners.length === 0 ? (
-          <p className="empty-hint">No agent runners registered yet.</p>
+          <div className="empty-state">
+            <p className="empty-hint">No agent runners registered yet.</p>
+            <button
+              type="button"
+              className="secondary-btn empty-create-btn"
+              onClick={() => setIsCreateModalOpen(true)}
+            >
+              + Create runner
+            </button>
+          </div>
         ) : null}
 
         {agentRunners.length > 0 ? (
@@ -943,6 +1103,48 @@ function AgentRunnerPage({
           </ul>
         ) : null}
       </section>
+
+      <CreationModal
+        modalId="create-runner-modal"
+        title="Create agent runner"
+        description="Register a new runner endpoint for this company."
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+      >
+        <form className="task-form" onSubmit={handleCreateRunnerSubmit}>
+          <label htmlFor="runner-id">Runner UUID (optional)</label>
+          <input
+            id="runner-id"
+            name="runnerId"
+            placeholder="Leave blank to auto-generate"
+            value={runnerIdDraft}
+            onChange={(event) => onRunnerIdChange(event.target.value)}
+            autoFocus
+          />
+
+          <label htmlFor="runner-callback-url">Callback URL (optional)</label>
+          <input
+            id="runner-callback-url"
+            name="callbackUrl"
+            placeholder="e.g. http://127.0.0.1:9100"
+            value={runnerCallbackUrlDraft}
+            onChange={(event) => onRunnerCallbackUrlChange(event.target.value)}
+          />
+
+          <label htmlFor="runner-secret">Runner secret (optional)</label>
+          <input
+            id="runner-secret"
+            name="runnerSecret"
+            placeholder="Leave blank to auto-generate"
+            value={runnerSecretDraft}
+            onChange={(event) => onRunnerSecretChange(event.target.value)}
+          />
+
+          <button type="submit" disabled={isCreatingRunner}>
+            {isCreatingRunner ? "Creating..." : "Create runner"}
+          </button>
+        </form>
+      </CreationModal>
     </div>
   );
 }
@@ -978,6 +1180,15 @@ function AgentsPage({
   onInitializeAgent,
   onDeleteAgent,
 }) {
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  async function handleCreateAgentSubmit(event) {
+    const didCreate = await onCreateAgent(event);
+    if (didCreate) {
+      setIsCreateModalOpen(false);
+    }
+  }
+
   return (
     <div className="page-stack">
       <section className="panel hero-panel">
@@ -989,72 +1200,6 @@ function AgentsPage({
         <p className="context-pill">Company: {selectedCompanyId}</p>
       </section>
 
-      <section className="panel composer-panel">
-        <header className="panel-header">
-          <h2>Create agent</h2>
-        </header>
-        <form className="task-form" onSubmit={onCreateAgent}>
-          <label htmlFor="agent-runner-id">Assigned runner (optional)</label>
-          <select
-            id="agent-runner-id"
-            name="agentRunnerId"
-            value={agentRunnerId}
-            onChange={(event) => onAgentRunnerChange(event.target.value)}
-          >
-            <option value="">Unassigned</option>
-            {agentRunners.map((runner) => (
-              <option key={runner.id} value={runner.id}>
-                {formatRunnerLabel(runner)}
-              </option>
-            ))}
-          </select>
-
-          <label htmlFor="agent-name">Name</label>
-          <input
-            id="agent-name"
-            name="name"
-            placeholder="e.g. CEO Agent"
-            value={agentName}
-            onChange={(event) => onAgentNameChange(event.target.value)}
-            required
-          />
-
-          <label htmlFor="agent-sdk">Agent SDK</label>
-          <input
-            id="agent-sdk"
-            name="agentSdk"
-            placeholder="e.g. codex, claude-code"
-            value={agentSdk}
-            onChange={(event) => onAgentSdkChange(event.target.value)}
-            required
-          />
-
-          <label htmlFor="agent-model">Model</label>
-          <input
-            id="agent-model"
-            name="model"
-            placeholder="e.g. gpt-5"
-            value={agentModel}
-            onChange={(event) => onAgentModelChange(event.target.value)}
-            required
-          />
-
-          <label htmlFor="agent-reasoning-level">Model reasoning level</label>
-          <input
-            id="agent-reasoning-level"
-            name="modelReasoningLevel"
-            placeholder="e.g. low, medium, high"
-            value={agentModelReasoningLevel}
-            onChange={(event) => onAgentModelReasoningLevelChange(event.target.value)}
-            required
-          />
-
-          <button type="submit" disabled={isCreatingAgent}>
-            {isCreatingAgent ? "Creating..." : "Create agent"}
-          </button>
-        </form>
-      </section>
-
       <section className="panel list-panel">
         <header className="panel-header panel-header-row">
           <h2>Agents</h2>
@@ -1063,13 +1208,31 @@ function AgentsPage({
             <button type="button" className="secondary-btn" onClick={onRefreshAgents}>
               Refresh
             </button>
+            <button
+              type="button"
+              className="icon-create-btn"
+              aria-label="Create agent"
+              title="Create agent"
+              onClick={() => setIsCreateModalOpen(true)}
+            >
+              +
+            </button>
           </div>
         </header>
 
         {agentError ? <p className="error-banner">{agentError}</p> : null}
         {isLoadingAgents ? <p className="empty-hint">Loading agents...</p> : null}
         {!isLoadingAgents && agents.length === 0 ? (
-          <p className="empty-hint">No agents created for this company yet.</p>
+          <div className="empty-state">
+            <p className="empty-hint">No agents created for this company yet.</p>
+            <button
+              type="button"
+              className="secondary-btn empty-create-btn"
+              onClick={() => setIsCreateModalOpen(true)}
+            >
+              + Create agent
+            </button>
+          </div>
         ) : null}
 
         {agents.length > 0 ? (
@@ -1214,6 +1377,178 @@ function AgentsPage({
           </ul>
         ) : null}
       </section>
+
+      <CreationModal
+        modalId="create-agent-modal"
+        title="Create agent"
+        description="Register a new agent profile for this company."
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+      >
+        <form className="task-form" onSubmit={handleCreateAgentSubmit}>
+          <label htmlFor="agent-runner-id">Assigned runner (optional)</label>
+          <select
+            id="agent-runner-id"
+            name="agentRunnerId"
+            value={agentRunnerId}
+            onChange={(event) => onAgentRunnerChange(event.target.value)}
+          >
+            <option value="">Unassigned</option>
+            {agentRunners.map((runner) => (
+              <option key={runner.id} value={runner.id}>
+                {formatRunnerLabel(runner)}
+              </option>
+            ))}
+          </select>
+
+          <label htmlFor="agent-name">Name</label>
+          <input
+            id="agent-name"
+            name="name"
+            placeholder="e.g. CEO Agent"
+            value={agentName}
+            onChange={(event) => onAgentNameChange(event.target.value)}
+            required
+            autoFocus
+          />
+
+          <label htmlFor="agent-sdk">Agent SDK</label>
+          <input
+            id="agent-sdk"
+            name="agentSdk"
+            placeholder="e.g. codex, claude-code"
+            value={agentSdk}
+            onChange={(event) => onAgentSdkChange(event.target.value)}
+            required
+          />
+
+          <label htmlFor="agent-model">Model</label>
+          <input
+            id="agent-model"
+            name="model"
+            placeholder="e.g. gpt-5"
+            value={agentModel}
+            onChange={(event) => onAgentModelChange(event.target.value)}
+            required
+          />
+
+          <label htmlFor="agent-reasoning-level">Model reasoning level</label>
+          <input
+            id="agent-reasoning-level"
+            name="modelReasoningLevel"
+            placeholder="e.g. low, medium, high"
+            value={agentModelReasoningLevel}
+            onChange={(event) => onAgentModelReasoningLevelChange(event.target.value)}
+            required
+          />
+
+          <button type="submit" disabled={isCreatingAgent}>
+            {isCreatingAgent ? "Creating..." : "Create agent"}
+          </button>
+        </form>
+      </CreationModal>
+    </div>
+  );
+}
+
+function SettingsPage({
+  hasCompanies,
+  selectedCompany,
+  companyError,
+  newCompanyName,
+  isCreatingCompany,
+  isDeletingCompany,
+  onNewCompanyNameChange,
+  onCreateCompany,
+  onDeleteCompany,
+}) {
+  return (
+    <div className="page-stack">
+      <section className="panel hero-panel">
+        <p className="eyebrow">Settings</p>
+        <h1>Company settings</h1>
+        <p className="subcopy">
+          Create new companies and manage deletion from a dedicated settings page.
+        </p>
+        <p className="context-pill">
+          Active company: {selectedCompany ? selectedCompany.name : "none"}
+        </p>
+      </section>
+
+      <section className="panel composer-panel">
+        <header className="panel-header">
+          <h2>Create company</h2>
+        </header>
+        <form className="task-form" onSubmit={onCreateCompany}>
+          <label htmlFor="settings-company-name">
+            {hasCompanies ? "Company name" : "Create your first company"}
+          </label>
+          <input
+            id="settings-company-name"
+            value={newCompanyName}
+            onChange={(event) => onNewCompanyNameChange(event.target.value)}
+            placeholder="e.g. Acme Labs"
+            disabled={isCreatingCompany}
+          />
+          <button type="submit" disabled={isCreatingCompany}>
+            {isCreatingCompany ? "Creating..." : "Create company"}
+          </button>
+        </form>
+      </section>
+
+      {hasCompanies ? (
+        <section className="panel">
+          <header className="panel-header">
+            <h2>Danger zone</h2>
+          </header>
+          <p className="subcopy">
+            Delete the currently selected company and all of its tasks, agents, and runners.
+          </p>
+          <div className="hero-actions">
+            <button
+              type="button"
+              className="danger-btn"
+              onClick={onDeleteCompany}
+              disabled={!selectedCompany || isDeletingCompany}
+            >
+              {isDeletingCompany ? "Deleting..." : "Delete active company"}
+            </button>
+          </div>
+        </section>
+      ) : null}
+
+      {companyError ? <p className="error-banner">Company error: {companyError}</p> : null}
+    </div>
+  );
+}
+
+function ProfilePage({ selectedCompany, tasks, agents, agentRunners }) {
+  return (
+    <div className="page-stack">
+      <section className="panel hero-panel">
+        <p className="eyebrow">Profile</p>
+        <h1>Workspace profile</h1>
+        <p className="subcopy">
+          Account preferences can live here. This page currently shows your active workspace
+          context.
+        </p>
+        <p className="context-pill">Company: {selectedCompany ? selectedCompany.name : "none"}</p>
+      </section>
+
+      <section className="runner-summary-grid">
+        <article className="panel stat-panel">
+          <p className="stat-label">Tasks</p>
+          <p className="stat-value">{tasks.length}</p>
+        </article>
+        <article className="panel stat-panel">
+          <p className="stat-label">Agents</p>
+          <p className="stat-value">{agents.length}</p>
+        </article>
+        <article className="panel stat-panel">
+          <p className="stat-label">Runners</p>
+          <p className="stat-value">{agentRunners.length}</p>
+        </article>
+      </section>
     </div>
   );
 }
@@ -1261,6 +1596,7 @@ function App() {
   const [agentModelReasoningLevel, setAgentModelReasoningLevel] = useState("");
   const [agentDrafts, setAgentDrafts] = useState({});
   const hasCompanies = companies.length > 0;
+  const runnerLaunchCommand = latestRunnerLaunchCommand || DEFAULT_RUNNER_LAUNCH_COMMAND;
 
   const selectedCompany = useMemo(() => {
     return companies.find((company) => company.id === selectedCompanyId) || null;
@@ -1407,6 +1743,16 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (isLoadingCompanies) {
+      return;
+    }
+    const activeItem = NAV_ITEM_LOOKUP.get(activePage);
+    if (activeItem?.requiresCompany && !selectedCompanyId) {
+      window.location.hash = "#settings";
+    }
+  }, [activePage, isLoadingCompanies, selectedCompanyId]);
+
+  useEffect(() => {
     if (!selectedCompanyId) {
       return undefined;
     }
@@ -1485,11 +1831,11 @@ function App() {
     event.preventDefault();
     if (!selectedCompanyId) {
       setTaskError("Select a company before creating tasks.");
-      return;
+      return false;
     }
     if (!name.trim()) {
       setTaskError("Task name is required.");
-      return;
+      return false;
     }
 
     try {
@@ -1513,8 +1859,10 @@ function App() {
       setParentTaskId("");
       setDependsOnTaskId("");
       await loadTasks();
+      return true;
     } catch (submitError) {
       setTaskError(submitError.message);
+      return false;
     } finally {
       setIsSubmittingTask(false);
     }
@@ -1618,7 +1966,7 @@ function App() {
     event.preventDefault();
     if (!selectedCompanyId) {
       setRunnerError("Select a company before creating runners.");
-      return;
+      return false;
     }
 
     try {
@@ -1640,8 +1988,10 @@ function App() {
       setRunnerSecretDraft("");
       setLatestRunnerLaunchCommand(result.runnerLaunchCommand || "");
       await loadAgentRunners();
+      return true;
     } catch (createError) {
       setRunnerError(createError.message);
+      return false;
     } finally {
       setIsCreatingRunner(false);
     }
@@ -1651,15 +2001,15 @@ function App() {
     event.preventDefault();
     if (!selectedCompanyId) {
       setAgentError("Select a company before creating agents.");
-      return;
+      return false;
     }
     if (!agentName.trim()) {
       setAgentError("Agent name is required.");
-      return;
+      return false;
     }
     if (!agentSdk.trim() || !agentModel.trim() || !agentModelReasoningLevel.trim()) {
       setAgentError("agentSdk, model, and modelReasoningLevel are required.");
-      return;
+      return false;
     }
 
     try {
@@ -1683,8 +2033,10 @@ function App() {
       setAgentModel("");
       setAgentModelReasoningLevel("");
       await loadAgents();
+      return true;
     } catch (createError) {
       setAgentError(createError.message);
+      return false;
     } finally {
       setIsCreatingAgent(false);
     }
@@ -1911,83 +2263,41 @@ function App() {
           <h2>CompanyHelm</h2>
         </div>
 
-        {hasCompanies ? (
-          <nav className="side-nav" aria-label="Main navigation">
-            {NAV_ITEMS.map((item) => (
+        <nav className="side-nav" aria-label="Main navigation">
+          {PRIMARY_NAV_ITEMS.map((item) => {
+            const isDisabled = item.requiresCompany && !selectedCompanyId;
+            return (
               <a
                 key={item.id}
                 href={item.href}
+                aria-disabled={isDisabled ? "true" : undefined}
+                onClick={(event) => {
+                  if (!isDisabled) {
+                    return;
+                  }
+                  event.preventDefault();
+                  navigateTo("settings");
+                }}
                 className={`nav-link nav-link-${item.tone} ${
                   activePage === item.id ? "nav-link-active" : ""
-                }`}
+                } ${isDisabled ? "nav-link-disabled" : ""}`}
               >
                 {item.label}
               </a>
-            ))}
-          </nav>
-        ) : null}
+            );
+          })}
+        </nav>
 
-        <section className="company-scope-panel">
-          <p className="side-overline">Company scope</p>
-          {hasCompanies ? (
-            <>
-              <label className="side-input-label" htmlFor="company-select">
-                Active company
-              </label>
-              <select
-                id="company-select"
-                className="side-select"
-                value={selectedCompanyId}
-                onChange={(event) => setSelectedCompanyId(event.target.value)}
-                disabled={isLoadingCompanies}
-              >
-                <option value="">
-                  {isLoadingCompanies ? "Loading companies..." : "Select a company"}
-                </option>
-                {companies.map((company) => (
-                  <option key={company.id} value={company.id}>
-                    {company.name} ({company.id.slice(0, 8)})
-                  </option>
-                ))}
-              </select>
-              <p className="side-company-id">
-                {selectedCompany ? selectedCompany.id : "No company selected"}
-              </p>
-            </>
-          ) : null}
-
-          <form className="company-create-form" onSubmit={handleCreateCompany}>
-            <label className="side-input-label" htmlFor="new-company-name">
-              {hasCompanies ? "Create company" : "Create your first company"}
-            </label>
-            <input
-              id="new-company-name"
-              value={newCompanyName}
-              onChange={(event) => setNewCompanyName(event.target.value)}
-              placeholder="e.g. Acme Labs"
-              disabled={isCreatingCompany}
-            />
-            <button type="submit" disabled={isCreatingCompany}>
-              {isCreatingCompany ? "Creating..." : "Create"}
-            </button>
-          </form>
-
-          {hasCompanies ? (
-            <>
-              <button
-                type="button"
-                className="danger-btn side-danger-btn"
-                onClick={handleDeleteCompany}
-                disabled={!selectedCompany || isDeletingCompany || isLoadingCompanies}
-              >
-                {isDeletingCompany ? "Deleting..." : "Delete active company"}
-              </button>
-              <p className="side-hint">Deleting a company cascades to its tasks and runners.</p>
-            </>
-          ) : null}
-
-          {companyError ? <p className="side-error">{companyError}</p> : null}
-        </section>
+        <nav className="side-nav side-nav-profile" aria-label="Profile navigation">
+          <a
+            href={PROFILE_NAV_ITEM.href}
+            className={`nav-link nav-link-${PROFILE_NAV_ITEM.tone} ${
+              activePage === PROFILE_NAV_ITEM.id ? "nav-link-active" : ""
+            }`}
+          >
+            {PROFILE_NAV_ITEM.label}
+          </a>
+        </nav>
 
         {hasCompanies ? (
           <div className="side-status">
@@ -2000,7 +2310,20 @@ function App() {
       </aside>
 
       <main className="page-shell">
-        {!selectedCompanyId ? <CompanyRequiredPanel hasCompanies={hasCompanies} /> : null}
+        <AppHeader
+          hasCompanies={hasCompanies}
+          companies={companies}
+          selectedCompanyId={selectedCompanyId}
+          selectedCompany={selectedCompany}
+          isLoadingCompanies={isLoadingCompanies}
+          companyError={companyError}
+          onCompanyChange={setSelectedCompanyId}
+          onOpenSettings={() => navigateTo("settings")}
+        />
+
+        {!selectedCompanyId && activePage !== "settings" && activePage !== "profile" ? (
+          <CompanyRequiredPanel hasCompanies={hasCompanies} />
+        ) : null}
 
         {selectedCompanyId && activePage === "dashboard" ? (
           <DashboardPage
@@ -2055,7 +2378,7 @@ function App() {
             runnerIdDraft={runnerIdDraft}
             runnerCallbackUrlDraft={runnerCallbackUrlDraft}
             runnerSecretDraft={runnerSecretDraft}
-            latestRunnerLaunchCommand={latestRunnerLaunchCommand}
+            runnerLaunchCommand={runnerLaunchCommand}
             deletingRunnerId={deletingRunnerId}
             runnerCountLabel={runnerCountLabel}
             onRunnerIdChange={setRunnerIdDraft}
@@ -2098,6 +2421,29 @@ function App() {
             onSaveAgent={handleSaveAgent}
             onInitializeAgent={handleInitializeAgent}
             onDeleteAgent={handleDeleteAgent}
+          />
+        ) : null}
+
+        {activePage === "settings" ? (
+          <SettingsPage
+            hasCompanies={hasCompanies}
+            selectedCompany={selectedCompany}
+            companyError={companyError}
+            newCompanyName={newCompanyName}
+            isCreatingCompany={isCreatingCompany}
+            isDeletingCompany={isDeletingCompany}
+            onNewCompanyNameChange={setNewCompanyName}
+            onCreateCompany={handleCreateCompany}
+            onDeleteCompany={handleDeleteCompany}
+          />
+        ) : null}
+
+        {activePage === "profile" ? (
+          <ProfilePage
+            selectedCompany={selectedCompany}
+            tasks={tasks}
+            agents={agents}
+            agentRunners={agentRunners}
           />
         ) : null}
       </main>

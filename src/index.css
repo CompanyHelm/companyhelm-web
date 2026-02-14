@@ -82,6 +82,11 @@ h3 {
   gap: 0.45rem;
 }
 
+.side-nav-profile {
+  padding-top: 0.35rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+}
+
 .company-scope-panel {
   display: grid;
   gap: 0.5rem;
@@ -195,9 +200,33 @@ h3 {
   );
 }
 
+.nav-link-slate {
+  background: linear-gradient(
+    125deg,
+    rgba(55, 65, 81, 0.42),
+    rgba(55, 65, 81, 0.16) 72%
+  );
+}
+
+.nav-link-stone {
+  background: linear-gradient(
+    125deg,
+    rgba(120, 102, 82, 0.4),
+    rgba(120, 102, 82, 0.14) 72%
+  );
+}
+
 .nav-link-active {
   border-color: rgba(255, 255, 255, 0.54);
   box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.16);
+}
+
+.nav-link-disabled {
+  opacity: 0.46;
+}
+
+.nav-link-disabled:hover {
+  transform: none;
 }
 
 .side-status {
@@ -214,6 +243,72 @@ h3 {
 
 .page-shell {
   min-width: 0;
+  display: grid;
+  gap: 0.85rem;
+  align-content: start;
+}
+
+.app-header {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.8fr) minmax(260px, 1.2fr);
+  gap: 0.75rem 1rem;
+  align-items: end;
+}
+
+.app-header-title h2 {
+  margin: 0.2rem 0 0;
+  font-size: 1.12rem;
+}
+
+.app-header-controls {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.header-select-label {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--ink-1);
+  letter-spacing: 0.03em;
+}
+
+.header-select-row {
+  display: flex;
+  align-items: center;
+  gap: 0.52rem;
+}
+
+.header-select {
+  width: 100%;
+  min-width: 0;
+  border-radius: 11px;
+  border: 1px solid rgba(26, 32, 38, 0.24);
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--ink-0);
+  padding: 0.58rem 0.72rem;
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+
+.header-select:focus {
+  outline: none;
+  border-color: var(--action);
+  box-shadow: 0 0 0 4px var(--ring);
+}
+
+.header-company-meta {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.78rem;
+  color: var(--ink-1);
+}
+
+.header-error {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.82rem;
 }
 
 .page-stack {
@@ -668,6 +763,19 @@ button:disabled {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .side-nav-profile {
+    grid-template-columns: 1fr;
+  }
+
+  .app-header {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .header-select-row {
+    flex-wrap: wrap;
+  }
+
   .dashboard-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -681,6 +789,11 @@ button:disabled {
 
   .side-nav {
     grid-template-columns: 1fr;
+  }
+
+  .header-select-row {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .dashboard-panels {
