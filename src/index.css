@@ -619,6 +619,29 @@ button:disabled {
   font-size: 0.8rem;
 }
 
+.runner-command-panel {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.runner-command {
+  margin: 0.4rem 0 0;
+  border: 1px solid rgba(26, 32, 38, 0.16);
+  border-radius: 12px;
+  background: rgba(24, 31, 37, 0.92);
+  color: #eefbf9;
+  padding: 0.72rem;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.runner-command code {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.79rem;
+  line-height: 1.45;
+}
+
 @keyframes lift-in {
   from {
     transform: translateY(12px);

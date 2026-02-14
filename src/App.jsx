@@ -61,6 +61,35 @@ const LIST_AGENT_RUNNERS_QUERY = `
   }
 `;
 
+const CREATE_AGENT_RUNNER_MUTATION = `
+  mutation CreateAgentRunner(
+    $companyId: String!
+    $id: String
+    $callbackUrl: String
+    $authSecret: String
+  ) {
+    createAgentRunner(
+      companyId: $companyId
+      id: $id
+      callbackUrl: $callbackUrl
+      authSecret: $authSecret
+    ) {
+      ok
+      error
+      provisionedAuthSecret
+      runnerLaunchCommand
+      agentRunner {
+        id
+        companyId
+        callbackUrl
+        status
+        lastHealthCheckAt
+        lastSeenAt
+      }
+    }
+  }
+`;
+
 const LIST_AGENTS_QUERY = `
   query ListAgents($companyId: String!) {
     agents(companyId: $companyId) {
@@ -757,8 +786,17 @@ function AgentRunnerPage({
   agentRunners,
   isLoadingRunners,
   runnerError,
+  isCreatingRunner,
+  runnerIdDraft,
+  runnerCallbackUrlDraft,
+  runnerSecretDraft,
+  latestRunnerLaunchCommand,
   deletingRunnerId,
   runnerCountLabel,
+  onRunnerIdChange,
+  onRunnerCallbackUrlChange,
+  onRunnerSecretChange,
+  onCreateRunner,
   onRefreshRunners,
   onDeleteRunner,
 }) {
@@ -781,6 +819,58 @@ function AgentRunnerPage({
         </p>
         <p className="context-pill">Company: {selectedCompanyId}</p>
       </section>
+
+      <section className="panel composer-panel">
+        <header className="panel-header">
+          <h2>Create agent runner</h2>
+        </header>
+        <form className="task-form" onSubmit={onCreateRunner}>
+          <label htmlFor="runner-id">Runner UUID (optional)</label>
+          <input
+            id="runner-id"
+            name="runnerId"
+            placeholder="Leave blank to auto-generate"
+            value={runnerIdDraft}
+            onChange={(event) => onRunnerIdChange(event.target.value)}
+          />
+
+          <label htmlFor="runner-callback-url">Callback URL (optional)</label>
+          <input
+            id="runner-callback-url"
+            name="callbackUrl"
+            placeholder="e.g. http://127.0.0.1:9100"
+            value={runnerCallbackUrlDraft}
+            onChange={(event) => onRunnerCallbackUrlChange(event.target.value)}
+          />
+
+          <label htmlFor="runner-secret">Runner secret (optional)</label>
+          <input
+            id="runner-secret"
+            name="runnerSecret"
+            placeholder="Leave blank to auto-generate"
+            value={runnerSecretDraft}
+            onChange={(event) => onRunnerSecretChange(event.target.value)}
+          />
+
+          <button type="submit" disabled={isCreatingRunner}>
+            {isCreatingRunner ? "Creating..." : "Create runner"}
+          </button>
+        </form>
+      </section>
+
+      {latestRunnerLaunchCommand ? (
+        <section className="panel runner-command-panel">
+          <header className="panel-header">
+            <h2>Runner start command</h2>
+          </header>
+          <p className="subcopy">
+            Run this one-liner on the machine where the `agent-runner` binary is installed.
+          </p>
+          <pre className="runner-command">
+            <code>{latestRunnerLaunchCommand}</code>
+          </pre>
+        </section>
+      ) : null}
 
       <section className="runner-summary-grid">
         <article className="panel stat-panel">
@@ -1150,6 +1240,11 @@ function App() {
   const [savingTaskId, setSavingTaskId] = useState(null);
   const [deletingTaskId, setDeletingTaskId] = useState(null);
   const [deletingRunnerId, setDeletingRunnerId] = useState(null);
+  const [isCreatingRunner, setIsCreatingRunner] = useState(false);
+  const [runnerIdDraft, setRunnerIdDraft] = useState("");
+  const [runnerCallbackUrlDraft, setRunnerCallbackUrlDraft] = useState("");
+  const [runnerSecretDraft, setRunnerSecretDraft] = useState("");
+  const [latestRunnerLaunchCommand, setLatestRunnerLaunchCommand] = useState("");
   const [isCreatingAgent, setIsCreatingAgent] = useState(false);
   const [savingAgentId, setSavingAgentId] = useState(null);
   const [deletingAgentId, setDeletingAgentId] = useState(null);
@@ -1286,6 +1381,10 @@ function App() {
 
   useEffect(() => {
     setAgentRunnerId("");
+    setRunnerIdDraft("");
+    setRunnerCallbackUrlDraft("");
+    setRunnerSecretDraft("");
+    setLatestRunnerLaunchCommand("");
   }, [selectedCompanyId]);
 
   useEffect(() => {
@@ -1512,6 +1611,39 @@ function App() {
       setRunnerError(deleteError.message);
     } finally {
       setDeletingRunnerId(null);
+    }
+  }
+
+  async function handleCreateRunner(event) {
+    event.preventDefault();
+    if (!selectedCompanyId) {
+      setRunnerError("Select a company before creating runners.");
+      return;
+    }
+
+    try {
+      setIsCreatingRunner(true);
+      setRunnerError("");
+      const data = await executeGraphQL(CREATE_AGENT_RUNNER_MUTATION, {
+        companyId: selectedCompanyId,
+        id: runnerIdDraft.trim() || null,
+        callbackUrl: runnerCallbackUrlDraft.trim() || null,
+        authSecret: runnerSecretDraft.trim() || null,
+      });
+      const result = data.createAgentRunner;
+      if (!result.ok) {
+        throw new Error(result.error || "Runner creation failed.");
+      }
+
+      setRunnerIdDraft("");
+      setRunnerCallbackUrlDraft("");
+      setRunnerSecretDraft("");
+      setLatestRunnerLaunchCommand(result.runnerLaunchCommand || "");
+      await loadAgentRunners();
+    } catch (createError) {
+      setRunnerError(createError.message);
+    } finally {
+      setIsCreatingRunner(false);
     }
   }
 
@@ -1919,8 +2051,17 @@ function App() {
             agentRunners={agentRunners}
             isLoadingRunners={isLoadingRunners}
             runnerError={runnerError}
+            isCreatingRunner={isCreatingRunner}
+            runnerIdDraft={runnerIdDraft}
+            runnerCallbackUrlDraft={runnerCallbackUrlDraft}
+            runnerSecretDraft={runnerSecretDraft}
+            latestRunnerLaunchCommand={latestRunnerLaunchCommand}
             deletingRunnerId={deletingRunnerId}
             runnerCountLabel={runnerCountLabel}
+            onRunnerIdChange={setRunnerIdDraft}
+            onRunnerCallbackUrlChange={setRunnerCallbackUrlDraft}
+            onRunnerSecretChange={setRunnerSecretDraft}
+            onCreateRunner={handleCreateRunner}
             onRefreshRunners={() => loadAgentRunners()}
             onDeleteRunner={handleDeleteRunner}
           />
