@@ -66,6 +66,7 @@ const LIST_AGENTS_QUERY = `
     agents(companyId: $companyId) {
       id
       companyId
+      agentRunnerId
       name
       agentSdk
       model
@@ -153,6 +154,7 @@ const DELETE_AGENT_RUNNER_MUTATION = `
 const CREATE_AGENT_MUTATION = `
   mutation CreateAgent(
     $companyId: String!
+    $agentRunnerId: String
     $name: String!
     $agentSdk: String!
     $model: String!
@@ -160,6 +162,7 @@ const CREATE_AGENT_MUTATION = `
   ) {
     createAgent(
       companyId: $companyId
+      agentRunnerId: $agentRunnerId
       name: $name
       agentSdk: $agentSdk
       model: $model
@@ -170,6 +173,7 @@ const CREATE_AGENT_MUTATION = `
       agent {
         id
         companyId
+        agentRunnerId
         name
         agentSdk
         model
@@ -183,6 +187,7 @@ const UPDATE_AGENT_MUTATION = `
   mutation UpdateAgent(
     $companyId: String!
     $id: String!
+    $agentRunnerId: String
     $name: String!
     $agentSdk: String!
     $model: String!
@@ -191,6 +196,7 @@ const UPDATE_AGENT_MUTATION = `
     updateAgent(
       companyId: $companyId
       id: $id
+      agentRunnerId: $agentRunnerId
       name: $name
       agentSdk: $agentSdk
       model: $model
@@ -201,6 +207,7 @@ const UPDATE_AGENT_MUTATION = `
       agent {
         id
         companyId
+        agentRunnerId
         name
         agentSdk
         model
@@ -296,6 +303,7 @@ function createRelationshipDrafts(tasks) {
 function createAgentDrafts(agents) {
   return agents.reduce((drafts, agent) => {
     drafts[agent.id] = {
+      agentRunnerId: agent.agentRunnerId || "",
       name: agent.name || "",
       agentSdk: agent.agentSdk || "",
       model: agent.model || "",
@@ -307,6 +315,13 @@ function createAgentDrafts(agents) {
 
 function normalizeRunnerStatus(value) {
   return value === "ready" ? "ready" : "disconnected";
+}
+
+function formatRunnerLabel(runner) {
+  if (!runner) {
+    return "Unassigned";
+  }
+  return `${runner.id.slice(0, 8)} (${normalizeRunnerStatus(runner.status)})`;
 }
 
 function toSortableTimestamp(value) {
@@ -845,6 +860,8 @@ function AgentRunnerPage({
 function AgentsPage({
   selectedCompanyId,
   agents,
+  agentRunners,
+  agentRunnerLookup,
   isLoadingAgents,
   agentError,
   isCreatingAgent,
@@ -852,12 +869,14 @@ function AgentsPage({
   deletingAgentId,
   initializingAgentId,
   canInitializeAgents,
+  agentRunnerId,
   agentName,
   agentSdk,
   agentModel,
   agentModelReasoningLevel,
   agentDrafts,
   agentCountLabel,
+  onAgentRunnerChange,
   onAgentNameChange,
   onAgentSdkChange,
   onAgentModelChange,
@@ -885,6 +904,21 @@ function AgentsPage({
           <h2>Create agent</h2>
         </header>
         <form className="task-form" onSubmit={onCreateAgent}>
+          <label htmlFor="agent-runner-id">Assigned runner (optional)</label>
+          <select
+            id="agent-runner-id"
+            name="agentRunnerId"
+            value={agentRunnerId}
+            onChange={(event) => onAgentRunnerChange(event.target.value)}
+          >
+            <option value="">Unassigned</option>
+            {agentRunners.map((runner) => (
+              <option key={runner.id} value={runner.id}>
+                {formatRunnerLabel(runner)}
+              </option>
+            ))}
+          </select>
+
           <label htmlFor="agent-name">Name</label>
           <input
             id="agent-name"
@@ -950,112 +984,143 @@ function AgentsPage({
 
         {agents.length > 0 ? (
           <ul className="task-list">
-            {agents.map((agent) => (
-              <li key={agent.id} className="task-card">
-                <div className="task-card-top">
-                  <strong>{agent.name}</strong>
-                  <code className="runner-id">{agent.id}</code>
-                </div>
-                <p className="agent-subcopy">
-                  SDK: <strong>{agent.agentSdk}</strong> • model: <strong>{agent.model}</strong> •
-                  reasoning: <strong>{agent.modelReasoningLevel}</strong>
-                </p>
+            {agents.map((agent) => {
+              const assignedRunner = agent.agentRunnerId
+                ? agentRunnerLookup.get(agent.agentRunnerId) || {
+                    id: agent.agentRunnerId,
+                    status: "disconnected",
+                  }
+                : null;
+              const assignedRunnerLabel = assignedRunner
+                ? formatRunnerLabel(assignedRunner)
+                : "Unassigned";
 
-                <div className="relationship-editor">
-                  <div className="agent-edit-grid">
-                    <label className="relationship-field" htmlFor={`agent-name-${agent.id}`}>
-                      Name
-                    </label>
-                    <input
-                      id={`agent-name-${agent.id}`}
-                      value={agentDrafts[agent.id]?.name ?? ""}
-                      onChange={(event) =>
-                        onAgentDraftChange(agent.id, "name", event.target.value)
-                      }
-                      disabled={savingAgentId === agent.id || deletingAgentId === agent.id}
-                    />
-
-                    <label className="relationship-field" htmlFor={`agent-sdk-${agent.id}`}>
-                      SDK
-                    </label>
-                    <input
-                      id={`agent-sdk-${agent.id}`}
-                      value={agentDrafts[agent.id]?.agentSdk ?? ""}
-                      onChange={(event) =>
-                        onAgentDraftChange(agent.id, "agentSdk", event.target.value)
-                      }
-                      disabled={savingAgentId === agent.id || deletingAgentId === agent.id}
-                    />
-
-                    <label className="relationship-field" htmlFor={`agent-model-${agent.id}`}>
-                      Model
-                    </label>
-                    <input
-                      id={`agent-model-${agent.id}`}
-                      value={agentDrafts[agent.id]?.model ?? ""}
-                      onChange={(event) =>
-                        onAgentDraftChange(agent.id, "model", event.target.value)
-                      }
-                      disabled={savingAgentId === agent.id || deletingAgentId === agent.id}
-                    />
-
-                    <label
-                      className="relationship-field"
-                      htmlFor={`agent-reasoning-${agent.id}`}
-                    >
-                      Reasoning
-                    </label>
-                    <input
-                      id={`agent-reasoning-${agent.id}`}
-                      value={agentDrafts[agent.id]?.modelReasoningLevel ?? ""}
-                      onChange={(event) =>
-                        onAgentDraftChange(agent.id, "modelReasoningLevel", event.target.value)
-                      }
-                      disabled={savingAgentId === agent.id || deletingAgentId === agent.id}
-                    />
+              return (
+                <li key={agent.id} className="task-card">
+                  <div className="task-card-top">
+                    <strong>{agent.name}</strong>
+                    <code className="runner-id">{agent.id}</code>
                   </div>
-                  <div className="task-card-actions">
-                    <button
-                      type="button"
-                      className="secondary-btn relationship-save-btn"
-                      onClick={() => onSaveAgent(agent.id)}
-                      disabled={
-                        savingAgentId === agent.id ||
-                        deletingAgentId === agent.id ||
-                        initializingAgentId === agent.id
-                      }
-                    >
-                      {savingAgentId === agent.id ? "Saving..." : "Save"}
-                    </button>
-                    <button
-                      type="button"
-                      className="secondary-btn"
-                      onClick={() => onInitializeAgent(agent.id)}
-                      disabled={
-                        !canInitializeAgents ||
-                        savingAgentId === agent.id ||
-                        deletingAgentId === agent.id ||
-                        initializingAgentId === agent.id
-                      }
-                    >
-                      {initializingAgentId === agent.id ? "Initializing..." : "Initialize"}
-                    </button>
-                    <button
-                      type="button"
-                      className="danger-btn"
-                      onClick={() => onDeleteAgent(agent.id, agent.name)}
-                      disabled={
-                        savingAgentId === agent.id ||
-                        deletingAgentId === agent.id ||
-                        initializingAgentId === agent.id
-                      }
-                    >
-                      {deletingAgentId === agent.id ? "Deleting..." : "Delete"}
-                    </button>
+                  <p className="agent-subcopy">
+                    SDK: <strong>{agent.agentSdk}</strong> • model: <strong>{agent.model}</strong>{" "}
+                    • reasoning: <strong>{agent.modelReasoningLevel}</strong>
+                  </p>
+                  <p className="agent-subcopy">
+                    Runner: <strong>{assignedRunnerLabel}</strong>
+                  </p>
+
+                  <div className="relationship-editor">
+                    <div className="agent-edit-grid">
+                      <label className="relationship-field" htmlFor={`agent-runner-${agent.id}`}>
+                        Runner
+                      </label>
+                      <select
+                        id={`agent-runner-${agent.id}`}
+                        value={agentDrafts[agent.id]?.agentRunnerId ?? ""}
+                        onChange={(event) =>
+                          onAgentDraftChange(agent.id, "agentRunnerId", event.target.value)
+                        }
+                        disabled={savingAgentId === agent.id || deletingAgentId === agent.id}
+                      >
+                        <option value="">Unassigned</option>
+                        {agentRunners.map((runner) => (
+                          <option key={runner.id} value={runner.id}>
+                            {formatRunnerLabel(runner)}
+                          </option>
+                        ))}
+                      </select>
+
+                      <label className="relationship-field" htmlFor={`agent-name-${agent.id}`}>
+                        Name
+                      </label>
+                      <input
+                        id={`agent-name-${agent.id}`}
+                        value={agentDrafts[agent.id]?.name ?? ""}
+                        onChange={(event) =>
+                          onAgentDraftChange(agent.id, "name", event.target.value)
+                        }
+                        disabled={savingAgentId === agent.id || deletingAgentId === agent.id}
+                      />
+
+                      <label className="relationship-field" htmlFor={`agent-sdk-${agent.id}`}>
+                        SDK
+                      </label>
+                      <input
+                        id={`agent-sdk-${agent.id}`}
+                        value={agentDrafts[agent.id]?.agentSdk ?? ""}
+                        onChange={(event) =>
+                          onAgentDraftChange(agent.id, "agentSdk", event.target.value)
+                        }
+                        disabled={savingAgentId === agent.id || deletingAgentId === agent.id}
+                      />
+
+                      <label className="relationship-field" htmlFor={`agent-model-${agent.id}`}>
+                        Model
+                      </label>
+                      <input
+                        id={`agent-model-${agent.id}`}
+                        value={agentDrafts[agent.id]?.model ?? ""}
+                        onChange={(event) =>
+                          onAgentDraftChange(agent.id, "model", event.target.value)
+                        }
+                        disabled={savingAgentId === agent.id || deletingAgentId === agent.id}
+                      />
+
+                      <label className="relationship-field" htmlFor={`agent-reasoning-${agent.id}`}>
+                        Reasoning
+                      </label>
+                      <input
+                        id={`agent-reasoning-${agent.id}`}
+                        value={agentDrafts[agent.id]?.modelReasoningLevel ?? ""}
+                        onChange={(event) =>
+                          onAgentDraftChange(agent.id, "modelReasoningLevel", event.target.value)
+                        }
+                        disabled={savingAgentId === agent.id || deletingAgentId === agent.id}
+                      />
+                    </div>
+                    <div className="task-card-actions">
+                      <button
+                        type="button"
+                        className="secondary-btn relationship-save-btn"
+                        onClick={() => onSaveAgent(agent.id)}
+                        disabled={
+                          savingAgentId === agent.id ||
+                          deletingAgentId === agent.id ||
+                          initializingAgentId === agent.id
+                        }
+                      >
+                        {savingAgentId === agent.id ? "Saving..." : "Save"}
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary-btn"
+                        onClick={() => onInitializeAgent(agent.id)}
+                        disabled={
+                          !canInitializeAgents ||
+                          savingAgentId === agent.id ||
+                          deletingAgentId === agent.id ||
+                          initializingAgentId === agent.id
+                        }
+                      >
+                        {initializingAgentId === agent.id ? "Initializing..." : "Initialize"}
+                      </button>
+                      <button
+                        type="button"
+                        className="danger-btn"
+                        onClick={() => onDeleteAgent(agent.id, agent.name)}
+                        disabled={
+                          savingAgentId === agent.id ||
+                          deletingAgentId === agent.id ||
+                          initializingAgentId === agent.id
+                        }
+                      >
+                        {deletingAgentId === agent.id ? "Deleting..." : "Delete"}
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         ) : null}
       </section>
@@ -1095,6 +1160,7 @@ function App() {
   const [dependsOnTaskId, setDependsOnTaskId] = useState("");
   const [relationshipDrafts, setRelationshipDrafts] = useState({});
   const [agentName, setAgentName] = useState("");
+  const [agentRunnerId, setAgentRunnerId] = useState("");
   const [agentSdk, setAgentSdk] = useState("");
   const [agentModel, setAgentModel] = useState("");
   const [agentModelReasoningLevel, setAgentModelReasoningLevel] = useState("");
@@ -1104,6 +1170,13 @@ function App() {
   const selectedCompany = useMemo(() => {
     return companies.find((company) => company.id === selectedCompanyId) || null;
   }, [companies, selectedCompanyId]);
+
+  const agentRunnerLookup = useMemo(() => {
+    return agentRunners.reduce((map, runner) => {
+      map.set(runner.id, runner);
+      return map;
+    }, new Map());
+  }, [agentRunners]);
 
   const loadCompanies = useCallback(async () => {
     try {
@@ -1184,6 +1257,7 @@ function App() {
       setAgentError("");
       setAgents([]);
       setAgentDrafts({});
+      setAgentRunnerId("");
       setIsLoadingAgents(false);
       return;
     }
@@ -1208,6 +1282,10 @@ function App() {
 
   useEffect(() => {
     persistCompanyId(selectedCompanyId);
+  }, [selectedCompanyId]);
+
+  useEffect(() => {
+    setAgentRunnerId("");
   }, [selectedCompanyId]);
 
   useEffect(() => {
@@ -1457,6 +1535,7 @@ function App() {
       setAgentError("");
       const data = await executeGraphQL(CREATE_AGENT_MUTATION, {
         companyId: selectedCompanyId,
+        agentRunnerId: agentRunnerId || null,
         name: agentName.trim(),
         agentSdk: agentSdk.trim(),
         model: agentModel.trim(),
@@ -1467,6 +1546,7 @@ function App() {
         throw new Error(result.error || "Agent creation failed.");
       }
       setAgentName("");
+      setAgentRunnerId("");
       setAgentSdk("");
       setAgentModel("");
       setAgentModelReasoningLevel("");
@@ -1484,6 +1564,7 @@ function App() {
       return;
     }
     const draft = agentDrafts[agentId] || {
+      agentRunnerId: "",
       name: "",
       agentSdk: "",
       model: "",
@@ -1505,6 +1586,7 @@ function App() {
       const data = await executeGraphQL(UPDATE_AGENT_MUTATION, {
         companyId: selectedCompanyId,
         id: agentId,
+        agentRunnerId: draft.agentRunnerId || null,
         name: draft.name.trim(),
         agentSdk: draft.agentSdk.trim(),
         model: draft.model.trim(),
@@ -1558,11 +1640,29 @@ function App() {
       return;
     }
 
-    const readyRunner = agentRunners.find(
-      (runner) => normalizeRunnerStatus(runner.status) === "ready",
-    );
+    const agent = agents.find((candidate) => candidate.id === agentId);
+    if (!agent) {
+      setAgentError(`Agent ${agentId} not found in the current list.`);
+      return;
+    }
+
+    const assignedRunner = agent.agentRunnerId ? agentRunnerLookup.get(agent.agentRunnerId) : null;
+    if (agent.agentRunnerId && !assignedRunner) {
+      setAgentError(`Assigned runner ${agent.agentRunnerId} was not found for this company.`);
+      return;
+    }
+
+    const readyRunner = assignedRunner
+      ? normalizeRunnerStatus(assignedRunner.status) === "ready"
+        ? assignedRunner
+        : null
+      : agentRunners.find((runner) => normalizeRunnerStatus(runner.status) === "ready");
     if (!readyRunner) {
-      setAgentError("No ready runner found. Start a runner before initializing agents.");
+      setAgentError(
+        assignedRunner
+          ? `Assigned runner ${assignedRunner.id} is not ready.`
+          : "No ready runner found. Start a runner before initializing agents.",
+      );
       return;
     }
 
@@ -1601,6 +1701,7 @@ function App() {
       ...currentDrafts,
       [agentId]: {
         ...(currentDrafts[agentId] || {
+          agentRunnerId: "",
           name: "",
           agentSdk: "",
           model: "",
@@ -1829,6 +1930,8 @@ function App() {
           <AgentsPage
             selectedCompanyId={selectedCompanyId}
             agents={agents}
+            agentRunners={agentRunners}
+            agentRunnerLookup={agentRunnerLookup}
             isLoadingAgents={isLoadingAgents}
             agentError={agentError}
             isCreatingAgent={isCreatingAgent}
@@ -1836,12 +1939,14 @@ function App() {
             deletingAgentId={deletingAgentId}
             initializingAgentId={initializingAgentId}
             canInitializeAgents={hasReadyRunner}
+            agentRunnerId={agentRunnerId}
             agentName={agentName}
             agentSdk={agentSdk}
             agentModel={agentModel}
             agentModelReasoningLevel={agentModelReasoningLevel}
             agentDrafts={agentDrafts}
             agentCountLabel={agentCountLabel}
+            onAgentRunnerChange={setAgentRunnerId}
             onAgentNameChange={setAgentName}
             onAgentSdkChange={setAgentSdk}
             onAgentModelChange={setAgentModel}
