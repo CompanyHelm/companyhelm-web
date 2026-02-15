@@ -413,8 +413,7 @@ const LIST_AGENT_CHAT_SESSIONS_QUERY = `
       agentId
       runnerId
       title
-      codeSessionId
-      cloudSessionId
+      remoteSessionId
       createdAt
       updatedAt
     }
@@ -427,16 +426,14 @@ const CREATE_AGENT_CHAT_SESSION_MUTATION = `
     $agentId: String!
     $title: String
     $runnerId: String
-    $codeSessionId: String
-    $cloudSessionId: String
+    $remoteSessionId: String
   ) {
     createAgentChatSession(
       companyId: $companyId
       agentId: $agentId
       title: $title
       runnerId: $runnerId
-      codeSessionId: $codeSessionId
-      cloudSessionId: $cloudSessionId
+      remoteSessionId: $remoteSessionId
     ) {
       ok
       error
@@ -446,8 +443,7 @@ const CREATE_AGENT_CHAT_SESSION_MUTATION = `
         agentId
         runnerId
         title
-        codeSessionId
-        cloudSessionId
+        remoteSessionId
         createdAt
         updatedAt
       }
@@ -530,7 +526,6 @@ const PRIMARY_NAV_ITEMS = [
     requiresCompany: true,
   },
   { id: "agents", label: "Agents", href: "#agents", tone: "coral", requiresCompany: true },
-  { id: "chat", label: "Agent Chat", href: "#chat", tone: "mint", requiresCompany: true },
   {
     id: "settings",
     label: "Settings",
@@ -575,10 +570,34 @@ function getSelectedMultiValues(selectElement) {
 
 function getPageFromHash() {
   const parsed = window.location.hash.replace("#", "").toLowerCase();
-  if (PAGE_IDS.has(parsed)) {
-    return parsed;
+  const [pageId] = parsed.split("/").filter(Boolean);
+  if (pageId && PAGE_IDS.has(pageId)) {
+    return pageId;
   }
   return NAV_ITEMS[0].id;
+}
+
+function getAgentsRouteFromHash() {
+  const parsed = window.location.hash.replace("#", "").trim();
+  const segments = parsed.split("/").filter(Boolean);
+  if (segments[0] !== "agents") {
+    return { view: "list", agentId: "", sessionId: "" };
+  }
+
+  const agentId = segments[1] || "";
+  if (!agentId) {
+    return { view: "list", agentId: "", sessionId: "" };
+  }
+
+  if (segments[2] !== "sessions") {
+    return { view: "list", agentId: "", sessionId: "" };
+  }
+
+  const sessionId = segments[3] || "";
+  if (sessionId && segments[4] === "chat") {
+    return { view: "chat", agentId, sessionId };
+  }
+  return { view: "sessions", agentId, sessionId: "" };
 }
 
 function getPersistedCompanyId() {
@@ -1627,7 +1646,7 @@ function AgentsPage({
   onAgentDraftChange,
   onSaveAgent,
   onInitializeAgent,
-  onOpenAgentChat,
+  onOpenAgentSessions,
   onDeleteAgent,
 }) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -1825,14 +1844,14 @@ function AgentsPage({
                       <button
                         type="button"
                         className="secondary-btn"
-                        onClick={() => onOpenAgentChat(agent.id)}
+                        onClick={() => onOpenAgentSessions(agent.id)}
                         disabled={
                           savingAgentId === agent.id ||
                           deletingAgentId === agent.id ||
                           initializingAgentId === agent.id
                         }
                       >
-                        Chat
+                        Sessions
                       </button>
                       <button
                         type="button"
@@ -2177,107 +2196,85 @@ function SkillsPage({
   );
 }
 
-function ChatPage({
+function AgentSessionsPage({
   selectedCompanyId,
-  agents,
-  chatAgentId,
+  agent,
   chatSessions,
-  chatSessionId,
-  selectedChatSession,
-  chatMessages,
   isLoadingChatSessions,
   isCreatingChatSession,
-  isLoadingChat,
   chatError,
-  codexAuthState,
-  isLoadingCodexAuthState,
-  codexAuthError,
-  isStartingCodexAuth,
-  codexVerificationUrl,
-  codexAuthCopyFeedback,
   chatSessionTitleDraft,
-  chatSessionCodeIdDraft,
-  chatSessionCloudIdDraft,
-  chatDraftMessage,
-  isSendingChatMessage,
-  onChatAgentChange,
-  onChatSessionChange,
+  chatSessionRemoteIdDraft,
   onChatSessionTitleDraftChange,
-  onChatSessionCodeIdDraftChange,
-  onChatSessionCloudIdDraftChange,
-  onChatDraftMessageChange,
-  onRefreshChat,
+  onChatSessionRemoteIdDraftChange,
+  onRefreshSessions,
   onCreateChatSession,
-  onStartCodexDeviceAuth,
-  onCopyDeviceCode,
-  onSendChatMessage,
+  onOpenChat,
+  onBackToAgents,
 }) {
-  const selectedAgent = useMemo(() => {
-    return agents.find((agent) => agent.id === chatAgentId) || null;
-  }, [agents, chatAgentId]);
-  const selectedAgentIsCodex = isCodexAgent(selectedAgent);
-
   return (
     <div className="page-stack">
       <section className="panel hero-panel">
         <p className="eyebrow">Agent Runtime</p>
-        <h1>Agent chat</h1>
-        <p className="subcopy">
-          Send messages to any initialized agent. Messages are grouped in sessions per agent.
-        </p>
+        <h1>Agent sessions</h1>
+        <p className="subcopy">Browse, create, and open chat sessions for a single agent.</p>
         <p className="context-pill">Company: {selectedCompanyId}</p>
+        <p className="context-pill">
+          Agent: {agent ? `${agent.name} (${agent.id.slice(0, 8)})` : "Unknown agent"}
+        </p>
+        <div className="hero-actions">
+          <button type="button" className="secondary-btn" onClick={onBackToAgents}>
+            Back to agents
+          </button>
+          <button
+            type="button"
+            className="secondary-btn"
+            onClick={onRefreshSessions}
+            disabled={!agent}
+          >
+            Refresh sessions
+          </button>
+        </div>
       </section>
 
-      <section className="panel composer-panel">
-        <header className="panel-header panel-header-row">
-          <h2>Conversation controls</h2>
-          <button type="button" className="secondary-btn" onClick={onRefreshChat}>
-            Refresh
-          </button>
+      <section className="panel list-panel">
+        <header className="panel-header">
+          <h2>Sessions</h2>
         </header>
-        <div className="task-form">
-          <label htmlFor="chat-agent-select">Agent</label>
-          <select
-            id="chat-agent-select"
-            value={chatAgentId}
-            onChange={(event) => onChatAgentChange(event.target.value)}
-          >
-            <option value="">Select an agent</option>
-            {agents.map((agent) => (
-              <option key={`chat-agent-${agent.id}`} value={agent.id}>
-                {agent.name} ({agent.agentSdk})
-              </option>
-            ))}
-          </select>
-          <label htmlFor="chat-session-select">Session</label>
-          <select
-            id="chat-session-select"
-            value={chatSessionId}
-            onChange={(event) => onChatSessionChange(event.target.value)}
-            disabled={!chatAgentId || isLoadingChatSessions}
-          >
-            <option value="">
-              {isLoadingChatSessions ? "Loading sessions..." : "Select a session"}
-            </option>
+        {chatError ? <p className="error-banner">Chat error: {chatError}</p> : null}
+        {!agent ? <p className="empty-hint">Agent not found.</p> : null}
+        {agent && isLoadingChatSessions ? <p className="empty-hint">Loading sessions...</p> : null}
+        {agent && !isLoadingChatSessions && chatSessions.length === 0 ? (
+          <p className="empty-hint">No sessions yet. Create one below.</p>
+        ) : null}
+        {agent && chatSessions.length > 0 ? (
+          <ul className="task-list">
             {chatSessions.map((session) => (
-              <option key={`chat-session-${session.id}`} value={session.id}>
-                {session.title || session.id.slice(0, 8)} ({formatTimestamp(session.updatedAt)})
-              </option>
+              <li key={`agent-session-${session.id}`} className="task-card">
+                <div className="task-card-top">
+                  <strong>{session.title || "Untitled session"}</strong>
+                  <code className="runner-id">{session.id}</code>
+                </div>
+                <p className="agent-subcopy">
+                  Updated: <strong>{formatTimestamp(session.updatedAt)}</strong>
+                </p>
+                {session.remoteSessionId ? (
+                  <p className="agent-subcopy">
+                    Remote session ID: <strong>{session.remoteSessionId}</strong>
+                  </p>
+                ) : null}
+                <div className="task-card-actions">
+                  <button
+                    type="button"
+                    className="secondary-btn"
+                    onClick={() => onOpenChat(session.id)}
+                  >
+                    Open chat
+                  </button>
+                </div>
+              </li>
             ))}
-          </select>
-        </div>
-        {selectedChatSession ? (
-          <div className="codex-auth-state">
-            <p className="codex-auth-row">
-              <strong>Session title:</strong> {selectedChatSession.title || "Untitled session"}
-            </p>
-            <p className="codex-auth-row">
-              <strong>Code session ID:</strong> {selectedChatSession.codeSessionId || "not set"}
-            </p>
-            <p className="codex-auth-row">
-              <strong>Cloud session ID:</strong> {selectedChatSession.cloudSessionId || "not set"}
-            </p>
-          </div>
+          </ul>
         ) : null}
       </section>
 
@@ -2287,9 +2284,15 @@ function ChatPage({
         </header>
         <form
           className="task-form"
-          onSubmit={(event) => {
+          onSubmit={async (event) => {
             event.preventDefault();
-            onCreateChatSession();
+            const createdSessionId = await onCreateChatSession({
+              title: chatSessionTitleDraft,
+              remoteSessionId: chatSessionRemoteIdDraft,
+            });
+            if (createdSessionId) {
+              onOpenChat(createdSessionId);
+            }
           }}
         >
           <label htmlFor="chat-session-title">Title (optional)</label>
@@ -2298,28 +2301,94 @@ function ChatPage({
             value={chatSessionTitleDraft}
             onChange={(event) => onChatSessionTitleDraftChange(event.target.value)}
             placeholder="e.g. Release planning"
-            disabled={!chatAgentId || isCreatingChatSession}
+            disabled={!agent || isCreatingChatSession}
           />
-          <label htmlFor="chat-session-code-id">Code session ID (optional)</label>
+          <label htmlFor="chat-session-remote-id">Remote session ID (optional)</label>
           <input
-            id="chat-session-code-id"
-            value={chatSessionCodeIdDraft}
-            onChange={(event) => onChatSessionCodeIdDraftChange(event.target.value)}
-            placeholder="Provider code session id"
-            disabled={!chatAgentId || isCreatingChatSession}
+            id="chat-session-remote-id"
+            value={chatSessionRemoteIdDraft}
+            onChange={(event) => onChatSessionRemoteIdDraftChange(event.target.value)}
+            placeholder="Provider thread/session id"
+            disabled={!agent || isCreatingChatSession}
           />
-          <label htmlFor="chat-session-cloud-id">Cloud session ID (optional)</label>
-          <input
-            id="chat-session-cloud-id"
-            value={chatSessionCloudIdDraft}
-            onChange={(event) => onChatSessionCloudIdDraftChange(event.target.value)}
-            placeholder="Provider cloud session id"
-            disabled={!chatAgentId || isCreatingChatSession}
-          />
-          <button type="submit" disabled={!chatAgentId || isCreatingChatSession}>
+          <button type="submit" disabled={!agent || isCreatingChatSession}>
             {isCreatingChatSession ? "Creating..." : "Create session"}
           </button>
         </form>
+      </section>
+    </div>
+  );
+}
+
+function AgentChatPage({
+  selectedCompanyId,
+  agent,
+  session,
+  chatMessages,
+  isLoadingChat,
+  chatError,
+  chatDraftMessage,
+  isSendingChatMessage,
+  codexAuthState,
+  isLoadingCodexAuthState,
+  codexAuthError,
+  isStartingCodexAuth,
+  codexVerificationUrl,
+  codexAuthCopyFeedback,
+  onChatDraftMessageChange,
+  onRefreshChat,
+  onBackToSessions,
+  onSendChatMessage,
+  onStartCodexDeviceAuth,
+  onCopyDeviceCode,
+}) {
+  const selectedAgentIsCodex = isCodexAgent(agent);
+  const canChat = Boolean(agent && session);
+
+  return (
+    <div className="page-stack">
+      <section className="panel hero-panel">
+        <p className="eyebrow">Agent Runtime</p>
+        <h1>Agent chat</h1>
+        <p className="subcopy">Send new messages to the selected agent session.</p>
+        <p className="context-pill">Company: {selectedCompanyId}</p>
+        <p className="context-pill">
+          Agent: {agent ? `${agent.name} (${agent.id.slice(0, 8)})` : "Unknown agent"}
+        </p>
+        <div className="hero-actions">
+          <button type="button" className="secondary-btn" onClick={onBackToSessions}>
+            Back to sessions
+          </button>
+          <button
+            type="button"
+            className="secondary-btn"
+            onClick={onRefreshChat}
+            disabled={!agent}
+          >
+            Refresh
+          </button>
+        </div>
+      </section>
+
+      <section className="panel composer-panel">
+        <header className="panel-header">
+          <h2>Session</h2>
+        </header>
+        {session ? (
+          <div className="codex-auth-state">
+            <p className="codex-auth-row">
+              <strong>Title:</strong> {session.title || "Untitled session"}
+            </p>
+            <p className="codex-auth-row">
+              <strong>Session ID:</strong> <code className="runner-id">{session.id}</code>
+            </p>
+            <p className="codex-auth-row">
+              <strong>Remote session ID:</strong> {session.remoteSessionId || "not set"}
+            </p>
+          </div>
+        ) : (
+          <p className="empty-hint">Session not found.</p>
+        )}
       </section>
 
       <section className="panel chat-panel">
@@ -2327,14 +2396,10 @@ function ChatPage({
           <h2>Transcript</h2>
         </header>
         {chatError ? <p className="error-banner">Chat error: {chatError}</p> : null}
-        {!chatAgentId ? <p className="empty-hint">Select an agent to start chatting.</p> : null}
-        {chatAgentId && !chatSessionId ? (
-          <p className="empty-hint">
-            No session selected yet. Send a message to auto-create one, or create one manually.
-          </p>
-        ) : null}
-        {chatAgentId && isLoadingChat ? <p className="empty-hint">Loading chat messages...</p> : null}
-        {chatAgentId && chatSessionId && !isLoadingChat && chatMessages.length === 0 ? (
+        {!agent ? <p className="empty-hint">Agent not found.</p> : null}
+        {agent && !session ? <p className="empty-hint">Session not found.</p> : null}
+        {canChat && isLoadingChat ? <p className="empty-hint">Loading chat messages...</p> : null}
+        {canChat && !isLoadingChat && chatMessages.length === 0 ? (
           <p className="empty-hint">No messages yet. Send the first prompt below.</p>
         ) : null}
         {chatMessages.length > 0 ? (
@@ -2371,15 +2436,11 @@ function ChatPage({
             placeholder="Ask the agent to plan, debug, or implement something..."
             value={chatDraftMessage}
             onChange={(event) => onChatDraftMessageChange(event.target.value)}
-            disabled={!chatAgentId || isSendingChatMessage}
+            disabled={!canChat || isSendingChatMessage}
           />
           <button
             type="submit"
-            disabled={
-              !chatAgentId ||
-              !chatDraftMessage.trim() ||
-              isSendingChatMessage
-            }
+            disabled={!canChat || !chatDraftMessage.trim() || isSendingChatMessage}
           >
             {isSendingChatMessage ? "Sending..." : "Send message"}
           </button>
@@ -2394,7 +2455,7 @@ function ChatPage({
               type="button"
               className="secondary-btn"
               onClick={onStartCodexDeviceAuth}
-              disabled={!chatAgentId || isStartingCodexAuth}
+              disabled={!agent || isStartingCodexAuth}
             >
               {isStartingCodexAuth ? "Starting..." : "Start device auth"}
             </button>
@@ -2402,14 +2463,17 @@ function ChatPage({
           {codexAuthError ? <p className="error-banner">Auth error: {codexAuthError}</p> : null}
           <p className="codex-auth-row">
             <strong>Codex URL:</strong>{" "}
-            <a className="codex-auth-link" href={codexVerificationUrl} target="_blank" rel="noreferrer">
+            <a
+              className="codex-auth-link"
+              href={codexVerificationUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
               {codexVerificationUrl}
             </a>
           </p>
-          {chatAgentId && isLoadingCodexAuthState ? (
-            <p className="empty-hint">Loading auth state...</p>
-          ) : null}
-          {chatAgentId && !isLoadingCodexAuthState && !codexAuthState ? (
+          {agent && isLoadingCodexAuthState ? <p className="empty-hint">Loading auth state...</p> : null}
+          {agent && !isLoadingCodexAuthState && !codexAuthState ? (
             <p className="empty-hint">No auth request yet for this agent.</p>
           ) : null}
           {codexAuthState ? (
@@ -2436,9 +2500,7 @@ function ChatPage({
                   </button>
                 </p>
               ) : null}
-              {codexAuthState.message ? (
-                <p className="codex-auth-row">{codexAuthState.message}</p>
-              ) : null}
+              {codexAuthState.message ? <p className="codex-auth-row">{codexAuthState.message}</p> : null}
             </div>
           ) : null}
           {codexAuthCopyFeedback ? (
@@ -2558,6 +2620,7 @@ function ProfilePage({ selectedCompany, tasks, skills, agents, agentRunners }) {
 
 function App() {
   const [activePage, setActivePage] = useState(() => getPageFromHash());
+  const [agentsRoute, setAgentsRoute] = useState(() => getAgentsRouteFromHash());
   const [companies, setCompanies] = useState([]);
   const [isLoadingCompanies, setIsLoadingCompanies] = useState(true);
   const [companyError, setCompanyError] = useState("");
@@ -2614,8 +2677,7 @@ function App() {
   const [chatSessions, setChatSessions] = useState([]);
   const [chatSessionId, setChatSessionId] = useState("");
   const [chatSessionTitleDraft, setChatSessionTitleDraft] = useState("");
-  const [chatSessionCodeIdDraft, setChatSessionCodeIdDraft] = useState("");
-  const [chatSessionCloudIdDraft, setChatSessionCloudIdDraft] = useState("");
+  const [chatSessionRemoteIdDraft, setChatSessionRemoteIdDraft] = useState("");
   const [chatMessages, setChatMessages] = useState([]);
   const [chatDraftMessage, setChatDraftMessage] = useState("");
   const [chatError, setChatError] = useState("");
@@ -2896,8 +2958,7 @@ function App() {
     setChatSessions([]);
     setChatSessionId("");
     setChatSessionTitleDraft("");
-    setChatSessionCodeIdDraft("");
-    setChatSessionCloudIdDraft("");
+    setChatSessionRemoteIdDraft("");
     setChatMessages([]);
     setChatDraftMessage("");
     setChatError("");
@@ -2951,13 +3012,25 @@ function App() {
       setChatMessages([]);
       return;
     }
+
+    if (activePage === "agents" && agentsRoute.view === "chat" && agentsRoute.sessionId) {
+      setChatSessionId(agentsRoute.sessionId);
+      return;
+    }
+
+    if (activePage === "agents" && agentsRoute.view === "sessions") {
+      setChatSessionId("");
+      setChatMessages([]);
+      return;
+    }
+
     setChatSessionId((currentSessionId) => {
       if (currentSessionId && chatSessions.some((session) => session.id === currentSessionId)) {
         return currentSessionId;
       }
       return chatSessions[0]?.id || "";
     });
-  }, [chatAgentId, chatSessions]);
+  }, [activePage, agentsRoute.sessionId, agentsRoute.view, chatAgentId, chatSessions]);
 
   useEffect(() => {
     if (!window.location.hash) {
@@ -2966,11 +3039,31 @@ function App() {
 
     const handleHashChange = () => {
       setActivePage(getPageFromHash());
+      setAgentsRoute(getAgentsRouteFromHash());
     };
 
+    handleHashChange();
     window.addEventListener("hashchange", handleHashChange);
     return () => window.removeEventListener("hashchange", handleHashChange);
   }, []);
+
+  useEffect(() => {
+    if (activePage !== "agents") {
+      return;
+    }
+    if (agentsRoute.view === "sessions" || agentsRoute.view === "chat") {
+      if (agentsRoute.agentId) {
+        setChatAgentId(agentsRoute.agentId);
+      }
+      if (agentsRoute.view === "sessions") {
+        setChatSessionId("");
+        setChatMessages([]);
+      }
+      if (agentsRoute.view === "chat" && agentsRoute.sessionId) {
+        setChatSessionId(agentsRoute.sessionId);
+      }
+    }
+  }, [activePage, agentsRoute.agentId, agentsRoute.sessionId, agentsRoute.view]);
 
   useEffect(() => {
     if (isLoadingCompanies) {
@@ -2993,9 +3086,11 @@ function App() {
   }, [loadAgentRunners, selectedCompanyId]);
 
   useEffect(() => {
-    const shouldPollChat = activePage === "chat";
-    const shouldPollSessions = activePage === "chat";
-    const shouldPollCodexAuth = activePage === "chat" || activePage === "dashboard";
+    const shouldPollChat = activePage === "agents" && agentsRoute.view === "chat";
+    const shouldPollSessions =
+      activePage === "agents" && (agentsRoute.view === "sessions" || agentsRoute.view === "chat");
+    const shouldPollCodexAuth =
+      activePage === "dashboard" || (activePage === "agents" && agentsRoute.view === "chat");
     if (!selectedCompanyId || !chatAgentId || (!shouldPollChat && !shouldPollCodexAuth)) {
       return undefined;
     }
@@ -3013,6 +3108,7 @@ function App() {
     return () => window.clearInterval(pollId);
   }, [
     activePage,
+    agentsRoute.view,
     chatAgentId,
     loadAgentChatMessages,
     loadAgentChatSessions,
@@ -3616,8 +3712,7 @@ function App() {
     if (!targetSessionId) {
       targetSessionId = await handleCreateChatSession({
         title: chatSessionTitleDraft || null,
-        codeSessionId: chatSessionCodeIdDraft || null,
-        cloudSessionId: chatSessionCloudIdDraft || null,
+        remoteSessionId: chatSessionRemoteIdDraft || null,
         preferredRunnerId: selectedAgentForChat?.agentRunnerId || null,
       });
       if (!targetSessionId) {
@@ -3654,8 +3749,7 @@ function App() {
 
   async function handleCreateChatSession({
     title = null,
-    codeSessionId = null,
-    cloudSessionId = null,
+    remoteSessionId = null,
     preferredRunnerId = null,
   } = {}) {
     if (!selectedCompanyId) {
@@ -3676,8 +3770,7 @@ function App() {
         companyId: selectedCompanyId,
         agentId: chatAgentId,
         title: title ? title.trim() : null,
-        codeSessionId: codeSessionId ? codeSessionId.trim() : null,
-        cloudSessionId: cloudSessionId ? cloudSessionId.trim() : null,
+        remoteSessionId: remoteSessionId ? remoteSessionId.trim() : null,
         runnerId: preferredRunnerId || selectedAgentForChat?.agentRunnerId || null,
       });
       const result = data.createAgentChatSession;
@@ -3686,8 +3779,7 @@ function App() {
       }
 
       setChatSessionTitleDraft("");
-      setChatSessionCodeIdDraft("");
-      setChatSessionCloudIdDraft("");
+      setChatSessionRemoteIdDraft("");
       await loadAgentChatSessions();
       setChatSessionId(result.session.id);
       return result.session.id;
@@ -3799,14 +3891,22 @@ function App() {
   }
 
   function navigateTo(pageId) {
+    if (pageId === "chat") {
+      if (chatAgentId) {
+        window.location.hash = `#agents/${chatAgentId}/sessions`;
+      } else {
+        window.location.hash = "#agents";
+      }
+      return;
+    }
     window.location.hash = `#${pageId}`;
   }
 
-  function handleOpenAgentChat(agentId) {
+  function handleOpenAgentSessions(agentId) {
     setChatAgentId(agentId);
     setChatSessionId("");
     setChatMessages([]);
-    navigateTo("chat");
+    window.location.hash = `#agents/${agentId}/sessions`;
   }
 
   const taskLookup = useMemo(() => {
@@ -4059,83 +4159,100 @@ function App() {
         ) : null}
 
         {selectedCompanyId && activePage === "agents" ? (
-          <AgentsPage
-            selectedCompanyId={selectedCompanyId}
-            agents={agents}
-            skills={skills}
-            agentRunners={agentRunners}
-            agentRunnerLookup={agentRunnerLookup}
-            isLoadingAgents={isLoadingAgents}
-            agentError={agentError}
-            isCreatingAgent={isCreatingAgent}
-            savingAgentId={savingAgentId}
-            deletingAgentId={deletingAgentId}
-            initializingAgentId={initializingAgentId}
-            canInitializeAgents={hasReadyRunner}
-            agentRunnerId={agentRunnerId}
-            agentSkillIds={agentSkillIds}
-            agentName={agentName}
-            agentSdk={agentSdk}
-            agentModel={agentModel}
-            agentModelReasoningLevel={agentModelReasoningLevel}
-            agentDrafts={agentDrafts}
-            agentCountLabel={agentCountLabel}
-            onAgentRunnerChange={setAgentRunnerId}
-            onAgentSkillIdsChange={setAgentSkillIds}
-            onAgentNameChange={setAgentName}
-            onAgentSdkChange={setAgentSdk}
-            onAgentModelChange={setAgentModel}
-            onAgentModelReasoningLevelChange={setAgentModelReasoningLevel}
-            onCreateAgent={handleCreateAgent}
-            onRefreshAgents={loadAgents}
-            onAgentDraftChange={handleAgentDraftChange}
-            onSaveAgent={handleSaveAgent}
-            onInitializeAgent={handleInitializeAgent}
-            onOpenAgentChat={handleOpenAgentChat}
-            onDeleteAgent={handleDeleteAgent}
-          />
-        ) : null}
-
-        {selectedCompanyId && activePage === "chat" ? (
-          <ChatPage
-            selectedCompanyId={selectedCompanyId}
-            agents={agents}
-            chatAgentId={chatAgentId}
-            chatSessions={chatSessions}
-            chatSessionId={chatSessionId}
-            selectedChatSession={selectedChatSession}
-            chatMessages={chatMessages}
-            isLoadingChatSessions={isLoadingChatSessions}
-            isCreatingChatSession={isCreatingChatSession}
-            isLoadingChat={isLoadingChat}
-            chatError={chatError}
-            codexAuthState={codexAuthState}
-            isLoadingCodexAuthState={isLoadingCodexAuthState}
-            codexAuthError={codexAuthError}
-            isStartingCodexAuth={isStartingCodexAuth}
-            codexVerificationUrl={codexVerificationUrl}
-            codexAuthCopyFeedback={codexAuthCopyFeedback}
-            chatSessionTitleDraft={chatSessionTitleDraft}
-            chatSessionCodeIdDraft={chatSessionCodeIdDraft}
-            chatSessionCloudIdDraft={chatSessionCloudIdDraft}
-            chatDraftMessage={chatDraftMessage}
-            isSendingChatMessage={isSendingChatMessage}
-            onChatAgentChange={setChatAgentId}
-            onChatSessionChange={setChatSessionId}
-            onChatSessionTitleDraftChange={setChatSessionTitleDraft}
-            onChatSessionCodeIdDraftChange={setChatSessionCodeIdDraft}
-            onChatSessionCloudIdDraftChange={setChatSessionCloudIdDraft}
-            onChatDraftMessageChange={setChatDraftMessage}
-            onRefreshChat={() => {
-              loadAgentChatSessions();
-              loadAgentChatMessages();
-              loadCodexAuthState();
-            }}
-            onCreateChatSession={handleCreateChatSession}
-            onStartCodexDeviceAuth={handleStartCodexDeviceAuth}
-            onCopyDeviceCode={handleCopyDeviceCode}
-            onSendChatMessage={handleSendChatMessage}
-          />
+          agentsRoute.view === "sessions" ? (
+            <AgentSessionsPage
+              selectedCompanyId={selectedCompanyId}
+              agent={agents.find((agent) => agent.id === chatAgentId) || null}
+              chatSessions={chatSessions}
+              isLoadingChatSessions={isLoadingChatSessions}
+              isCreatingChatSession={isCreatingChatSession}
+              chatError={chatError}
+              chatSessionTitleDraft={chatSessionTitleDraft}
+              chatSessionRemoteIdDraft={chatSessionRemoteIdDraft}
+              onChatSessionTitleDraftChange={setChatSessionTitleDraft}
+              onChatSessionRemoteIdDraftChange={setChatSessionRemoteIdDraft}
+              onRefreshSessions={() => loadAgentChatSessions()}
+              onCreateChatSession={handleCreateChatSession}
+              onOpenChat={(sessionId) => {
+                if (!chatAgentId || !sessionId) {
+                  return;
+                }
+                window.location.hash = `#agents/${chatAgentId}/sessions/${sessionId}/chat`;
+              }}
+              onBackToAgents={() => {
+                window.location.hash = "#agents";
+              }}
+            />
+          ) : agentsRoute.view === "chat" ? (
+            <AgentChatPage
+              selectedCompanyId={selectedCompanyId}
+              agent={agents.find((agent) => agent.id === chatAgentId) || null}
+              session={selectedChatSession}
+              chatMessages={chatMessages}
+              isLoadingChat={isLoadingChat}
+              chatError={chatError}
+              chatDraftMessage={chatDraftMessage}
+              isSendingChatMessage={isSendingChatMessage}
+              codexAuthState={codexAuthState}
+              isLoadingCodexAuthState={isLoadingCodexAuthState}
+              codexAuthError={codexAuthError}
+              isStartingCodexAuth={isStartingCodexAuth}
+              codexVerificationUrl={codexVerificationUrl}
+              codexAuthCopyFeedback={codexAuthCopyFeedback}
+              onChatDraftMessageChange={setChatDraftMessage}
+              onRefreshChat={() => {
+                loadAgentChatSessions();
+                loadAgentChatMessages();
+                loadCodexAuthState();
+              }}
+              onBackToSessions={() => {
+                if (!chatAgentId) {
+                  window.location.hash = "#agents";
+                  return;
+                }
+                window.location.hash = `#agents/${chatAgentId}/sessions`;
+              }}
+              onSendChatMessage={handleSendChatMessage}
+              onStartCodexDeviceAuth={handleStartCodexDeviceAuth}
+              onCopyDeviceCode={handleCopyDeviceCode}
+            />
+          ) : (
+            <AgentsPage
+              selectedCompanyId={selectedCompanyId}
+              agents={agents}
+              skills={skills}
+              agentRunners={agentRunners}
+              agentRunnerLookup={agentRunnerLookup}
+              isLoadingAgents={isLoadingAgents}
+              agentError={agentError}
+              isCreatingAgent={isCreatingAgent}
+              savingAgentId={savingAgentId}
+              deletingAgentId={deletingAgentId}
+              initializingAgentId={initializingAgentId}
+              canInitializeAgents={hasReadyRunner}
+              agentRunnerId={agentRunnerId}
+              agentSkillIds={agentSkillIds}
+              agentName={agentName}
+              agentSdk={agentSdk}
+              agentModel={agentModel}
+              agentModelReasoningLevel={agentModelReasoningLevel}
+              agentDrafts={agentDrafts}
+              agentCountLabel={agentCountLabel}
+              onAgentRunnerChange={setAgentRunnerId}
+              onAgentSkillIdsChange={setAgentSkillIds}
+              onAgentNameChange={setAgentName}
+              onAgentSdkChange={setAgentSdk}
+              onAgentModelChange={setAgentModel}
+              onAgentModelReasoningLevelChange={setAgentModelReasoningLevel}
+              onCreateAgent={handleCreateAgent}
+              onRefreshAgents={loadAgents}
+              onAgentDraftChange={handleAgentDraftChange}
+              onSaveAgent={handleSaveAgent}
+              onInitializeAgent={handleInitializeAgent}
+              onOpenAgentSessions={handleOpenAgentSessions}
+              onDeleteAgent={handleDeleteAgent}
+            />
+          )
         ) : null}
 
         {activePage === "settings" ? (
