@@ -357,9 +357,20 @@ const INITIALIZE_AGENT_MUTATION = `
 `;
 
 const LIST_AGENT_CHAT_MESSAGES_QUERY = `
-  query ListAgentChatMessages($companyId: String!, $agentId: String!, $limit: Int) {
-    agentChatMessages(companyId: $companyId, agentId: $agentId, limit: $limit) {
+  query ListAgentChatMessages(
+    $companyId: String!
+    $agentId: String!
+    $sessionId: String
+    $limit: Int
+  ) {
+    agentChatMessages(
+      companyId: $companyId
+      agentId: $agentId
+      sessionId: $sessionId
+      limit: $limit
+    ) {
       id
+      sessionId
       companyId
       agentId
       runnerId
@@ -374,16 +385,68 @@ const LIST_AGENT_CHAT_MESSAGES_QUERY = `
   }
 `;
 
-const SEND_AGENT_MESSAGE_MUTATION = `
-  mutation SendAgentMessage(
+const LIST_AGENT_CHAT_SESSIONS_QUERY = `
+  query ListAgentChatSessions($companyId: String!, $agentId: String!, $limit: Int) {
+    agentChatSessions(companyId: $companyId, agentId: $agentId, limit: $limit) {
+      id
+      companyId
+      agentId
+      runnerId
+      title
+      codeSessionId
+      cloudSessionId
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+const CREATE_AGENT_CHAT_SESSION_MUTATION = `
+  mutation CreateAgentChatSession(
     $companyId: String!
     $agentId: String!
+    $title: String
+    $runnerId: String
+    $codeSessionId: String
+    $cloudSessionId: String
+  ) {
+    createAgentChatSession(
+      companyId: $companyId
+      agentId: $agentId
+      title: $title
+      runnerId: $runnerId
+      codeSessionId: $codeSessionId
+      cloudSessionId: $cloudSessionId
+    ) {
+      ok
+      error
+      session {
+        id
+        companyId
+        agentId
+        runnerId
+        title
+        codeSessionId
+        cloudSessionId
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`;
+
+const SEND_AGENT_SESSION_MESSAGE_MUTATION = `
+  mutation SendAgentSessionMessage(
+    $companyId: String!
+    $agentId: String!
+    $sessionId: String!
     $message: String!
     $runnerId: String
   ) {
-    sendAgentMessage(
+    sendAgentSessionMessage(
       companyId: $companyId
       agentId: $agentId
+      sessionId: $sessionId
       message: $message
       runnerId: $runnerId
     ) {
@@ -391,6 +454,7 @@ const SEND_AGENT_MESSAGE_MUTATION = `
       error
       commandId
       messageId
+      sessionId
       runnerId
       agentId
     }
@@ -446,7 +510,7 @@ const PRIMARY_NAV_ITEMS = [
     requiresCompany: true,
   },
   { id: "agents", label: "Agents", href: "#agents", tone: "coral", requiresCompany: true },
-  { id: "chat", label: "Codex Chat", href: "#chat", tone: "mint", requiresCompany: true },
+  { id: "chat", label: "Agent Chat", href: "#chat", tone: "mint", requiresCompany: true },
   {
     id: "settings",
     label: "Settings",
@@ -1529,6 +1593,7 @@ function AgentsPage({
   onAgentDraftChange,
   onSaveAgent,
   onInitializeAgent,
+  onOpenAgentChat,
   onDeleteAgent,
 }) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -1723,6 +1788,18 @@ function AgentsPage({
                       </select>
                     </div>
                     <div className="task-card-actions">
+                      <button
+                        type="button"
+                        className="secondary-btn"
+                        onClick={() => onOpenAgentChat(agent.id)}
+                        disabled={
+                          savingAgentId === agent.id ||
+                          deletingAgentId === agent.id ||
+                          initializingAgentId === agent.id
+                        }
+                      >
+                        Chat
+                      </button>
                       <button
                         type="button"
                         className="secondary-btn relationship-save-btn"
@@ -2070,7 +2147,12 @@ function ChatPage({
   selectedCompanyId,
   agents,
   chatAgentId,
+  chatSessions,
+  chatSessionId,
+  selectedChatSession,
   chatMessages,
+  isLoadingChatSessions,
+  isCreatingChatSession,
   isLoadingChat,
   chatError,
   codexAuthState,
@@ -2079,11 +2161,19 @@ function ChatPage({
   isStartingCodexAuth,
   codexVerificationUrl,
   codexAuthCopyFeedback,
+  chatSessionTitleDraft,
+  chatSessionCodeIdDraft,
+  chatSessionCloudIdDraft,
   chatDraftMessage,
   isSendingChatMessage,
   onChatAgentChange,
+  onChatSessionChange,
+  onChatSessionTitleDraftChange,
+  onChatSessionCodeIdDraftChange,
+  onChatSessionCloudIdDraftChange,
   onChatDraftMessageChange,
   onRefreshChat,
+  onCreateChatSession,
   onStartCodexDeviceAuth,
   onCopyDeviceCode,
   onSendChatMessage,
@@ -2096,10 +2186,10 @@ function ChatPage({
   return (
     <div className="page-stack">
       <section className="panel hero-panel">
-        <p className="eyebrow">Codex Runtime</p>
-        <h1>Codex chat</h1>
+        <p className="eyebrow">Agent Runtime</p>
+        <h1>Agent chat</h1>
         <p className="subcopy">
-          Send messages from the UI to Codex agents running inside Docker runtime containers.
+          Send messages to any initialized agent. Messages are grouped in sessions per agent.
         </p>
         <p className="context-pill">Company: {selectedCompanyId}</p>
       </section>
@@ -2125,75 +2215,77 @@ function ChatPage({
               </option>
             ))}
           </select>
+          <label htmlFor="chat-session-select">Session</label>
+          <select
+            id="chat-session-select"
+            value={chatSessionId}
+            onChange={(event) => onChatSessionChange(event.target.value)}
+            disabled={!chatAgentId || isLoadingChatSessions}
+          >
+            <option value="">
+              {isLoadingChatSessions ? "Loading sessions..." : "Select a session"}
+            </option>
+            {chatSessions.map((session) => (
+              <option key={`chat-session-${session.id}`} value={session.id}>
+                {session.title || session.id.slice(0, 8)} ({formatTimestamp(session.updatedAt)})
+              </option>
+            ))}
+          </select>
         </div>
-        {selectedAgent && !selectedAgentIsCodex ? (
-          <p className="error-banner">
-            Selected agent uses <strong>{selectedAgent.agentSdk}</strong>. Only agents configured
-            with <strong>codex</strong> can receive chat messages.
-          </p>
+        {selectedChatSession ? (
+          <div className="codex-auth-state">
+            <p className="codex-auth-row">
+              <strong>Session title:</strong> {selectedChatSession.title || "Untitled session"}
+            </p>
+            <p className="codex-auth-row">
+              <strong>Code session ID:</strong> {selectedChatSession.codeSessionId || "not set"}
+            </p>
+            <p className="codex-auth-row">
+              <strong>Cloud session ID:</strong> {selectedChatSession.cloudSessionId || "not set"}
+            </p>
+          </div>
         ) : null}
       </section>
 
       <section className="panel codex-auth-panel">
-        <header className="panel-header panel-header-row">
-          <h2>Codex device auth</h2>
-          <button
-            type="button"
-            className="secondary-btn"
-            onClick={onStartCodexDeviceAuth}
-            disabled={!chatAgentId || !selectedAgentIsCodex || isStartingCodexAuth}
-          >
-            {isStartingCodexAuth ? "Starting..." : "Start device auth"}
-          </button>
+        <header className="panel-header">
+          <h2>Create session</h2>
         </header>
-        {codexAuthError ? <p className="error-banner">Auth error: {codexAuthError}</p> : null}
-        {!chatAgentId ? <p className="empty-hint">Select an agent to manage device auth.</p> : null}
-        {chatAgentId && selectedAgentIsCodex ? (
-          <p className="codex-auth-row">
-            <strong>Codex URL:</strong>{" "}
-            <a className="codex-auth-link" href={codexVerificationUrl} target="_blank" rel="noreferrer">
-              {codexVerificationUrl}
-            </a>
-          </p>
-        ) : null}
-        {chatAgentId && isLoadingCodexAuthState ? (
-          <p className="empty-hint">Loading auth state...</p>
-        ) : null}
-        {chatAgentId && !isLoadingCodexAuthState && !codexAuthState ? (
-          <p className="empty-hint">No auth request yet for this agent.</p>
-        ) : null}
-        {codexAuthState ? (
-          <div className="codex-auth-state">
-            <p className="codex-auth-row">
-              <strong>Status:</strong>{" "}
-              <span className={`codex-auth-status codex-auth-status-${codexAuthState.status}`}>
-                {codexAuthState.status}
-              </span>
-            </p>
-            <p className="codex-auth-row">
-              <strong>Updated:</strong> {formatTimestamp(codexAuthState.updatedAt)}
-            </p>
-            {codexAuthState.userCode ? (
-              <p className="codex-auth-row codex-auth-row-with-action">
-                <strong>Device code:</strong>{" "}
-                <code className="codex-auth-code">{codexAuthState.userCode}</code>
-                <button
-                  type="button"
-                  className="secondary-btn codex-auth-copy-btn"
-                  onClick={() => onCopyDeviceCode(codexAuthState.userCode)}
-                >
-                  Copy code
-                </button>
-              </p>
-            ) : null}
-            {codexAuthState.message ? (
-              <p className="codex-auth-row">{codexAuthState.message}</p>
-            ) : null}
-          </div>
-        ) : null}
-        {codexAuthCopyFeedback ? (
-          <p className="codex-auth-row codex-auth-copy-feedback">{codexAuthCopyFeedback}</p>
-        ) : null}
+        <form
+          className="task-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onCreateChatSession();
+          }}
+        >
+          <label htmlFor="chat-session-title">Title (optional)</label>
+          <input
+            id="chat-session-title"
+            value={chatSessionTitleDraft}
+            onChange={(event) => onChatSessionTitleDraftChange(event.target.value)}
+            placeholder="e.g. Release planning"
+            disabled={!chatAgentId || isCreatingChatSession}
+          />
+          <label htmlFor="chat-session-code-id">Code session ID (optional)</label>
+          <input
+            id="chat-session-code-id"
+            value={chatSessionCodeIdDraft}
+            onChange={(event) => onChatSessionCodeIdDraftChange(event.target.value)}
+            placeholder="Provider code session id"
+            disabled={!chatAgentId || isCreatingChatSession}
+          />
+          <label htmlFor="chat-session-cloud-id">Cloud session ID (optional)</label>
+          <input
+            id="chat-session-cloud-id"
+            value={chatSessionCloudIdDraft}
+            onChange={(event) => onChatSessionCloudIdDraftChange(event.target.value)}
+            placeholder="Provider cloud session id"
+            disabled={!chatAgentId || isCreatingChatSession}
+          />
+          <button type="submit" disabled={!chatAgentId || isCreatingChatSession}>
+            {isCreatingChatSession ? "Creating..." : "Create session"}
+          </button>
+        </form>
       </section>
 
       <section className="panel chat-panel">
@@ -2202,8 +2294,13 @@ function ChatPage({
         </header>
         {chatError ? <p className="error-banner">Chat error: {chatError}</p> : null}
         {!chatAgentId ? <p className="empty-hint">Select an agent to start chatting.</p> : null}
+        {chatAgentId && !chatSessionId ? (
+          <p className="empty-hint">
+            No session selected yet. Send a message to auto-create one, or create one manually.
+          </p>
+        ) : null}
         {chatAgentId && isLoadingChat ? <p className="empty-hint">Loading chat messages...</p> : null}
-        {chatAgentId && !isLoadingChat && chatMessages.length === 0 ? (
+        {chatAgentId && chatSessionId && !isLoadingChat && chatMessages.length === 0 ? (
           <p className="empty-hint">No messages yet. Send the first prompt below.</p>
         ) : null}
         {chatMessages.length > 0 ? (
@@ -2211,10 +2308,12 @@ function ChatPage({
             {chatMessages.map((message) => (
               <li
                 key={message.id}
-                className={`chat-message-item chat-message-item-${message.role}`}
+                className={`chat-message-item chat-message-item-${
+                  message.role === "human" ? "user" : "assistant"
+                }`}
               >
                 <div className="chat-message-meta">
-                  <strong>{message.role}</strong>
+                  <strong>{message.role === "human" ? "human" : "llm"}</strong>
                   <span>{message.status}</span>
                   <span>{formatTimestamp(message.createdAt)}</span>
                 </div>
@@ -2235,24 +2334,84 @@ function ChatPage({
           <textarea
             id="chat-message-input"
             rows={4}
-            placeholder="Ask Codex to plan, debug, or implement something..."
+            placeholder="Ask the agent to plan, debug, or implement something..."
             value={chatDraftMessage}
             onChange={(event) => onChatDraftMessageChange(event.target.value)}
-            disabled={!chatAgentId || !selectedAgentIsCodex || isSendingChatMessage}
+            disabled={!chatAgentId || isSendingChatMessage}
           />
           <button
             type="submit"
             disabled={
               !chatAgentId ||
-              !selectedAgentIsCodex ||
               !chatDraftMessage.trim() ||
               isSendingChatMessage
             }
           >
-            {isSendingChatMessage ? "Sending..." : "Send to Codex"}
+            {isSendingChatMessage ? "Sending..." : "Send message"}
           </button>
         </form>
       </section>
+
+      {selectedAgentIsCodex ? (
+        <section className="panel codex-auth-panel">
+          <header className="panel-header panel-header-row">
+            <h2>Codex auth (optional)</h2>
+            <button
+              type="button"
+              className="secondary-btn"
+              onClick={onStartCodexDeviceAuth}
+              disabled={!chatAgentId || isStartingCodexAuth}
+            >
+              {isStartingCodexAuth ? "Starting..." : "Start device auth"}
+            </button>
+          </header>
+          {codexAuthError ? <p className="error-banner">Auth error: {codexAuthError}</p> : null}
+          <p className="codex-auth-row">
+            <strong>Codex URL:</strong>{" "}
+            <a className="codex-auth-link" href={codexVerificationUrl} target="_blank" rel="noreferrer">
+              {codexVerificationUrl}
+            </a>
+          </p>
+          {chatAgentId && isLoadingCodexAuthState ? (
+            <p className="empty-hint">Loading auth state...</p>
+          ) : null}
+          {chatAgentId && !isLoadingCodexAuthState && !codexAuthState ? (
+            <p className="empty-hint">No auth request yet for this agent.</p>
+          ) : null}
+          {codexAuthState ? (
+            <div className="codex-auth-state">
+              <p className="codex-auth-row">
+                <strong>Status:</strong>{" "}
+                <span className={`codex-auth-status codex-auth-status-${codexAuthState.status}`}>
+                  {codexAuthState.status}
+                </span>
+              </p>
+              <p className="codex-auth-row">
+                <strong>Updated:</strong> {formatTimestamp(codexAuthState.updatedAt)}
+              </p>
+              {codexAuthState.userCode ? (
+                <p className="codex-auth-row codex-auth-row-with-action">
+                  <strong>Device code:</strong>{" "}
+                  <code className="codex-auth-code">{codexAuthState.userCode}</code>
+                  <button
+                    type="button"
+                    className="secondary-btn codex-auth-copy-btn"
+                    onClick={() => onCopyDeviceCode(codexAuthState.userCode)}
+                  >
+                    Copy code
+                  </button>
+                </p>
+              ) : null}
+              {codexAuthState.message ? (
+                <p className="codex-auth-row">{codexAuthState.message}</p>
+              ) : null}
+            </div>
+          ) : null}
+          {codexAuthCopyFeedback ? (
+            <p className="codex-auth-row codex-auth-copy-feedback">{codexAuthCopyFeedback}</p>
+          ) : null}
+        </section>
+      ) : null}
     </div>
   );
 }
@@ -2417,9 +2576,16 @@ function App() {
   const [agentModelReasoningLevel, setAgentModelReasoningLevel] = useState("");
   const [agentDrafts, setAgentDrafts] = useState({});
   const [chatAgentId, setChatAgentId] = useState("");
+  const [chatSessions, setChatSessions] = useState([]);
+  const [chatSessionId, setChatSessionId] = useState("");
+  const [chatSessionTitleDraft, setChatSessionTitleDraft] = useState("");
+  const [chatSessionCodeIdDraft, setChatSessionCodeIdDraft] = useState("");
+  const [chatSessionCloudIdDraft, setChatSessionCloudIdDraft] = useState("");
   const [chatMessages, setChatMessages] = useState([]);
   const [chatDraftMessage, setChatDraftMessage] = useState("");
   const [chatError, setChatError] = useState("");
+  const [isLoadingChatSessions, setIsLoadingChatSessions] = useState(false);
+  const [isCreatingChatSession, setIsCreatingChatSession] = useState(false);
   const [isLoadingChat, setIsLoadingChat] = useState(false);
   const [isSendingChatMessage, setIsSendingChatMessage] = useState(false);
   const [codexAuthState, setCodexAuthState] = useState(null);
@@ -2439,6 +2605,10 @@ function App() {
       return map;
     }, new Map());
   }, [agentRunners]);
+
+  const selectedChatSession = useMemo(() => {
+    return chatSessions.find((session) => session.id === chatSessionId) || null;
+  }, [chatSessions, chatSessionId]);
 
   const loadCompanies = useCallback(async () => {
     try {
@@ -2562,9 +2732,45 @@ function App() {
     }
   }, [selectedCompanyId]);
 
-  const loadAgentChatMessages = useCallback(
+  const loadAgentChatSessions = useCallback(
     async ({ silently = false } = {}) => {
       if (!selectedCompanyId || !chatAgentId) {
+        setChatSessions([]);
+        setChatSessionId("");
+        if (!silently) {
+          setChatError("");
+          setIsLoadingChatSessions(false);
+        }
+        return;
+      }
+
+      try {
+        if (!silently) {
+          setChatError("");
+          setIsLoadingChatSessions(true);
+        }
+        const data = await executeGraphQL(LIST_AGENT_CHAT_SESSIONS_QUERY, {
+          companyId: selectedCompanyId,
+          agentId: chatAgentId,
+          limit: 200,
+        });
+        setChatSessions(data.agentChatSessions || []);
+      } catch (loadError) {
+        if (!silently) {
+          setChatError(loadError.message);
+        }
+      } finally {
+        if (!silently) {
+          setIsLoadingChatSessions(false);
+        }
+      }
+    },
+    [selectedCompanyId, chatAgentId],
+  );
+
+  const loadAgentChatMessages = useCallback(
+    async ({ silently = false } = {}) => {
+      if (!selectedCompanyId || !chatAgentId || !chatSessionId) {
         setChatMessages([]);
         if (!silently) {
           setChatError("");
@@ -2581,6 +2787,7 @@ function App() {
         const data = await executeGraphQL(LIST_AGENT_CHAT_MESSAGES_QUERY, {
           companyId: selectedCompanyId,
           agentId: chatAgentId,
+          sessionId: chatSessionId,
           limit: 200,
         });
         setChatMessages(data.agentChatMessages || []);
@@ -2594,7 +2801,7 @@ function App() {
         }
       }
     },
-    [selectedCompanyId, chatAgentId],
+    [selectedCompanyId, chatAgentId, chatSessionId],
   );
 
   const loadCodexAuthState = useCallback(
@@ -2650,6 +2857,11 @@ function App() {
     setSkillDescription("");
     setSkillInstructions("");
     setChatAgentId("");
+    setChatSessions([]);
+    setChatSessionId("");
+    setChatSessionTitleDraft("");
+    setChatSessionCodeIdDraft("");
+    setChatSessionCloudIdDraft("");
     setChatMessages([]);
     setChatDraftMessage("");
     setChatError("");
@@ -2663,9 +2875,11 @@ function App() {
     loadSkills();
     loadAgentRunners();
     loadAgents();
+    loadAgentChatSessions();
     loadAgentChatMessages();
     loadCodexAuthState();
   }, [
+    loadAgentChatSessions,
     loadAgentChatMessages,
     loadCodexAuthState,
     loadAgentRunners,
@@ -2686,12 +2900,6 @@ function App() {
       if (currentAgentId && agents.some((agent) => agent.id === currentAgentId)) {
         return currentAgentId;
       }
-      const firstCodexAgent = agents.find(
-        (agent) => isCodexAgent(agent),
-      );
-      if (firstCodexAgent) {
-        return firstCodexAgent.id;
-      }
       return agents[0]?.id || "";
     });
   }, [agents, selectedCompanyId]);
@@ -2699,6 +2907,21 @@ function App() {
   useEffect(() => {
     setCodexAuthCopyFeedback("");
   }, [chatAgentId, codexAuthState?.requestId, codexAuthState?.userCode]);
+
+  useEffect(() => {
+    if (!chatAgentId) {
+      setChatSessionId("");
+      setChatSessions([]);
+      setChatMessages([]);
+      return;
+    }
+    setChatSessionId((currentSessionId) => {
+      if (currentSessionId && chatSessions.some((session) => session.id === currentSessionId)) {
+        return currentSessionId;
+      }
+      return chatSessions[0]?.id || "";
+    });
+  }, [chatAgentId, chatSessions]);
 
   useEffect(() => {
     if (!window.location.hash) {
@@ -2735,11 +2958,15 @@ function App() {
 
   useEffect(() => {
     const shouldPollChat = activePage === "chat";
+    const shouldPollSessions = activePage === "chat";
     const shouldPollCodexAuth = activePage === "chat" || activePage === "dashboard";
     if (!selectedCompanyId || !chatAgentId || (!shouldPollChat && !shouldPollCodexAuth)) {
       return undefined;
     }
     const pollId = window.setInterval(() => {
+      if (shouldPollSessions) {
+        loadAgentChatSessions({ silently: true });
+      }
       if (shouldPollChat) {
         loadAgentChatMessages({ silently: true });
       }
@@ -2748,7 +2975,14 @@ function App() {
       }
     }, 5000);
     return () => window.clearInterval(pollId);
-  }, [activePage, chatAgentId, loadAgentChatMessages, loadCodexAuthState, selectedCompanyId]);
+  }, [
+    activePage,
+    chatAgentId,
+    loadAgentChatMessages,
+    loadAgentChatSessions,
+    loadCodexAuthState,
+    selectedCompanyId,
+  ]);
 
   async function handleCreateCompany(event) {
     event.preventDefault();
@@ -3301,25 +3535,90 @@ function App() {
     }
 
     const selectedAgentForChat = agents.find((agent) => agent.id === chatAgentId) || null;
+    let targetSessionId = chatSessionId;
+    if (!targetSessionId) {
+      targetSessionId = await handleCreateChatSession({
+        title: chatSessionTitleDraft || null,
+        codeSessionId: chatSessionCodeIdDraft || null,
+        cloudSessionId: chatSessionCloudIdDraft || null,
+        preferredRunnerId: selectedAgentForChat?.agentRunnerId || null,
+      });
+      if (!targetSessionId) {
+        return;
+      }
+    }
+
     try {
       setIsSendingChatMessage(true);
       setChatError("");
-      const data = await executeGraphQL(SEND_AGENT_MESSAGE_MUTATION, {
+      const data = await executeGraphQL(SEND_AGENT_SESSION_MESSAGE_MUTATION, {
         companyId: selectedCompanyId,
         agentId: chatAgentId,
+        sessionId: targetSessionId,
         message: chatDraftMessage.trim(),
         runnerId: selectedAgentForChat?.agentRunnerId || null,
       });
-      const result = data.sendAgentMessage;
+      const result = data.sendAgentSessionMessage;
       if (!result.ok) {
         throw new Error(result.error || "Failed to send chat message.");
       }
+      if (result.sessionId) {
+        setChatSessionId(result.sessionId);
+      }
       setChatDraftMessage("");
+      await loadAgentChatSessions({ silently: true });
       await loadAgentChatMessages();
     } catch (sendError) {
       setChatError(sendError.message);
     } finally {
       setIsSendingChatMessage(false);
+    }
+  }
+
+  async function handleCreateChatSession({
+    title = null,
+    codeSessionId = null,
+    cloudSessionId = null,
+    preferredRunnerId = null,
+  } = {}) {
+    if (!selectedCompanyId) {
+      setChatError("Select a company before creating a chat session.");
+      return null;
+    }
+    if (!chatAgentId) {
+      setChatError("Select an agent before creating a chat session.");
+      return null;
+    }
+
+    const selectedAgentForChat = agents.find((agent) => agent.id === chatAgentId) || null;
+
+    try {
+      setIsCreatingChatSession(true);
+      setChatError("");
+      const data = await executeGraphQL(CREATE_AGENT_CHAT_SESSION_MUTATION, {
+        companyId: selectedCompanyId,
+        agentId: chatAgentId,
+        title: title ? title.trim() : null,
+        codeSessionId: codeSessionId ? codeSessionId.trim() : null,
+        cloudSessionId: cloudSessionId ? cloudSessionId.trim() : null,
+        runnerId: preferredRunnerId || selectedAgentForChat?.agentRunnerId || null,
+      });
+      const result = data.createAgentChatSession;
+      if (!result.ok || !result.session) {
+        throw new Error(result.error || "Failed to create chat session.");
+      }
+
+      setChatSessionTitleDraft("");
+      setChatSessionCodeIdDraft("");
+      setChatSessionCloudIdDraft("");
+      await loadAgentChatSessions();
+      setChatSessionId(result.session.id);
+      return result.session.id;
+    } catch (createError) {
+      setChatError(createError.message);
+      return null;
+    } finally {
+      setIsCreatingChatSession(false);
     }
   }
 
@@ -3424,6 +3723,13 @@ function App() {
 
   function navigateTo(pageId) {
     window.location.hash = `#${pageId}`;
+  }
+
+  function handleOpenAgentChat(agentId) {
+    setChatAgentId(agentId);
+    setChatSessionId("");
+    setChatMessages([]);
+    navigateTo("chat");
   }
 
   const taskLookup = useMemo(() => {
@@ -3706,6 +4012,7 @@ function App() {
             onAgentDraftChange={handleAgentDraftChange}
             onSaveAgent={handleSaveAgent}
             onInitializeAgent={handleInitializeAgent}
+            onOpenAgentChat={handleOpenAgentChat}
             onDeleteAgent={handleDeleteAgent}
           />
         ) : null}
@@ -3715,7 +4022,12 @@ function App() {
             selectedCompanyId={selectedCompanyId}
             agents={agents}
             chatAgentId={chatAgentId}
+            chatSessions={chatSessions}
+            chatSessionId={chatSessionId}
+            selectedChatSession={selectedChatSession}
             chatMessages={chatMessages}
+            isLoadingChatSessions={isLoadingChatSessions}
+            isCreatingChatSession={isCreatingChatSession}
             isLoadingChat={isLoadingChat}
             chatError={chatError}
             codexAuthState={codexAuthState}
@@ -3724,14 +4036,23 @@ function App() {
             isStartingCodexAuth={isStartingCodexAuth}
             codexVerificationUrl={codexVerificationUrl}
             codexAuthCopyFeedback={codexAuthCopyFeedback}
+            chatSessionTitleDraft={chatSessionTitleDraft}
+            chatSessionCodeIdDraft={chatSessionCodeIdDraft}
+            chatSessionCloudIdDraft={chatSessionCloudIdDraft}
             chatDraftMessage={chatDraftMessage}
             isSendingChatMessage={isSendingChatMessage}
             onChatAgentChange={setChatAgentId}
+            onChatSessionChange={setChatSessionId}
+            onChatSessionTitleDraftChange={setChatSessionTitleDraft}
+            onChatSessionCodeIdDraftChange={setChatSessionCodeIdDraft}
+            onChatSessionCloudIdDraftChange={setChatSessionCloudIdDraft}
             onChatDraftMessageChange={setChatDraftMessage}
             onRefreshChat={() => {
+              loadAgentChatSessions();
               loadAgentChatMessages();
               loadCodexAuthState();
             }}
+            onCreateChatSession={handleCreateChatSession}
             onStartCodexDeviceAuth={handleStartCodexDeviceAuth}
             onCopyDeviceCode={handleCopyDeviceCode}
             onSendChatMessage={handleSendChatMessage}
