@@ -59,6 +59,10 @@ const LIST_AGENT_RUNNERS_QUERY = `
       callbackUrl
       hasAuthSecret
       codexAuthenticated
+      codexAvailableModels {
+        name
+        reasoning
+      }
       status
       lastHealthCheckAt
       lastSeenAt
@@ -89,6 +93,10 @@ const CREATE_AGENT_RUNNER_MUTATION = `
         callbackUrl
         hasAuthSecret
         codexAuthenticated
+        codexAvailableModels {
+          name
+          reasoning
+        }
         status
         lastHealthCheckAt
         lastSeenAt
@@ -110,6 +118,10 @@ const REGENERATE_AGENT_RUNNER_SECRET_MUTATION = `
         callbackUrl
         hasAuthSecret
         codexAuthenticated
+        codexAvailableModels {
+          name
+          reasoning
+        }
         status
         lastHealthCheckAt
         lastSeenAt
@@ -1499,6 +1511,27 @@ function AgentRunnerPage({
               .map((runner) => {
                 const runnerStatus = normalizeRunnerStatus(runner.status);
                 const runnerSecret = runnerSecretsById[runner.id] || "";
+                const codexAvailableModels = Array.isArray(runner.codexAvailableModels)
+                  ? runner.codexAvailableModels
+                      .map((entry) => ({
+                        name: String(entry?.name || "").trim(),
+                        reasoning: String(entry?.reasoning || "").trim(),
+                      }))
+                      .filter((entry) => Boolean(entry.name))
+                      .sort((a, b) => a.name.localeCompare(b.name))
+                  : [];
+                const codexAvailableModelsPreview = codexAvailableModels
+                  .slice(0, 4)
+                  .map((entry) =>
+                    entry.reasoning ? `${entry.name} (${entry.reasoning})` : entry.name,
+                  )
+                  .join(", ");
+                const codexAvailableModelsLabel =
+                  codexAvailableModels.length === 0
+                    ? "none reported yet"
+                    : codexAvailableModels.length <= 4
+                      ? codexAvailableModelsPreview
+                      : `${codexAvailableModelsPreview} (+${codexAvailableModels.length - 4} more)`;
                 const codexAgentsForRunner = (agents || [])
                   .filter((agent) => agent?.agentRunnerId === runner.id && isCodexAgent(agent))
                   .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
@@ -1534,6 +1567,9 @@ function AgentRunnerPage({
                       >
                         {runner.codexAuthenticated ? "authenticated" : "not authenticated"}
                       </span>
+                    </p>
+                    <p className="runner-last-seen">
+                      Codex models: <em>{codexAvailableModelsLabel}</em>
                     </p>
                     {!runner.codexAuthenticated ? (
                       <div className="runner-auth-block">
@@ -2390,20 +2426,11 @@ function AgentChatPage({
   chatError,
   chatDraftMessage,
   isSendingChatMessage,
-  codexAuthState,
-  isLoadingCodexAuthState,
-  codexAuthError,
-  isStartingCodexAuth,
-  codexVerificationUrl,
-  codexAuthCopyFeedback,
   onChatDraftMessageChange,
   onRefreshChat,
   onBackToSessions,
   onSendChatMessage,
-  onStartCodexDeviceAuth,
-  onCopyDeviceCode,
 }) {
-  const selectedAgentIsCodex = isCodexAgent(agent);
   const canChat = Boolean(agent && session);
 
   return (
@@ -2507,68 +2534,6 @@ function AgentChatPage({
           </button>
         </form>
       </section>
-
-      {selectedAgentIsCodex ? (
-        <section className="panel codex-auth-panel">
-          <header className="panel-header panel-header-row">
-            <h2>Codex auth (optional)</h2>
-            <button
-              type="button"
-              className="secondary-btn"
-              onClick={onStartCodexDeviceAuth}
-              disabled={!agent || isStartingCodexAuth}
-            >
-              {isStartingCodexAuth ? "Starting..." : "Start device auth"}
-            </button>
-          </header>
-          {codexAuthError ? <p className="error-banner">Auth error: {codexAuthError}</p> : null}
-          <p className="codex-auth-row">
-            <strong>Codex URL:</strong>{" "}
-            <a
-              className="codex-auth-link"
-              href={codexVerificationUrl}
-              target="_blank"
-              rel="noreferrer"
-            >
-              {codexVerificationUrl}
-            </a>
-          </p>
-          {agent && isLoadingCodexAuthState ? <p className="empty-hint">Loading auth state...</p> : null}
-          {agent && !isLoadingCodexAuthState && !codexAuthState ? (
-            <p className="empty-hint">No auth request yet for this agent.</p>
-          ) : null}
-          {codexAuthState ? (
-            <div className="codex-auth-state">
-              <p className="codex-auth-row">
-                <strong>Status:</strong>{" "}
-                <span className={`codex-auth-status codex-auth-status-${codexAuthState.status}`}>
-                  {codexAuthState.status}
-                </span>
-              </p>
-              <p className="codex-auth-row">
-                <strong>Updated:</strong> {formatTimestamp(codexAuthState.updatedAt)}
-              </p>
-              {codexAuthState.userCode ? (
-                <p className="codex-auth-row codex-auth-row-with-action">
-                  <strong>Device code:</strong>{" "}
-                  <code className="codex-auth-code">{codexAuthState.userCode}</code>
-                  <button
-                    type="button"
-                    className="secondary-btn codex-auth-copy-btn"
-                    onClick={() => onCopyDeviceCode(codexAuthState.userCode)}
-                  >
-                    Copy code
-                  </button>
-                </p>
-              ) : null}
-              {codexAuthState.message ? <p className="codex-auth-row">{codexAuthState.message}</p> : null}
-            </div>
-          ) : null}
-          {codexAuthCopyFeedback ? (
-            <p className="codex-auth-row codex-auth-copy-feedback">{codexAuthCopyFeedback}</p>
-          ) : null}
-        </section>
-      ) : null}
     </div>
   );
 }
@@ -4315,17 +4280,10 @@ function App() {
               chatError={chatError}
               chatDraftMessage={chatDraftMessage}
               isSendingChatMessage={isSendingChatMessage}
-              codexAuthState={codexAuthState}
-              isLoadingCodexAuthState={isLoadingCodexAuthState}
-              codexAuthError={codexAuthError}
-              isStartingCodexAuth={isStartingCodexAuth}
-              codexVerificationUrl={codexVerificationUrl}
-              codexAuthCopyFeedback={codexAuthCopyFeedback}
               onChatDraftMessageChange={setChatDraftMessage}
               onRefreshChat={() => {
                 loadAgentChatSessions();
                 loadAgentChatMessages();
-                loadCodexAuthState();
               }}
               onBackToSessions={() => {
                 if (!chatAgentId) {
@@ -4335,8 +4293,6 @@ function App() {
                 window.location.hash = `#agents/${chatAgentId}/sessions`;
               }}
               onSendChatMessage={handleSendChatMessage}
-              onStartCodexDeviceAuth={handleStartCodexDeviceAuth}
-              onCopyDeviceCode={handleCopyDeviceCode}
             />
           ) : (
             <AgentsPage
