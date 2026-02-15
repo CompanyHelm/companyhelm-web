@@ -844,6 +844,38 @@ button:disabled {
   font-size: 0.8rem;
 }
 
+.runner-codex-auth {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0.14rem 0.52rem;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.72rem;
+  text-transform: lowercase;
+  border: 1px solid transparent;
+}
+
+.runner-codex-auth-authenticated {
+  color: #0f766e;
+  background: rgba(15, 118, 110, 0.14);
+  border-color: rgba(15, 118, 110, 0.36);
+}
+
+.runner-codex-auth-not-authenticated {
+  color: #9e1d24;
+  background: rgba(158, 29, 36, 0.1);
+  border-color: rgba(158, 29, 36, 0.3);
+}
+
+.runner-auth-block {
+  margin-top: 0.72rem;
+  padding-top: 0.72rem;
+  border-top: 1px dashed rgba(26, 32, 38, 0.14);
+  display: grid;
+  gap: 0.5rem;
+}
+
 .chat-panel {
   display: grid;
   gap: 0.64rem;
@@ -1089,4 +1121,3 @@ button:disabled {
     max-height: calc(100vh - 1.4rem);
   }
 }
-

@@ -58,6 +58,7 @@ const LIST_AGENT_RUNNERS_QUERY = `
       companyId
       callbackUrl
       hasAuthSecret
+      codexAuthenticated
       status
       lastHealthCheckAt
       lastSeenAt
@@ -87,6 +88,7 @@ const CREATE_AGENT_RUNNER_MUTATION = `
         companyId
         callbackUrl
         hasAuthSecret
+        codexAuthenticated
         status
         lastHealthCheckAt
         lastSeenAt
@@ -107,6 +109,7 @@ const REGENERATE_AGENT_RUNNER_SECRET_MUTATION = `
         companyId
         callbackUrl
         hasAuthSecret
+        codexAuthenticated
         status
         lastHealthCheckAt
         lastSeenAt
@@ -1382,8 +1385,11 @@ function TasksPage({
 function AgentRunnerPage({
   selectedCompanyId,
   agentRunners,
+  agents,
   isLoadingRunners,
   runnerError,
+  codexAuthError,
+  isStartingCodexAuth,
   isCreatingRunner,
   runnerIdDraft,
   runnerCallbackUrlDraft,
@@ -1399,6 +1405,8 @@ function AgentRunnerPage({
   onRunnerCommandSecretChange,
   onCreateRunner,
   onRefreshRunners,
+  onStartRunnerCodexDeviceAuth,
+  onNavigate,
   onRegenerateRunnerSecret,
   onDeleteRunner,
 }) {
@@ -1469,6 +1477,7 @@ function AgentRunnerPage({
         </header>
 
         {runnerError ? <p className="error-banner">{runnerError}</p> : null}
+        {codexAuthError ? <p className="error-banner">Auth error: {codexAuthError}</p> : null}
         {isLoadingRunners ? <p className="empty-hint">Loading runners...</p> : null}
         {!isLoadingRunners && agentRunners.length === 0 ? (
           <div className="empty-state">
@@ -1490,6 +1499,11 @@ function AgentRunnerPage({
               .map((runner) => {
                 const runnerStatus = normalizeRunnerStatus(runner.status);
                 const runnerSecret = runnerSecretsById[runner.id] || "";
+                const codexAgentsForRunner = (agents || [])
+                  .filter((agent) => agent?.agentRunnerId === runner.id && isCodexAgent(agent))
+                  .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+                const codexAgentForAuth = codexAgentsForRunner[0] || null;
+                const canStartAuth = runnerStatus === "ready" && codexAgentForAuth;
                 const runnerCommand = buildRunnerStartCommand({
                   backendGrpcTarget: runnerGrpcTarget,
                   runnerSecret: runnerSecret || "<RUNNER_SECRET>",
@@ -1511,6 +1525,53 @@ function AgentRunnerPage({
                     <p className="runner-last-seen">
                       Last health check: <em>{formatTimestamp(runner.lastHealthCheckAt)}</em>
                     </p>
+                    <p className="runner-last-seen">
+                      Codex auth:{" "}
+                      <span
+                        className={`runner-codex-auth runner-codex-auth-${
+                          runner.codexAuthenticated ? "authenticated" : "not-authenticated"
+                        }`}
+                      >
+                        {runner.codexAuthenticated ? "authenticated" : "not authenticated"}
+                      </span>
+                    </p>
+                    {!runner.codexAuthenticated ? (
+                      <div className="runner-auth-block">
+                        {codexAgentForAuth ? (
+                          <>
+                            <p className="runner-command-hint">
+                              Uses Codex agent:{" "}
+                              <strong>
+                                {codexAgentForAuth.name} ({codexAgentForAuth.id.slice(0, 8)})
+                              </strong>
+                            </p>
+                            <button
+                              type="button"
+                              className="secondary-btn"
+                              onClick={() =>
+                                onStartRunnerCodexDeviceAuth(runner.id, codexAgentForAuth.id)
+                              }
+                              disabled={!canStartAuth || isStartingCodexAuth}
+                            >
+                              {isStartingCodexAuth ? "Starting..." : "Start auth process"}
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <p className="runner-command-hint">
+                              No Codex agent is assigned to this runner yet.
+                            </p>
+                            <button
+                              type="button"
+                              className="secondary-btn"
+                              onClick={() => onNavigate("agents")}
+                            >
+                              Open agents
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    ) : null}
                     <div className="runner-cli-block">
                       <label
                         className="relationship-field"
@@ -3832,6 +3893,62 @@ function App() {
     }
   }
 
+  async function handleStartRunnerCodexDeviceAuth(runnerId, agentId) {
+    if (!selectedCompanyId) {
+      setCodexAuthError("Select a company before starting device auth.");
+      return;
+    }
+
+    const resolvedRunnerId = String(runnerId || "").trim();
+    const resolvedAgentId = String(agentId || "").trim();
+    if (!resolvedRunnerId) {
+      setCodexAuthError("Runner id is required to start device auth from the runner page.");
+      return;
+    }
+    if (!resolvedAgentId) {
+      setCodexAuthError("Assign a Codex agent to this runner before starting device auth.");
+      return;
+    }
+
+    const selectedAgentForAuth = agents.find((agent) => agent.id === resolvedAgentId) || null;
+    if (!selectedAgentForAuth) {
+      setCodexAuthError("Selected agent was not found.");
+      return;
+    }
+    if (!isCodexAgent(selectedAgentForAuth)) {
+      setCodexAuthError("Only agents with SDK codex support device auth.");
+      return;
+    }
+
+    try {
+      setIsStartingCodexAuth(true);
+      setCodexAuthError("");
+      setCodexAuthCopyFeedback("");
+      setChatAgentId(resolvedAgentId);
+
+      const data = await executeGraphQL(START_AGENT_CODEX_DEVICE_AUTH_MUTATION, {
+        companyId: selectedCompanyId,
+        agentId: resolvedAgentId,
+        runnerId: resolvedRunnerId,
+      });
+      const result = data.startAgentCodexDeviceAuth;
+      if (!result.ok) {
+        throw new Error(result.error || "Failed to start Codex device auth.");
+      }
+
+      const stateData = await executeGraphQL(GET_AGENT_CODEX_AUTH_STATE_QUERY, {
+        companyId: selectedCompanyId,
+        agentId: resolvedAgentId,
+      });
+      setCodexAuthState(stateData.agentCodexAuthState || null);
+      navigateTo("dashboard");
+    } catch (startError) {
+      setCodexAuthError(startError.message);
+    } finally {
+      setIsStartingCodexAuth(false);
+    }
+  }
+
   async function handleCopyDeviceCode(deviceCode) {
     const trimmedCode = String(deviceCode || "").trim();
     if (!trimmedCode) {
@@ -4131,8 +4248,11 @@ function App() {
           <AgentRunnerPage
             selectedCompanyId={selectedCompanyId}
             agentRunners={agentRunners}
+            agents={agents}
             isLoadingRunners={isLoadingRunners}
             runnerError={runnerError}
+            codexAuthError={codexAuthError}
+            isStartingCodexAuth={isStartingCodexAuth}
             isCreatingRunner={isCreatingRunner}
             runnerIdDraft={runnerIdDraft}
             runnerCallbackUrlDraft={runnerCallbackUrlDraft}
@@ -4153,6 +4273,8 @@ function App() {
             }
             onCreateRunner={handleCreateRunner}
             onRefreshRunners={() => loadAgentRunners()}
+            onStartRunnerCodexDeviceAuth={handleStartRunnerCodexDeviceAuth}
+            onNavigate={navigateTo}
             onRegenerateRunnerSecret={handleRegenerateRunnerSecret}
             onDeleteRunner={handleDeleteRunner}
           />
