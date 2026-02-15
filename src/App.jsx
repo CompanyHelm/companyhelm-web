@@ -4,6 +4,7 @@ const GRAPHQL_URL = import.meta.env.VITE_GRAPHQL_URL || "/graphql";
 const SELECTED_COMPANY_STORAGE_KEY = "companyhelm.selectedCompanyId";
 const DEFAULT_RUNNER_GRPC_TARGET =
   import.meta.env.VITE_AGENT_RUNNER_GRPC_TARGET || "localhost:50051";
+const CODEX_DEVICE_AUTH_URL = "https://auth.openai.com/codex/device";
 
 const LIST_COMPANIES_QUERY = `
   query ListCompanies {
@@ -355,6 +356,78 @@ const INITIALIZE_AGENT_MUTATION = `
   }
 `;
 
+const LIST_AGENT_CHAT_MESSAGES_QUERY = `
+  query ListAgentChatMessages($companyId: String!, $agentId: String!, $limit: Int) {
+    agentChatMessages(companyId: $companyId, agentId: $agentId, limit: $limit) {
+      id
+      companyId
+      agentId
+      runnerId
+      role
+      content
+      status
+      commandId
+      error
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+const SEND_AGENT_MESSAGE_MUTATION = `
+  mutation SendAgentMessage(
+    $companyId: String!
+    $agentId: String!
+    $message: String!
+    $runnerId: String
+  ) {
+    sendAgentMessage(
+      companyId: $companyId
+      agentId: $agentId
+      message: $message
+      runnerId: $runnerId
+    ) {
+      ok
+      error
+      commandId
+      messageId
+      runnerId
+      agentId
+    }
+  }
+`;
+
+const GET_AGENT_CODEX_AUTH_STATE_QUERY = `
+  query GetAgentCodexAuthState($companyId: String!, $agentId: String!) {
+    agentCodexAuthState(companyId: $companyId, agentId: $agentId) {
+      requestId
+      companyId
+      agentId
+      runnerId
+      status
+      verificationUri
+      userCode
+      message
+      rawOutput
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+const START_AGENT_CODEX_DEVICE_AUTH_MUTATION = `
+  mutation StartAgentCodexDeviceAuth($companyId: String!, $agentId: String!, $runnerId: String) {
+    startAgentCodexDeviceAuth(companyId: $companyId, agentId: $agentId, runnerId: $runnerId) {
+      ok
+      error
+      requestId
+      runnerId
+      agentId
+      status
+    }
+  }
+`;
+
 const PRIMARY_NAV_ITEMS = [
   {
     id: "dashboard",
@@ -373,6 +446,7 @@ const PRIMARY_NAV_ITEMS = [
     requiresCompany: true,
   },
   { id: "agents", label: "Agents", href: "#agents", tone: "coral", requiresCompany: true },
+  { id: "chat", label: "Codex Chat", href: "#chat", tone: "mint", requiresCompany: true },
   {
     id: "settings",
     label: "Settings",
@@ -441,6 +515,17 @@ function persistCompanyId(companyId) {
   } catch {
     // Ignore local storage write failures.
   }
+}
+
+function isCodexAgent(agent) {
+  return String(agent?.agentSdk || "")
+    .trim()
+    .toLowerCase() === "codex";
+}
+
+function getCodexAuthVerificationUrl(codexAuthState) {
+  const authUrl = String(codexAuthState?.verificationUri || "").trim();
+  return authUrl || CODEX_DEVICE_AUTH_URL;
 }
 
 function createRelationshipDrafts(tasks) {
@@ -682,12 +767,21 @@ function DashboardPage({
   selectedCompanyId,
   tasks,
   agentRunners,
+  agents,
+  chatAgentId,
+  codexAuthState,
+  isLoadingCodexAuthState,
+  isStartingCodexAuth,
+  codexVerificationUrl,
+  codexAuthCopyFeedback,
   isLoadingTasks,
   isLoadingRunners,
   taskError,
   runnerError,
   onRefreshTasks,
   onRefreshRunners,
+  onStartCodexDeviceAuth,
+  onCopyDeviceCode,
   onNavigate,
 }) {
   const readyRunnerCount = useMemo(() => {
@@ -708,6 +802,18 @@ function DashboardPage({
       .sort((a, b) => toSortableTimestamp(b.lastSeenAt) - toSortableTimestamp(a.lastSeenAt))
       .slice(0, 5);
   }, [agentRunners]);
+
+  const authAgent = useMemo(() => {
+    if (chatAgentId) {
+      const selectedAgent = agents.find((agent) => agent.id === chatAgentId);
+      if (selectedAgent) {
+        return selectedAgent;
+      }
+    }
+    return agents.find((agent) => isCodexAgent(agent)) || null;
+  }, [agents, chatAgentId]);
+
+  const authAgentIsCodex = isCodexAgent(authAgent);
 
   return (
     <div className="page-stack">
@@ -826,6 +932,102 @@ function DashboardPage({
                 );
               })}
             </ul>
+          ) : null}
+        </article>
+
+        <article className="panel codex-home-auth-panel">
+          <header className="panel-header panel-header-row">
+            <h2>Codex device auth</h2>
+            <div className="hero-actions codex-home-auth-actions">
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={onStartCodexDeviceAuth}
+                disabled={!authAgentIsCodex || isStartingCodexAuth}
+              >
+                {isStartingCodexAuth ? "Starting..." : "Start device auth"}
+              </button>
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={() => onNavigate("chat")}
+              >
+                Open chat
+              </button>
+            </div>
+          </header>
+
+          {!authAgent ? (
+            <p className="empty-hint">Create a Codex agent, then start device authentication.</p>
+          ) : null}
+
+          {authAgent && !authAgentIsCodex ? (
+            <p className="empty-hint">
+              No Codex agent is selected for chat. Choose a Codex agent in the chat page.
+            </p>
+          ) : null}
+
+          {authAgent && authAgentIsCodex ? (
+            <div className="codex-auth-state">
+              <p className="codex-auth-row">
+                <strong>Agent:</strong> {authAgent.name} ({authAgent.id.slice(0, 8)})
+              </p>
+              <p className="codex-auth-row">
+                <strong>Codex URL:</strong>{" "}
+                <a
+                  className="codex-auth-link"
+                  href={codexVerificationUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {codexVerificationUrl}
+                </a>
+              </p>
+              {isLoadingCodexAuthState ? (
+                <p className="codex-auth-row">Loading auth state...</p>
+              ) : null}
+              {!isLoadingCodexAuthState && !codexAuthState ? (
+                <p className="codex-auth-row">
+                  No auth request yet. Click &quot;Start device auth&quot; to request a code.
+                </p>
+              ) : null}
+              {codexAuthState ? (
+                <>
+                  <p className="codex-auth-row">
+                    <strong>Status:</strong>{" "}
+                    <span className={`codex-auth-status codex-auth-status-${codexAuthState.status}`}>
+                      {codexAuthState.status}
+                    </span>
+                  </p>
+                  <p className="codex-auth-row">
+                    <strong>Updated:</strong> {formatTimestamp(codexAuthState.updatedAt)}
+                  </p>
+                  {codexAuthState.userCode ? (
+                    <p className="codex-auth-row codex-auth-row-with-action">
+                      <strong>Device code:</strong>{" "}
+                      <code className="codex-auth-code">{codexAuthState.userCode}</code>
+                      <button
+                        type="button"
+                        className="secondary-btn codex-auth-copy-btn"
+                        onClick={() => onCopyDeviceCode(codexAuthState.userCode)}
+                      >
+                        Copy code
+                      </button>
+                    </p>
+                  ) : (
+                    <p className="codex-auth-row">
+                      Device code will appear here after the runner starts the auth flow.
+                    </p>
+                  )}
+                  {codexAuthState.message ? (
+                    <p className="codex-auth-row">{codexAuthState.message}</p>
+                  ) : null}
+                </>
+              ) : null}
+              {codexAuthCopyFeedback ? (
+                <p className="codex-auth-row codex-auth-copy-feedback">{codexAuthCopyFeedback}</p>
+              ) : null}
+            </div>
           ) : null}
         </article>
       </section>
@@ -1864,6 +2066,197 @@ function SkillsPage({
   );
 }
 
+function ChatPage({
+  selectedCompanyId,
+  agents,
+  chatAgentId,
+  chatMessages,
+  isLoadingChat,
+  chatError,
+  codexAuthState,
+  isLoadingCodexAuthState,
+  codexAuthError,
+  isStartingCodexAuth,
+  codexVerificationUrl,
+  codexAuthCopyFeedback,
+  chatDraftMessage,
+  isSendingChatMessage,
+  onChatAgentChange,
+  onChatDraftMessageChange,
+  onRefreshChat,
+  onStartCodexDeviceAuth,
+  onCopyDeviceCode,
+  onSendChatMessage,
+}) {
+  const selectedAgent = useMemo(() => {
+    return agents.find((agent) => agent.id === chatAgentId) || null;
+  }, [agents, chatAgentId]);
+  const selectedAgentIsCodex = isCodexAgent(selectedAgent);
+
+  return (
+    <div className="page-stack">
+      <section className="panel hero-panel">
+        <p className="eyebrow">Codex Runtime</p>
+        <h1>Codex chat</h1>
+        <p className="subcopy">
+          Send messages from the UI to Codex agents running inside Docker runtime containers.
+        </p>
+        <p className="context-pill">Company: {selectedCompanyId}</p>
+      </section>
+
+      <section className="panel composer-panel">
+        <header className="panel-header panel-header-row">
+          <h2>Conversation controls</h2>
+          <button type="button" className="secondary-btn" onClick={onRefreshChat}>
+            Refresh
+          </button>
+        </header>
+        <div className="task-form">
+          <label htmlFor="chat-agent-select">Agent</label>
+          <select
+            id="chat-agent-select"
+            value={chatAgentId}
+            onChange={(event) => onChatAgentChange(event.target.value)}
+          >
+            <option value="">Select an agent</option>
+            {agents.map((agent) => (
+              <option key={`chat-agent-${agent.id}`} value={agent.id}>
+                {agent.name} ({agent.agentSdk})
+              </option>
+            ))}
+          </select>
+        </div>
+        {selectedAgent && !selectedAgentIsCodex ? (
+          <p className="error-banner">
+            Selected agent uses <strong>{selectedAgent.agentSdk}</strong>. Only agents configured
+            with <strong>codex</strong> can receive chat messages.
+          </p>
+        ) : null}
+      </section>
+
+      <section className="panel codex-auth-panel">
+        <header className="panel-header panel-header-row">
+          <h2>Codex device auth</h2>
+          <button
+            type="button"
+            className="secondary-btn"
+            onClick={onStartCodexDeviceAuth}
+            disabled={!chatAgentId || !selectedAgentIsCodex || isStartingCodexAuth}
+          >
+            {isStartingCodexAuth ? "Starting..." : "Start device auth"}
+          </button>
+        </header>
+        {codexAuthError ? <p className="error-banner">Auth error: {codexAuthError}</p> : null}
+        {!chatAgentId ? <p className="empty-hint">Select an agent to manage device auth.</p> : null}
+        {chatAgentId && selectedAgentIsCodex ? (
+          <p className="codex-auth-row">
+            <strong>Codex URL:</strong>{" "}
+            <a className="codex-auth-link" href={codexVerificationUrl} target="_blank" rel="noreferrer">
+              {codexVerificationUrl}
+            </a>
+          </p>
+        ) : null}
+        {chatAgentId && isLoadingCodexAuthState ? (
+          <p className="empty-hint">Loading auth state...</p>
+        ) : null}
+        {chatAgentId && !isLoadingCodexAuthState && !codexAuthState ? (
+          <p className="empty-hint">No auth request yet for this agent.</p>
+        ) : null}
+        {codexAuthState ? (
+          <div className="codex-auth-state">
+            <p className="codex-auth-row">
+              <strong>Status:</strong>{" "}
+              <span className={`codex-auth-status codex-auth-status-${codexAuthState.status}`}>
+                {codexAuthState.status}
+              </span>
+            </p>
+            <p className="codex-auth-row">
+              <strong>Updated:</strong> {formatTimestamp(codexAuthState.updatedAt)}
+            </p>
+            {codexAuthState.userCode ? (
+              <p className="codex-auth-row codex-auth-row-with-action">
+                <strong>Device code:</strong>{" "}
+                <code className="codex-auth-code">{codexAuthState.userCode}</code>
+                <button
+                  type="button"
+                  className="secondary-btn codex-auth-copy-btn"
+                  onClick={() => onCopyDeviceCode(codexAuthState.userCode)}
+                >
+                  Copy code
+                </button>
+              </p>
+            ) : null}
+            {codexAuthState.message ? (
+              <p className="codex-auth-row">{codexAuthState.message}</p>
+            ) : null}
+          </div>
+        ) : null}
+        {codexAuthCopyFeedback ? (
+          <p className="codex-auth-row codex-auth-copy-feedback">{codexAuthCopyFeedback}</p>
+        ) : null}
+      </section>
+
+      <section className="panel chat-panel">
+        <header className="panel-header">
+          <h2>Transcript</h2>
+        </header>
+        {chatError ? <p className="error-banner">Chat error: {chatError}</p> : null}
+        {!chatAgentId ? <p className="empty-hint">Select an agent to start chatting.</p> : null}
+        {chatAgentId && isLoadingChat ? <p className="empty-hint">Loading chat messages...</p> : null}
+        {chatAgentId && !isLoadingChat && chatMessages.length === 0 ? (
+          <p className="empty-hint">No messages yet. Send the first prompt below.</p>
+        ) : null}
+        {chatMessages.length > 0 ? (
+          <ul className="chat-message-list">
+            {chatMessages.map((message) => (
+              <li
+                key={message.id}
+                className={`chat-message-item chat-message-item-${message.role}`}
+              >
+                <div className="chat-message-meta">
+                  <strong>{message.role}</strong>
+                  <span>{message.status}</span>
+                  <span>{formatTimestamp(message.createdAt)}</span>
+                </div>
+                <p className="chat-message-content">{message.content}</p>
+                {message.error ? <p className="chat-message-error">{message.error}</p> : null}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </section>
+
+      <section className="panel composer-panel">
+        <header className="panel-header">
+          <h2>Send message</h2>
+        </header>
+        <form className="task-form" onSubmit={onSendChatMessage}>
+          <label htmlFor="chat-message-input">Message</label>
+          <textarea
+            id="chat-message-input"
+            rows={4}
+            placeholder="Ask Codex to plan, debug, or implement something..."
+            value={chatDraftMessage}
+            onChange={(event) => onChatDraftMessageChange(event.target.value)}
+            disabled={!chatAgentId || !selectedAgentIsCodex || isSendingChatMessage}
+          />
+          <button
+            type="submit"
+            disabled={
+              !chatAgentId ||
+              !selectedAgentIsCodex ||
+              !chatDraftMessage.trim() ||
+              isSendingChatMessage
+            }
+          >
+            {isSendingChatMessage ? "Sending..." : "Send to Codex"}
+          </button>
+        </form>
+      </section>
+    </div>
+  );
+}
+
 function SettingsPage({
   hasCompanies,
   selectedCompany,
@@ -2023,6 +2416,17 @@ function App() {
   const [agentModel, setAgentModel] = useState("");
   const [agentModelReasoningLevel, setAgentModelReasoningLevel] = useState("");
   const [agentDrafts, setAgentDrafts] = useState({});
+  const [chatAgentId, setChatAgentId] = useState("");
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatDraftMessage, setChatDraftMessage] = useState("");
+  const [chatError, setChatError] = useState("");
+  const [isLoadingChat, setIsLoadingChat] = useState(false);
+  const [isSendingChatMessage, setIsSendingChatMessage] = useState(false);
+  const [codexAuthState, setCodexAuthState] = useState(null);
+  const [isLoadingCodexAuthState, setIsLoadingCodexAuthState] = useState(false);
+  const [codexAuthError, setCodexAuthError] = useState("");
+  const [isStartingCodexAuth, setIsStartingCodexAuth] = useState(false);
+  const [codexAuthCopyFeedback, setCodexAuthCopyFeedback] = useState("");
   const hasCompanies = companies.length > 0;
 
   const selectedCompany = useMemo(() => {
@@ -2158,6 +2562,75 @@ function App() {
     }
   }, [selectedCompanyId]);
 
+  const loadAgentChatMessages = useCallback(
+    async ({ silently = false } = {}) => {
+      if (!selectedCompanyId || !chatAgentId) {
+        setChatMessages([]);
+        if (!silently) {
+          setChatError("");
+          setIsLoadingChat(false);
+        }
+        return;
+      }
+
+      try {
+        if (!silently) {
+          setChatError("");
+          setIsLoadingChat(true);
+        }
+        const data = await executeGraphQL(LIST_AGENT_CHAT_MESSAGES_QUERY, {
+          companyId: selectedCompanyId,
+          agentId: chatAgentId,
+          limit: 200,
+        });
+        setChatMessages(data.agentChatMessages || []);
+      } catch (loadError) {
+        if (!silently) {
+          setChatError(loadError.message);
+        }
+      } finally {
+        if (!silently) {
+          setIsLoadingChat(false);
+        }
+      }
+    },
+    [selectedCompanyId, chatAgentId],
+  );
+
+  const loadCodexAuthState = useCallback(
+    async ({ silently = false } = {}) => {
+      if (!selectedCompanyId || !chatAgentId) {
+        setCodexAuthState(null);
+        if (!silently) {
+          setCodexAuthError("");
+          setIsLoadingCodexAuthState(false);
+        }
+        return;
+      }
+
+      try {
+        if (!silently) {
+          setCodexAuthError("");
+          setIsLoadingCodexAuthState(true);
+        }
+        const data = await executeGraphQL(GET_AGENT_CODEX_AUTH_STATE_QUERY, {
+          companyId: selectedCompanyId,
+          agentId: chatAgentId,
+        });
+        setCodexAuthState(data.agentCodexAuthState || null);
+      } catch (loadError) {
+        if (!silently) {
+          setCodexAuthError(loadError.message);
+        }
+      } finally {
+        if (!silently) {
+          setIsLoadingCodexAuthState(false);
+        }
+      }
+    },
+    [selectedCompanyId, chatAgentId],
+  );
+
   useEffect(() => {
     loadCompanies();
   }, [loadCompanies]);
@@ -2176,6 +2649,13 @@ function App() {
     setSkillName("");
     setSkillDescription("");
     setSkillInstructions("");
+    setChatAgentId("");
+    setChatMessages([]);
+    setChatDraftMessage("");
+    setChatError("");
+    setCodexAuthState(null);
+    setCodexAuthError("");
+    setCodexAuthCopyFeedback("");
   }, [selectedCompanyId]);
 
   useEffect(() => {
@@ -2183,7 +2663,42 @@ function App() {
     loadSkills();
     loadAgentRunners();
     loadAgents();
-  }, [loadAgentRunners, loadAgents, loadSkills, loadTasks, selectedCompanyId]);
+    loadAgentChatMessages();
+    loadCodexAuthState();
+  }, [
+    loadAgentChatMessages,
+    loadCodexAuthState,
+    loadAgentRunners,
+    loadAgents,
+    loadSkills,
+    loadTasks,
+    selectedCompanyId,
+  ]);
+
+  useEffect(() => {
+    if (!selectedCompanyId) {
+      setChatAgentId("");
+      setChatMessages([]);
+      return;
+    }
+
+    setChatAgentId((currentAgentId) => {
+      if (currentAgentId && agents.some((agent) => agent.id === currentAgentId)) {
+        return currentAgentId;
+      }
+      const firstCodexAgent = agents.find(
+        (agent) => isCodexAgent(agent),
+      );
+      if (firstCodexAgent) {
+        return firstCodexAgent.id;
+      }
+      return agents[0]?.id || "";
+    });
+  }, [agents, selectedCompanyId]);
+
+  useEffect(() => {
+    setCodexAuthCopyFeedback("");
+  }, [chatAgentId, codexAuthState?.requestId, codexAuthState?.userCode]);
 
   useEffect(() => {
     if (!window.location.hash) {
@@ -2217,6 +2732,23 @@ function App() {
     }, 10000);
     return () => window.clearInterval(pollId);
   }, [loadAgentRunners, selectedCompanyId]);
+
+  useEffect(() => {
+    const shouldPollChat = activePage === "chat";
+    const shouldPollCodexAuth = activePage === "chat" || activePage === "dashboard";
+    if (!selectedCompanyId || !chatAgentId || (!shouldPollChat && !shouldPollCodexAuth)) {
+      return undefined;
+    }
+    const pollId = window.setInterval(() => {
+      if (shouldPollChat) {
+        loadAgentChatMessages({ silently: true });
+      }
+      if (shouldPollCodexAuth) {
+        loadCodexAuthState({ silently: true });
+      }
+    }, 5000);
+    return () => window.clearInterval(pollId);
+  }, [activePage, chatAgentId, loadAgentChatMessages, loadCodexAuthState, selectedCompanyId]);
 
   async function handleCreateCompany(event) {
     event.preventDefault();
@@ -2753,6 +3285,106 @@ function App() {
     }
   }
 
+  async function handleSendChatMessage(event) {
+    event.preventDefault();
+    if (!selectedCompanyId) {
+      setChatError("Select a company before sending chat messages.");
+      return;
+    }
+    if (!chatAgentId) {
+      setChatError("Select an agent before sending a message.");
+      return;
+    }
+    if (!chatDraftMessage.trim()) {
+      setChatError("Message cannot be empty.");
+      return;
+    }
+
+    const selectedAgentForChat = agents.find((agent) => agent.id === chatAgentId) || null;
+    try {
+      setIsSendingChatMessage(true);
+      setChatError("");
+      const data = await executeGraphQL(SEND_AGENT_MESSAGE_MUTATION, {
+        companyId: selectedCompanyId,
+        agentId: chatAgentId,
+        message: chatDraftMessage.trim(),
+        runnerId: selectedAgentForChat?.agentRunnerId || null,
+      });
+      const result = data.sendAgentMessage;
+      if (!result.ok) {
+        throw new Error(result.error || "Failed to send chat message.");
+      }
+      setChatDraftMessage("");
+      await loadAgentChatMessages();
+    } catch (sendError) {
+      setChatError(sendError.message);
+    } finally {
+      setIsSendingChatMessage(false);
+    }
+  }
+
+  async function handleStartCodexDeviceAuth() {
+    if (!selectedCompanyId) {
+      setCodexAuthError("Select a company before starting device auth.");
+      return;
+    }
+    if (!chatAgentId) {
+      setCodexAuthError("Select an agent before starting device auth.");
+      return;
+    }
+
+    const selectedAgentForAuth = agents.find((agent) => agent.id === chatAgentId) || null;
+    if (!selectedAgentForAuth) {
+      setCodexAuthError("Selected agent was not found.");
+      return;
+    }
+    if (!isCodexAgent(selectedAgentForAuth)) {
+      setCodexAuthError("Only agents with SDK codex support device auth.");
+      return;
+    }
+
+    try {
+      setIsStartingCodexAuth(true);
+      setCodexAuthError("");
+      setCodexAuthCopyFeedback("");
+      const data = await executeGraphQL(START_AGENT_CODEX_DEVICE_AUTH_MUTATION, {
+        companyId: selectedCompanyId,
+        agentId: chatAgentId,
+        runnerId: selectedAgentForAuth.agentRunnerId || null,
+      });
+      const result = data.startAgentCodexDeviceAuth;
+      if (!result.ok) {
+        throw new Error(result.error || "Failed to start Codex device auth.");
+      }
+      await loadCodexAuthState();
+    } catch (startError) {
+      setCodexAuthError(startError.message);
+    } finally {
+      setIsStartingCodexAuth(false);
+    }
+  }
+
+  async function handleCopyDeviceCode(deviceCode) {
+    const trimmedCode = String(deviceCode || "").trim();
+    if (!trimmedCode) {
+      setCodexAuthCopyFeedback("No device code available yet.");
+      return;
+    }
+
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(trimmedCode);
+        setCodexAuthCopyFeedback("Device code copied.");
+        return;
+      }
+      throw new Error("Clipboard API unavailable.");
+    } catch (copyError) {
+      setCodexAuthCopyFeedback(
+        `Copy failed (${copyError?.message || "unknown error"}). Copy the code manually.`,
+      );
+    }
+  }
+
   function handleDraftChange(taskId, field, value) {
     setRelationshipDrafts((currentDrafts) => ({
       ...currentDrafts,
@@ -2845,6 +3477,11 @@ function App() {
     return agentRunners.some((runner) => normalizeRunnerStatus(runner.status) === "ready");
   }, [agentRunners]);
 
+  const codexVerificationUrl = useMemo(
+    () => getCodexAuthVerificationUrl(codexAuthState),
+    [codexAuthState],
+  );
+
   const renderTaskLink = useCallback(
     (taskId) => {
       if (taskId == null) {
@@ -2935,12 +3572,21 @@ function App() {
             selectedCompanyId={selectedCompanyId}
             tasks={tasks}
             agentRunners={agentRunners}
+            agents={agents}
+            chatAgentId={chatAgentId}
+            codexAuthState={codexAuthState}
+            isLoadingCodexAuthState={isLoadingCodexAuthState}
+            isStartingCodexAuth={isStartingCodexAuth}
+            codexVerificationUrl={codexVerificationUrl}
+            codexAuthCopyFeedback={codexAuthCopyFeedback}
             isLoadingTasks={isLoadingTasks}
             isLoadingRunners={isLoadingRunners}
             taskError={taskError}
             runnerError={runnerError}
             onRefreshTasks={loadTasks}
             onRefreshRunners={() => loadAgentRunners()}
+            onStartCodexDeviceAuth={handleStartCodexDeviceAuth}
+            onCopyDeviceCode={handleCopyDeviceCode}
             onNavigate={navigateTo}
           />
         ) : null}
@@ -3061,6 +3707,34 @@ function App() {
             onSaveAgent={handleSaveAgent}
             onInitializeAgent={handleInitializeAgent}
             onDeleteAgent={handleDeleteAgent}
+          />
+        ) : null}
+
+        {selectedCompanyId && activePage === "chat" ? (
+          <ChatPage
+            selectedCompanyId={selectedCompanyId}
+            agents={agents}
+            chatAgentId={chatAgentId}
+            chatMessages={chatMessages}
+            isLoadingChat={isLoadingChat}
+            chatError={chatError}
+            codexAuthState={codexAuthState}
+            isLoadingCodexAuthState={isLoadingCodexAuthState}
+            codexAuthError={codexAuthError}
+            isStartingCodexAuth={isStartingCodexAuth}
+            codexVerificationUrl={codexVerificationUrl}
+            codexAuthCopyFeedback={codexAuthCopyFeedback}
+            chatDraftMessage={chatDraftMessage}
+            isSendingChatMessage={isSendingChatMessage}
+            onChatAgentChange={setChatAgentId}
+            onChatDraftMessageChange={setChatDraftMessage}
+            onRefreshChat={() => {
+              loadAgentChatMessages();
+              loadCodexAuthState();
+            }}
+            onStartCodexDeviceAuth={handleStartCodexDeviceAuth}
+            onCopyDeviceCode={handleCopyDeviceCode}
+            onSendChatMessage={handleSendChatMessage}
           />
         ) : null}
 
