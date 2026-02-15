@@ -95,6 +95,26 @@ const CREATE_AGENT_RUNNER_MUTATION = `
   }
 `;
 
+const REGENERATE_AGENT_RUNNER_SECRET_MUTATION = `
+  mutation RegenerateAgentRunnerSecret($companyId: String!, $id: String!) {
+    regenerateAgentRunnerSecret(companyId: $companyId, id: $id) {
+      ok
+      error
+      provisionedAuthSecret
+      runnerLaunchCommand
+      agentRunner {
+        id
+        companyId
+        callbackUrl
+        hasAuthSecret
+        status
+        lastHealthCheckAt
+        lastSeenAt
+      }
+    }
+  }
+`;
+
 const LIST_AGENTS_QUERY = `
   query ListAgents($companyId: String!) {
     agents(companyId: $companyId) {
@@ -1351,6 +1371,7 @@ function AgentRunnerPage({
   runnerSecretDraft,
   runnerGrpcTarget,
   runnerSecretsById,
+  regeneratingRunnerId,
   deletingRunnerId,
   runnerCountLabel,
   onRunnerIdChange,
@@ -1359,6 +1380,7 @@ function AgentRunnerPage({
   onRunnerCommandSecretChange,
   onCreateRunner,
   onRefreshRunners,
+  onRegenerateRunnerSecret,
   onDeleteRunner,
 }) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -1502,9 +1524,21 @@ function AgentRunnerPage({
                     <div className="runner-card-actions">
                       <button
                         type="button"
+                        className="secondary-btn"
+                        onClick={() => onRegenerateRunnerSecret(runner.id)}
+                        disabled={
+                          deletingRunnerId === runner.id || regeneratingRunnerId === runner.id
+                        }
+                      >
+                        {regeneratingRunnerId === runner.id ? "Regenerating..." : "Regenerate key"}
+                      </button>
+                      <button
+                        type="button"
                         className="danger-btn"
                         onClick={() => onDeleteRunner(runner.id)}
-                        disabled={deletingRunnerId === runner.id}
+                        disabled={
+                          deletingRunnerId === runner.id || regeneratingRunnerId === runner.id
+                        }
                       >
                         {deletingRunnerId === runner.id ? "Deleting..." : "Delete runner"}
                       </button>
@@ -2550,6 +2584,7 @@ function App() {
   const [deletingTaskId, setDeletingTaskId] = useState(null);
   const [deletingSkillId, setDeletingSkillId] = useState(null);
   const [deletingRunnerId, setDeletingRunnerId] = useState(null);
+  const [regeneratingRunnerId, setRegeneratingRunnerId] = useState(null);
   const [isCreatingRunner, setIsCreatingRunner] = useState(false);
   const [runnerIdDraft, setRunnerIdDraft] = useState("");
   const [runnerCallbackUrlDraft, setRunnerCallbackUrlDraft] = useState("");
@@ -2853,6 +2888,7 @@ function App() {
     setRunnerCallbackUrlDraft("");
     setRunnerSecretDraft("");
     setRunnerSecretsById({});
+    setRegeneratingRunnerId(null);
     setSkillName("");
     setSkillDescription("");
     setSkillInstructions("");
@@ -3257,6 +3293,47 @@ function App() {
       setSkillError(deleteError.message);
     } finally {
       setDeletingSkillId(null);
+    }
+  }
+
+  async function handleRegenerateRunnerSecret(runnerId) {
+    if (!selectedCompanyId) {
+      setRunnerError("Select a company before regenerating runner keys.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Regenerate API key for runner ${runnerId}? Existing runner processes using the old key will need to reconnect with the new key.`,
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setRegeneratingRunnerId(runnerId);
+      setRunnerError("");
+      const data = await executeGraphQL(REGENERATE_AGENT_RUNNER_SECRET_MUTATION, {
+        companyId: selectedCompanyId,
+        id: runnerId,
+      });
+      const result = data.regenerateAgentRunnerSecret;
+      if (!result.ok) {
+        throw new Error(result.error || "Runner key regeneration failed.");
+      }
+
+      const regeneratedSecret = result.provisionedAuthSecret || "";
+      if (!regeneratedSecret) {
+        throw new Error("Runner key regeneration failed: missing secret.");
+      }
+      setRunnerSecretsById((currentSecrets) => ({
+        ...currentSecrets,
+        [runnerId]: regeneratedSecret,
+      }));
+      await loadAgentRunners({ silently: true });
+    } catch (regenerateError) {
+      setRunnerError(regenerateError.message);
+    } finally {
+      setRegeneratingRunnerId(null);
     }
   }
 
@@ -3962,6 +4039,7 @@ function App() {
             runnerSecretDraft={runnerSecretDraft}
             runnerGrpcTarget={DEFAULT_RUNNER_GRPC_TARGET}
             runnerSecretsById={runnerSecretsById}
+            regeneratingRunnerId={regeneratingRunnerId}
             deletingRunnerId={deletingRunnerId}
             runnerCountLabel={runnerCountLabel}
             onRunnerIdChange={setRunnerIdDraft}
@@ -3975,6 +4053,7 @@ function App() {
             }
             onCreateRunner={handleCreateRunner}
             onRefreshRunners={() => loadAgentRunners()}
+            onRegenerateRunnerSecret={handleRegenerateRunnerSecret}
             onDeleteRunner={handleDeleteRunner}
           />
         ) : null}
