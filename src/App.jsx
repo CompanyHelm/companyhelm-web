@@ -70,6 +70,21 @@ const LIST_AGENT_RUNNERS_QUERY = `
   }
 `;
 
+const LIST_AGENT_RUNNERS_QUERY_LEGACY = `
+  query ListAgentRunners($companyId: String!) {
+    agentRunners(companyId: $companyId) {
+      id
+      companyId
+      callbackUrl
+      hasAuthSecret
+      codexAuthenticated
+      status
+      lastHealthCheckAt
+      lastSeenAt
+    }
+  }
+`;
+
 const CREATE_AGENT_RUNNER_MUTATION = `
   mutation CreateAgentRunner(
     $companyId: String!
@@ -105,6 +120,37 @@ const CREATE_AGENT_RUNNER_MUTATION = `
   }
 `;
 
+const CREATE_AGENT_RUNNER_MUTATION_LEGACY = `
+  mutation CreateAgentRunner(
+    $companyId: String!
+    $id: String
+    $callbackUrl: String
+    $authSecret: String
+  ) {
+    createAgentRunner(
+      companyId: $companyId
+      id: $id
+      callbackUrl: $callbackUrl
+      authSecret: $authSecret
+    ) {
+      ok
+      error
+      provisionedAuthSecret
+      runnerLaunchCommand
+      agentRunner {
+        id
+        companyId
+        callbackUrl
+        hasAuthSecret
+        codexAuthenticated
+        status
+        lastHealthCheckAt
+        lastSeenAt
+      }
+    }
+  }
+`;
+
 const REGENERATE_AGENT_RUNNER_SECRET_MUTATION = `
   mutation RegenerateAgentRunnerSecret($companyId: String!, $id: String!) {
     regenerateAgentRunnerSecret(companyId: $companyId, id: $id) {
@@ -122,6 +168,27 @@ const REGENERATE_AGENT_RUNNER_SECRET_MUTATION = `
           name
           reasoning
         }
+        status
+        lastHealthCheckAt
+        lastSeenAt
+      }
+    }
+  }
+`;
+
+const REGENERATE_AGENT_RUNNER_SECRET_MUTATION_LEGACY = `
+  mutation RegenerateAgentRunnerSecret($companyId: String!, $id: String!) {
+    regenerateAgentRunnerSecret(companyId: $companyId, id: $id) {
+      ok
+      error
+      provisionedAuthSecret
+      runnerLaunchCommand
+      agentRunner {
+        id
+        companyId
+        callbackUrl
+        hasAuthSecret
+        codexAuthenticated
         status
         lastHealthCheckAt
         lastSeenAt
@@ -736,21 +803,49 @@ function buildRunnerStartCommand({
 }
 
 async function executeGraphQL(query, variables) {
-  const response = await fetch(GRAPHQL_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ query, variables }),
-  });
+  const fallbacks = new Map([
+    [LIST_AGENT_RUNNERS_QUERY, LIST_AGENT_RUNNERS_QUERY_LEGACY],
+    [CREATE_AGENT_RUNNER_MUTATION, CREATE_AGENT_RUNNER_MUTATION_LEGACY],
+    [REGENERATE_AGENT_RUNNER_SECRET_MUTATION, REGENERATE_AGENT_RUNNER_SECRET_MUTATION_LEGACY],
+  ]);
+  const candidateQueries = [query, ...(fallbacks.get(query) ? [fallbacks.get(query)] : [])];
 
-  const payload = await response.json();
-  if (!response.ok || payload.errors) {
-    const message =
-      payload?.errors?.[0]?.message || `GraphQL request failed (${response.status})`;
-    throw new Error(message);
+  let lastMessage = "GraphQL request failed.";
+
+  for (let attempt = 0; attempt < candidateQueries.length; attempt += 1) {
+    const currentQuery = candidateQueries[attempt];
+    const response = await fetch(GRAPHQL_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ query: currentQuery, variables }),
+    });
+
+    const payload = await response.json();
+    if (!response.ok || payload.errors) {
+      const message = payload?.errors?.[0]?.message || `GraphQL request failed (${response.status})`;
+      const canRetryWithoutCodexModels =
+        attempt === 0 &&
+        payload?.errors?.some((error) =>
+          String(error?.message || "").includes(
+            'Cannot query field "codexAvailableModels" on type "AgentRunnerType"',
+          ),
+        ) &&
+        candidateQueries.length > 1;
+
+      if (canRetryWithoutCodexModels) {
+        lastMessage = message;
+        continue;
+      }
+
+      throw new Error(message);
+    }
+
+    return payload.data;
   }
-  return payload.data;
+
+  throw new Error(lastMessage);
 }
 
 function CompanyRequiredPanel({ hasCompanies }) {
@@ -1558,19 +1653,22 @@ function AgentRunnerPage({
                     <p className="runner-last-seen">
                       Last health check: <em>{formatTimestamp(runner.lastHealthCheckAt)}</em>
                     </p>
-                    <p className="runner-last-seen">
-                      Codex auth:{" "}
-                      <span
-                        className={`runner-codex-auth runner-codex-auth-${
-                          runner.codexAuthenticated ? "authenticated" : "not-authenticated"
-                        }`}
-                      >
-                        {runner.codexAuthenticated ? "authenticated" : "not authenticated"}
-                      </span>
-                    </p>
-                    <p className="runner-last-seen">
-                      Codex models: <em>{codexAvailableModelsLabel}</em>
-                    </p>
+                    <section className="runner-codex-section">
+                      <h3 className="runner-section-title">Codex</h3>
+                      <p className="runner-last-seen">
+                        Authentication status:{" "}
+                        <span
+                          className={`runner-codex-auth runner-codex-auth-${
+                            runner.codexAuthenticated ? "authenticated" : "not-authenticated"
+                          }`}
+                        >
+                          {runner.codexAuthenticated ? "authenticated" : "not authenticated"}
+                        </span>
+                      </p>
+                      <p className="runner-last-seen">
+                        Reported models: <em>{codexAvailableModelsLabel}</em>
+                      </p>
+                    </section>
                     {!runner.codexAuthenticated ? (
                       <div className="runner-auth-block">
                         {codexAgentForAuth ? (

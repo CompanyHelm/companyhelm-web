@@ -661,6 +661,22 @@ button:disabled {
   gap: 0.6rem;
 }
 
+.runner-section-title {
+  margin: 0.1rem 0 0;
+  color: var(--ink-1);
+  font-size: 0.8rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.runner-codex-section {
+  margin-top: 0.72rem;
+  padding-top: 0.72rem;
+  border-top: 1px dashed rgba(26, 32, 38, 0.14);
+  display: grid;
+  gap: 0.38rem;
+}
+
 .task-card p {
   margin: 0.35rem 0 0.52rem;
   color: var(--ink-1);
