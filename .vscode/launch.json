@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Run UI locally (Vite + Chrome)",
+      "name": "Run UI locally (Vite + Brave)",
       "type": "pwa-node",
       "request": "launch",
       "cwd": "${workspaceFolder}",
@@ -12,8 +12,17 @@
       "serverReadyAction": {
         "pattern": "Local:\\s+(https?://\\S+)",
         "uriFormat": "%s",
-        "action": "debugWithChrome"
+        "action": "startDebugging",
+        "name": "Debug UI in Brave"
       }
+    },
+    {
+      "name": "Debug UI in Brave",
+      "type": "pwa-chrome",
+      "request": "launch",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}",
+      "runtimeExecutable": "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser"
     }
   ]
 }
