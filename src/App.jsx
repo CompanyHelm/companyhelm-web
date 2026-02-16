@@ -56,7 +56,6 @@ const LIST_AGENT_RUNNERS_QUERY = `
     agentRunners(companyId: $companyId) {
       id
       companyId
-      callbackUrl
       hasAuthSecret
       codexAuthenticated
       codexAvailableModels {
@@ -75,7 +74,6 @@ const LIST_AGENT_RUNNERS_QUERY_LEGACY = `
     agentRunners(companyId: $companyId) {
       id
       companyId
-      callbackUrl
       hasAuthSecret
       codexAuthenticated
       status
@@ -89,13 +87,11 @@ const CREATE_AGENT_RUNNER_MUTATION = `
   mutation CreateAgentRunner(
     $companyId: String!
     $id: String
-    $callbackUrl: String
     $authSecret: String
   ) {
     createAgentRunner(
       companyId: $companyId
       id: $id
-      callbackUrl: $callbackUrl
       authSecret: $authSecret
     ) {
       ok
@@ -105,7 +101,6 @@ const CREATE_AGENT_RUNNER_MUTATION = `
       agentRunner {
         id
         companyId
-        callbackUrl
         hasAuthSecret
         codexAuthenticated
         codexAvailableModels {
@@ -124,13 +119,11 @@ const CREATE_AGENT_RUNNER_MUTATION_LEGACY = `
   mutation CreateAgentRunner(
     $companyId: String!
     $id: String
-    $callbackUrl: String
     $authSecret: String
   ) {
     createAgentRunner(
       companyId: $companyId
       id: $id
-      callbackUrl: $callbackUrl
       authSecret: $authSecret
     ) {
       ok
@@ -140,7 +133,6 @@ const CREATE_AGENT_RUNNER_MUTATION_LEGACY = `
       agentRunner {
         id
         companyId
-        callbackUrl
         hasAuthSecret
         codexAuthenticated
         status
@@ -159,13 +151,12 @@ const REGENERATE_AGENT_RUNNER_SECRET_MUTATION = `
       provisionedAuthSecret
       runnerLaunchCommand
       agentRunner {
-        id
-        companyId
-        callbackUrl
-        hasAuthSecret
-        codexAuthenticated
-        codexAvailableModels {
-          name
+      id
+      companyId
+      hasAuthSecret
+      codexAuthenticated
+      codexAvailableModels {
+        name
           reasoning
         }
         status
@@ -184,13 +175,12 @@ const REGENERATE_AGENT_RUNNER_SECRET_MUTATION_LEGACY = `
       provisionedAuthSecret
       runnerLaunchCommand
       agentRunner {
-        id
-        companyId
-        callbackUrl
-        hasAuthSecret
-        codexAuthenticated
-        status
-        lastHealthCheckAt
+      id
+      companyId
+      hasAuthSecret
+      codexAuthenticated
+      status
+      lastHealthCheckAt
         lastSeenAt
       }
     }
@@ -1499,7 +1489,6 @@ function AgentRunnerPage({
   isStartingCodexAuth,
   isCreatingRunner,
   runnerIdDraft,
-  runnerCallbackUrlDraft,
   runnerSecretDraft,
   runnerGrpcTarget,
   runnerSecretsById,
@@ -1507,7 +1496,6 @@ function AgentRunnerPage({
   deletingRunnerId,
   runnerCountLabel,
   onRunnerIdChange,
-  onRunnerCallbackUrlChange,
   onRunnerSecretChange,
   onRunnerCommandSecretChange,
   onCreateRunner,
@@ -1541,7 +1529,7 @@ function AgentRunnerPage({
         <p className="eyebrow">Infrastructure</p>
         <h1>Agent runner page</h1>
         <p className="subcopy">
-          Track callback endpoints, status signals, and heartbeat timestamps for each runner.
+          Track runner status signals and heartbeat timestamps.
         </p>
         <p className="context-pill">Company: {selectedCompanyId}</p>
       </section>
@@ -1615,18 +1603,11 @@ function AgentRunnerPage({
                       .filter((entry) => Boolean(entry.name))
                       .sort((a, b) => a.name.localeCompare(b.name))
                   : [];
-                const codexAvailableModelsPreview = codexAvailableModels
-                  .slice(0, 4)
-                  .map((entry) =>
-                    entry.reasoning ? `${entry.name} (${entry.reasoning})` : entry.name,
-                  )
-                  .join(", ");
-                const codexAvailableModelsLabel =
-                  codexAvailableModels.length === 0
-                    ? "none reported yet"
-                    : codexAvailableModels.length <= 4
-                      ? codexAvailableModelsPreview
-                      : `${codexAvailableModelsPreview} (+${codexAvailableModels.length - 4} more)`;
+                const codexAvailableModelsPreview = codexAvailableModels.slice(0, 4);
+                const codexAvailableModelsOverflow = Math.max(
+                  0,
+                  codexAvailableModels.length - codexAvailableModelsPreview.length,
+                );
                 const codexAgentsForRunner = (agents || [])
                   .filter((agent) => agent?.agentRunnerId === runner.id && isCodexAgent(agent))
                   .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
@@ -1644,9 +1625,6 @@ function AgentRunnerPage({
                         {runnerStatus}
                       </span>
                     </div>
-                    <p className="runner-url">
-                      {runner.callbackUrl || "No callback URL configured."}
-                    </p>
                     <p className="runner-last-seen">
                       Last seen: <em>{formatTimestamp(runner.lastSeenAt)}</em>
                     </p>
@@ -1665,10 +1643,84 @@ function AgentRunnerPage({
                           {runner.codexAuthenticated ? "authenticated" : "not authenticated"}
                         </span>
                       </p>
-                      <p className="runner-last-seen">
-                        Reported models: <em>{codexAvailableModelsLabel}</em>
-                      </p>
-                    </section>
+	                      <div className="runner-last-seen runner-models-row">
+	                        <span className="runner-models-label">Reported models:</span>
+	                        {codexAvailableModels.length === 0 ? (
+	                          <em className="runner-models-empty">none reported yet</em>
+	                        ) : codexAvailableModelsOverflow === 0 ? (
+	                          <span className="runner-models-list">
+	                            {codexAvailableModelsPreview.map((entry, index) => (
+	                              <span
+	                                key={`${entry.name}-${index}`}
+	                                className="runner-model-pill"
+	                                title={
+	                                  entry.reasoning
+	                                    ? `${entry.name} (${entry.reasoning})`
+	                                    : entry.name
+	                                }
+	                              >
+	                                <span className="runner-model-name">{entry.name}</span>
+	                                {entry.reasoning ? (
+	                                  <span className="runner-model-reason">
+	                                    {entry.reasoning}
+	                                  </span>
+	                                ) : null}
+	                              </span>
+	                            ))}
+	                          </span>
+	                        ) : (
+	                          <details className="runner-models-details">
+	                            <summary className="runner-models-summary">
+	                              <span className="runner-models-list">
+	                                {codexAvailableModelsPreview.map((entry, index) => (
+	                                  <span
+	                                    key={`${entry.name}-${index}`}
+	                                    className="runner-model-pill"
+	                                    title={
+	                                      entry.reasoning
+	                                        ? `${entry.name} (${entry.reasoning})`
+	                                        : entry.name
+	                                    }
+	                                  >
+	                                    <span className="runner-model-name">{entry.name}</span>
+	                                    {entry.reasoning ? (
+	                                      <span className="runner-model-reason">
+	                                        {entry.reasoning}
+	                                      </span>
+	                                    ) : null}
+	                                  </span>
+	                                ))}
+	                                <span className="runner-model-pill runner-model-pill-more">
+	                                  +{codexAvailableModelsOverflow} more
+	                                </span>
+	                              </span>
+	                            </summary>
+	                            <div className="runner-models-expanded">
+	                              <span className="runner-models-list">
+	                                {codexAvailableModels.map((entry, index) => (
+	                                  <span
+	                                    key={`${entry.name}-${index}`}
+	                                    className="runner-model-pill"
+	                                    title={
+	                                      entry.reasoning
+	                                        ? `${entry.name} (${entry.reasoning})`
+	                                        : entry.name
+	                                    }
+	                                  >
+	                                    <span className="runner-model-name">{entry.name}</span>
+	                                    {entry.reasoning ? (
+	                                      <span className="runner-model-reason">
+	                                        {entry.reasoning}
+	                                      </span>
+	                                    ) : null}
+	                                  </span>
+	                                ))}
+	                              </span>
+	                            </div>
+	                          </details>
+	                        )}
+	                      </div>
+	                    </section>
                     {!runner.codexAuthenticated ? (
                       <div className="runner-auth-block">
                         {codexAgentForAuth ? (
@@ -1780,15 +1832,6 @@ function AgentRunnerPage({
             value={runnerIdDraft}
             onChange={(event) => onRunnerIdChange(event.target.value)}
             autoFocus
-          />
-
-          <label htmlFor="runner-callback-url">Callback URL (optional)</label>
-          <input
-            id="runner-callback-url"
-            name="callbackUrl"
-            placeholder="e.g. http://127.0.0.1:9100"
-            value={runnerCallbackUrlDraft}
-            onChange={(event) => onRunnerCallbackUrlChange(event.target.value)}
           />
 
           <label htmlFor="runner-secret">Runner secret (optional)</label>
@@ -2774,7 +2817,6 @@ function App() {
   const [regeneratingRunnerId, setRegeneratingRunnerId] = useState(null);
   const [isCreatingRunner, setIsCreatingRunner] = useState(false);
   const [runnerIdDraft, setRunnerIdDraft] = useState("");
-  const [runnerCallbackUrlDraft, setRunnerCallbackUrlDraft] = useState("");
   const [runnerSecretDraft, setRunnerSecretDraft] = useState("");
   const [runnerSecretsById, setRunnerSecretsById] = useState({});
   const [isCreatingAgent, setIsCreatingAgent] = useState(false);
@@ -3609,7 +3651,6 @@ function App() {
       const data = await executeGraphQL(CREATE_AGENT_RUNNER_MUTATION, {
         companyId: selectedCompanyId,
         id: runnerIdDraft.trim() || null,
-        callbackUrl: runnerCallbackUrlDraft.trim() || null,
         authSecret: requestedRunnerSecret || null,
       });
       const result = data.createAgentRunner;
@@ -3627,7 +3668,6 @@ function App() {
       }
 
       setRunnerIdDraft("");
-      setRunnerCallbackUrlDraft("");
       setRunnerSecretDraft("");
       await loadAgentRunners();
       return true;
@@ -4318,7 +4358,6 @@ function App() {
             isStartingCodexAuth={isStartingCodexAuth}
             isCreatingRunner={isCreatingRunner}
             runnerIdDraft={runnerIdDraft}
-            runnerCallbackUrlDraft={runnerCallbackUrlDraft}
             runnerSecretDraft={runnerSecretDraft}
             runnerGrpcTarget={DEFAULT_RUNNER_GRPC_TARGET}
             runnerSecretsById={runnerSecretsById}
@@ -4326,7 +4365,6 @@ function App() {
             deletingRunnerId={deletingRunnerId}
             runnerCountLabel={runnerCountLabel}
             onRunnerIdChange={setRunnerIdDraft}
-            onRunnerCallbackUrlChange={setRunnerCallbackUrlDraft}
             onRunnerSecretChange={setRunnerSecretDraft}
             onRunnerCommandSecretChange={(runnerId, value) =>
               setRunnerSecretsById((currentSecrets) => ({
