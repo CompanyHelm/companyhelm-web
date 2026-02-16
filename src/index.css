@@ -736,6 +736,12 @@ button:disabled {
   overflow-wrap: anywhere;
 }
 
+.runner-model-reasons {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
 .runner-model-reason {
   color: #0f766e;
   background: rgba(15, 118, 110, 0.12);

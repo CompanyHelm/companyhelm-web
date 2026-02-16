@@ -1598,7 +1598,13 @@ function AgentRunnerPage({
                   ? runner.codexAvailableModels
                       .map((entry) => ({
                         name: String(entry?.name || "").trim(),
-                        reasoning: String(entry?.reasoning || "").trim(),
+                        reasoning: [
+                          ...new Set(
+                            (Array.isArray(entry?.reasoning) ? entry.reasoning : [entry?.reasoning])
+                              .map((value) => String(value || "").trim())
+                              .filter(Boolean),
+                          ),
+                        ],
                       }))
                       .filter((entry) => Boolean(entry.name))
                       .sort((a, b) => a.name.localeCompare(b.name))
@@ -1617,6 +1623,30 @@ function AgentRunnerPage({
                   backendGrpcTarget: runnerGrpcTarget,
                   runnerSecret: runnerSecret || "<RUNNER_SECRET>",
                 });
+                const renderModelPill = (entry, index) => {
+                  const reasoningLabel = entry.reasoning.join(", ");
+                  return (
+                    <span
+                      key={`${entry.name}-${index}`}
+                      className="runner-model-pill"
+                      title={reasoningLabel ? `${entry.name} (${reasoningLabel})` : entry.name}
+                    >
+                      <span className="runner-model-name">{entry.name}</span>
+                      {entry.reasoning.length > 0 ? (
+                        <span className="runner-model-reasons">
+                          {entry.reasoning.map((level, reasonIndex) => (
+                            <span
+                              key={`${entry.name}-${index}-reason-${reasonIndex}`}
+                              className="runner-model-reason"
+                            >
+                              {level}
+                            </span>
+                          ))}
+                        </span>
+                      ) : null}
+                    </span>
+                  );
+                };
                 return (
                   <li key={runner.id} className="runner-card">
                     <div className="runner-card-top">
@@ -1643,84 +1673,39 @@ function AgentRunnerPage({
                           {runner.codexAuthenticated ? "authenticated" : "not authenticated"}
                         </span>
                       </p>
-	                      <div className="runner-last-seen runner-models-row">
-	                        <span className="runner-models-label">Reported models:</span>
-	                        {codexAvailableModels.length === 0 ? (
-	                          <em className="runner-models-empty">none reported yet</em>
-	                        ) : codexAvailableModelsOverflow === 0 ? (
-	                          <span className="runner-models-list">
-	                            {codexAvailableModelsPreview.map((entry, index) => (
-	                              <span
-	                                key={`${entry.name}-${index}`}
-	                                className="runner-model-pill"
-	                                title={
-	                                  entry.reasoning
-	                                    ? `${entry.name} (${entry.reasoning})`
-	                                    : entry.name
-	                                }
-	                              >
-	                                <span className="runner-model-name">{entry.name}</span>
-	                                {entry.reasoning ? (
-	                                  <span className="runner-model-reason">
-	                                    {entry.reasoning}
-	                                  </span>
-	                                ) : null}
-	                              </span>
-	                            ))}
-	                          </span>
-	                        ) : (
-	                          <details className="runner-models-details">
-	                            <summary className="runner-models-summary">
-	                              <span className="runner-models-list">
-	                                {codexAvailableModelsPreview.map((entry, index) => (
-	                                  <span
-	                                    key={`${entry.name}-${index}`}
-	                                    className="runner-model-pill"
-	                                    title={
-	                                      entry.reasoning
-	                                        ? `${entry.name} (${entry.reasoning})`
-	                                        : entry.name
-	                                    }
-	                                  >
-	                                    <span className="runner-model-name">{entry.name}</span>
-	                                    {entry.reasoning ? (
-	                                      <span className="runner-model-reason">
-	                                        {entry.reasoning}
-	                                      </span>
-	                                    ) : null}
-	                                  </span>
-	                                ))}
-	                                <span className="runner-model-pill runner-model-pill-more">
-	                                  +{codexAvailableModelsOverflow} more
-	                                </span>
-	                              </span>
-	                            </summary>
-	                            <div className="runner-models-expanded">
-	                              <span className="runner-models-list">
-	                                {codexAvailableModels.map((entry, index) => (
-	                                  <span
-	                                    key={`${entry.name}-${index}`}
-	                                    className="runner-model-pill"
-	                                    title={
-	                                      entry.reasoning
-	                                        ? `${entry.name} (${entry.reasoning})`
-	                                        : entry.name
-	                                    }
-	                                  >
-	                                    <span className="runner-model-name">{entry.name}</span>
-	                                    {entry.reasoning ? (
-	                                      <span className="runner-model-reason">
-	                                        {entry.reasoning}
-	                                      </span>
-	                                    ) : null}
-	                                  </span>
-	                                ))}
-	                              </span>
-	                            </div>
-	                          </details>
-	                        )}
-	                      </div>
-	                    </section>
+                      <div className="runner-last-seen runner-models-row">
+                        <span className="runner-models-label">Reported models:</span>
+                        {codexAvailableModels.length === 0 ? (
+                          <em className="runner-models-empty">none reported yet</em>
+                        ) : codexAvailableModelsOverflow === 0 ? (
+                          <span className="runner-models-list">
+                            {codexAvailableModelsPreview.map((entry, index) =>
+                              renderModelPill(entry, index),
+                            )}
+                          </span>
+                        ) : (
+                          <details className="runner-models-details">
+                            <summary className="runner-models-summary">
+                              <span className="runner-models-list">
+                                {codexAvailableModelsPreview.map((entry, index) =>
+                                  renderModelPill(entry, index),
+                                )}
+                                <span className="runner-model-pill runner-model-pill-more">
+                                  +{codexAvailableModelsOverflow} more
+                                </span>
+                              </span>
+                            </summary>
+                            <div className="runner-models-expanded">
+                              <span className="runner-models-list">
+                                {codexAvailableModels.map((entry, index) =>
+                                  renderModelPill(entry, index),
+                                )}
+                              </span>
+                            </div>
+                          </details>
+                        )}
+                      </div>
+                    </section>
                     {!runner.codexAuthenticated ? (
                       <div className="runner-auth-block">
                         {codexAgentForAuth ? (
