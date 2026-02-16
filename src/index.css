@@ -856,6 +856,38 @@ button:disabled {
   min-height: 6.8rem;
 }
 
+.inline-selection-list {
+  min-height: 2.2rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.inline-selection-list .empty-hint {
+  margin: 0;
+}
+
+.tag-remove-btn {
+  border-radius: 999px;
+  border: 1px solid rgba(26, 32, 38, 0.22);
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--ink-0);
+  padding: 0.22rem 0.6rem;
+  font-size: 0.76rem;
+  font-family: "IBM Plex Mono", monospace;
+  cursor: pointer;
+}
+
+.tag-remove-btn:hover {
+  border-color: rgba(14, 117, 109, 0.55);
+}
+
+.tag-remove-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .task-card-actions,
 .runner-card-actions {
   display: flex;

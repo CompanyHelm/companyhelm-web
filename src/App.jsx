@@ -764,6 +764,24 @@ function getSelectedMultiValues(selectElement) {
   return Array.from(selectElement.selectedOptions, (option) => option.value);
 }
 
+function normalizeUniqueStringList(values) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  const normalizedValues = [];
+  const seenValues = new Set();
+  for (const rawValue of values) {
+    const cleanValue = String(rawValue || "").trim();
+    if (!cleanValue || seenValues.has(cleanValue)) {
+      continue;
+    }
+    seenValues.add(cleanValue);
+    normalizedValues.push(cleanValue);
+  }
+  return normalizedValues;
+}
+
 function normalizeMcpAuthType(value) {
   const normalized = String(value || "")
     .trim()
@@ -2162,6 +2180,14 @@ function AgentsPage({
   const createRunnerReasoningLevels = useMemo(() => {
     return getRunnerReasoningLevels(createRunnerCodexModelEntries, agentModel);
   }, [agentModel, createRunnerCodexModelEntries]);
+  const createAssignedMcpServerIds = useMemo(
+    () => normalizeUniqueStringList(agentMcpServerIds),
+    [agentMcpServerIds],
+  );
+  const createAvailableMcpServers = useMemo(
+    () => mcpServers.filter((mcpServer) => !createAssignedMcpServerIds.includes(mcpServer.id)),
+    [createAssignedMcpServerIds, mcpServers],
+  );
 
   async function handleCreateAgentSubmit(event) {
     const didCreate = await onCreateAgent(event);
@@ -2249,6 +2275,10 @@ function AgentsPage({
                 model: "",
                 modelReasoningLevel: "",
               };
+              const draftMcpServerIds = normalizeUniqueStringList(draft.mcpServerIds);
+              const draftAvailableMcpServers = mcpServers.filter(
+                (mcpServer) => !draftMcpServerIds.includes(mcpServer.id),
+              );
               const draftRunnerCodexModelEntries = getRunnerCodexModelEntriesForRunner(
                 runnerCodexModelEntriesById,
                 draft.agentRunnerId,
@@ -2416,29 +2446,64 @@ function AgentsPage({
                         ))}
                       </select>
 
-                      <label className="relationship-field" htmlFor={`agent-mcp-servers-${agent.id}`}>
-                        MCP servers
+                      <label className="relationship-field" htmlFor={`agent-mcp-assigned-${agent.id}`}>
+                        Assigned MCP servers
+                      </label>
+                      <div id={`agent-mcp-assigned-${agent.id}`} className="inline-selection-list">
+                        {draftMcpServerIds.length === 0 ? (
+                          <span className="empty-hint">No MCP servers assigned.</span>
+                        ) : (
+                          draftMcpServerIds.map((mcpServerId) => {
+                            const mcpServer = mcpServerLookup.get(mcpServerId);
+                            const mcpServerLabel = mcpServer ? mcpServer.name : mcpServerId;
+                            return (
+                              <button
+                                key={`agent-remove-mcp-${agent.id}-${mcpServerId}`}
+                                type="button"
+                                className="tag-remove-btn"
+                                onClick={() =>
+                                  onAgentDraftChange(
+                                    agent.id,
+                                    "mcpServerIds",
+                                    draftMcpServerIds.filter((candidateId) => candidateId !== mcpServerId),
+                                  )
+                                }
+                                disabled={isSavingOrDeleting}
+                                title={`Remove ${mcpServerLabel}`}
+                              >
+                                {mcpServerLabel} ×
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+
+                      <label className="relationship-field" htmlFor={`agent-mcp-add-${agent.id}`}>
+                        Add MCP server
                       </label>
                       <select
-                        id={`agent-mcp-servers-${agent.id}`}
-                        className="multi-select-input"
-                        multiple
-                        size={Math.min(6, Math.max(3, mcpServers.length || 3))}
-                        value={draft.mcpServerIds}
-                        onChange={(event) =>
+                        id={`agent-mcp-add-${agent.id}`}
+                        value=""
+                        onChange={(event) => {
+                          const nextMcpServerId = String(event.target.value || "").trim();
+                          if (!nextMcpServerId) {
+                            return;
+                          }
                           onAgentDraftChange(
                             agent.id,
                             "mcpServerIds",
-                            getSelectedMultiValues(event.target),
-                          )
-                        }
-                        disabled={isSavingOrDeleting}
+                            [...draftMcpServerIds, nextMcpServerId],
+                          );
+                        }}
+                        disabled={isSavingOrDeleting || draftAvailableMcpServers.length === 0}
                       >
-                        {mcpServers.map((mcpServer) => (
-                          <option
-                            key={`agent-mcp-option-${agent.id}-${mcpServer.id}`}
-                            value={mcpServer.id}
-                          >
+                        <option value="">
+                          {draftAvailableMcpServers.length === 0
+                            ? "All company MCP servers already assigned"
+                            : "Select MCP server to assign"}
+                        </option>
+                        {draftAvailableMcpServers.map((mcpServer) => (
+                          <option key={`agent-mcp-option-${agent.id}-${mcpServer.id}`} value={mcpServer.id}>
                             {mcpServer.name}
                           </option>
                         ))}
@@ -2543,17 +2608,52 @@ function AgentsPage({
             ))}
           </select>
 
-          <label htmlFor="agent-mcp-server-ids">Assigned MCP servers (optional)</label>
+          <label htmlFor="create-agent-mcp-assigned">Assigned MCP servers (optional)</label>
+          <div id="create-agent-mcp-assigned" className="inline-selection-list">
+            {createAssignedMcpServerIds.length === 0 ? (
+              <span className="empty-hint">No MCP servers assigned.</span>
+            ) : (
+              createAssignedMcpServerIds.map((mcpServerId) => {
+                const mcpServer = mcpServerLookup.get(mcpServerId);
+                const mcpServerLabel = mcpServer ? mcpServer.name : mcpServerId;
+                return (
+                  <button
+                    key={`create-agent-remove-mcp-${mcpServerId}`}
+                    type="button"
+                    className="tag-remove-btn"
+                    onClick={() =>
+                      onAgentMcpServerIdsChange(
+                        createAssignedMcpServerIds.filter((candidateId) => candidateId !== mcpServerId),
+                      )
+                    }
+                    title={`Remove ${mcpServerLabel}`}
+                  >
+                    {mcpServerLabel} ×
+                  </button>
+                );
+              })
+            )}
+          </div>
+
+          <label htmlFor="create-agent-mcp-add">Add MCP server</label>
           <select
-            id="agent-mcp-server-ids"
-            className="multi-select-input"
-            name="mcpServerIds"
-            multiple
-            size={Math.min(6, Math.max(3, mcpServers.length || 3))}
-            value={agentMcpServerIds}
-            onChange={(event) => onAgentMcpServerIdsChange(getSelectedMultiValues(event.target))}
+            id="create-agent-mcp-add"
+            value=""
+            onChange={(event) => {
+              const nextMcpServerId = String(event.target.value || "").trim();
+              if (!nextMcpServerId) {
+                return;
+              }
+              onAgentMcpServerIdsChange([...createAssignedMcpServerIds, nextMcpServerId]);
+            }}
+            disabled={createAvailableMcpServers.length === 0}
           >
-            {mcpServers.map((mcpServer) => (
+            <option value="">
+              {createAvailableMcpServers.length === 0
+                ? "All company MCP servers already assigned"
+                : "Select MCP server to assign"}
+            </option>
+            {createAvailableMcpServers.map((mcpServer) => (
               <option key={`create-agent-mcp-${mcpServer.id}`} value={mcpServer.id}>
                 {mcpServer.name}
               </option>
@@ -3970,6 +4070,53 @@ function App() {
   ]);
 
   useEffect(() => {
+    const validMcpServerIds = new Set(mcpServers.map((mcpServer) => mcpServer.id));
+
+    setAgentMcpServerIds((currentIds) => {
+      const normalizedIds = normalizeUniqueStringList(currentIds).filter((id) => validMcpServerIds.has(id));
+      if (
+        normalizedIds.length === currentIds.length &&
+        normalizedIds.every((id, index) => id === currentIds[index])
+      ) {
+        return currentIds;
+      }
+      return normalizedIds;
+    });
+
+    setAgentDrafts((currentDrafts) => {
+      let changed = false;
+      const nextDrafts = {};
+      for (const [agentId, draft] of Object.entries(currentDrafts)) {
+        if (!draft || typeof draft !== "object") {
+          nextDrafts[agentId] = draft;
+          continue;
+        }
+
+        const currentMcpServerIds = Array.isArray(draft.mcpServerIds) ? draft.mcpServerIds : [];
+        const normalizedMcpServerIds = normalizeUniqueStringList(currentMcpServerIds).filter((id) =>
+          validMcpServerIds.has(id),
+        );
+
+        if (
+          normalizedMcpServerIds.length === currentMcpServerIds.length &&
+          normalizedMcpServerIds.every((id, index) => id === currentMcpServerIds[index])
+        ) {
+          nextDrafts[agentId] = draft;
+          continue;
+        }
+
+        changed = true;
+        nextDrafts[agentId] = {
+          ...draft,
+          mcpServerIds: normalizedMcpServerIds,
+        };
+      }
+
+      return changed ? nextDrafts : currentDrafts;
+    });
+  }, [mcpServers]);
+
+  useEffect(() => {
     loadTasks();
     loadSkills();
     loadMcpServers();
@@ -4784,11 +4931,12 @@ function App() {
     try {
       setIsCreatingAgent(true);
       setAgentError("");
+      const cleanAgentMcpServerIds = normalizeUniqueStringList(agentMcpServerIds);
       const data = await executeGraphQL(CREATE_AGENT_MUTATION, {
         companyId: selectedCompanyId,
         agentRunnerId: agentRunnerId || null,
         skillIds: agentSkillIds,
-        mcpServerIds: agentMcpServerIds,
+        mcpServerIds: cleanAgentMcpServerIds,
         name: agentName.trim(),
         agentSdk: normalizedSdk,
         model: normalizedModel,
@@ -4886,12 +5034,13 @@ function App() {
     try {
       setSavingAgentId(agentId);
       setAgentError("");
+      const cleanDraftMcpServerIds = normalizeUniqueStringList(draft.mcpServerIds);
       const data = await executeGraphQL(UPDATE_AGENT_MUTATION, {
         companyId: selectedCompanyId,
         id: agentId,
         agentRunnerId: draft.agentRunnerId || null,
         skillIds: draft.skillIds || [],
-        mcpServerIds: draft.mcpServerIds || [],
+        mcpServerIds: cleanDraftMcpServerIds,
         name: draft.name.trim(),
         agentSdk: normalizedSdk,
         model: normalizedModel,
@@ -5302,7 +5451,7 @@ function App() {
         nextDraft.agentRunnerId = String(value || "").trim();
       }
       if (field === "mcpServerIds") {
-        nextDraft.mcpServerIds = Array.isArray(value) ? value : [];
+        nextDraft.mcpServerIds = normalizeUniqueStringList(value);
       }
       if (field === "model") {
         nextDraft.model = String(value || "").trim();
