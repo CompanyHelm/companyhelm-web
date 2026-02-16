@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 const GRAPHQL_URL = import.meta.env.VITE_GRAPHQL_URL || "/graphql";
+const GRAPHQL_WS_URL = import.meta.env.VITE_GRAPHQL_WS_URL || resolveGraphQLWebSocketUrl(GRAPHQL_URL);
 const SELECTED_COMPANY_STORAGE_KEY = "companyhelm.selectedCompanyId";
 const DEFAULT_RUNNER_GRPC_TARGET =
   import.meta.env.VITE_AGENT_RUNNER_GRPC_TARGET || "localhost:50051";
@@ -15,6 +16,37 @@ const MCP_AUTH_TYPE_OPTIONS = [
   { value: MCP_AUTH_TYPE_BEARER_TOKEN, label: "Bearer token" },
   { value: MCP_AUTH_TYPE_CUSTOM_HEADERS, label: "Custom headers" },
 ];
+
+function resolveGraphQLWebSocketUrl(rawUrl) {
+  const cleanUrl = String(rawUrl || "").trim();
+  if (!cleanUrl) {
+    return "";
+  }
+
+  if (cleanUrl.startsWith("ws://") || cleanUrl.startsWith("wss://")) {
+    return cleanUrl;
+  }
+
+  if (cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")) {
+    const parsed = new URL(cleanUrl);
+    parsed.protocol = parsed.protocol === "https:" ? "wss:" : "ws:";
+    return parsed.toString();
+  }
+
+  if (typeof window === "undefined") {
+    return cleanUrl;
+  }
+
+  if (cleanUrl.startsWith("/") && String(window.location.port || "") === "5173") {
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    return `${protocol}//${window.location.hostname}:8000${cleanUrl}`;
+  }
+
+  const base = new URL(window.location.href);
+  const parsed = new URL(cleanUrl, base);
+  parsed.protocol = parsed.protocol === "https:" ? "wss:" : "ws:";
+  return parsed.toString();
+}
 
 const LIST_COMPANIES_QUERY = `
   query ListCompanies {
@@ -79,20 +111,6 @@ const LIST_AGENT_RUNNERS_QUERY = `
   }
 `;
 
-const LIST_AGENT_RUNNERS_QUERY_LEGACY = `
-  query ListAgentRunners($companyId: String!) {
-    agentRunners(companyId: $companyId) {
-      id
-      companyId
-      hasAuthSecret
-      codexAuthenticated
-      status
-      lastHealthCheckAt
-      lastSeenAt
-    }
-  }
-`;
-
 const CREATE_AGENT_RUNNER_MUTATION = `
   mutation CreateAgentRunner(
     $companyId: String!
@@ -125,34 +143,6 @@ const CREATE_AGENT_RUNNER_MUTATION = `
   }
 `;
 
-const CREATE_AGENT_RUNNER_MUTATION_LEGACY = `
-  mutation CreateAgentRunner(
-    $companyId: String!
-    $id: String
-    $authSecret: String
-  ) {
-    createAgentRunner(
-      companyId: $companyId
-      id: $id
-      authSecret: $authSecret
-    ) {
-      ok
-      error
-      provisionedAuthSecret
-      runnerLaunchCommand
-      agentRunner {
-        id
-        companyId
-        hasAuthSecret
-        codexAuthenticated
-        status
-        lastHealthCheckAt
-        lastSeenAt
-      }
-    }
-  }
-`;
-
 const REGENERATE_AGENT_RUNNER_SECRET_MUTATION = `
   mutation RegenerateAgentRunnerSecret($companyId: String!, $id: String!) {
     regenerateAgentRunnerSecret(companyId: $companyId, id: $id) {
@@ -171,26 +161,6 @@ const REGENERATE_AGENT_RUNNER_SECRET_MUTATION = `
         }
         status
         lastHealthCheckAt
-        lastSeenAt
-      }
-    }
-  }
-`;
-
-const REGENERATE_AGENT_RUNNER_SECRET_MUTATION_LEGACY = `
-  mutation RegenerateAgentRunnerSecret($companyId: String!, $id: String!) {
-    regenerateAgentRunnerSecret(companyId: $companyId, id: $id) {
-      ok
-      error
-      provisionedAuthSecret
-      runnerLaunchCommand
-      agentRunner {
-      id
-      companyId
-      hasAuthSecret
-      codexAuthenticated
-      status
-      lastHealthCheckAt
         lastSeenAt
       }
     }
@@ -690,6 +660,80 @@ const GET_AGENT_CODEX_AUTH_STATE_QUERY = `
   }
 `;
 
+const AGENT_RUNNERS_SUBSCRIPTION = `
+  subscription AgentRunnersUpdated($companyId: String!) {
+    agentRunnersUpdated(companyId: $companyId) {
+      id
+      companyId
+      hasAuthSecret
+      codexAuthenticated
+      codexAvailableModels {
+        name
+        reasoning
+      }
+      status
+      lastHealthCheckAt
+      lastSeenAt
+    }
+  }
+`;
+
+const AGENT_CHAT_SESSIONS_SUBSCRIPTION = `
+  subscription AgentChatSessionsUpdated($companyId: String!, $agentId: String!) {
+    agentChatSessionsUpdated(companyId: $companyId, agentId: $agentId) {
+      id
+      companyId
+      agentId
+      runnerId
+      title
+      remoteSessionId
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+const AGENT_CHAT_MESSAGES_SUBSCRIPTION = `
+  subscription AgentChatMessagesUpdated(
+    $companyId: String!
+    $agentId: String!
+    $sessionId: String!
+  ) {
+    agentChatMessagesUpdated(companyId: $companyId, agentId: $agentId, sessionId: $sessionId) {
+      id
+      sessionId
+      companyId
+      agentId
+      runnerId
+      role
+      content
+      status
+      commandId
+      error
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+const AGENT_CODEX_AUTH_STATE_SUBSCRIPTION = `
+  subscription AgentCodexAuthStateUpdated($companyId: String!, $agentId: String!) {
+    agentCodexAuthStateUpdated(companyId: $companyId, agentId: $agentId) {
+      requestId
+      companyId
+      agentId
+      runnerId
+      status
+      verificationUri
+      userCode
+      message
+      rawOutput
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
 const START_AGENT_CODEX_DEVICE_AUTH_MUTATION = `
   mutation StartAgentCodexDeviceAuth($companyId: String!, $agentId: String!, $runnerId: String) {
     startAgentCodexDeviceAuth(companyId: $companyId, agentId: $agentId, runnerId: $runnerId) {
@@ -1089,49 +1133,173 @@ function buildRunnerStartCommand({
 }
 
 async function executeGraphQL(query, variables) {
-  const fallbacks = new Map([
-    [LIST_AGENT_RUNNERS_QUERY, LIST_AGENT_RUNNERS_QUERY_LEGACY],
-    [CREATE_AGENT_RUNNER_MUTATION, CREATE_AGENT_RUNNER_MUTATION_LEGACY],
-    [REGENERATE_AGENT_RUNNER_SECRET_MUTATION, REGENERATE_AGENT_RUNNER_SECRET_MUTATION_LEGACY],
-  ]);
-  const candidateQueries = [query, ...(fallbacks.get(query) ? [fallbacks.get(query)] : [])];
+  const response = await fetch(GRAPHQL_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ query, variables }),
+  });
 
-  let lastMessage = "GraphQL request failed.";
+  const payload = await response.json();
+  if (!response.ok || payload.errors) {
+    const message = payload?.errors?.[0]?.message || `GraphQL request failed (${response.status})`;
+    throw new Error(message);
+  }
+  return payload.data;
+}
 
-  for (let attempt = 0; attempt < candidateQueries.length; attempt += 1) {
-    const currentQuery = candidateQueries[attempt];
-    const response = await fetch(GRAPHQL_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ query: currentQuery, variables }),
-    });
-
-    const payload = await response.json();
-    if (!response.ok || payload.errors) {
-      const message = payload?.errors?.[0]?.message || `GraphQL request failed (${response.status})`;
-      const canRetryWithoutCodexModels =
-        attempt === 0 &&
-        payload?.errors?.some((error) =>
-          String(error?.message || "").includes(
-            'Cannot query field "codexAvailableModels" on type "AgentRunnerType"',
-          ),
-        ) &&
-        candidateQueries.length > 1;
-
-      if (canRetryWithoutCodexModels) {
-        lastMessage = message;
-        continue;
-      }
-
-      throw new Error(message);
-    }
-
-    return payload.data;
+function subscribeGraphQL({
+  query,
+  variables,
+  onData,
+  onError,
+}) {
+  if (!GRAPHQL_WS_URL) {
+    onError(new Error("GraphQL subscription URL is not configured."));
+    return () => {};
   }
 
-  throw new Error(lastMessage);
+  const operationId = `sub_${Math.random().toString(36).slice(2)}`;
+  const websocket = new WebSocket(GRAPHQL_WS_URL, "graphql-transport-ws");
+  let active = true;
+  let acknowledged = false;
+
+  function shutdown() {
+    if (!active) {
+      return;
+    }
+    active = false;
+    try {
+      if (websocket.readyState === WebSocket.OPEN) {
+        websocket.send(
+          JSON.stringify({
+            id: operationId,
+            type: "complete",
+          }),
+        );
+      }
+    } catch {
+      // Ignore close race errors.
+    }
+    try {
+      websocket.close(1000, "client unsubscribe");
+    } catch {
+      // Ignore close race errors.
+    }
+  }
+
+  websocket.onopen = () => {
+    if (!active) {
+      return;
+    }
+    websocket.send(JSON.stringify({ type: "connection_init" }));
+  };
+
+  websocket.onmessage = (event) => {
+    if (!active) {
+      return;
+    }
+
+    let message;
+    try {
+      message = JSON.parse(event.data);
+    } catch {
+      onError(new Error("Subscription message was not valid JSON."));
+      shutdown();
+      return;
+    }
+
+    const messageType = String(message?.type || "").toLowerCase();
+    if (messageType === "connection_ack") {
+      acknowledged = true;
+      websocket.send(
+        JSON.stringify({
+          id: operationId,
+          type: "subscribe",
+          payload: { query, variables },
+        }),
+      );
+      return;
+    }
+
+    if (messageType === "ping") {
+      websocket.send(JSON.stringify({ type: "pong" }));
+      return;
+    }
+
+    if (messageType === "next") {
+      if (!acknowledged || String(message?.id || "") !== operationId) {
+        return;
+      }
+      const payloadData = message?.payload?.data;
+      if (payloadData) {
+        onData(payloadData);
+      }
+      if (message?.payload?.errors?.length) {
+        const details = String(message.payload.errors[0]?.message || "Subscription update failed.");
+        onError(new Error(details));
+      }
+      return;
+    }
+
+    if (messageType === "error") {
+      const details = String(
+        message?.payload?.[0]?.message || message?.payload?.message || "Subscription failed.",
+      );
+      onError(new Error(details));
+      shutdown();
+      return;
+    }
+
+    if (messageType === "complete") {
+      shutdown();
+    }
+  };
+
+  websocket.onerror = () => {
+    if (!active) {
+      return;
+    }
+    onError(new Error("Subscription transport error."));
+  };
+
+  websocket.onclose = (event) => {
+    if (!active) {
+      return;
+    }
+    if (event.code !== 1000) {
+      onError(new Error(event.reason || "Subscription connection closed unexpectedly."));
+    }
+    active = false;
+  };
+
+  return shutdown;
+}
+
+function useGraphQLSubscription({
+  enabled,
+  query,
+  variables,
+  onData,
+  onError,
+}) {
+  const serializedVariables = useMemo(() => JSON.stringify(variables || {}), [variables]);
+
+  useEffect(() => {
+    if (!enabled) {
+      return undefined;
+    }
+    const unsubscribe = subscribeGraphQL({
+      query,
+      variables: JSON.parse(serializedVariables),
+      onData,
+      onError,
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, [enabled, onData, onError, query, serializedVariables]);
 }
 
 function CompanyRequiredPanel({ hasCompanies }) {
@@ -1277,8 +1445,6 @@ function DashboardPage({
   isLoadingRunners,
   taskError,
   runnerError,
-  onRefreshTasks,
-  onRefreshRunners,
   onStartCodexDeviceAuth,
   onCopyDeviceCode,
   onNavigate,
@@ -1324,11 +1490,8 @@ function DashboardPage({
         </p>
         <p className="context-pill">Company: {selectedCompanyId}</p>
         <div className="hero-actions">
-          <button type="button" className="secondary-btn" onClick={onRefreshTasks}>
-            Refresh tasks
-          </button>
-          <button type="button" className="secondary-btn" onClick={onRefreshRunners}>
-            Refresh runners
+          <button type="button" className="secondary-btn" onClick={() => onNavigate("tasks")}>
+            Open tasks
           </button>
         </div>
       </section>
@@ -1553,7 +1716,6 @@ function TasksPage({
   onParentTaskChange,
   onDependsOnTaskChange,
   onCreateTask,
-  onRefreshTasks,
   onDraftChange,
   onSaveRelationships,
   onDeleteTask,
@@ -1584,9 +1746,6 @@ function TasksPage({
           <h2>Tasks</h2>
           <div className="task-meta">
             <span>{taskCountLabel}</span>
-            <button type="button" className="secondary-btn" onClick={onRefreshTasks}>
-              Refresh
-            </button>
             <button
               type="button"
               className="icon-create-btn"
@@ -1795,7 +1954,6 @@ function AgentRunnerPage({
   onRunnerSecretChange,
   onRunnerCommandSecretChange,
   onCreateRunner,
-  onRefreshRunners,
   onStartRunnerCodexDeviceAuth,
   onNavigate,
   onRegenerateRunnerSecret,
@@ -1852,9 +2010,6 @@ function AgentRunnerPage({
         <header className="panel-header panel-header-row">
           <h2>Agent runners</h2>
           <div className="task-meta">
-            <button type="button" className="secondary-btn" onClick={onRefreshRunners}>
-              Refresh
-            </button>
             <button
               type="button"
               className="icon-create-btn"
@@ -2151,7 +2306,6 @@ function AgentsPage({
   onAgentModelChange,
   onAgentModelReasoningLevelChange,
   onCreateAgent,
-  onRefreshAgents,
   onAgentDraftChange,
   onSaveAgent,
   onInitializeAgent,
@@ -2212,9 +2366,6 @@ function AgentsPage({
           <h2>Agents</h2>
           <div className="task-meta">
             <span>{agentCountLabel}</span>
-            <button type="button" className="secondary-btn" onClick={onRefreshAgents}>
-              Refresh
-            </button>
             <button
               type="button"
               className="icon-create-btn"
@@ -2764,7 +2915,6 @@ function SkillsPage({
   onSkillDescriptionChange,
   onSkillInstructionsChange,
   onCreateSkill,
-  onRefreshSkills,
   onSkillDraftChange,
   onSaveSkill,
   onDeleteSkill,
@@ -2794,9 +2944,6 @@ function SkillsPage({
           <h2>Skills</h2>
           <div className="task-meta">
             <span>{skillCountLabel}</span>
-            <button type="button" className="secondary-btn" onClick={onRefreshSkills}>
-              Refresh
-            </button>
             <button
               type="button"
               className="icon-create-btn"
@@ -2977,7 +3124,6 @@ function McpServersPage({
   onMcpServerCustomHeadersTextChange,
   onMcpServerEnabledChange,
   onCreateMcpServer,
-  onRefreshMcpServers,
   onMcpServerDraftChange,
   onSaveMcpServer,
   onDeleteMcpServer,
@@ -3007,9 +3153,6 @@ function McpServersPage({
           <h2>MCP servers</h2>
           <div className="task-meta">
             <span>{mcpServerCountLabel}</span>
-            <button type="button" className="secondary-btn" onClick={onRefreshMcpServers}>
-              Refresh
-            </button>
             <button
               type="button"
               className="icon-create-btn"
@@ -3279,7 +3422,6 @@ function AgentSessionsPage({
   chatSessionRemoteIdDraft,
   onChatSessionTitleDraftChange,
   onChatSessionRemoteIdDraftChange,
-  onRefreshSessions,
   onCreateChatSession,
   onOpenChat,
   onBackToAgents,
@@ -3297,14 +3439,6 @@ function AgentSessionsPage({
         <div className="hero-actions">
           <button type="button" className="secondary-btn" onClick={onBackToAgents}>
             Back to agents
-          </button>
-          <button
-            type="button"
-            className="secondary-btn"
-            onClick={onRefreshSessions}
-            disabled={!agent}
-          >
-            Refresh sessions
           </button>
         </div>
       </section>
@@ -3402,7 +3536,6 @@ function AgentChatPage({
   chatDraftMessage,
   isSendingChatMessage,
   onChatDraftMessageChange,
-  onRefreshChat,
   onBackToSessions,
   onSendChatMessage,
 }) {
@@ -3432,14 +3565,6 @@ function AgentChatPage({
         <div className="hero-actions">
           <button type="button" className="secondary-btn" onClick={onBackToSessions}>
             Back to sessions
-          </button>
-          <button
-            type="button"
-            className="secondary-btn"
-            onClick={onRefreshChat}
-            disabled={!agent}
-          >
-            Refresh
           </button>
         </div>
       </section>
@@ -3741,6 +3866,13 @@ function App() {
     return chatSessions.find((session) => session.id === chatSessionId) || null;
   }, [chatSessions, chatSessionId]);
 
+  const shouldSubscribeChatSessions =
+    activePage === "agents" && (agentsRoute.view === "sessions" || agentsRoute.view === "chat");
+  const shouldSubscribeChatMessages =
+    activePage === "agents" && agentsRoute.view === "chat" && Boolean(chatSessionId);
+  const shouldSubscribeCodexAuth =
+    activePage === "dashboard" || (activePage === "agents" && agentsRoute.view === "chat");
+
   const loadCompanies = useCallback(async () => {
     try {
       setCompanyError("");
@@ -3996,6 +4128,94 @@ function App() {
     [selectedCompanyId, chatAgentId],
   );
 
+  const handleAgentRunnersSubscriptionData = useCallback((payload) => {
+    setAgentRunners(payload?.agentRunnersUpdated || []);
+    setRunnerError("");
+    setIsLoadingRunners(false);
+  }, []);
+
+  const handleAgentRunnersSubscriptionError = useCallback((error) => {
+    setRunnerError(error.message);
+    setIsLoadingRunners(false);
+  }, []);
+
+  const handleAgentChatSessionsSubscriptionData = useCallback((payload) => {
+    setChatSessions(payload?.agentChatSessionsUpdated || []);
+    setChatError("");
+    setIsLoadingChatSessions(false);
+  }, []);
+
+  const handleAgentChatMessagesSubscriptionData = useCallback((payload) => {
+    setChatMessages(payload?.agentChatMessagesUpdated || []);
+    setChatError("");
+    setIsLoadingChat(false);
+  }, []);
+
+  const handleAgentChatSubscriptionError = useCallback((error) => {
+    setChatError(error.message);
+    setIsLoadingChat(false);
+    setIsLoadingChatSessions(false);
+  }, []);
+
+  const handleCodexAuthSubscriptionData = useCallback((payload) => {
+    setCodexAuthState(payload?.agentCodexAuthStateUpdated || null);
+    setCodexAuthError("");
+    setIsLoadingCodexAuthState(false);
+  }, []);
+
+  const handleCodexAuthSubscriptionError = useCallback((error) => {
+    setCodexAuthError(error.message);
+    setIsLoadingCodexAuthState(false);
+  }, []);
+
+  useGraphQLSubscription({
+    enabled: Boolean(selectedCompanyId),
+    query: AGENT_RUNNERS_SUBSCRIPTION,
+    variables: selectedCompanyId ? { companyId: selectedCompanyId } : undefined,
+    onData: handleAgentRunnersSubscriptionData,
+    onError: handleAgentRunnersSubscriptionError,
+  });
+
+  useGraphQLSubscription({
+    enabled: Boolean(selectedCompanyId && chatAgentId && shouldSubscribeChatSessions),
+    query: AGENT_CHAT_SESSIONS_SUBSCRIPTION,
+    variables:
+      selectedCompanyId && chatAgentId
+        ? { companyId: selectedCompanyId, agentId: chatAgentId }
+        : undefined,
+    onData: handleAgentChatSessionsSubscriptionData,
+    onError: handleAgentChatSubscriptionError,
+  });
+
+  useGraphQLSubscription({
+    enabled: Boolean(selectedCompanyId && chatAgentId && chatSessionId && shouldSubscribeChatMessages),
+    query: AGENT_CHAT_MESSAGES_SUBSCRIPTION,
+    variables:
+      selectedCompanyId && chatAgentId && chatSessionId
+        ? {
+            companyId: selectedCompanyId,
+            agentId: chatAgentId,
+            sessionId: chatSessionId,
+          }
+        : undefined,
+    onData: handleAgentChatMessagesSubscriptionData,
+    onError: handleAgentChatSubscriptionError,
+  });
+
+  useGraphQLSubscription({
+    enabled: Boolean(selectedCompanyId && chatAgentId && shouldSubscribeCodexAuth),
+    query: AGENT_CODEX_AUTH_STATE_SUBSCRIPTION,
+    variables:
+      selectedCompanyId && chatAgentId
+        ? {
+            companyId: selectedCompanyId,
+            agentId: chatAgentId,
+          }
+        : undefined,
+    onData: handleCodexAuthSubscriptionData,
+    onError: handleCodexAuthSubscriptionError,
+  });
+
   useEffect(() => {
     loadCompanies();
   }, [loadCompanies]);
@@ -4120,16 +4340,8 @@ function App() {
     loadTasks();
     loadSkills();
     loadMcpServers();
-    loadAgentRunners();
     loadAgents();
-    loadAgentChatSessions();
-    loadAgentChatMessages();
-    loadCodexAuthState();
   }, [
-    loadAgentChatSessions,
-    loadAgentChatMessages,
-    loadCodexAuthState,
-    loadAgentRunners,
     loadAgents,
     loadMcpServers,
     loadSkills,
@@ -4158,9 +4370,9 @@ function App() {
 
   useEffect(() => {
     if (!chatAgentId) {
-      setChatSessionId("");
-      setChatSessions([]);
-      setChatMessages([]);
+      setChatSessionId((currentSessionId) => (currentSessionId ? "" : currentSessionId));
+      setChatSessions((currentSessions) => (currentSessions.length > 0 ? [] : currentSessions));
+      setChatMessages((currentMessages) => (currentMessages.length > 0 ? [] : currentMessages));
       return;
     }
 
@@ -4225,47 +4437,6 @@ function App() {
       window.location.hash = "#settings";
     }
   }, [activePage, isLoadingCompanies, selectedCompanyId]);
-
-  useEffect(() => {
-    if (!selectedCompanyId) {
-      return undefined;
-    }
-    const pollId = window.setInterval(() => {
-      loadAgentRunners({ silently: true });
-    }, 10000);
-    return () => window.clearInterval(pollId);
-  }, [loadAgentRunners, selectedCompanyId]);
-
-  useEffect(() => {
-    const shouldPollChat = activePage === "agents" && agentsRoute.view === "chat";
-    const shouldPollSessions =
-      activePage === "agents" && (agentsRoute.view === "sessions" || agentsRoute.view === "chat");
-    const shouldPollCodexAuth =
-      activePage === "dashboard" || (activePage === "agents" && agentsRoute.view === "chat");
-    if (!selectedCompanyId || !chatAgentId || (!shouldPollChat && !shouldPollCodexAuth)) {
-      return undefined;
-    }
-    const pollId = window.setInterval(() => {
-      if (shouldPollSessions) {
-        loadAgentChatSessions({ silently: true });
-      }
-      if (shouldPollChat) {
-        loadAgentChatMessages({ silently: true });
-      }
-      if (shouldPollCodexAuth) {
-        loadCodexAuthState({ silently: true });
-      }
-    }, 5000);
-    return () => window.clearInterval(pollId);
-  }, [
-    activePage,
-    agentsRoute.view,
-    chatAgentId,
-    loadAgentChatMessages,
-    loadAgentChatSessions,
-    loadCodexAuthState,
-    selectedCompanyId,
-  ]);
 
   async function handleCreateCompany(event) {
     event.preventDefault();
@@ -4911,7 +5082,7 @@ function App() {
     }
     if (!getRunnerModelNames(selectedRunnerCodexModels).includes(normalizedModel)) {
       setAgentError(
-        `Model "${normalizedModel}" is not available on runner ${agentRunnerId}. Refresh runners and try again.`,
+        `Model "${normalizedModel}" is not available on runner ${agentRunnerId}. Wait for runner model updates and try again.`,
       );
       return false;
     }
@@ -5668,8 +5839,6 @@ function App() {
             isLoadingRunners={isLoadingRunners}
             taskError={taskError}
             runnerError={runnerError}
-            onRefreshTasks={loadTasks}
-            onRefreshRunners={() => loadAgentRunners()}
             onStartCodexDeviceAuth={handleStartCodexDeviceAuth}
             onCopyDeviceCode={handleCopyDeviceCode}
             onNavigate={navigateTo}
@@ -5696,7 +5865,6 @@ function App() {
             onParentTaskChange={setParentTaskId}
             onDependsOnTaskChange={setDependsOnTaskId}
             onCreateTask={handleCreateTask}
-            onRefreshTasks={loadTasks}
             onDraftChange={handleDraftChange}
             onSaveRelationships={handleRelationshipSave}
             onDeleteTask={handleDeleteTask}
@@ -5722,7 +5890,6 @@ function App() {
             onSkillDescriptionChange={setSkillDescription}
             onSkillInstructionsChange={setSkillInstructions}
             onCreateSkill={handleCreateSkill}
-            onRefreshSkills={loadSkills}
             onSkillDraftChange={handleSkillDraftChange}
             onSaveSkill={handleSaveSkill}
             onDeleteSkill={handleDeleteSkill}
@@ -5753,7 +5920,6 @@ function App() {
             onMcpServerCustomHeadersTextChange={setMcpServerCustomHeadersText}
             onMcpServerEnabledChange={setMcpServerEnabled}
             onCreateMcpServer={handleCreateMcpServer}
-            onRefreshMcpServers={loadMcpServers}
             onMcpServerDraftChange={handleMcpServerDraftChange}
             onSaveMcpServer={handleSaveMcpServer}
             onDeleteMcpServer={handleDeleteMcpServer}
@@ -5786,7 +5952,6 @@ function App() {
               }))
             }
             onCreateRunner={handleCreateRunner}
-            onRefreshRunners={() => loadAgentRunners()}
             onStartRunnerCodexDeviceAuth={handleStartRunnerCodexDeviceAuth}
             onNavigate={navigateTo}
             onRegenerateRunnerSecret={handleRegenerateRunnerSecret}
@@ -5807,7 +5972,6 @@ function App() {
               chatSessionRemoteIdDraft={chatSessionRemoteIdDraft}
               onChatSessionTitleDraftChange={setChatSessionTitleDraft}
               onChatSessionRemoteIdDraftChange={setChatSessionRemoteIdDraft}
-              onRefreshSessions={() => loadAgentChatSessions()}
               onCreateChatSession={handleCreateChatSession}
               onOpenChat={(sessionId) => {
                 if (!chatAgentId || !sessionId) {
@@ -5830,10 +5994,6 @@ function App() {
               chatDraftMessage={chatDraftMessage}
               isSendingChatMessage={isSendingChatMessage}
               onChatDraftMessageChange={setChatDraftMessage}
-              onRefreshChat={() => {
-                loadAgentChatSessions();
-                loadAgentChatMessages();
-              }}
               onBackToSessions={() => {
                 if (!chatAgentId) {
                   window.location.hash = "#agents";
@@ -5876,7 +6036,6 @@ function App() {
               onAgentModelChange={handleCreateAgentModelChange}
               onAgentModelReasoningLevelChange={handleCreateAgentReasoningLevelChange}
               onCreateAgent={handleCreateAgent}
-              onRefreshAgents={loadAgents}
               onAgentDraftChange={handleAgentDraftChange}
               onSaveAgent={handleSaveAgent}
               onInitializeAgent={handleInitializeAgent}
