@@ -496,7 +496,10 @@ h2 {
 .agent-edit-grid input,
 .agent-edit-grid select,
 .skill-edit-grid input,
-.skill-edit-grid textarea {
+.skill-edit-grid textarea,
+.mcp-edit-grid input[type="text"],
+.mcp-edit-grid textarea,
+.mcp-edit-grid select {
   width: 100%;
   border-radius: 11px;
   border: 1px solid rgba(26, 32, 38, 0.24);
@@ -514,7 +517,10 @@ h2 {
 .agent-edit-grid input:focus,
 .agent-edit-grid select:focus,
 .skill-edit-grid input:focus,
-.skill-edit-grid textarea:focus {
+.skill-edit-grid textarea:focus,
+.mcp-edit-grid input[type="text"]:focus,
+.mcp-edit-grid textarea:focus,
+.mcp-edit-grid select:focus {
   outline: none;
   border-color: var(--action);
   box-shadow: 0 0 0 4px var(--ring);
@@ -823,6 +829,13 @@ button:disabled {
 }
 
 .skill-edit-grid {
+  display: grid;
+  grid-template-columns: minmax(90px, auto) 1fr;
+  gap: 0.45rem 0.64rem;
+  align-items: start;
+}
+
+.mcp-edit-grid {
   display: grid;
   grid-template-columns: minmax(90px, auto) 1fr;
   gap: 0.45rem 0.64rem;
@@ -1215,6 +1228,10 @@ button:disabled {
   }
 
   .skill-edit-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mcp-edit-grid {
     grid-template-columns: 1fr;
   }
 

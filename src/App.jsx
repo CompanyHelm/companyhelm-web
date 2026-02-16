@@ -7,6 +7,14 @@ const DEFAULT_RUNNER_GRPC_TARGET =
 const CODEX_DEVICE_AUTH_URL = "https://auth.openai.com/codex/device";
 const AVAILABLE_AGENT_SDKS = ["codex"];
 const DEFAULT_AGENT_SDK = AVAILABLE_AGENT_SDKS[0];
+const MCP_AUTH_TYPE_NONE = "none";
+const MCP_AUTH_TYPE_BEARER_TOKEN = "bearer_token";
+const MCP_AUTH_TYPE_CUSTOM_HEADERS = "custom_headers";
+const MCP_AUTH_TYPE_OPTIONS = [
+  { value: MCP_AUTH_TYPE_NONE, label: "No auth" },
+  { value: MCP_AUTH_TYPE_BEARER_TOKEN, label: "Bearer token" },
+  { value: MCP_AUTH_TYPE_CUSTOM_HEADERS, label: "Custom headers" },
+];
 
 const LIST_COMPANIES_QUERY = `
   query ListCompanies {
@@ -196,6 +204,7 @@ const LIST_AGENTS_QUERY = `
       companyId
       agentRunnerId
       skillIds
+      mcpServerIds
       name
       agentSdk
       model
@@ -212,6 +221,24 @@ const LIST_SKILLS_QUERY = `
       name
       description
       instructions
+    }
+  }
+`;
+
+const LIST_MCP_SERVERS_QUERY = `
+  query ListMcpServers($companyId: String!) {
+    mcpServers(companyId: $companyId) {
+      id
+      companyId
+      name
+      url
+      authType
+      bearerToken
+      customHeaders {
+        key
+        value
+      }
+      enabled
     }
   }
 `;
@@ -297,6 +324,7 @@ const CREATE_AGENT_MUTATION = `
     $companyId: String!
     $agentRunnerId: String
     $skillIds: [String!]
+    $mcpServerIds: [String!]
     $name: String!
     $agentSdk: String!
     $model: String!
@@ -306,6 +334,7 @@ const CREATE_AGENT_MUTATION = `
       companyId: $companyId
       agentRunnerId: $agentRunnerId
       skillIds: $skillIds
+      mcpServerIds: $mcpServerIds
       name: $name
       agentSdk: $agentSdk
       model: $model
@@ -318,6 +347,7 @@ const CREATE_AGENT_MUTATION = `
         companyId
         agentRunnerId
         skillIds
+        mcpServerIds
         name
         agentSdk
         model
@@ -333,6 +363,7 @@ const UPDATE_AGENT_MUTATION = `
     $id: String!
     $agentRunnerId: String
     $skillIds: [String!]
+    $mcpServerIds: [String!]
     $name: String!
     $agentSdk: String!
     $model: String!
@@ -343,6 +374,7 @@ const UPDATE_AGENT_MUTATION = `
       id: $id
       agentRunnerId: $agentRunnerId
       skillIds: $skillIds
+      mcpServerIds: $mcpServerIds
       name: $name
       agentSdk: $agentSdk
       model: $model
@@ -355,6 +387,7 @@ const UPDATE_AGENT_MUTATION = `
         companyId
         agentRunnerId
         skillIds
+        mcpServerIds
         name
         agentSdk
         model
@@ -434,6 +467,94 @@ const DELETE_SKILL_MUTATION = `
       ok
       error
       deletedSkillId
+    }
+  }
+`;
+
+const CREATE_MCP_SERVER_MUTATION = `
+  mutation CreateMcpServer(
+    $companyId: String!
+    $name: String!
+    $url: String!
+    $authType: String
+    $bearerToken: String
+    $customHeaders: [McpHeaderInput!]
+    $enabled: Boolean
+  ) {
+    createMcpServer(
+      companyId: $companyId
+      name: $name
+      url: $url
+      authType: $authType
+      bearerToken: $bearerToken
+      customHeaders: $customHeaders
+      enabled: $enabled
+    ) {
+      ok
+      error
+      mcpServer {
+        id
+        companyId
+        name
+        url
+        authType
+        bearerToken
+        customHeaders {
+          key
+          value
+        }
+        enabled
+      }
+    }
+  }
+`;
+
+const UPDATE_MCP_SERVER_MUTATION = `
+  mutation UpdateMcpServer(
+    $companyId: String!
+    $id: String!
+    $name: String!
+    $url: String!
+    $authType: String
+    $bearerToken: String
+    $customHeaders: [McpHeaderInput!]
+    $enabled: Boolean
+  ) {
+    updateMcpServer(
+      companyId: $companyId
+      id: $id
+      name: $name
+      url: $url
+      authType: $authType
+      bearerToken: $bearerToken
+      customHeaders: $customHeaders
+      enabled: $enabled
+    ) {
+      ok
+      error
+      mcpServer {
+        id
+        companyId
+        name
+        url
+        authType
+        bearerToken
+        customHeaders {
+          key
+          value
+        }
+        enabled
+      }
+    }
+  }
+`;
+
+const DELETE_MCP_SERVER_MUTATION = `
+  mutation DeleteMcpServer($companyId: String!, $id: String!) {
+    deleteMcpServer(companyId: $companyId, id: $id) {
+      ok
+      error
+      deletedMcpServerId
     }
   }
 `;
@@ -592,6 +713,7 @@ const PRIMARY_NAV_ITEMS = [
   },
   { id: "tasks", label: "Tasks", href: "#tasks", tone: "sand", requiresCompany: true },
   { id: "skills", label: "Skills", href: "#skills", tone: "sand", requiresCompany: true },
+  { id: "mcp-servers", label: "MCP", href: "#mcp-servers", tone: "mint", requiresCompany: true },
   {
     id: "agent-runner",
     label: "Agent Runner",
@@ -640,6 +762,75 @@ function toSelectValue(value) {
 
 function getSelectedMultiValues(selectElement) {
   return Array.from(selectElement.selectedOptions, (option) => option.value);
+}
+
+function normalizeMcpAuthType(value) {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+  if (
+    normalized === MCP_AUTH_TYPE_NONE ||
+    normalized === MCP_AUTH_TYPE_BEARER_TOKEN ||
+    normalized === MCP_AUTH_TYPE_CUSTOM_HEADERS
+  ) {
+    return normalized;
+  }
+  return MCP_AUTH_TYPE_NONE;
+}
+
+function mcpHeadersToText(headers) {
+  if (!Array.isArray(headers) || headers.length === 0) {
+    return "";
+  }
+  return headers
+    .map((header) => `${String(header?.key || "").trim()}: ${String(header?.value || "").trim()}`)
+    .filter((line) => line !== ":")
+    .join("\n");
+}
+
+function parseMcpHeadersText(rawText) {
+  const lines = String(rawText || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const headers = [];
+  const seenKeys = new Set();
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const delimiterIndex = line.indexOf(":");
+    if (delimiterIndex <= 0) {
+      return {
+        headers: [],
+        error: `Header line ${index + 1} must be in "Key: Value" format.`,
+      };
+    }
+    const key = line.slice(0, delimiterIndex).trim();
+    const value = line.slice(delimiterIndex + 1).trim();
+    if (!key) {
+      return {
+        headers: [],
+        error: `Header line ${index + 1} is missing a key.`,
+      };
+    }
+    if (!value) {
+      return {
+        headers: [],
+        error: `Header line ${index + 1} is missing a value.`,
+      };
+    }
+    const normalizedKey = key.toLowerCase();
+    if (seenKeys.has(normalizedKey)) {
+      return {
+        headers: [],
+        error: `Duplicate header key "${key}" is not allowed.`,
+      };
+    }
+    seenKeys.add(normalizedKey);
+    headers.push({ key, value });
+  }
+
+  return { headers, error: "" };
 }
 
 function getPageFromHash() {
@@ -790,6 +981,7 @@ function createAgentDrafts(agents) {
     drafts[agent.id] = {
       agentRunnerId: agent.agentRunnerId || "",
       skillIds: [...(agent.skillIds || [])],
+      mcpServerIds: [...(agent.mcpServerIds || [])],
       name: agent.name || "",
       agentSdk: agent.agentSdk || DEFAULT_AGENT_SDK,
       model: agent.model || "",
@@ -805,6 +997,20 @@ function createSkillDrafts(skills) {
       name: skill.name || "",
       description: skill.description || "",
       instructions: skill.instructions || "",
+    };
+    return drafts;
+  }, {});
+}
+
+function createMcpServerDrafts(mcpServers) {
+  return mcpServers.reduce((drafts, mcpServer) => {
+    drafts[mcpServer.id] = {
+      name: mcpServer.name || "",
+      url: mcpServer.url || "",
+      authType: normalizeMcpAuthType(mcpServer.authType),
+      bearerToken: mcpServer.bearerToken || "",
+      customHeadersText: mcpHeadersToText(mcpServer.customHeaders || []),
+      enabled: mcpServer.enabled !== false,
     };
     return drafts;
   }, {});
@@ -1899,6 +2105,7 @@ function AgentsPage({
   selectedCompanyId,
   agents,
   skills,
+  mcpServers,
   agentRunners,
   agentRunnerLookup,
   runnerCodexModelEntriesById,
@@ -1911,6 +2118,7 @@ function AgentsPage({
   canInitializeAgents,
   agentRunnerId,
   agentSkillIds,
+  agentMcpServerIds,
   agentName,
   agentSdk,
   agentModel,
@@ -1919,6 +2127,7 @@ function AgentsPage({
   agentCountLabel,
   onAgentRunnerChange,
   onAgentSkillIdsChange,
+  onAgentMcpServerIdsChange,
   onAgentNameChange,
   onAgentSdkChange,
   onAgentModelChange,
@@ -1938,6 +2147,12 @@ function AgentsPage({
       return map;
     }, new Map());
   }, [skills]);
+  const mcpServerLookup = useMemo(() => {
+    return mcpServers.reduce((map, mcpServer) => {
+      map.set(mcpServer.id, mcpServer);
+      return map;
+    }, new Map());
+  }, [mcpServers]);
   const createRunnerCodexModelEntries = useMemo(() => {
     return getRunnerCodexModelEntriesForRunner(runnerCodexModelEntriesById, agentRunnerId);
   }, [agentRunnerId, runnerCodexModelEntriesById]);
@@ -2019,9 +2234,16 @@ function AgentsPage({
               });
               const assignedSkillSummary =
                 assignedSkillLabels.length > 0 ? assignedSkillLabels.join(", ") : "none";
+              const assignedMcpServerLabels = (agent.mcpServerIds || []).map((mcpServerId) => {
+                const mcpServer = mcpServerLookup.get(mcpServerId);
+                return mcpServer ? mcpServer.name : mcpServerId;
+              });
+              const assignedMcpServerSummary =
+                assignedMcpServerLabels.length > 0 ? assignedMcpServerLabels.join(", ") : "none";
               const draft = agentDrafts[agent.id] || {
                 agentRunnerId: "",
                 skillIds: [],
+                mcpServerIds: [],
                 name: "",
                 agentSdk: DEFAULT_AGENT_SDK,
                 model: "",
@@ -2054,6 +2276,9 @@ function AgentsPage({
                   </p>
                   <p className="agent-subcopy">
                     Skills: <strong>{assignedSkillSummary}</strong>
+                  </p>
+                  <p className="agent-subcopy">
+                    MCP servers: <strong>{assignedMcpServerSummary}</strong>
                   </p>
 
                   <div className="relationship-editor">
@@ -2190,6 +2415,34 @@ function AgentsPage({
                           </option>
                         ))}
                       </select>
+
+                      <label className="relationship-field" htmlFor={`agent-mcp-servers-${agent.id}`}>
+                        MCP servers
+                      </label>
+                      <select
+                        id={`agent-mcp-servers-${agent.id}`}
+                        className="multi-select-input"
+                        multiple
+                        size={Math.min(6, Math.max(3, mcpServers.length || 3))}
+                        value={draft.mcpServerIds}
+                        onChange={(event) =>
+                          onAgentDraftChange(
+                            agent.id,
+                            "mcpServerIds",
+                            getSelectedMultiValues(event.target),
+                          )
+                        }
+                        disabled={isSavingOrDeleting}
+                      >
+                        {mcpServers.map((mcpServer) => (
+                          <option
+                            key={`agent-mcp-option-${agent.id}-${mcpServer.id}`}
+                            value={mcpServer.id}
+                          >
+                            {mcpServer.name}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                     <div className="task-card-actions">
                       <button
@@ -2286,6 +2539,23 @@ function AgentsPage({
             {skills.map((skill) => (
               <option key={`create-agent-skill-${skill.id}`} value={skill.id}>
                 {skill.name}
+              </option>
+            ))}
+          </select>
+
+          <label htmlFor="agent-mcp-server-ids">Assigned MCP servers (optional)</label>
+          <select
+            id="agent-mcp-server-ids"
+            className="multi-select-input"
+            name="mcpServerIds"
+            multiple
+            size={Math.min(6, Math.max(3, mcpServers.length || 3))}
+            value={agentMcpServerIds}
+            onChange={(event) => onAgentMcpServerIdsChange(getSelectedMultiValues(event.target))}
+          >
+            {mcpServers.map((mcpServer) => (
+              <option key={`create-agent-mcp-${mcpServer.id}`} value={mcpServer.id}>
+                {mcpServer.name}
               </option>
             ))}
           </select>
@@ -2577,6 +2847,320 @@ function SkillsPage({
 
           <button type="submit" disabled={isCreatingSkill}>
             {isCreatingSkill ? "Creating..." : "Create skill"}
+          </button>
+        </form>
+      </CreationModal>
+    </div>
+  );
+}
+
+function McpServersPage({
+  selectedCompanyId,
+  mcpServers,
+  isLoadingMcpServers,
+  mcpServerError,
+  isCreatingMcpServer,
+  savingMcpServerId,
+  deletingMcpServerId,
+  mcpServerName,
+  mcpServerUrl,
+  mcpServerAuthType,
+  mcpServerBearerToken,
+  mcpServerCustomHeadersText,
+  mcpServerEnabled,
+  mcpServerDrafts,
+  mcpServerCountLabel,
+  onMcpServerNameChange,
+  onMcpServerUrlChange,
+  onMcpServerAuthTypeChange,
+  onMcpServerBearerTokenChange,
+  onMcpServerCustomHeadersTextChange,
+  onMcpServerEnabledChange,
+  onCreateMcpServer,
+  onRefreshMcpServers,
+  onMcpServerDraftChange,
+  onSaveMcpServer,
+  onDeleteMcpServer,
+}) {
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  async function handleCreateMcpServerSubmit(event) {
+    const didCreate = await onCreateMcpServer(event);
+    if (didCreate) {
+      setIsCreateModalOpen(false);
+    }
+  }
+
+  return (
+    <div className="page-stack">
+      <section className="panel hero-panel">
+        <p className="eyebrow">MCP Registry</p>
+        <h1>MCP servers page</h1>
+        <p className="subcopy">
+          Register company-level MCP servers and configure bearer-token or custom-header auth.
+        </p>
+        <p className="context-pill">Company: {selectedCompanyId}</p>
+      </section>
+
+      <section className="panel list-panel">
+        <header className="panel-header panel-header-row">
+          <h2>MCP servers</h2>
+          <div className="task-meta">
+            <span>{mcpServerCountLabel}</span>
+            <button type="button" className="secondary-btn" onClick={onRefreshMcpServers}>
+              Refresh
+            </button>
+            <button
+              type="button"
+              className="icon-create-btn"
+              aria-label="Create MCP server"
+              title="Create MCP server"
+              onClick={() => setIsCreateModalOpen(true)}
+            >
+              +
+            </button>
+          </div>
+        </header>
+
+        {mcpServerError ? <p className="error-banner">{mcpServerError}</p> : null}
+        {isLoadingMcpServers ? <p className="empty-hint">Loading MCP servers...</p> : null}
+        {!isLoadingMcpServers && mcpServers.length === 0 ? (
+          <div className="empty-state">
+            <p className="empty-hint">No MCP servers created for this company yet.</p>
+            <button
+              type="button"
+              className="secondary-btn empty-create-btn"
+              onClick={() => setIsCreateModalOpen(true)}
+            >
+              + Create MCP server
+            </button>
+          </div>
+        ) : null}
+
+        {mcpServers.length > 0 ? (
+          <ul className="task-list">
+            {mcpServers.map((mcpServer) => {
+              const draft = mcpServerDrafts[mcpServer.id] || {
+                name: "",
+                url: "",
+                authType: MCP_AUTH_TYPE_NONE,
+                bearerToken: "",
+                customHeadersText: "",
+                enabled: true,
+              };
+              const isSavingOrDeleting =
+                savingMcpServerId === mcpServer.id || deletingMcpServerId === mcpServer.id;
+              const authLabel =
+                MCP_AUTH_TYPE_OPTIONS.find((option) => option.value === draft.authType)?.label ||
+                "No auth";
+
+              return (
+                <li key={mcpServer.id} className="task-card">
+                  <div className="task-card-top">
+                    <strong>{mcpServer.name}</strong>
+                    <code className="runner-id">{mcpServer.id}</code>
+                  </div>
+                  <p className="agent-subcopy">
+                    URL: <strong>{mcpServer.url}</strong>
+                  </p>
+                  <p className="agent-subcopy">
+                    Auth: <strong>{authLabel}</strong> • enabled:{" "}
+                    <strong>{draft.enabled ? "yes" : "no"}</strong>
+                  </p>
+
+                  <div className="relationship-editor">
+                    <div className="mcp-edit-grid">
+                      <label className="relationship-field" htmlFor={`mcp-name-${mcpServer.id}`}>
+                        Name
+                      </label>
+                      <input
+                        id={`mcp-name-${mcpServer.id}`}
+                        type="text"
+                        value={draft.name}
+                        onChange={(event) =>
+                          onMcpServerDraftChange(mcpServer.id, "name", event.target.value)
+                        }
+                        disabled={isSavingOrDeleting}
+                      />
+
+                      <label className="relationship-field" htmlFor={`mcp-url-${mcpServer.id}`}>
+                        URL
+                      </label>
+                      <input
+                        id={`mcp-url-${mcpServer.id}`}
+                        type="text"
+                        value={draft.url}
+                        onChange={(event) =>
+                          onMcpServerDraftChange(mcpServer.id, "url", event.target.value)
+                        }
+                        disabled={isSavingOrDeleting}
+                      />
+
+                      <label className="relationship-field" htmlFor={`mcp-auth-${mcpServer.id}`}>
+                        Auth
+                      </label>
+                      <select
+                        id={`mcp-auth-${mcpServer.id}`}
+                        value={draft.authType}
+                        onChange={(event) =>
+                          onMcpServerDraftChange(mcpServer.id, "authType", event.target.value)
+                        }
+                        disabled={isSavingOrDeleting}
+                      >
+                        {MCP_AUTH_TYPE_OPTIONS.map((option) => (
+                          <option key={`${mcpServer.id}-auth-${option.value}`} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+
+                      <label className="relationship-field" htmlFor={`mcp-token-${mcpServer.id}`}>
+                        Bearer token
+                      </label>
+                      <input
+                        id={`mcp-token-${mcpServer.id}`}
+                        type="text"
+                        value={draft.bearerToken}
+                        onChange={(event) =>
+                          onMcpServerDraftChange(mcpServer.id, "bearerToken", event.target.value)
+                        }
+                        placeholder="Token value only"
+                        disabled={isSavingOrDeleting || draft.authType !== MCP_AUTH_TYPE_BEARER_TOKEN}
+                      />
+
+                      <label className="relationship-field" htmlFor={`mcp-headers-${mcpServer.id}`}>
+                        Custom headers
+                      </label>
+                      <textarea
+                        id={`mcp-headers-${mcpServer.id}`}
+                        rows={4}
+                        value={draft.customHeadersText}
+                        onChange={(event) =>
+                          onMcpServerDraftChange(
+                            mcpServer.id,
+                            "customHeadersText",
+                            event.target.value,
+                          )
+                        }
+                        placeholder={"Authorization: Bearer <token>\nX-Env: staging"}
+                        disabled={
+                          isSavingOrDeleting || draft.authType !== MCP_AUTH_TYPE_CUSTOM_HEADERS
+                        }
+                      />
+
+                      <label className="relationship-field" htmlFor={`mcp-enabled-${mcpServer.id}`}>
+                        Enabled
+                      </label>
+                      <label htmlFor={`mcp-enabled-${mcpServer.id}`}>
+                        <input
+                          id={`mcp-enabled-${mcpServer.id}`}
+                          type="checkbox"
+                          checked={Boolean(draft.enabled)}
+                          onChange={(event) =>
+                            onMcpServerDraftChange(mcpServer.id, "enabled", event.target.checked)
+                          }
+                          disabled={isSavingOrDeleting}
+                        />{" "}
+                        Enable this MCP server
+                      </label>
+                    </div>
+                    <div className="task-card-actions">
+                      <button
+                        type="button"
+                        className="secondary-btn relationship-save-btn"
+                        onClick={() => onSaveMcpServer(mcpServer.id)}
+                        disabled={isSavingOrDeleting}
+                      >
+                        {savingMcpServerId === mcpServer.id ? "Saving..." : "Save"}
+                      </button>
+                      <button
+                        type="button"
+                        className="danger-btn"
+                        onClick={() => onDeleteMcpServer(mcpServer.id, mcpServer.name)}
+                        disabled={isSavingOrDeleting}
+                      >
+                        {deletingMcpServerId === mcpServer.id ? "Deleting..." : "Delete"}
+                      </button>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
+      </section>
+
+      <CreationModal
+        modalId="create-mcp-server-modal"
+        title="Create MCP server"
+        description="Add a company-level MCP server and auth settings."
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+      >
+        <form className="task-form" onSubmit={handleCreateMcpServerSubmit}>
+          <label htmlFor="create-mcp-name">Name</label>
+          <input
+            id="create-mcp-name"
+            value={mcpServerName}
+            onChange={(event) => onMcpServerNameChange(event.target.value)}
+            placeholder="e.g. GitHub MCP"
+            required
+            autoFocus
+          />
+
+          <label htmlFor="create-mcp-url">URL</label>
+          <input
+            id="create-mcp-url"
+            value={mcpServerUrl}
+            onChange={(event) => onMcpServerUrlChange(event.target.value)}
+            placeholder="https://example.com/mcp"
+            required
+          />
+
+          <label htmlFor="create-mcp-auth">Auth</label>
+          <select
+            id="create-mcp-auth"
+            value={mcpServerAuthType}
+            onChange={(event) => onMcpServerAuthTypeChange(event.target.value)}
+          >
+            {MCP_AUTH_TYPE_OPTIONS.map((option) => (
+              <option key={`create-mcp-auth-${option.value}`} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+
+          <label htmlFor="create-mcp-token">Bearer token</label>
+          <input
+            id="create-mcp-token"
+            value={mcpServerBearerToken}
+            onChange={(event) => onMcpServerBearerTokenChange(event.target.value)}
+            placeholder="Token value only"
+            disabled={mcpServerAuthType !== MCP_AUTH_TYPE_BEARER_TOKEN}
+          />
+
+          <label htmlFor="create-mcp-headers">Custom headers</label>
+          <textarea
+            id="create-mcp-headers"
+            rows={4}
+            value={mcpServerCustomHeadersText}
+            onChange={(event) => onMcpServerCustomHeadersTextChange(event.target.value)}
+            placeholder={"Authorization: Bearer <token>\nX-Env: staging"}
+            disabled={mcpServerAuthType !== MCP_AUTH_TYPE_CUSTOM_HEADERS}
+          />
+
+          <label htmlFor="create-mcp-enabled">
+            <input
+              id="create-mcp-enabled"
+              type="checkbox"
+              checked={Boolean(mcpServerEnabled)}
+              onChange={(event) => onMcpServerEnabledChange(event.target.checked)}
+            />{" "}
+            Enable this MCP server
+          </label>
+
+          <button type="submit" disabled={isCreatingMcpServer}>
+            {isCreatingMcpServer ? "Creating..." : "Create MCP server"}
           </button>
         </form>
       </CreationModal>
@@ -2892,7 +3476,8 @@ function SettingsPage({
             <h2>Danger zone</h2>
           </header>
           <p className="subcopy">
-            Delete the currently selected company and all of its tasks, skills, agents, and runners.
+            Delete the currently selected company and all of its tasks, skills, MCP servers,
+            agents, and runners.
           </p>
           <div className="hero-actions">
             <button
@@ -2959,22 +3544,28 @@ function App() {
   const [isDeletingCompany, setIsDeletingCompany] = useState(false);
   const [tasks, setTasks] = useState([]);
   const [skills, setSkills] = useState([]);
+  const [mcpServers, setMcpServers] = useState([]);
   const [agentRunners, setAgentRunners] = useState([]);
   const [agents, setAgents] = useState([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
   const [isLoadingSkills, setIsLoadingSkills] = useState(false);
+  const [isLoadingMcpServers, setIsLoadingMcpServers] = useState(false);
   const [isLoadingRunners, setIsLoadingRunners] = useState(false);
   const [isLoadingAgents, setIsLoadingAgents] = useState(false);
   const [taskError, setTaskError] = useState("");
   const [skillError, setSkillError] = useState("");
+  const [mcpServerError, setMcpServerError] = useState("");
   const [runnerError, setRunnerError] = useState("");
   const [agentError, setAgentError] = useState("");
   const [isSubmittingTask, setIsSubmittingTask] = useState(false);
   const [isCreatingSkill, setIsCreatingSkill] = useState(false);
+  const [isCreatingMcpServer, setIsCreatingMcpServer] = useState(false);
   const [savingTaskId, setSavingTaskId] = useState(null);
   const [savingSkillId, setSavingSkillId] = useState(null);
+  const [savingMcpServerId, setSavingMcpServerId] = useState(null);
   const [deletingTaskId, setDeletingTaskId] = useState(null);
   const [deletingSkillId, setDeletingSkillId] = useState(null);
+  const [deletingMcpServerId, setDeletingMcpServerId] = useState(null);
   const [deletingRunnerId, setDeletingRunnerId] = useState(null);
   const [regeneratingRunnerId, setRegeneratingRunnerId] = useState(null);
   const [isCreatingRunner, setIsCreatingRunner] = useState(false);
@@ -2994,9 +3585,17 @@ function App() {
   const [skillDescription, setSkillDescription] = useState("");
   const [skillInstructions, setSkillInstructions] = useState("");
   const [skillDrafts, setSkillDrafts] = useState({});
+  const [mcpServerName, setMcpServerName] = useState("");
+  const [mcpServerUrl, setMcpServerUrl] = useState("");
+  const [mcpServerAuthType, setMcpServerAuthType] = useState(MCP_AUTH_TYPE_NONE);
+  const [mcpServerBearerToken, setMcpServerBearerToken] = useState("");
+  const [mcpServerCustomHeadersText, setMcpServerCustomHeadersText] = useState("");
+  const [mcpServerEnabled, setMcpServerEnabled] = useState(true);
+  const [mcpServerDrafts, setMcpServerDrafts] = useState({});
   const [agentName, setAgentName] = useState("");
   const [agentRunnerId, setAgentRunnerId] = useState("");
   const [agentSkillIds, setAgentSkillIds] = useState([]);
+  const [agentMcpServerIds, setAgentMcpServerIds] = useState([]);
   const [agentSdk, setAgentSdk] = useState(DEFAULT_AGENT_SDK);
   const [agentModel, setAgentModel] = useState("");
   const [agentModelReasoningLevel, setAgentModelReasoningLevel] = useState("");
@@ -3109,6 +3708,29 @@ function App() {
     }
   }, [selectedCompanyId]);
 
+  const loadMcpServers = useCallback(async () => {
+    if (!selectedCompanyId) {
+      setMcpServerError("");
+      setMcpServers([]);
+      setMcpServerDrafts({});
+      setIsLoadingMcpServers(false);
+      return;
+    }
+
+    try {
+      setMcpServerError("");
+      setIsLoadingMcpServers(true);
+      const data = await executeGraphQL(LIST_MCP_SERVERS_QUERY, { companyId: selectedCompanyId });
+      const nextMcpServers = data.mcpServers || [];
+      setMcpServers(nextMcpServers);
+      setMcpServerDrafts(createMcpServerDrafts(nextMcpServers));
+    } catch (loadError) {
+      setMcpServerError(loadError.message);
+    } finally {
+      setIsLoadingMcpServers(false);
+    }
+  }, [selectedCompanyId]);
+
   const loadAgentRunners = useCallback(async ({ silently = false } = {}) => {
     if (!selectedCompanyId) {
       setAgentRunners([]);
@@ -3146,6 +3768,7 @@ function App() {
       setAgentDrafts({});
       setAgentRunnerId("");
       setAgentSkillIds([]);
+      setAgentMcpServerIds([]);
       setAgentSdk(DEFAULT_AGENT_SDK);
       setAgentModel("");
       setAgentModelReasoningLevel("");
@@ -3294,6 +3917,15 @@ function App() {
     setSkillName("");
     setSkillDescription("");
     setSkillInstructions("");
+    setMcpServers([]);
+    setMcpServerDrafts({});
+    setMcpServerName("");
+    setMcpServerUrl("");
+    setMcpServerAuthType(MCP_AUTH_TYPE_NONE);
+    setMcpServerBearerToken("");
+    setMcpServerCustomHeadersText("");
+    setMcpServerEnabled(true);
+    setMcpServerError("");
     setChatAgentId("");
     setChatSessions([]);
     setChatSessionId("");
@@ -3305,6 +3937,7 @@ function App() {
     setCodexAuthState(null);
     setCodexAuthError("");
     setCodexAuthCopyFeedback("");
+    setAgentMcpServerIds([]);
   }, [selectedCompanyId]);
 
   useEffect(() => {
@@ -3339,6 +3972,7 @@ function App() {
   useEffect(() => {
     loadTasks();
     loadSkills();
+    loadMcpServers();
     loadAgentRunners();
     loadAgents();
     loadAgentChatSessions();
@@ -3350,6 +3984,7 @@ function App() {
     loadCodexAuthState,
     loadAgentRunners,
     loadAgents,
+    loadMcpServers,
     loadSkills,
     loadTasks,
     selectedCompanyId,
@@ -3520,7 +4155,7 @@ function App() {
     }
 
     const confirmed = window.confirm(
-      `Delete company "${selectedCompany.name}"? This will also delete all tasks, skills, agents, and agent runners in that company.`,
+      `Delete company "${selectedCompany.name}"? This will also delete all tasks, skills, MCP servers, agents, and agent runners in that company.`,
     );
     if (!confirmed) {
       return;
@@ -3541,6 +4176,8 @@ function App() {
       setRelationshipDrafts({});
       setSkills([]);
       setSkillDrafts({});
+      setMcpServers([]);
+      setMcpServerDrafts({});
       setAgents([]);
       setAgentDrafts({});
       setAgentRunners([]);
@@ -3761,6 +4398,208 @@ function App() {
     }
   }
 
+  function resolveMcpServerMutationPayload({
+    name: rawName,
+    url: rawUrl,
+    authType: rawAuthType,
+    bearerToken: rawBearerToken,
+    customHeadersText: rawCustomHeadersText,
+    enabled: rawEnabled,
+  }) {
+    const name = String(rawName || "").trim();
+    const url = String(rawUrl || "").trim();
+    const authType = normalizeMcpAuthType(rawAuthType);
+    const bearerToken = String(rawBearerToken || "").trim();
+    const customHeadersText = String(rawCustomHeadersText || "");
+
+    if (!name) {
+      return { payload: null, error: "MCP server name is required." };
+    }
+    if (!url) {
+      return { payload: null, error: "MCP server URL is required." };
+    }
+
+    let customHeaders = [];
+    if (authType === MCP_AUTH_TYPE_CUSTOM_HEADERS) {
+      const parsed = parseMcpHeadersText(customHeadersText);
+      if (parsed.error) {
+        return { payload: null, error: parsed.error };
+      }
+      if (parsed.headers.length === 0) {
+        return { payload: null, error: "At least one custom header is required." };
+      }
+      customHeaders = parsed.headers;
+    } else if (customHeadersText.trim()) {
+      const parsed = parseMcpHeadersText(customHeadersText);
+      if (parsed.error) {
+        return { payload: null, error: parsed.error };
+      }
+    }
+
+    if (authType === MCP_AUTH_TYPE_BEARER_TOKEN && !bearerToken) {
+      return { payload: null, error: "Bearer token is required when auth type is Bearer token." };
+    }
+
+    return {
+      payload: {
+        name,
+        url,
+        authType,
+        bearerToken: authType === MCP_AUTH_TYPE_BEARER_TOKEN ? bearerToken : null,
+        customHeaders: authType === MCP_AUTH_TYPE_CUSTOM_HEADERS ? customHeaders : [],
+        enabled: Boolean(rawEnabled),
+      },
+      error: "",
+    };
+  }
+
+  async function handleCreateMcpServer(event) {
+    event.preventDefault();
+    if (!selectedCompanyId) {
+      setMcpServerError("Select a company before creating MCP servers.");
+      return false;
+    }
+
+    const { payload, error } = resolveMcpServerMutationPayload({
+      name: mcpServerName,
+      url: mcpServerUrl,
+      authType: mcpServerAuthType,
+      bearerToken: mcpServerBearerToken,
+      customHeadersText: mcpServerCustomHeadersText,
+      enabled: mcpServerEnabled,
+    });
+    if (error) {
+      setMcpServerError(error);
+      return false;
+    }
+
+    try {
+      setIsCreatingMcpServer(true);
+      setMcpServerError("");
+      const data = await executeGraphQL(CREATE_MCP_SERVER_MUTATION, {
+        companyId: selectedCompanyId,
+        ...payload,
+      });
+      const result = data.createMcpServer;
+      if (!result.ok) {
+        throw new Error(result.error || "MCP server creation failed.");
+      }
+      setMcpServerName("");
+      setMcpServerUrl("");
+      setMcpServerAuthType(MCP_AUTH_TYPE_NONE);
+      setMcpServerBearerToken("");
+      setMcpServerCustomHeadersText("");
+      setMcpServerEnabled(true);
+      await loadMcpServers();
+      return true;
+    } catch (createError) {
+      setMcpServerError(createError.message);
+      return false;
+    } finally {
+      setIsCreatingMcpServer(false);
+    }
+  }
+
+  function handleMcpServerDraftChange(mcpServerId, field, value) {
+    setMcpServerDrafts((currentDrafts) => {
+      const currentDraft = currentDrafts[mcpServerId] || {
+        name: "",
+        url: "",
+        authType: MCP_AUTH_TYPE_NONE,
+        bearerToken: "",
+        customHeadersText: "",
+        enabled: true,
+      };
+
+      const nextDraft = {
+        ...currentDraft,
+        [field]: value,
+      };
+
+      if (field === "authType") {
+        nextDraft.authType = normalizeMcpAuthType(value);
+      }
+      if (field === "enabled") {
+        nextDraft.enabled = Boolean(value);
+      }
+
+      return {
+        ...currentDrafts,
+        [mcpServerId]: nextDraft,
+      };
+    });
+  }
+
+  async function handleSaveMcpServer(mcpServerId) {
+    if (!selectedCompanyId) {
+      setMcpServerError("Select a company before updating MCP servers.");
+      return;
+    }
+    const draft = mcpServerDrafts[mcpServerId] || {
+      name: "",
+      url: "",
+      authType: MCP_AUTH_TYPE_NONE,
+      bearerToken: "",
+      customHeadersText: "",
+      enabled: true,
+    };
+
+    const { payload, error } = resolveMcpServerMutationPayload(draft);
+    if (error) {
+      setMcpServerError(error);
+      return;
+    }
+
+    try {
+      setSavingMcpServerId(mcpServerId);
+      setMcpServerError("");
+      const data = await executeGraphQL(UPDATE_MCP_SERVER_MUTATION, {
+        companyId: selectedCompanyId,
+        id: mcpServerId,
+        ...payload,
+      });
+      const result = data.updateMcpServer;
+      if (!result.ok) {
+        throw new Error(result.error || "MCP server update failed.");
+      }
+      await loadMcpServers();
+    } catch (updateError) {
+      setMcpServerError(updateError.message);
+    } finally {
+      setSavingMcpServerId(null);
+    }
+  }
+
+  async function handleDeleteMcpServer(mcpServerId, mcpServerDisplayName) {
+    if (!selectedCompanyId) {
+      setMcpServerError("Select a company before deleting MCP servers.");
+      return;
+    }
+
+    const confirmed = window.confirm(`Delete MCP server "${mcpServerDisplayName}"?`);
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setDeletingMcpServerId(mcpServerId);
+      setMcpServerError("");
+      const data = await executeGraphQL(DELETE_MCP_SERVER_MUTATION, {
+        companyId: selectedCompanyId,
+        id: mcpServerId,
+      });
+      const result = data.deleteMcpServer;
+      if (!result.ok) {
+        throw new Error(result.error || "MCP server deletion failed.");
+      }
+      await loadMcpServers();
+    } catch (deleteError) {
+      setMcpServerError(deleteError.message);
+    } finally {
+      setDeletingMcpServerId(null);
+    }
+  }
+
   async function handleRegenerateRunnerSecret(runnerId) {
     if (!selectedCompanyId) {
       setRunnerError("Select a company before regenerating runner keys.");
@@ -3949,6 +4788,7 @@ function App() {
         companyId: selectedCompanyId,
         agentRunnerId: agentRunnerId || null,
         skillIds: agentSkillIds,
+        mcpServerIds: agentMcpServerIds,
         name: agentName.trim(),
         agentSdk: normalizedSdk,
         model: normalizedModel,
@@ -3961,6 +4801,7 @@ function App() {
       setAgentName("");
       setAgentRunnerId("");
       setAgentSkillIds([]);
+      setAgentMcpServerIds([]);
       setAgentSdk(DEFAULT_AGENT_SDK);
       setAgentModel("");
       setAgentModelReasoningLevel("");
@@ -3982,6 +4823,7 @@ function App() {
     const draft = agentDrafts[agentId] || {
       agentRunnerId: "",
       skillIds: [],
+      mcpServerIds: [],
       name: "",
       agentSdk: DEFAULT_AGENT_SDK,
       model: "",
@@ -4049,6 +4891,7 @@ function App() {
         id: agentId,
         agentRunnerId: draft.agentRunnerId || null,
         skillIds: draft.skillIds || [],
+        mcpServerIds: draft.mcpServerIds || [],
         name: draft.name.trim(),
         agentSdk: normalizedSdk,
         model: normalizedModel,
@@ -4439,6 +5282,7 @@ function App() {
       const currentDraft = currentDrafts[agentId] || {
         agentRunnerId: "",
         skillIds: [],
+        mcpServerIds: [],
         name: "",
         agentSdk: DEFAULT_AGENT_SDK,
         model: "",
@@ -4456,6 +5300,9 @@ function App() {
 
       if (field === "agentRunnerId") {
         nextDraft.agentRunnerId = String(value || "").trim();
+      }
+      if (field === "mcpServerIds") {
+        nextDraft.mcpServerIds = Array.isArray(value) ? value : [];
       }
       if (field === "model") {
         nextDraft.model = String(value || "").trim();
@@ -4530,6 +5377,16 @@ function App() {
     }
     return `${skills.length} skills`;
   }, [skills.length]);
+
+  const mcpServerCountLabel = useMemo(() => {
+    if (mcpServers.length === 0) {
+      return "No MCP servers";
+    }
+    if (mcpServers.length === 1) {
+      return "1 MCP server";
+    }
+    return `${mcpServers.length} MCP servers`;
+  }, [mcpServers.length]);
 
   const runnerCountLabel = useMemo(() => {
     if (agentRunners.length === 0) {
@@ -4623,6 +5480,7 @@ function App() {
             <p>Company: {selectedCompany ? selectedCompany.name : "none"}</p>
             <p>Tasks: {selectedCompanyId ? tasks.length : "n/a"}</p>
             <p>Skills: {selectedCompanyId ? skills.length : "n/a"}</p>
+            <p>MCP: {selectedCompanyId ? mcpServers.length : "n/a"}</p>
             <p>Agents: {selectedCompanyId ? agents.length : "n/a"}</p>
             <p>Runners: {selectedCompanyId ? agentRunners.length : "n/a"}</p>
           </div>
@@ -4722,6 +5580,37 @@ function App() {
           />
         ) : null}
 
+        {selectedCompanyId && activePage === "mcp-servers" ? (
+          <McpServersPage
+            selectedCompanyId={selectedCompanyId}
+            mcpServers={mcpServers}
+            isLoadingMcpServers={isLoadingMcpServers}
+            mcpServerError={mcpServerError}
+            isCreatingMcpServer={isCreatingMcpServer}
+            savingMcpServerId={savingMcpServerId}
+            deletingMcpServerId={deletingMcpServerId}
+            mcpServerName={mcpServerName}
+            mcpServerUrl={mcpServerUrl}
+            mcpServerAuthType={mcpServerAuthType}
+            mcpServerBearerToken={mcpServerBearerToken}
+            mcpServerCustomHeadersText={mcpServerCustomHeadersText}
+            mcpServerEnabled={mcpServerEnabled}
+            mcpServerDrafts={mcpServerDrafts}
+            mcpServerCountLabel={mcpServerCountLabel}
+            onMcpServerNameChange={setMcpServerName}
+            onMcpServerUrlChange={setMcpServerUrl}
+            onMcpServerAuthTypeChange={(value) => setMcpServerAuthType(normalizeMcpAuthType(value))}
+            onMcpServerBearerTokenChange={setMcpServerBearerToken}
+            onMcpServerCustomHeadersTextChange={setMcpServerCustomHeadersText}
+            onMcpServerEnabledChange={setMcpServerEnabled}
+            onCreateMcpServer={handleCreateMcpServer}
+            onRefreshMcpServers={loadMcpServers}
+            onMcpServerDraftChange={handleMcpServerDraftChange}
+            onSaveMcpServer={handleSaveMcpServer}
+            onDeleteMcpServer={handleDeleteMcpServer}
+          />
+        ) : null}
+
         {selectedCompanyId && activePage === "agent-runner" ? (
           <AgentRunnerPage
             selectedCompanyId={selectedCompanyId}
@@ -4810,6 +5699,7 @@ function App() {
               selectedCompanyId={selectedCompanyId}
               agents={agents}
               skills={skills}
+              mcpServers={mcpServers}
               agentRunners={agentRunners}
               agentRunnerLookup={agentRunnerLookup}
               runnerCodexModelEntriesById={runnerCodexModelEntriesById}
@@ -4822,6 +5712,7 @@ function App() {
               canInitializeAgents={hasReadyRunner}
               agentRunnerId={agentRunnerId}
               agentSkillIds={agentSkillIds}
+              agentMcpServerIds={agentMcpServerIds}
               agentName={agentName}
               agentSdk={agentSdk}
               agentModel={agentModel}
@@ -4830,6 +5721,7 @@ function App() {
               agentCountLabel={agentCountLabel}
               onAgentRunnerChange={handleCreateAgentRunnerChange}
               onAgentSkillIdsChange={setAgentSkillIds}
+              onAgentMcpServerIdsChange={setAgentMcpServerIds}
               onAgentNameChange={setAgentName}
               onAgentSdkChange={handleCreateAgentSdkChange}
               onAgentModelChange={handleCreateAgentModelChange}
