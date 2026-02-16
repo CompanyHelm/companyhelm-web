@@ -763,6 +763,10 @@ button:disabled {
   margin-top: 0.44rem;
 }
 
+.runner-models-details[open] .runner-models-summary .runner-model-pill-more {
+  display: none;
+}
+
 .task-card p {
   margin: 0.35rem 0 0.52rem;
   color: var(--ink-1);
