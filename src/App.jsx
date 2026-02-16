@@ -5,6 +5,8 @@ const SELECTED_COMPANY_STORAGE_KEY = "companyhelm.selectedCompanyId";
 const DEFAULT_RUNNER_GRPC_TARGET =
   import.meta.env.VITE_AGENT_RUNNER_GRPC_TARGET || "localhost:50051";
 const CODEX_DEVICE_AUTH_URL = "https://auth.openai.com/codex/device";
+const AVAILABLE_AGENT_SDKS = ["codex"];
+const DEFAULT_AGENT_SDK = AVAILABLE_AGENT_SDKS[0];
 
 const LIST_COMPANIES_QUERY = `
   query ListCompanies {
@@ -698,6 +700,76 @@ function isCodexAgent(agent) {
     .toLowerCase() === "codex";
 }
 
+function normalizeAgentSdkValue(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase();
+}
+
+function isAvailableAgentSdk(value) {
+  return AVAILABLE_AGENT_SDKS.includes(normalizeAgentSdkValue(value));
+}
+
+function normalizeRunnerCodexAvailableModels(runner) {
+  if (!Array.isArray(runner?.codexAvailableModels)) {
+    return [];
+  }
+
+  return runner.codexAvailableModels
+    .map((entry) => ({
+      name: String(entry?.name || "").trim(),
+      reasoning: [
+        ...new Set(
+          (Array.isArray(entry?.reasoning) ? entry.reasoning : [entry?.reasoning])
+            .map((value) => String(value || "").trim())
+            .filter(Boolean),
+        ),
+      ].sort((a, b) => a.localeCompare(b)),
+    }))
+    .filter((entry) => Boolean(entry.name))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function getRunnerModelNames(codexModelEntries) {
+  return codexModelEntries.map((entry) => entry.name);
+}
+
+function getRunnerReasoningLevels(codexModelEntries, modelName) {
+  const normalizedModel = String(modelName || "").trim();
+  if (!normalizedModel) {
+    return [];
+  }
+  const matchedEntry = codexModelEntries.find((entry) => entry.name === normalizedModel);
+  return matchedEntry ? matchedEntry.reasoning : [];
+}
+
+function getRunnerCodexModelEntriesForRunner(codexModelEntriesByRunnerId, runnerId) {
+  if (!runnerId) {
+    return [];
+  }
+  return codexModelEntriesByRunnerId.get(runnerId) || [];
+}
+
+function resolveRunnerBackedModelSelection({
+  codexModelEntries,
+  requestedModel,
+  requestedReasoning,
+}) {
+  const modelNames = getRunnerModelNames(codexModelEntries);
+  const normalizedRequestedModel = String(requestedModel || "").trim();
+  const nextModel = modelNames.includes(normalizedRequestedModel)
+    ? normalizedRequestedModel
+    : modelNames[0] || "";
+
+  const reasoningLevels = getRunnerReasoningLevels(codexModelEntries, nextModel);
+  const normalizedRequestedReasoning = String(requestedReasoning || "").trim();
+  const nextReasoning = reasoningLevels.includes(normalizedRequestedReasoning)
+    ? normalizedRequestedReasoning
+    : reasoningLevels[0] || "";
+
+  return { model: nextModel, modelReasoningLevel: nextReasoning };
+}
+
 function getCodexAuthVerificationUrl(codexAuthState) {
   const authUrl = String(codexAuthState?.verificationUri || "").trim();
   return authUrl || CODEX_DEVICE_AUTH_URL;
@@ -719,7 +791,7 @@ function createAgentDrafts(agents) {
       agentRunnerId: agent.agentRunnerId || "",
       skillIds: [...(agent.skillIds || [])],
       name: agent.name || "",
-      agentSdk: agent.agentSdk || "",
+      agentSdk: agent.agentSdk || DEFAULT_AGENT_SDK,
       model: agent.model || "",
       modelReasoningLevel: agent.modelReasoningLevel || "",
     };
@@ -1594,21 +1666,7 @@ function AgentRunnerPage({
               .map((runner) => {
                 const runnerStatus = normalizeRunnerStatus(runner.status);
                 const runnerSecret = runnerSecretsById[runner.id] || "";
-                const codexAvailableModels = Array.isArray(runner.codexAvailableModels)
-                  ? runner.codexAvailableModels
-                      .map((entry) => ({
-                        name: String(entry?.name || "").trim(),
-                        reasoning: [
-                          ...new Set(
-                            (Array.isArray(entry?.reasoning) ? entry.reasoning : [entry?.reasoning])
-                              .map((value) => String(value || "").trim())
-                              .filter(Boolean),
-                          ),
-                        ],
-                      }))
-                      .filter((entry) => Boolean(entry.name))
-                      .sort((a, b) => a.name.localeCompare(b.name))
-                  : [];
+                const codexAvailableModels = normalizeRunnerCodexAvailableModels(runner);
                 const codexAvailableModelsPreview = codexAvailableModels.slice(0, 4);
                 const codexAvailableModelsOverflow = Math.max(
                   0,
@@ -1843,6 +1901,7 @@ function AgentsPage({
   skills,
   agentRunners,
   agentRunnerLookup,
+  runnerCodexModelEntriesById,
   isLoadingAgents,
   agentError,
   isCreatingAgent,
@@ -1879,6 +1938,15 @@ function AgentsPage({
       return map;
     }, new Map());
   }, [skills]);
+  const createRunnerCodexModelEntries = useMemo(() => {
+    return getRunnerCodexModelEntriesForRunner(runnerCodexModelEntriesById, agentRunnerId);
+  }, [agentRunnerId, runnerCodexModelEntriesById]);
+  const createRunnerModelNames = useMemo(() => {
+    return getRunnerModelNames(createRunnerCodexModelEntries);
+  }, [createRunnerCodexModelEntries]);
+  const createRunnerReasoningLevels = useMemo(() => {
+    return getRunnerReasoningLevels(createRunnerCodexModelEntries, agentModel);
+  }, [agentModel, createRunnerCodexModelEntries]);
 
   async function handleCreateAgentSubmit(event) {
     const didCreate = await onCreateAgent(event);
@@ -1951,6 +2019,25 @@ function AgentsPage({
               });
               const assignedSkillSummary =
                 assignedSkillLabels.length > 0 ? assignedSkillLabels.join(", ") : "none";
+              const draft = agentDrafts[agent.id] || {
+                agentRunnerId: "",
+                skillIds: [],
+                name: "",
+                agentSdk: DEFAULT_AGENT_SDK,
+                model: "",
+                modelReasoningLevel: "",
+              };
+              const draftRunnerCodexModelEntries = getRunnerCodexModelEntriesForRunner(
+                runnerCodexModelEntriesById,
+                draft.agentRunnerId,
+              );
+              const draftRunnerModelNames = getRunnerModelNames(draftRunnerCodexModelEntries);
+              const draftRunnerReasoningLevels = getRunnerReasoningLevels(
+                draftRunnerCodexModelEntries,
+                draft.model,
+              );
+              const isSavingOrDeleting =
+                savingAgentId === agent.id || deletingAgentId === agent.id;
 
               return (
                 <li key={agent.id} className="task-card">
@@ -1976,11 +2063,11 @@ function AgentsPage({
                       </label>
                       <select
                         id={`agent-runner-${agent.id}`}
-                        value={agentDrafts[agent.id]?.agentRunnerId ?? ""}
+                        value={draft.agentRunnerId}
                         onChange={(event) =>
                           onAgentDraftChange(agent.id, "agentRunnerId", event.target.value)
                         }
-                        disabled={savingAgentId === agent.id || deletingAgentId === agent.id}
+                        disabled={isSavingOrDeleting}
                       >
                         <option value="">Unassigned</option>
                         {agentRunners.map((runner) => (
@@ -1995,48 +2082,89 @@ function AgentsPage({
                       </label>
                       <input
                         id={`agent-name-${agent.id}`}
-                        value={agentDrafts[agent.id]?.name ?? ""}
+                        value={draft.name}
                         onChange={(event) =>
                           onAgentDraftChange(agent.id, "name", event.target.value)
                         }
-                        disabled={savingAgentId === agent.id || deletingAgentId === agent.id}
+                        disabled={isSavingOrDeleting}
                       />
 
                       <label className="relationship-field" htmlFor={`agent-sdk-${agent.id}`}>
                         SDK
                       </label>
-                      <input
+                      <select
                         id={`agent-sdk-${agent.id}`}
-                        value={agentDrafts[agent.id]?.agentSdk ?? ""}
+                        value={draft.agentSdk}
                         onChange={(event) =>
                           onAgentDraftChange(agent.id, "agentSdk", event.target.value)
                         }
-                        disabled={savingAgentId === agent.id || deletingAgentId === agent.id}
-                      />
+                        disabled={isSavingOrDeleting}
+                      >
+                        {AVAILABLE_AGENT_SDKS.map((sdkName) => (
+                          <option key={`${agent.id}-sdk-${sdkName}`} value={sdkName}>
+                            {sdkName}
+                          </option>
+                        ))}
+                      </select>
 
                       <label className="relationship-field" htmlFor={`agent-model-${agent.id}`}>
                         Model
                       </label>
-                      <input
+                      <select
                         id={`agent-model-${agent.id}`}
-                        value={agentDrafts[agent.id]?.model ?? ""}
+                        value={draft.model}
                         onChange={(event) =>
                           onAgentDraftChange(agent.id, "model", event.target.value)
                         }
-                        disabled={savingAgentId === agent.id || deletingAgentId === agent.id}
-                      />
+                        disabled={isSavingOrDeleting || !draft.agentRunnerId}
+                      >
+                        {!draft.agentRunnerId ? (
+                          <option value="">Select a runner first</option>
+                        ) : draftRunnerModelNames.length === 0 ? (
+                          <option value="">No models reported by selected runner</option>
+                        ) : (
+                          <>
+                            <option value="">Select model</option>
+                            {draftRunnerModelNames.map((modelName) => (
+                              <option key={`${agent.id}-model-${modelName}`} value={modelName}>
+                                {modelName}
+                              </option>
+                            ))}
+                          </>
+                        )}
+                      </select>
 
                       <label className="relationship-field" htmlFor={`agent-reasoning-${agent.id}`}>
                         Reasoning
                       </label>
-                      <input
+                      <select
                         id={`agent-reasoning-${agent.id}`}
-                        value={agentDrafts[agent.id]?.modelReasoningLevel ?? ""}
+                        value={draft.modelReasoningLevel}
                         onChange={(event) =>
                           onAgentDraftChange(agent.id, "modelReasoningLevel", event.target.value)
                         }
-                        disabled={savingAgentId === agent.id || deletingAgentId === agent.id}
-                      />
+                        disabled={isSavingOrDeleting || !draft.agentRunnerId || !draft.model}
+                      >
+                        {!draft.agentRunnerId ? (
+                          <option value="">Select a runner first</option>
+                        ) : !draft.model ? (
+                          <option value="">Select a model first</option>
+                        ) : draftRunnerReasoningLevels.length === 0 ? (
+                          <option value="">No reasoning levels reported for this model</option>
+                        ) : (
+                          <>
+                            <option value="">Select reasoning</option>
+                            {draftRunnerReasoningLevels.map((reasoningLevel) => (
+                              <option
+                                key={`${agent.id}-reasoning-${reasoningLevel}`}
+                                value={reasoningLevel}
+                              >
+                                {reasoningLevel}
+                              </option>
+                            ))}
+                          </>
+                        )}
+                      </select>
 
                       <label className="relationship-field" htmlFor={`agent-skills-${agent.id}`}>
                         Skills
@@ -2046,7 +2174,7 @@ function AgentsPage({
                         className="multi-select-input"
                         multiple
                         size={Math.min(6, Math.max(3, skills.length || 3))}
-                        value={agentDrafts[agent.id]?.skillIds ?? []}
+                        value={draft.skillIds}
                         onChange={(event) =>
                           onAgentDraftChange(
                             agent.id,
@@ -2054,7 +2182,7 @@ function AgentsPage({
                             getSelectedMultiValues(event.target),
                           )
                         }
-                        disabled={savingAgentId === agent.id || deletingAgentId === agent.id}
+                        disabled={isSavingOrDeleting}
                       >
                         {skills.map((skill) => (
                           <option key={`agent-skill-option-${agent.id}-${skill.id}`} value={skill.id}>
@@ -2174,34 +2302,71 @@ function AgentsPage({
           />
 
           <label htmlFor="agent-sdk">Agent SDK</label>
-          <input
+          <select
             id="agent-sdk"
             name="agentSdk"
-            placeholder="e.g. codex, claude-code"
             value={agentSdk}
             onChange={(event) => onAgentSdkChange(event.target.value)}
             required
-          />
+          >
+            {AVAILABLE_AGENT_SDKS.map((sdkName) => (
+              <option key={`create-agent-sdk-${sdkName}`} value={sdkName}>
+                {sdkName}
+              </option>
+            ))}
+          </select>
 
           <label htmlFor="agent-model">Model</label>
-          <input
+          <select
             id="agent-model"
             name="model"
-            placeholder="e.g. gpt-5"
             value={agentModel}
             onChange={(event) => onAgentModelChange(event.target.value)}
             required
-          />
+            disabled={!agentRunnerId}
+          >
+            {!agentRunnerId ? (
+              <option value="">Select a runner first</option>
+            ) : createRunnerModelNames.length === 0 ? (
+              <option value="">No models reported by selected runner</option>
+            ) : (
+              <>
+                <option value="">Select model</option>
+                {createRunnerModelNames.map((modelName) => (
+                  <option key={`create-agent-model-${modelName}`} value={modelName}>
+                    {modelName}
+                  </option>
+                ))}
+              </>
+            )}
+          </select>
 
           <label htmlFor="agent-reasoning-level">Model reasoning level</label>
-          <input
+          <select
             id="agent-reasoning-level"
             name="modelReasoningLevel"
-            placeholder="e.g. low, medium, high"
             value={agentModelReasoningLevel}
             onChange={(event) => onAgentModelReasoningLevelChange(event.target.value)}
             required
-          />
+            disabled={!agentRunnerId || !agentModel}
+          >
+            {!agentRunnerId ? (
+              <option value="">Select a runner first</option>
+            ) : !agentModel ? (
+              <option value="">Select a model first</option>
+            ) : createRunnerReasoningLevels.length === 0 ? (
+              <option value="">No reasoning levels reported for this model</option>
+            ) : (
+              <>
+                <option value="">Select reasoning</option>
+                {createRunnerReasoningLevels.map((reasoningLevel) => (
+                  <option key={`create-agent-reasoning-${reasoningLevel}`} value={reasoningLevel}>
+                    {reasoningLevel}
+                  </option>
+                ))}
+              </>
+            )}
+          </select>
 
           <button type="submit" disabled={isCreatingAgent}>
             {isCreatingAgent ? "Creating..." : "Create agent"}
@@ -2832,7 +2997,7 @@ function App() {
   const [agentName, setAgentName] = useState("");
   const [agentRunnerId, setAgentRunnerId] = useState("");
   const [agentSkillIds, setAgentSkillIds] = useState([]);
-  const [agentSdk, setAgentSdk] = useState("");
+  const [agentSdk, setAgentSdk] = useState(DEFAULT_AGENT_SDK);
   const [agentModel, setAgentModel] = useState("");
   const [agentModelReasoningLevel, setAgentModelReasoningLevel] = useState("");
   const [agentDrafts, setAgentDrafts] = useState({});
@@ -2862,6 +3027,13 @@ function App() {
   const agentRunnerLookup = useMemo(() => {
     return agentRunners.reduce((map, runner) => {
       map.set(runner.id, runner);
+      return map;
+    }, new Map());
+  }, [agentRunners]);
+
+  const runnerCodexModelEntriesById = useMemo(() => {
+    return agentRunners.reduce((map, runner) => {
+      map.set(runner.id, normalizeRunnerCodexAvailableModels(runner));
       return map;
     }, new Map());
   }, [agentRunners]);
@@ -2974,6 +3146,9 @@ function App() {
       setAgentDrafts({});
       setAgentRunnerId("");
       setAgentSkillIds([]);
+      setAgentSdk(DEFAULT_AGENT_SDK);
+      setAgentModel("");
+      setAgentModelReasoningLevel("");
       setIsLoadingAgents(false);
       return;
     }
@@ -3109,6 +3284,9 @@ function App() {
   useEffect(() => {
     setAgentRunnerId("");
     setAgentSkillIds([]);
+    setAgentSdk(DEFAULT_AGENT_SDK);
+    setAgentModel("");
+    setAgentModelReasoningLevel("");
     setRunnerIdDraft("");
     setRunnerSecretDraft("");
     setRunnerSecretsById({});
@@ -3128,6 +3306,35 @@ function App() {
     setCodexAuthError("");
     setCodexAuthCopyFeedback("");
   }, [selectedCompanyId]);
+
+  useEffect(() => {
+    if (!isAvailableAgentSdk(agentSdk)) {
+      setAgentSdk(DEFAULT_AGENT_SDK);
+    }
+
+    const selectedRunnerCodexModels = getRunnerCodexModelEntriesForRunner(
+      runnerCodexModelEntriesById,
+      agentRunnerId,
+    );
+    const resolvedSelection = resolveRunnerBackedModelSelection({
+      codexModelEntries: selectedRunnerCodexModels,
+      requestedModel: agentModel,
+      requestedReasoning: agentModelReasoningLevel,
+    });
+
+    if (resolvedSelection.model !== agentModel) {
+      setAgentModel(resolvedSelection.model);
+    }
+    if (resolvedSelection.modelReasoningLevel !== agentModelReasoningLevel) {
+      setAgentModelReasoningLevel(resolvedSelection.modelReasoningLevel);
+    }
+  }, [
+    agentModel,
+    agentModelReasoningLevel,
+    agentRunnerId,
+    agentSdk,
+    runnerCodexModelEntriesById,
+  ]);
 
   useEffect(() => {
     loadTasks();
@@ -3685,8 +3892,53 @@ function App() {
       setAgentError("Agent name is required.");
       return false;
     }
-    if (!agentSdk.trim() || !agentModel.trim() || !agentModelReasoningLevel.trim()) {
-      setAgentError("agentSdk, model, and modelReasoningLevel are required.");
+    if (!agentRunnerId) {
+      setAgentError("Assign a runner before creating an agent.");
+      return false;
+    }
+
+    const selectedRunner = agentRunnerLookup.get(agentRunnerId);
+    if (!selectedRunner) {
+      setAgentError(`Assigned runner ${agentRunnerId} was not found for this company.`);
+      return false;
+    }
+
+    const normalizedSdk = normalizeAgentSdkValue(agentSdk);
+    if (!isAvailableAgentSdk(normalizedSdk)) {
+      setAgentError(`agentSdk must be one of: ${AVAILABLE_AGENT_SDKS.join(", ")}.`);
+      return false;
+    }
+
+    const selectedRunnerCodexModels = getRunnerCodexModelEntriesForRunner(
+      runnerCodexModelEntriesById,
+      agentRunnerId,
+    );
+    if (selectedRunnerCodexModels.length === 0) {
+      setAgentError(`Runner ${agentRunnerId} has not reported any available models yet.`);
+      return false;
+    }
+
+    const normalizedModel = String(agentModel || "").trim();
+    if (!normalizedModel) {
+      setAgentError("Model is required.");
+      return false;
+    }
+    if (!getRunnerModelNames(selectedRunnerCodexModels).includes(normalizedModel)) {
+      setAgentError(
+        `Model "${normalizedModel}" is not available on runner ${agentRunnerId}. Refresh runners and try again.`,
+      );
+      return false;
+    }
+
+    const normalizedReasoning = String(agentModelReasoningLevel || "").trim();
+    if (!normalizedReasoning) {
+      setAgentError("Model reasoning level is required.");
+      return false;
+    }
+    if (!getRunnerReasoningLevels(selectedRunnerCodexModels, normalizedModel).includes(normalizedReasoning)) {
+      setAgentError(
+        `Reasoning "${normalizedReasoning}" is not available for model "${normalizedModel}" on runner ${agentRunnerId}.`,
+      );
       return false;
     }
 
@@ -3698,9 +3950,9 @@ function App() {
         agentRunnerId: agentRunnerId || null,
         skillIds: agentSkillIds,
         name: agentName.trim(),
-        agentSdk: agentSdk.trim(),
-        model: agentModel.trim(),
-        modelReasoningLevel: agentModelReasoningLevel.trim(),
+        agentSdk: normalizedSdk,
+        model: normalizedModel,
+        modelReasoningLevel: normalizedReasoning,
       });
       const result = data.createAgent;
       if (!result.ok) {
@@ -3709,7 +3961,7 @@ function App() {
       setAgentName("");
       setAgentRunnerId("");
       setAgentSkillIds([]);
-      setAgentSdk("");
+      setAgentSdk(DEFAULT_AGENT_SDK);
       setAgentModel("");
       setAgentModelReasoningLevel("");
       await loadAgents();
@@ -3731,17 +3983,61 @@ function App() {
       agentRunnerId: "",
       skillIds: [],
       name: "",
-      agentSdk: "",
+      agentSdk: DEFAULT_AGENT_SDK,
       model: "",
       modelReasoningLevel: "",
     };
-    if (
-      !draft.name.trim() ||
-      !draft.agentSdk.trim() ||
-      !draft.model.trim() ||
-      !draft.modelReasoningLevel.trim()
-    ) {
-      setAgentError("All agent fields are required to save.");
+    if (!draft.name.trim()) {
+      setAgentError("Agent name is required to save.");
+      return;
+    }
+    if (!draft.agentRunnerId) {
+      setAgentError("Assigned runner is required to save an agent.");
+      return;
+    }
+
+    const assignedRunner = agentRunnerLookup.get(draft.agentRunnerId);
+    if (!assignedRunner) {
+      setAgentError(`Assigned runner ${draft.agentRunnerId} was not found for this company.`);
+      return;
+    }
+
+    const normalizedSdk = normalizeAgentSdkValue(draft.agentSdk);
+    if (!isAvailableAgentSdk(normalizedSdk)) {
+      setAgentError(`agentSdk must be one of: ${AVAILABLE_AGENT_SDKS.join(", ")}.`);
+      return;
+    }
+
+    const selectedRunnerCodexModels = getRunnerCodexModelEntriesForRunner(
+      runnerCodexModelEntriesById,
+      draft.agentRunnerId,
+    );
+    if (selectedRunnerCodexModels.length === 0) {
+      setAgentError(`Runner ${draft.agentRunnerId} has not reported any available models yet.`);
+      return;
+    }
+
+    const normalizedModel = String(draft.model || "").trim();
+    if (!normalizedModel) {
+      setAgentError("Model is required to save.");
+      return;
+    }
+    if (!getRunnerModelNames(selectedRunnerCodexModels).includes(normalizedModel)) {
+      setAgentError(
+        `Model "${normalizedModel}" is not available on runner ${draft.agentRunnerId}.`,
+      );
+      return;
+    }
+
+    const normalizedReasoning = String(draft.modelReasoningLevel || "").trim();
+    if (!normalizedReasoning) {
+      setAgentError("Model reasoning level is required to save.");
+      return;
+    }
+    if (!getRunnerReasoningLevels(selectedRunnerCodexModels, normalizedModel).includes(normalizedReasoning)) {
+      setAgentError(
+        `Reasoning "${normalizedReasoning}" is not available for model "${normalizedModel}" on runner ${draft.agentRunnerId}.`,
+      );
       return;
     }
 
@@ -3754,9 +4050,9 @@ function App() {
         agentRunnerId: draft.agentRunnerId || null,
         skillIds: draft.skillIds || [],
         name: draft.name.trim(),
-        agentSdk: draft.agentSdk.trim(),
-        model: draft.model.trim(),
-        modelReasoningLevel: draft.modelReasoningLevel.trim(),
+        agentSdk: normalizedSdk,
+        model: normalizedModel,
+        modelReasoningLevel: normalizedReasoning,
       });
       const result = data.updateAgent;
       if (!result.ok) {
@@ -4091,21 +4387,102 @@ function App() {
     }));
   }
 
+  function handleCreateAgentRunnerChange(nextRunnerId) {
+    const normalizedRunnerId = String(nextRunnerId || "").trim();
+    setAgentRunnerId(normalizedRunnerId);
+
+    const selectedRunnerCodexModels = getRunnerCodexModelEntriesForRunner(
+      runnerCodexModelEntriesById,
+      normalizedRunnerId,
+    );
+    const resolvedSelection = resolveRunnerBackedModelSelection({
+      codexModelEntries: selectedRunnerCodexModels,
+      requestedModel: agentModel,
+      requestedReasoning: agentModelReasoningLevel,
+    });
+
+    setAgentSdk(DEFAULT_AGENT_SDK);
+    setAgentModel(resolvedSelection.model);
+    setAgentModelReasoningLevel(resolvedSelection.modelReasoningLevel);
+  }
+
+  function handleCreateAgentSdkChange(nextSdk) {
+    if (!isAvailableAgentSdk(nextSdk)) {
+      setAgentSdk(DEFAULT_AGENT_SDK);
+      return;
+    }
+    setAgentSdk(normalizeAgentSdkValue(nextSdk));
+  }
+
+  function handleCreateAgentModelChange(nextModel) {
+    const normalizedModel = String(nextModel || "").trim();
+    const selectedRunnerCodexModels = getRunnerCodexModelEntriesForRunner(
+      runnerCodexModelEntriesById,
+      agentRunnerId,
+    );
+    const resolvedSelection = resolveRunnerBackedModelSelection({
+      codexModelEntries: selectedRunnerCodexModels,
+      requestedModel: normalizedModel,
+      requestedReasoning: agentModelReasoningLevel,
+    });
+
+    setAgentModel(resolvedSelection.model);
+    setAgentModelReasoningLevel(resolvedSelection.modelReasoningLevel);
+  }
+
+  function handleCreateAgentReasoningLevelChange(nextReasoningLevel) {
+    setAgentModelReasoningLevel(String(nextReasoningLevel || "").trim());
+  }
+
   function handleAgentDraftChange(agentId, field, value) {
-    setAgentDrafts((currentDrafts) => ({
-      ...currentDrafts,
-      [agentId]: {
-        ...(currentDrafts[agentId] || {
-          agentRunnerId: "",
-          skillIds: [],
-          name: "",
-          agentSdk: "",
-          model: "",
-          modelReasoningLevel: "",
-        }),
+    setAgentDrafts((currentDrafts) => {
+      const currentDraft = currentDrafts[agentId] || {
+        agentRunnerId: "",
+        skillIds: [],
+        name: "",
+        agentSdk: DEFAULT_AGENT_SDK,
+        model: "",
+        modelReasoningLevel: "",
+      };
+
+      const nextDraft = {
+        ...currentDraft,
         [field]: value,
-      },
-    }));
+      };
+
+      if (field === "agentSdk" && !isAvailableAgentSdk(nextDraft.agentSdk)) {
+        nextDraft.agentSdk = DEFAULT_AGENT_SDK;
+      }
+
+      if (field === "agentRunnerId") {
+        nextDraft.agentRunnerId = String(value || "").trim();
+      }
+      if (field === "model") {
+        nextDraft.model = String(value || "").trim();
+      }
+      if (field === "modelReasoningLevel") {
+        nextDraft.modelReasoningLevel = String(value || "").trim();
+      }
+
+      if (field === "agentRunnerId" || field === "model" || field === "modelReasoningLevel") {
+        const selectedRunnerCodexModels = getRunnerCodexModelEntriesForRunner(
+          runnerCodexModelEntriesById,
+          nextDraft.agentRunnerId,
+        );
+        const resolvedSelection = resolveRunnerBackedModelSelection({
+          codexModelEntries: selectedRunnerCodexModels,
+          requestedModel: nextDraft.model,
+          requestedReasoning: nextDraft.modelReasoningLevel,
+        });
+        nextDraft.model = resolvedSelection.model;
+        nextDraft.modelReasoningLevel = resolvedSelection.modelReasoningLevel;
+      }
+
+      return {
+        ...currentDrafts,
+        [agentId]: nextDraft,
+      };
+    });
   }
 
   function navigateTo(pageId) {
@@ -4435,6 +4812,7 @@ function App() {
               skills={skills}
               agentRunners={agentRunners}
               agentRunnerLookup={agentRunnerLookup}
+              runnerCodexModelEntriesById={runnerCodexModelEntriesById}
               isLoadingAgents={isLoadingAgents}
               agentError={agentError}
               isCreatingAgent={isCreatingAgent}
@@ -4450,12 +4828,12 @@ function App() {
               agentModelReasoningLevel={agentModelReasoningLevel}
               agentDrafts={agentDrafts}
               agentCountLabel={agentCountLabel}
-              onAgentRunnerChange={setAgentRunnerId}
+              onAgentRunnerChange={handleCreateAgentRunnerChange}
               onAgentSkillIdsChange={setAgentSkillIds}
               onAgentNameChange={setAgentName}
-              onAgentSdkChange={setAgentSdk}
-              onAgentModelChange={setAgentModel}
-              onAgentModelReasoningLevelChange={setAgentModelReasoningLevel}
+              onAgentSdkChange={handleCreateAgentSdkChange}
+              onAgentModelChange={handleCreateAgentModelChange}
+              onAgentModelReasoningLevelChange={handleCreateAgentReasoningLevelChange}
               onCreateAgent={handleCreateAgent}
               onRefreshAgents={loadAgents}
               onAgentDraftChange={handleAgentDraftChange}
