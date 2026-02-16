@@ -3113,7 +3113,6 @@ function App() {
     setAgentRunnerId("");
     setAgentSkillIds([]);
     setRunnerIdDraft("");
-    setRunnerCallbackUrlDraft("");
     setRunnerSecretDraft("");
     setRunnerSecretsById({});
     setRegeneratingRunnerId(null);
