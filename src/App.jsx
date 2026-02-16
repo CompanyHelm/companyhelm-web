@@ -2574,6 +2574,17 @@ function AgentChatPage({
 }) {
   const canChat = Boolean(agent && session);
 
+  function handleChatMessageKeyDown(event) {
+    if (event.key !== "Enter" || event.shiftKey || event.isComposing) {
+      return;
+    }
+    if (!canChat || isSendingChatMessage || !chatDraftMessage.trim()) {
+      return;
+    }
+    event.preventDefault();
+    onSendChatMessage();
+  }
+
   return (
     <div className="page-stack">
       <section className="panel hero-panel">
@@ -2665,6 +2676,7 @@ function AgentChatPage({
             placeholder="Ask the agent to plan, debug, or implement something..."
             value={chatDraftMessage}
             onChange={(event) => onChatDraftMessageChange(event.target.value)}
+            onKeyDown={handleChatMessageKeyDown}
             disabled={!canChat || isSendingChatMessage}
           />
           <button
@@ -3856,7 +3868,9 @@ function App() {
   }
 
   async function handleSendChatMessage(event) {
-    event.preventDefault();
+    if (event?.preventDefault) {
+      event.preventDefault();
+    }
     if (!selectedCompanyId) {
       setChatError("Select a company before sending chat messages.");
       return;
