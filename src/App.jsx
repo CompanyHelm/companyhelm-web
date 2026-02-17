@@ -746,14 +746,14 @@ const RETRY_AGENT_SKILL_INSTALL_MUTATION = `
   }
 `;
 
-const LIST_AGENT_CHAT_MESSAGES_QUERY = `
-  query ListAgentChatMessages(
+const LIST_AGENT_CHAT_TURNS_QUERY = `
+  query ListAgentChatTurns(
     $companyId: String!
     $agentId: String!
     $sessionId: String
     $limit: Int
   ) {
-    agentChatMessages(
+    agentChatTurns(
       companyId: $companyId
       agentId: $agentId
       sessionId: $sessionId
@@ -764,13 +764,36 @@ const LIST_AGENT_CHAT_MESSAGES_QUERY = `
       companyId
       agentId
       runnerId
-      role
-      content
-      status
       commandId
-      error
+      providerTurnId
+      status
+      reasoningText
+      startedAt
+      endedAt
       createdAt
       updatedAt
+      items {
+        id
+        turnId
+        sessionId
+        companyId
+        agentId
+        runnerId
+        commandId
+        providerItemId
+        role
+        itemType
+        content
+        command
+        output
+        unknownType
+        status
+        startedAt
+        endedAt
+        error
+        createdAt
+        updatedAt
+      }
     }
   }
 `;
@@ -840,6 +863,7 @@ const SEND_AGENT_SESSION_MESSAGE_MUTATION = `
       error
       commandId
       messageId
+      turnId
       sessionId
       runnerId
       agentId
@@ -898,25 +922,48 @@ const AGENT_CHAT_SESSIONS_SUBSCRIPTION = `
   }
 `;
 
-const AGENT_CHAT_MESSAGES_SUBSCRIPTION = `
-  subscription AgentChatMessagesUpdated(
+const AGENT_CHAT_TURNS_SUBSCRIPTION = `
+  subscription AgentChatTurnsUpdated(
     $companyId: String!
     $agentId: String!
     $sessionId: String!
   ) {
-    agentChatMessagesUpdated(companyId: $companyId, agentId: $agentId, sessionId: $sessionId) {
+    agentChatTurnsUpdated(companyId: $companyId, agentId: $agentId, sessionId: $sessionId) {
       id
       sessionId
       companyId
       agentId
       runnerId
-      role
-      content
-      status
       commandId
-      error
+      providerTurnId
+      status
+      reasoningText
+      startedAt
+      endedAt
       createdAt
       updatedAt
+      items {
+        id
+        turnId
+        sessionId
+        companyId
+        agentId
+        runnerId
+        commandId
+        providerItemId
+        role
+        itemType
+        content
+        command
+        output
+        unknownType
+        status
+        startedAt
+        endedAt
+        error
+        createdAt
+        updatedAt
+      }
     }
   }
 `;
@@ -4318,7 +4365,7 @@ function AgentChatPage({
   selectedCompanyId,
   agent,
   session,
-  chatMessages,
+  chatTurns,
   isLoadingChat,
   chatError,
   chatDraftMessage,
@@ -4328,10 +4375,7 @@ function AgentChatPage({
   onSendChatMessage,
 }) {
   const canChat = Boolean(agent && session);
-  const activeCodexTurnKeys = useMemo(
-    () => getActiveCodexTurnKeys(chatMessages),
-    [chatMessages],
-  );
+  const [selectedCommandOutputItem, setSelectedCommandOutputItem] = useState(null);
 
   function handleChatMessageKeyDown(event) {
     if (event.key !== "Enter" || event.shiftKey || event.isComposing) {
@@ -4389,62 +4433,132 @@ function AgentChatPage({
         {chatError ? <p className="error-banner">Chat error: {chatError}</p> : null}
         {!agent ? <p className="empty-hint">Agent not found.</p> : null}
         {agent && !session ? <p className="empty-hint">Session not found.</p> : null}
-        {canChat && isLoadingChat ? <p className="empty-hint">Loading chat messages...</p> : null}
-        {canChat && !isLoadingChat && chatMessages.length === 0 ? (
-          <p className="empty-hint">No messages yet. Send the first prompt below.</p>
+        {canChat && isLoadingChat ? <p className="empty-hint">Loading chat turns...</p> : null}
+        {canChat && !isLoadingChat && chatTurns.length === 0 ? (
+          <p className="empty-hint">No turns yet. Send the first prompt below.</p>
         ) : null}
-        {chatMessages.length > 0 ? (
-          <ul className="chat-message-list">
-            {chatMessages.map((message) => {
-              const codexPayload = parseCodexStreamPayload(message);
-              const codexEventType = getCodexStreamEventType(codexPayload);
-              const codexTurnKey = getCodexStreamTurnKey(codexPayload);
-              const isReasoning = codexEventType === "reasoning";
-              const isAgentMessage = codexEventType === "agent_message";
-              const isTurnStarted = codexEventType === "turn.started";
-              const showTurnSpinner =
-                isTurnStarted && activeCodexTurnKeys.has(codexTurnKey);
-              const contentClassNames = [
-                "chat-message-content",
-                isReasoning ? "chat-message-content-reasoning" : "",
-                isAgentMessage ? "chat-message-content-agent-message" : "",
-                codexPayload && !isReasoning && !isAgentMessage ? "chat-message-content-codex" : "",
-              ]
-                .filter(Boolean)
-                .join(" ");
+        {chatTurns.length > 0 ? (
+          <ul className="chat-turn-list">
+            {chatTurns.map((turn) => {
+              const turnStatus = String(turn?.status || "").toLowerCase() === "running" ? "running" : "idle";
+              const turnItems = Array.isArray(turn?.items) ? turn.items : [];
 
               return (
-                <li
-                  key={message.id}
-                  className={`chat-message-item chat-message-item-${
-                    message.role === "human" ? "user" : "assistant"
-                  }`}
-                >
-                  <div className="chat-message-meta">
-                    <strong>{message.role === "human" ? "human" : "llm"}</strong>
-                    <span>{message.status}</span>
-                    {codexEventType ? (
-                      <span className="chat-message-kind">{codexEventType}</span>
-                    ) : null}
-                    {showTurnSpinner ? (
+                <li key={turn.id} className={`chat-turn-item chat-turn-item-${turnStatus}`}>
+                  <div className="chat-turn-meta">
+                    <strong>turn</strong>
+                    <code className="runner-id">{String(turn.id || "").slice(0, 8)}</code>
+                    <span className={`chat-turn-status chat-turn-status-${turnStatus}`}>{turnStatus}</span>
+                    {turnStatus === "running" ? (
                       <span
                         className="chat-turn-spinner"
-                        aria-label="Codex turn is running"
+                        aria-label="Turn is running"
                         title="Turn in progress"
                       />
                     ) : null}
-                    <span>{formatTimestamp(message.createdAt)}</span>
+                    <span>{formatTimestamp(turn.createdAt)}</span>
                   </div>
-                  <p className={contentClassNames}>
-                    {codexPayload ? getCodexStreamDisplayText(codexPayload) : message.content}
-                  </p>
-                  {message.error ? <p className="chat-message-error">{message.error}</p> : null}
+
+                  {turnItems.length === 0 ? (
+                    <p className="empty-hint">No items yet for this turn.</p>
+                  ) : (
+                    <ul className="chat-item-list">
+                      {turnItems.map((item) => {
+                        const itemRole = String(item?.role || "").toLowerCase();
+                        const roleLabel = itemRole === "human" ? "human" : "llm";
+                        const itemType = String(item?.itemType || "").trim() || "agent_message";
+                        const itemStatus =
+                          String(item?.status || "").toLowerCase() === "running" ? "running" : "completed";
+                        const isCommandExecution = itemType === "command_execution";
+                        const hasCommandOutput = Boolean(String(item?.output || "").trim());
+                        const bodyText = isCommandExecution
+                          ? String(item?.command || "").trim() || "(command unavailable)"
+                          : String(item?.content || "").trim() || "(no content)";
+
+                        return (
+                          <li
+                            key={item.id}
+                            className={`chat-item-entry chat-item-entry-${itemStatus} chat-item-entry-${roleLabel}`}
+                          >
+                            <div className="chat-item-meta">
+                              <strong>{roleLabel}</strong>
+                              <span className="chat-message-kind">
+                                {itemType}
+                                {item.unknownType ? " (unknown)" : ""}
+                              </span>
+                              <span>{itemStatus}</span>
+                              {itemStatus === "running" ? (
+                                <span
+                                  className="chat-turn-spinner chat-item-spinner"
+                                  aria-label="Item is running"
+                                  title="Item in progress"
+                                />
+                              ) : null}
+                              <span>start {formatTimestamp(item.startedAt || item.createdAt)}</span>
+                              <span>end {item.endedAt ? formatTimestamp(item.endedAt) : "..."}</span>
+                            </div>
+
+                            {isCommandExecution ? (
+                              <p className="chat-message-content chat-message-content-command">
+                                <code>{bodyText}</code>
+                              </p>
+                            ) : (
+                              <p className="chat-message-content">{bodyText}</p>
+                            )}
+
+                            {isCommandExecution && hasCommandOutput ? (
+                              <div className="task-card-actions">
+                                <button
+                                  type="button"
+                                  className="secondary-btn"
+                                  onClick={() => setSelectedCommandOutputItem(item)}
+                                >
+                                  View output
+                                </button>
+                              </div>
+                            ) : null}
+
+                            {item.error ? <p className="chat-message-error">{item.error}</p> : null}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+
+                  {turn.reasoningText ? (
+                    <p className="chat-turn-reasoning">
+                      <span>{turn.reasoningText}</span>
+                    </p>
+                  ) : null}
                 </li>
               );
             })}
           </ul>
         ) : null}
       </section>
+
+      <CreationModal
+        modalId="chat-command-output-modal"
+        title="Command Output"
+        description="Hidden command output for the selected command execution item."
+        isOpen={Boolean(selectedCommandOutputItem)}
+        onClose={() => setSelectedCommandOutputItem(null)}
+      >
+        <div className="chat-command-output-modal">
+          <p>
+            <strong>Command</strong>
+          </p>
+          <pre className="runner-command runner-command-inline">
+            <code>{selectedCommandOutputItem?.command || "(command unavailable)"}</code>
+          </pre>
+          <p>
+            <strong>Output</strong>
+          </p>
+          <pre className="chat-command-output-pre">
+            <code>{selectedCommandOutputItem?.output || "(no output captured)"}</code>
+          </pre>
+        </div>
+      </CreationModal>
 
       <section className="panel composer-panel">
         <header className="panel-header">
@@ -4839,7 +4953,7 @@ function App() {
   const [chatSessionId, setChatSessionId] = useState("");
   const [chatSessionTitleDraft, setChatSessionTitleDraft] = useState("");
   const [chatSessionRemoteIdDraft, setChatSessionRemoteIdDraft] = useState("");
-  const [chatMessages, setChatMessages] = useState([]);
+  const [chatTurns, setChatTurns] = useState([]);
   const [chatDraftMessage, setChatDraftMessage] = useState("");
   const [chatError, setChatError] = useState("");
   const [isLoadingChatSessions, setIsLoadingChatSessions] = useState(false);
@@ -4877,7 +4991,7 @@ function App() {
 
   const shouldSubscribeChatSessions =
     activePage === "agents" && (agentsRoute.view === "sessions" || agentsRoute.view === "chat");
-  const shouldSubscribeChatMessages =
+  const shouldSubscribeChatTurns =
     activePage === "agents" && agentsRoute.view === "chat" && Boolean(chatSessionId);
   const shouldSubscribeCodexAuth =
     activePage === "dashboard" || (activePage === "agents" && agentsRoute.view === "chat");
@@ -5136,10 +5250,10 @@ function App() {
     [selectedCompanyId, chatAgentId],
   );
 
-  const loadAgentChatMessages = useCallback(
+  const loadAgentChatTurns = useCallback(
     async ({ silently = false } = {}) => {
       if (!selectedCompanyId || !chatAgentId || !chatSessionId) {
-        setChatMessages([]);
+        setChatTurns([]);
         if (!silently) {
           setChatError("");
           setIsLoadingChat(false);
@@ -5152,13 +5266,13 @@ function App() {
           setChatError("");
           setIsLoadingChat(true);
         }
-        const data = await executeGraphQL(LIST_AGENT_CHAT_MESSAGES_QUERY, {
+        const data = await executeGraphQL(LIST_AGENT_CHAT_TURNS_QUERY, {
           companyId: selectedCompanyId,
           agentId: chatAgentId,
           sessionId: chatSessionId,
           limit: 200,
         });
-        setChatMessages(data.agentChatMessages || []);
+        setChatTurns(data.agentChatTurns || []);
       } catch (loadError) {
         if (!silently) {
           setChatError(loadError.message);
@@ -5225,8 +5339,8 @@ function App() {
     setIsLoadingChatSessions(false);
   }, []);
 
-  const handleAgentChatMessagesSubscriptionData = useCallback((payload) => {
-    setChatMessages(payload?.agentChatMessagesUpdated || []);
+  const handleAgentChatTurnsSubscriptionData = useCallback((payload) => {
+    setChatTurns(payload?.agentChatTurnsUpdated || []);
     setChatError("");
     setIsLoadingChat(false);
   }, []);
@@ -5268,8 +5382,8 @@ function App() {
   });
 
   useGraphQLSubscription({
-    enabled: Boolean(selectedCompanyId && chatAgentId && chatSessionId && shouldSubscribeChatMessages),
-    query: AGENT_CHAT_MESSAGES_SUBSCRIPTION,
+    enabled: Boolean(selectedCompanyId && chatAgentId && chatSessionId && shouldSubscribeChatTurns),
+    query: AGENT_CHAT_TURNS_SUBSCRIPTION,
     variables:
       selectedCompanyId && chatAgentId && chatSessionId
         ? {
@@ -5278,7 +5392,7 @@ function App() {
             sessionId: chatSessionId,
           }
         : undefined,
-    onData: handleAgentChatMessagesSubscriptionData,
+    onData: handleAgentChatTurnsSubscriptionData,
     onError: handleAgentChatSubscriptionError,
   });
 
@@ -5345,7 +5459,7 @@ function App() {
     setChatSessionId("");
     setChatSessionTitleDraft("");
     setChatSessionRemoteIdDraft("");
-    setChatMessages([]);
+    setChatTurns([]);
     setChatDraftMessage("");
     setChatError("");
     setCodexAuthState(null);
@@ -5482,7 +5596,7 @@ function App() {
   useEffect(() => {
     if (!selectedCompanyId) {
       setChatAgentId("");
-      setChatMessages([]);
+      setChatTurns([]);
       return;
     }
 
@@ -5502,7 +5616,7 @@ function App() {
     if (!chatAgentId) {
       setChatSessionId((currentSessionId) => (currentSessionId ? "" : currentSessionId));
       setChatSessions((currentSessions) => (currentSessions.length > 0 ? [] : currentSessions));
-      setChatMessages((currentMessages) => (currentMessages.length > 0 ? [] : currentMessages));
+      setChatTurns((currentTurns) => (currentTurns.length > 0 ? [] : currentTurns));
       return;
     }
 
@@ -5513,7 +5627,7 @@ function App() {
 
     if (activePage === "agents" && agentsRoute.view === "sessions") {
       setChatSessionId("");
-      setChatMessages([]);
+      setChatTurns([]);
       return;
     }
 
@@ -5550,7 +5664,7 @@ function App() {
       }
       if (agentsRoute.view === "sessions") {
         setChatSessionId("");
-        setChatMessages([]);
+        setChatTurns([]);
       }
       if (agentsRoute.view === "chat" && agentsRoute.sessionId) {
         setChatSessionId(agentsRoute.sessionId);
@@ -6812,7 +6926,7 @@ function App() {
       }
       setChatDraftMessage("");
       await loadAgentChatSessions({ silently: true });
-      await loadAgentChatMessages();
+      await loadAgentChatTurns();
     } catch (sendError) {
       setChatError(sendError.message);
     } finally {
@@ -7132,7 +7246,7 @@ function App() {
   function handleOpenAgentSessions(agentId) {
     setChatAgentId(agentId);
     setChatSessionId("");
-    setChatMessages([]);
+    setChatTurns([]);
     window.location.hash = `#agents/${agentId}/sessions`;
   }
 
@@ -7467,7 +7581,7 @@ function App() {
               selectedCompanyId={selectedCompanyId}
               agent={agents.find((agent) => agent.id === chatAgentId) || null}
               session={selectedChatSession}
-              chatMessages={chatMessages}
+              chatTurns={chatTurns}
               isLoadingChat={isLoadingChat}
               chatError={chatError}
               chatDraftMessage={chatDraftMessage}
