@@ -1479,6 +1479,128 @@ function formatTimestamp(value) {
   return parsedDate.toLocaleString();
 }
 
+const CODEX_STREAM_DEFAULT_TURN_KEY = "__default_turn__";
+const CODEX_TURN_COMPLETION_TYPES = new Set([
+  "turn.completed",
+  "turn.failed",
+  "turn.cancelled",
+  "turn.error",
+]);
+
+function parseCodexStreamPayload(message) {
+  if (String(message?.role || "").trim().toLowerCase() !== "llm") {
+    return null;
+  }
+  const rawContent = String(message?.content || "").trim();
+  if (!rawContent.startsWith("{") || !rawContent.endsWith("}")) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(rawContent);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function getCodexStreamEventType(payload) {
+  if (!payload || typeof payload !== "object") {
+    return "";
+  }
+  const topLevelType = String(payload.type || "").trim().toLowerCase();
+  if (topLevelType === "item" && payload.item && typeof payload.item === "object") {
+    return String(payload.item.type || "").trim().toLowerCase() || topLevelType;
+  }
+  return topLevelType;
+}
+
+function getCodexStreamTurnKey(payload) {
+  if (!payload || typeof payload !== "object") {
+    return CODEX_STREAM_DEFAULT_TURN_KEY;
+  }
+  const candidates = [
+    payload.turn_id,
+    payload.turnId,
+    payload.id,
+    payload.turn?.id,
+    payload.item?.turn_id,
+    payload.item?.turnId,
+  ];
+  for (const candidate of candidates) {
+    const cleaned = String(candidate || "").trim();
+    if (cleaned) {
+      return cleaned;
+    }
+  }
+  return CODEX_STREAM_DEFAULT_TURN_KEY;
+}
+
+function flattenCodexStreamText(value) {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry) => flattenCodexStreamText(entry)).filter(Boolean).join("\n").trim();
+  }
+  if (!value || typeof value !== "object") {
+    return "";
+  }
+
+  const directFields = [
+    "text",
+    "message",
+    "output_text",
+    "content",
+    "delta",
+    "summary",
+    "reasoning",
+  ];
+  for (const fieldName of directFields) {
+    if (!(fieldName in value)) {
+      continue;
+    }
+    const text = flattenCodexStreamText(value[fieldName]);
+    if (text) {
+      return text;
+    }
+  }
+  return "";
+}
+
+function getCodexStreamDisplayText(payload) {
+  const text = flattenCodexStreamText(payload);
+  if (text) {
+    return text;
+  }
+  return JSON.stringify(payload, null, 2);
+}
+
+function getActiveCodexTurnKeys(chatMessages) {
+  const activeTurnKeys = new Set();
+  for (const message of Array.isArray(chatMessages) ? chatMessages : []) {
+    const payload = parseCodexStreamPayload(message);
+    if (!payload) {
+      continue;
+    }
+    const eventType = getCodexStreamEventType(payload);
+    if (!eventType) {
+      continue;
+    }
+    const turnKey = getCodexStreamTurnKey(payload);
+    if (eventType === "turn.started") {
+      activeTurnKeys.add(turnKey);
+      continue;
+    }
+    if (CODEX_TURN_COMPLETION_TYPES.has(eventType)) {
+      activeTurnKeys.delete(turnKey);
+    }
+  }
+  return activeTurnKeys;
+}
+
 function quoteShellArg(value) {
   const normalizedValue = String(value ?? "");
   if (/^[A-Za-z0-9_./:-]+$/.test(normalizedValue)) {
@@ -4206,6 +4328,10 @@ function AgentChatPage({
   onSendChatMessage,
 }) {
   const canChat = Boolean(agent && session);
+  const activeCodexTurnKeys = useMemo(
+    () => getActiveCodexTurnKeys(chatMessages),
+    [chatMessages],
+  );
 
   function handleChatMessageKeyDown(event) {
     if (event.key !== "Enter" || event.shiftKey || event.isComposing) {
@@ -4269,22 +4395,53 @@ function AgentChatPage({
         ) : null}
         {chatMessages.length > 0 ? (
           <ul className="chat-message-list">
-            {chatMessages.map((message) => (
-              <li
-                key={message.id}
-                className={`chat-message-item chat-message-item-${
-                  message.role === "human" ? "user" : "assistant"
-                }`}
-              >
-                <div className="chat-message-meta">
-                  <strong>{message.role === "human" ? "human" : "llm"}</strong>
-                  <span>{message.status}</span>
-                  <span>{formatTimestamp(message.createdAt)}</span>
-                </div>
-                <p className="chat-message-content">{message.content}</p>
-                {message.error ? <p className="chat-message-error">{message.error}</p> : null}
-              </li>
-            ))}
+            {chatMessages.map((message) => {
+              const codexPayload = parseCodexStreamPayload(message);
+              const codexEventType = getCodexStreamEventType(codexPayload);
+              const codexTurnKey = getCodexStreamTurnKey(codexPayload);
+              const isReasoning = codexEventType === "reasoning";
+              const isAgentMessage = codexEventType === "agent_message";
+              const isTurnStarted = codexEventType === "turn.started";
+              const showTurnSpinner =
+                isTurnStarted && activeCodexTurnKeys.has(codexTurnKey);
+              const contentClassNames = [
+                "chat-message-content",
+                isReasoning ? "chat-message-content-reasoning" : "",
+                isAgentMessage ? "chat-message-content-agent-message" : "",
+                codexPayload && !isReasoning && !isAgentMessage ? "chat-message-content-codex" : "",
+              ]
+                .filter(Boolean)
+                .join(" ");
+
+              return (
+                <li
+                  key={message.id}
+                  className={`chat-message-item chat-message-item-${
+                    message.role === "human" ? "user" : "assistant"
+                  }`}
+                >
+                  <div className="chat-message-meta">
+                    <strong>{message.role === "human" ? "human" : "llm"}</strong>
+                    <span>{message.status}</span>
+                    {codexEventType ? (
+                      <span className="chat-message-kind">{codexEventType}</span>
+                    ) : null}
+                    {showTurnSpinner ? (
+                      <span
+                        className="chat-turn-spinner"
+                        aria-label="Codex turn is running"
+                        title="Turn in progress"
+                      />
+                    ) : null}
+                    <span>{formatTimestamp(message.createdAt)}</span>
+                  </div>
+                  <p className={contentClassNames}>
+                    {codexPayload ? getCodexStreamDisplayText(codexPayload) : message.content}
+                  </p>
+                  {message.error ? <p className="chat-message-error">{message.error}</p> : null}
+                </li>
+              );
+            })}
           </ul>
         ) : null}
       </section>
