@@ -8,6 +8,12 @@ const DEFAULT_RUNNER_GRPC_TARGET =
 const CODEX_DEVICE_AUTH_URL = "https://auth.openai.com/codex/device";
 const AVAILABLE_AGENT_SDKS = ["codex"];
 const DEFAULT_AGENT_SDK = AVAILABLE_AGENT_SDKS[0];
+const SKILL_TYPE_TEXT = "text";
+const SKILL_TYPE_SKILLSMP = "skillsmp";
+const SKILL_TYPE_OPTIONS = [
+  { value: SKILL_TYPE_TEXT, label: "Text" },
+  { value: SKILL_TYPE_SKILLSMP, label: "SkillsMP" },
+];
 const MCP_TRANSPORT_TYPE_STREAMABLE_HTTP = "streamable_http";
 const MCP_TRANSPORT_TYPE_STDIO = "stdio";
 const MCP_TRANSPORT_TYPE_OPTIONS = [
@@ -181,6 +187,21 @@ const LIST_AGENTS_QUERY = `
       agentRunnerId
       skillIds
       mcpServerIds
+      installedSkills {
+        companyId
+        agentId
+        skillId
+        skillName
+        skillType
+        skillsMpPackageName
+        requestId
+        status
+        message
+        installLogs
+        installedAt
+        createdAt
+        updatedAt
+      }
       name
       agentSdk
       model
@@ -195,6 +216,8 @@ const LIST_SKILLS_QUERY = `
       id
       companyId
       name
+      skillType
+      skillsMpPackageName
       description
       instructions
     }
@@ -394,12 +417,16 @@ const CREATE_SKILL_MUTATION = `
   mutation CreateSkill(
     $companyId: String!
     $name: String!
-    $description: String!
-    $instructions: String!
+    $skillType: String
+    $skillsMpPackageName: String
+    $description: String
+    $instructions: String
   ) {
     createSkill(
       companyId: $companyId
       name: $name
+      skillType: $skillType
+      skillsMpPackageName: $skillsMpPackageName
       description: $description
       instructions: $instructions
     ) {
@@ -409,6 +436,8 @@ const CREATE_SKILL_MUTATION = `
         id
         companyId
         name
+        skillType
+        skillsMpPackageName
         description
         instructions
       }
@@ -421,13 +450,17 @@ const UPDATE_SKILL_MUTATION = `
     $companyId: String!
     $id: String!
     $name: String!
-    $description: String!
-    $instructions: String!
+    $skillType: String
+    $skillsMpPackageName: String
+    $description: String
+    $instructions: String
   ) {
     updateSkill(
       companyId: $companyId
       id: $id
       name: $name
+      skillType: $skillType
+      skillsMpPackageName: $skillsMpPackageName
       description: $description
       instructions: $instructions
     ) {
@@ -437,6 +470,8 @@ const UPDATE_SKILL_MUTATION = `
         id
         companyId
         name
+        skillType
+        skillsMpPackageName
         description
         instructions
       }
@@ -580,6 +615,45 @@ const INITIALIZE_AGENT_MUTATION = `
       commandId
       runnerId
       agentId
+      queuedSkillInstallCount
+    }
+  }
+`;
+
+const RETRY_AGENT_SKILL_INSTALL_MUTATION = `
+  mutation RetryAgentSkillInstall(
+    $companyId: String!
+    $agentId: String!
+    $skillId: String!
+    $runnerId: String
+  ) {
+    retryAgentSkillInstall(
+      companyId: $companyId
+      agentId: $agentId
+      skillId: $skillId
+      runnerId: $runnerId
+    ) {
+      ok
+      error
+      requestId
+      runnerId
+      agentId
+      skillId
+      installedSkill {
+        companyId
+        agentId
+        skillId
+        skillName
+        skillType
+        skillsMpPackageName
+        requestId
+        status
+        message
+        installLogs
+        installedAt
+        createdAt
+        updatedAt
+      }
     }
   }
 `;
@@ -867,6 +941,18 @@ function normalizeUniqueStringList(values) {
     normalizedValues.push(cleanValue);
   }
   return normalizedValues;
+}
+
+function normalizeSkillType(value) {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/-/g, "_")
+    .replace(/\s+/g, "_");
+  if (normalized === SKILL_TYPE_SKILLSMP) {
+    return SKILL_TYPE_SKILLSMP;
+  }
+  return SKILL_TYPE_TEXT;
 }
 
 function normalizeMcpTransportType(value) {
@@ -1188,8 +1274,14 @@ function createAgentDrafts(agents) {
 
 function createSkillDrafts(skills) {
   return skills.reduce((drafts, skill) => {
+    const normalizedSkillType = normalizeSkillType(skill.skillType);
     drafts[skill.id] = {
       name: skill.name || "",
+      skillType: normalizedSkillType,
+      skillsMpPackageName:
+        normalizedSkillType === SKILL_TYPE_SKILLSMP
+          ? String(skill.skillsMpPackageName || "").trim()
+          : "",
       description: skill.description || "",
       instructions: skill.instructions || "",
     };
@@ -2425,6 +2517,7 @@ function AgentsPage({
   savingAgentId,
   deletingAgentId,
   initializingAgentId,
+  retryingAgentSkillInstallKey,
   canInitializeAgents,
   agentRunnerId,
   agentSkillIds,
@@ -2446,6 +2539,7 @@ function AgentsPage({
   onAgentDraftChange,
   onSaveAgent,
   onInitializeAgent,
+  onRetryAgentSkillInstall,
   onOpenAgentSessions,
   onDeleteAgent,
 }) {
@@ -2544,7 +2638,12 @@ function AgentsPage({
                 : "Unassigned";
               const assignedSkillLabels = (agent.skillIds || []).map((skillId) => {
                 const skill = skillLookup.get(skillId);
-                return skill ? skill.name : skillId;
+                if (!skill) {
+                  return skillId;
+                }
+                const skillTypeLabel =
+                  normalizeSkillType(skill.skillType) === SKILL_TYPE_SKILLSMP ? " (SkillsMP)" : "";
+                return `${skill.name}${skillTypeLabel}`;
               });
               const assignedSkillSummary =
                 assignedSkillLabels.length > 0 ? assignedSkillLabels.join(", ") : "none";
@@ -2554,6 +2653,12 @@ function AgentsPage({
               });
               const assignedMcpServerSummary =
                 assignedMcpServerLabels.length > 0 ? assignedMcpServerLabels.join(", ") : "none";
+              const installedSkillRows = Array.isArray(agent.installedSkills)
+                ? agent.installedSkills.filter(
+                    (installedSkill) =>
+                      normalizeSkillType(installedSkill?.skillType) === SKILL_TYPE_SKILLSMP,
+                  )
+                : [];
               const draft = agentDrafts[agent.id] || {
                 agentRunnerId: "",
                 skillIds: [],
@@ -2598,6 +2703,49 @@ function AgentsPage({
                   <p className="agent-subcopy">
                     MCP servers: <strong>{assignedMcpServerSummary}</strong>
                   </p>
+                  {installedSkillRows.length > 0 ? (
+                    <div className="agent-installed-skills">
+                      <p className="agent-subcopy">
+                        SkillsMP install status:
+                      </p>
+                      {installedSkillRows.map((installedSkill) => {
+                        const installKey = `${agent.id}:${installedSkill.skillId}`;
+                        const retryingThisInstall = retryingAgentSkillInstallKey === installKey;
+                        const installStatus = String(installedSkill.status || "").trim() || "unknown";
+                        const installMessage = String(installedSkill.message || "").trim();
+                        const installLogs = String(installedSkill.installLogs || "").trim();
+                        return (
+                          <div key={`installed-skill-${installKey}`} className="agent-installed-skill-row">
+                            <p className="agent-subcopy">
+                              <strong>{installedSkill.skillName || installedSkill.skillId}</strong>:{" "}
+                              <span className={`agent-install-status agent-install-status-${installStatus}`}>
+                                {installStatus}
+                              </span>
+                              {installMessage ? ` (${installMessage})` : ""}
+                            </p>
+                            <div className="task-card-actions">
+                              <button
+                                type="button"
+                                className="secondary-btn"
+                                onClick={() =>
+                                  onRetryAgentSkillInstall(agent.id, installedSkill.skillId)
+                                }
+                                disabled={retryingThisInstall || isSavingOrDeleting}
+                              >
+                                {retryingThisInstall ? "Retrying..." : "Retry install"}
+                              </button>
+                            </div>
+                            {installLogs ? (
+                              <details className="agent-install-logs">
+                                <summary>View install logs</summary>
+                                <pre>{installLogs}</pre>
+                              </details>
+                            ) : null}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : null}
 
                   <div className="relationship-editor">
                     <div className="agent-edit-grid">
@@ -2729,7 +2877,11 @@ function AgentsPage({
                       >
                         {skills.map((skill) => (
                           <option key={`agent-skill-option-${agent.id}-${skill.id}`} value={skill.id}>
-                            {skill.name}
+                            {`${skill.name}${
+                              normalizeSkillType(skill.skillType) === SKILL_TYPE_SKILLSMP
+                                ? " (SkillsMP)"
+                                : ""
+                            }`}
                           </option>
                         ))}
                       </select>
@@ -2891,7 +3043,9 @@ function AgentsPage({
           >
             {skills.map((skill) => (
               <option key={`create-agent-skill-${skill.id}`} value={skill.id}>
-                {skill.name}
+                {`${skill.name}${
+                  normalizeSkillType(skill.skillType) === SKILL_TYPE_SKILLSMP ? " (SkillsMP)" : ""
+                }`}
               </option>
             ))}
           </select>
@@ -3044,11 +3198,15 @@ function SkillsPage({
   savingSkillId,
   deletingSkillId,
   skillName,
+  skillType,
+  skillSkillsMpPackageName,
   skillDescription,
   skillInstructions,
   skillDrafts,
   skillCountLabel,
   onSkillNameChange,
+  onSkillTypeChange,
+  onSkillSkillsMpPackageNameChange,
   onSkillDescriptionChange,
   onSkillInstructionsChange,
   onCreateSkill,
@@ -3110,80 +3268,145 @@ function SkillsPage({
 
         {skills.length > 0 ? (
           <ul className="task-list">
-            {skills.map((skill) => (
-              <li key={skill.id} className="task-card">
-                <div className="task-card-top">
-                  <strong>{skill.name}</strong>
-                  <code className="runner-id">{skill.id}</code>
-                </div>
-                <p className="agent-subcopy">{skill.description}</p>
-                <div className="relationship-editor">
-                  <div className="skill-edit-grid">
-                    <label className="relationship-field" htmlFor={`skill-name-${skill.id}`}>
-                      Name
-                    </label>
-                    <input
-                      id={`skill-name-${skill.id}`}
-                      value={skillDrafts[skill.id]?.name ?? ""}
-                      onChange={(event) =>
-                        onSkillDraftChange(skill.id, "name", event.target.value)
-                      }
-                      disabled={savingSkillId === skill.id || deletingSkillId === skill.id}
-                    />
-
-                    <label
-                      className="relationship-field"
-                      htmlFor={`skill-description-${skill.id}`}
-                    >
-                      Description
-                    </label>
-                    <textarea
-                      id={`skill-description-${skill.id}`}
-                      rows={2}
-                      value={skillDrafts[skill.id]?.description ?? ""}
-                      onChange={(event) =>
-                        onSkillDraftChange(skill.id, "description", event.target.value)
-                      }
-                      disabled={savingSkillId === skill.id || deletingSkillId === skill.id}
-                    />
-
-                    <label
-                      className="relationship-field"
-                      htmlFor={`skill-instructions-${skill.id}`}
-                    >
-                      Instructions
-                    </label>
-                    <textarea
-                      id={`skill-instructions-${skill.id}`}
-                      rows={4}
-                      value={skillDrafts[skill.id]?.instructions ?? ""}
-                      onChange={(event) =>
-                        onSkillDraftChange(skill.id, "instructions", event.target.value)
-                      }
-                      disabled={savingSkillId === skill.id || deletingSkillId === skill.id}
-                    />
+            {skills.map((skill) => {
+              const draft = skillDrafts[skill.id] || {
+                name: "",
+                skillType: SKILL_TYPE_TEXT,
+                skillsMpPackageName: "",
+                description: "",
+                instructions: "",
+              };
+              const resolvedSkillType = normalizeSkillType(draft.skillType);
+              const isSavingOrDeleting =
+                savingSkillId === skill.id || deletingSkillId === skill.id;
+              return (
+                <li key={skill.id} className="task-card">
+                  <div className="task-card-top">
+                    <strong>{skill.name}</strong>
+                    <code className="runner-id">{skill.id}</code>
                   </div>
-                  <div className="task-card-actions">
-                    <button
-                      type="button"
-                      className="secondary-btn relationship-save-btn"
-                      onClick={() => onSaveSkill(skill.id)}
-                      disabled={savingSkillId === skill.id || deletingSkillId === skill.id}
-                    >
-                      {savingSkillId === skill.id ? "Saving..." : "Save"}
-                    </button>
-                    <button
-                      type="button"
-                      className="danger-btn"
-                      onClick={() => onDeleteSkill(skill.id, skill.name)}
-                      disabled={savingSkillId === skill.id || deletingSkillId === skill.id}
-                    >
-                      {deletingSkillId === skill.id ? "Deleting..." : "Delete"}
-                    </button>
+                  <p className="agent-subcopy">
+                    Type: <strong>{resolvedSkillType === SKILL_TYPE_SKILLSMP ? "SkillsMP" : "Text"}</strong>
+                  </p>
+                  {resolvedSkillType === SKILL_TYPE_SKILLSMP ? (
+                    <p className="agent-subcopy">
+                      Package: <strong>{draft.skillsMpPackageName || "-"}</strong>
+                    </p>
+                  ) : (
+                    <p className="agent-subcopy">{draft.description}</p>
+                  )}
+                  <div className="relationship-editor">
+                    <div className="skill-edit-grid">
+                      <label className="relationship-field" htmlFor={`skill-name-${skill.id}`}>
+                        Name
+                      </label>
+                      <input
+                        id={`skill-name-${skill.id}`}
+                        value={draft.name}
+                        onChange={(event) =>
+                          onSkillDraftChange(skill.id, "name", event.target.value)
+                        }
+                        disabled={isSavingOrDeleting}
+                      />
+
+                      <label className="relationship-field" htmlFor={`skill-type-${skill.id}`}>
+                        Type
+                      </label>
+                      <select
+                        id={`skill-type-${skill.id}`}
+                        value={resolvedSkillType}
+                        onChange={(event) =>
+                          onSkillDraftChange(skill.id, "skillType", event.target.value)
+                        }
+                        disabled={isSavingOrDeleting}
+                      >
+                        {SKILL_TYPE_OPTIONS.map((option) => (
+                          <option key={`${skill.id}-skill-type-${option.value}`} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+
+                      {resolvedSkillType === SKILL_TYPE_SKILLSMP ? (
+                        <>
+                          <label
+                            className="relationship-field"
+                            htmlFor={`skill-package-${skill.id}`}
+                          >
+                            SkillsMP package
+                          </label>
+                          <input
+                            id={`skill-package-${skill.id}`}
+                            value={draft.skillsMpPackageName}
+                            onChange={(event) =>
+                              onSkillDraftChange(
+                                skill.id,
+                                "skillsMpPackageName",
+                                event.target.value,
+                              )
+                            }
+                            placeholder="upstash/context7 or npx skills add upstash/context7"
+                            disabled={isSavingOrDeleting}
+                          />
+                        </>
+                      ) : (
+                        <>
+                          <label
+                            className="relationship-field"
+                            htmlFor={`skill-description-${skill.id}`}
+                          >
+                            Description
+                          </label>
+                          <textarea
+                            id={`skill-description-${skill.id}`}
+                            rows={2}
+                            value={draft.description}
+                            onChange={(event) =>
+                              onSkillDraftChange(skill.id, "description", event.target.value)
+                            }
+                            disabled={isSavingOrDeleting}
+                          />
+
+                          <label
+                            className="relationship-field"
+                            htmlFor={`skill-instructions-${skill.id}`}
+                          >
+                            Instructions
+                          </label>
+                          <textarea
+                            id={`skill-instructions-${skill.id}`}
+                            rows={4}
+                            value={draft.instructions}
+                            onChange={(event) =>
+                              onSkillDraftChange(skill.id, "instructions", event.target.value)
+                            }
+                            disabled={isSavingOrDeleting}
+                          />
+                        </>
+                      )}
+                    </div>
+                    <div className="task-card-actions">
+                      <button
+                        type="button"
+                        className="secondary-btn relationship-save-btn"
+                        onClick={() => onSaveSkill(skill.id)}
+                        disabled={isSavingOrDeleting}
+                      >
+                        {savingSkillId === skill.id ? "Saving..." : "Save"}
+                      </button>
+                      <button
+                        type="button"
+                        className="danger-btn"
+                        onClick={() => onDeleteSkill(skill.id, skill.name)}
+                        disabled={isSavingOrDeleting}
+                      >
+                        {deletingSkillId === skill.id ? "Deleting..." : "Delete"}
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         ) : null}
       </section>
@@ -3207,27 +3430,57 @@ function SkillsPage({
             autoFocus
           />
 
-          <label htmlFor="skill-description">Description</label>
-          <textarea
-            id="skill-description"
-            name="description"
-            rows={2}
-            placeholder="One sentence summary..."
-            value={skillDescription}
-            onChange={(event) => onSkillDescriptionChange(event.target.value)}
-            required
-          />
+          <label htmlFor="skill-type">Type</label>
+          <select
+            id="skill-type"
+            name="skillType"
+            value={skillType}
+            onChange={(event) => onSkillTypeChange(event.target.value)}
+          >
+            {SKILL_TYPE_OPTIONS.map((option) => (
+              <option key={`create-skill-type-${option.value}`} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
 
-          <label htmlFor="skill-instructions">Instructions</label>
-          <textarea
-            id="skill-instructions"
-            name="instructions"
-            rows={5}
-            placeholder="Detailed instructions..."
-            value={skillInstructions}
-            onChange={(event) => onSkillInstructionsChange(event.target.value)}
-            required
-          />
+          {normalizeSkillType(skillType) === SKILL_TYPE_SKILLSMP ? (
+            <>
+              <label htmlFor="skill-package-name">SkillsMP package</label>
+              <input
+                id="skill-package-name"
+                name="skillsMpPackageName"
+                placeholder="upstash/context7 or npx skills add upstash/context7"
+                value={skillSkillsMpPackageName}
+                onChange={(event) => onSkillSkillsMpPackageNameChange(event.target.value)}
+                required
+              />
+            </>
+          ) : (
+            <>
+              <label htmlFor="skill-description">Description</label>
+              <textarea
+                id="skill-description"
+                name="description"
+                rows={2}
+                placeholder="One sentence summary..."
+                value={skillDescription}
+                onChange={(event) => onSkillDescriptionChange(event.target.value)}
+                required
+              />
+
+              <label htmlFor="skill-instructions">Instructions</label>
+              <textarea
+                id="skill-instructions"
+                name="instructions"
+                rows={5}
+                placeholder="Detailed instructions..."
+                value={skillInstructions}
+                onChange={(event) => onSkillInstructionsChange(event.target.value)}
+                required
+              />
+            </>
+          )}
 
           <button type="submit" disabled={isCreatingSkill}>
             {isCreatingSkill ? "Creating..." : "Create skill"}
@@ -4075,12 +4328,15 @@ function App() {
   const [savingAgentId, setSavingAgentId] = useState(null);
   const [deletingAgentId, setDeletingAgentId] = useState(null);
   const [initializingAgentId, setInitializingAgentId] = useState(null);
+  const [retryingAgentSkillInstallKey, setRetryingAgentSkillInstallKey] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [parentTaskId, setParentTaskId] = useState("");
   const [dependsOnTaskId, setDependsOnTaskId] = useState("");
   const [relationshipDrafts, setRelationshipDrafts] = useState({});
   const [skillName, setSkillName] = useState("");
+  const [skillType, setSkillType] = useState(SKILL_TYPE_TEXT);
+  const [skillSkillsMpPackageName, setSkillSkillsMpPackageName] = useState("");
   const [skillDescription, setSkillDescription] = useState("");
   const [skillInstructions, setSkillInstructions] = useState("");
   const [skillDrafts, setSkillDrafts] = useState({});
@@ -4515,6 +4771,8 @@ function App() {
     setRunnerSecretsById({});
     setRegeneratingRunnerId(null);
     setSkillName("");
+    setSkillType(SKILL_TYPE_TEXT);
+    setSkillSkillsMpPackageName("");
     setSkillDescription("");
     setSkillInstructions("");
     setMcpServers([]);
@@ -4542,6 +4800,7 @@ function App() {
     setCodexAuthError("");
     setCodexAuthCopyFeedback("");
     setAgentMcpServerIds([]);
+    setRetryingAgentSkillInstallKey("");
   }, [selectedCompanyId]);
 
   useEffect(() => {
@@ -4896,14 +5155,77 @@ function App() {
     }
   }
 
+  function resolveSkillMutationPayload({
+    name: rawName,
+    skillType: rawSkillType,
+    skillsMpPackageName: rawSkillsMpPackageName,
+    description: rawDescription,
+    instructions: rawInstructions,
+  }) {
+    const name = String(rawName || "").trim();
+    const resolvedSkillType = normalizeSkillType(rawSkillType);
+    const skillsMpPackageName = String(rawSkillsMpPackageName || "").trim();
+    const description = String(rawDescription || "").trim();
+    const instructions = String(rawInstructions || "").trim();
+
+    if (!name) {
+      return { payload: null, error: "Skill name is required." };
+    }
+
+    if (resolvedSkillType === SKILL_TYPE_SKILLSMP) {
+      if (!skillsMpPackageName) {
+        return {
+          payload: null,
+          error: "SkillsMP package is required (for example: upstash/context7).",
+        };
+      }
+      return {
+        payload: {
+          name,
+          skillType: resolvedSkillType,
+          skillsMpPackageName,
+          description: description || null,
+          instructions: instructions || null,
+        },
+        error: "",
+      };
+    }
+
+    if (!description || !instructions) {
+      return {
+        payload: null,
+        error: "Text skills require both description and instructions.",
+      };
+    }
+
+    return {
+      payload: {
+        name,
+        skillType: resolvedSkillType,
+        skillsMpPackageName: null,
+        description,
+        instructions,
+      },
+      error: "",
+    };
+  }
+
   async function handleCreateSkill(event) {
     event.preventDefault();
     if (!selectedCompanyId) {
       setSkillError("Select a company before creating skills.");
       return false;
     }
-    if (!skillName.trim() || !skillDescription.trim() || !skillInstructions.trim()) {
-      setSkillError("Skill name, description, and instructions are required.");
+
+    const { payload, error } = resolveSkillMutationPayload({
+      name: skillName,
+      skillType,
+      skillsMpPackageName: skillSkillsMpPackageName,
+      description: skillDescription,
+      instructions: skillInstructions,
+    });
+    if (error) {
+      setSkillError(error);
       return false;
     }
 
@@ -4912,15 +5234,15 @@ function App() {
       setSkillError("");
       const data = await executeGraphQL(CREATE_SKILL_MUTATION, {
         companyId: selectedCompanyId,
-        name: skillName.trim(),
-        description: skillDescription.trim(),
-        instructions: skillInstructions.trim(),
+        ...payload,
       });
       const result = data.createSkill;
       if (!result.ok) {
         throw new Error(result.error || "Skill creation failed.");
       }
       setSkillName("");
+      setSkillType(SKILL_TYPE_TEXT);
+      setSkillSkillsMpPackageName("");
       setSkillDescription("");
       setSkillInstructions("");
       await loadSkills();
@@ -4940,11 +5262,21 @@ function App() {
     }
     const draft = skillDrafts[skillId] || {
       name: "",
+      skillType: SKILL_TYPE_TEXT,
+      skillsMpPackageName: "",
       description: "",
       instructions: "",
     };
-    if (!draft.name.trim() || !draft.description.trim() || !draft.instructions.trim()) {
-      setSkillError("Skill name, description, and instructions are required to save.");
+
+    const { payload, error } = resolveSkillMutationPayload({
+      name: draft.name,
+      skillType: draft.skillType,
+      skillsMpPackageName: draft.skillsMpPackageName,
+      description: draft.description,
+      instructions: draft.instructions,
+    });
+    if (error) {
+      setSkillError(error);
       return;
     }
 
@@ -4954,9 +5286,7 @@ function App() {
       const data = await executeGraphQL(UPDATE_SKILL_MUTATION, {
         companyId: selectedCompanyId,
         id: skillId,
-        name: draft.name.trim(),
-        description: draft.description.trim(),
-        instructions: draft.instructions.trim(),
+        ...payload,
       });
       const result = data.updateSkill;
       if (!result.ok) {
@@ -5653,10 +5983,56 @@ function App() {
         throw new Error(result.error || "Initialize agent failed.");
       }
       await loadAgentRunners({ silently: true });
+      await loadAgents();
     } catch (initializeError) {
       setAgentError(initializeError.message);
     } finally {
       setInitializingAgentId(null);
+    }
+  }
+
+  async function handleRetryAgentSkillInstall(agentId, skillId) {
+    if (!selectedCompanyId) {
+      setAgentError("Select a company before retrying skill installs.");
+      return;
+    }
+
+    const resolvedAgentId = String(agentId || "").trim();
+    const resolvedSkillId = String(skillId || "").trim();
+    if (!resolvedAgentId || !resolvedSkillId) {
+      setAgentError("Agent id and skill id are required to retry installation.");
+      return;
+    }
+
+    const selectedAgent = agents.find((agent) => agent.id === resolvedAgentId) || null;
+    if (!selectedAgent) {
+      setAgentError(`Agent ${resolvedAgentId} was not found.`);
+      return;
+    }
+    if (!selectedAgent.agentRunnerId) {
+      setAgentError("Assign a runner to this agent before retrying install.");
+      return;
+    }
+
+    const retryKey = `${resolvedAgentId}:${resolvedSkillId}`;
+    try {
+      setRetryingAgentSkillInstallKey(retryKey);
+      setAgentError("");
+      const data = await executeGraphQL(RETRY_AGENT_SKILL_INSTALL_MUTATION, {
+        companyId: selectedCompanyId,
+        agentId: resolvedAgentId,
+        skillId: resolvedSkillId,
+        runnerId: selectedAgent.agentRunnerId,
+      });
+      const result = data.retryAgentSkillInstall;
+      if (!result.ok) {
+        throw new Error(result.error || "Retry skill install failed.");
+      }
+      await loadAgents();
+    } catch (retryError) {
+      setAgentError(retryError.message);
+    } finally {
+      setRetryingAgentSkillInstallKey("");
     }
   }
 
@@ -5890,13 +6266,26 @@ function App() {
   }
 
   function handleSkillDraftChange(skillId, field, value) {
-    setSkillDrafts((currentDrafts) => ({
-      ...currentDrafts,
-      [skillId]: {
-        ...(currentDrafts[skillId] || { name: "", description: "", instructions: "" }),
+    setSkillDrafts((currentDrafts) => {
+      const currentDraft = currentDrafts[skillId] || {
+        name: "",
+        skillType: SKILL_TYPE_TEXT,
+        skillsMpPackageName: "",
+        description: "",
+        instructions: "",
+      };
+      const nextDraft = {
+        ...currentDraft,
         [field]: value,
-      },
-    }));
+      };
+      if (field === "skillType") {
+        nextDraft.skillType = normalizeSkillType(value);
+      }
+      return {
+        ...currentDrafts,
+        [skillId]: nextDraft,
+      };
+    });
   }
 
   function handleCreateAgentRunnerChange(nextRunnerId) {
@@ -6231,11 +6620,15 @@ function App() {
             savingSkillId={savingSkillId}
             deletingSkillId={deletingSkillId}
             skillName={skillName}
+            skillType={skillType}
+            skillSkillsMpPackageName={skillSkillsMpPackageName}
             skillDescription={skillDescription}
             skillInstructions={skillInstructions}
             skillDrafts={skillDrafts}
             skillCountLabel={skillCountLabel}
             onSkillNameChange={setSkillName}
+            onSkillTypeChange={(value) => setSkillType(normalizeSkillType(value))}
+            onSkillSkillsMpPackageNameChange={setSkillSkillsMpPackageName}
             onSkillDescriptionChange={setSkillDescription}
             onSkillInstructionsChange={setSkillInstructions}
             onCreateSkill={handleCreateSkill}
@@ -6377,6 +6770,7 @@ function App() {
               savingAgentId={savingAgentId}
               deletingAgentId={deletingAgentId}
               initializingAgentId={initializingAgentId}
+              retryingAgentSkillInstallKey={retryingAgentSkillInstallKey}
               canInitializeAgents={hasReadyRunner}
               agentRunnerId={agentRunnerId}
               agentSkillIds={agentSkillIds}
@@ -6398,6 +6792,7 @@ function App() {
               onAgentDraftChange={handleAgentDraftChange}
               onSaveAgent={handleSaveAgent}
               onInitializeAgent={handleInitializeAgent}
+              onRetryAgentSkillInstall={handleRetryAgentSkillInstall}
               onOpenAgentSessions={handleOpenAgentSessions}
               onDeleteAgent={handleDeleteAgent}
             />

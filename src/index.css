@@ -784,6 +784,64 @@ button:disabled {
   font-size: 0.88rem;
 }
 
+.agent-installed-skills {
+  margin: 0.4rem 0 0.58rem;
+  padding: 0.52rem 0.6rem;
+  border-radius: 10px;
+  border: 1px solid rgba(26, 32, 38, 0.12);
+  background: rgba(255, 255, 255, 0.62);
+  display: grid;
+  gap: 0.5rem;
+}
+
+.agent-installed-skill-row {
+  display: grid;
+  gap: 0.38rem;
+}
+
+.agent-install-status {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.76rem;
+  text-transform: lowercase;
+}
+
+.agent-install-status-installed {
+  color: #0f766e;
+}
+
+.agent-install-status-failed {
+  color: #9e1d24;
+}
+
+.agent-install-status-queued,
+.agent-install-status-installing,
+.agent-install-status-not_installed {
+  color: #1c679d;
+}
+
+.agent-install-logs {
+  border: 1px solid rgba(26, 32, 38, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 0.36rem 0.5rem;
+}
+
+.agent-install-logs summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--ink-1);
+}
+
+.agent-install-logs pre {
+  margin: 0.42rem 0 0;
+  max-height: 180px;
+  overflow: auto;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.74rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .task-id,
 .runner-id {
   margin: 0;
