@@ -1291,15 +1291,15 @@ function getAgentsRouteFromHash() {
     return { view: "list", agentId: "", sessionId: "" };
   }
 
-  if (segments[2] !== "sessions") {
+  if (segments[2] !== "chats") {
     return { view: "list", agentId: "", sessionId: "" };
   }
 
   const sessionId = segments[3] || "";
-  if (sessionId && segments[4] === "chat") {
+  if (sessionId) {
     return { view: "chat", agentId, sessionId };
   }
-  return { view: "sessions", agentId, sessionId: "" };
+  return { view: "chats", agentId, sessionId: "" };
 }
 
 function getPersistedCompanyId() {
@@ -2007,6 +2007,43 @@ function AppHeader({
       </p>
       {companyError ? <p className="header-error">Company error: {companyError}</p> : null}
     </header>
+  );
+}
+
+function Breadcrumbs({ items }) {
+  if (!Array.isArray(items) || items.length === 0) {
+    return null;
+  }
+
+  return (
+    <nav className="panel breadcrumb-panel" aria-label="Breadcrumb">
+      <ol className="breadcrumb-list">
+        {items.map((item, index) => {
+          const isLast = index === items.length - 1;
+          const label = String(item?.label || "").trim();
+          const href = String(item?.href || "").trim();
+          const key = `${label || "crumb"}-${index}`;
+
+          return (
+            <li key={key} className="breadcrumb-item">
+              {isLast || !href ? (
+                <span
+                  className={isLast ? "breadcrumb-current" : "breadcrumb-text"}
+                  aria-current={isLast ? "page" : undefined}
+                >
+                  {label || "Untitled"}
+                </span>
+              ) : (
+                <a className="breadcrumb-link" href={href}>
+                  {label}
+                </a>
+              )}
+              {!isLast ? <span className="breadcrumb-separator">/</span> : null}
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
   );
 }
 
@@ -5200,9 +5237,75 @@ function App() {
     return chatSessions.find((session) => session.id === chatSessionId) || null;
   }, [chatSessions, chatSessionId]);
 
+  const breadcrumbItems = useMemo(() => {
+    const currentPageLabel = NAV_ITEM_LOOKUP.get(activePage)?.label || "Dashboard";
+
+    const getAgentLabel = (agentId) => {
+      const resolvedAgentId = String(agentId || "").trim();
+      if (!resolvedAgentId) {
+        return "Agent";
+      }
+      const matchingAgent = agents.find((agent) => agent.id === resolvedAgentId);
+      return matchingAgent?.name || `Agent ${resolvedAgentId.slice(0, 8)}`;
+    };
+
+    const getChatLabel = (sessionId) => {
+      const resolvedSessionId = String(sessionId || "").trim();
+      if (!resolvedSessionId) {
+        return "Chat";
+      }
+      const chatTitle = String(selectedChatSession?.title || "").trim();
+      return chatTitle || `Chat ${resolvedSessionId.slice(0, 8)}`;
+    };
+
+    if (activePage === "agents") {
+      if (agentsRoute.view === "list" || !agentsRoute.agentId) {
+        return [{ label: "Agents" }];
+      }
+
+      const chatsHref = `#agents/${agentsRoute.agentId}/chats`;
+      const items = [
+        { label: "Agents", href: "#agents" },
+        { label: getAgentLabel(agentsRoute.agentId), href: chatsHref },
+      ];
+
+      if (agentsRoute.view === "chat" && agentsRoute.sessionId) {
+        return [
+          ...items,
+          { label: "Chats", href: chatsHref },
+          { label: getChatLabel(agentsRoute.sessionId) },
+        ];
+      }
+
+      return [...items, { label: "Chats" }];
+    }
+
+    if (activePage === "chats") {
+      const items = [{ label: "Chats" }];
+      if (chatAgentId) {
+        items.push({ label: getAgentLabel(chatAgentId) });
+      }
+      if (chatSessionId) {
+        items.push({ label: getChatLabel(chatSessionId) });
+      }
+      return items;
+    }
+
+    return [{ label: currentPageLabel }];
+  }, [
+    activePage,
+    agents,
+    agentsRoute.agentId,
+    agentsRoute.sessionId,
+    agentsRoute.view,
+    chatAgentId,
+    chatSessionId,
+    selectedChatSession?.title,
+  ]);
+
   const isChatsConversationView = activePage === "chats" && Boolean(chatAgentId) && Boolean(chatSessionId);
   const shouldSubscribeChatSessions =
-    (activePage === "agents" && (agentsRoute.view === "sessions" || agentsRoute.view === "chat")) ||
+    (activePage === "agents" && (agentsRoute.view === "chats" || agentsRoute.view === "chat")) ||
     (activePage === "chats" && Boolean(chatAgentId));
   const shouldSubscribeChatTurns = isChatsConversationView || (
     activePage === "agents" && agentsRoute.view === "chat" && Boolean(chatSessionId)
@@ -5938,7 +6041,7 @@ function App() {
       return;
     }
 
-    if (activePage === "agents" && agentsRoute.view === "sessions") {
+    if (activePage === "agents" && agentsRoute.view === "chats") {
       setChatSessionId("");
       setChatTurns([]);
       return;
@@ -5971,11 +6074,11 @@ function App() {
     if (activePage !== "agents") {
       return;
     }
-    if (agentsRoute.view === "sessions" || agentsRoute.view === "chat") {
+    if (agentsRoute.view === "chats" || agentsRoute.view === "chat") {
       if (agentsRoute.agentId) {
         setChatAgentId(agentsRoute.agentId);
       }
-      if (agentsRoute.view === "sessions") {
+      if (agentsRoute.view === "chats") {
         setChatSessionId("");
         setChatTurns([]);
       }
@@ -7317,6 +7420,7 @@ function App() {
     setChatSessionId(resolvedSessionId);
     setChatTurns([]);
     setChatError("");
+    window.location.hash = `#agents/${resolvedAgentId}/chats/${resolvedSessionId}`;
   }
 
   async function handleCreateChatForAgent(agentId) {
@@ -7327,7 +7431,10 @@ function App() {
     setChatAgentId(resolvedAgentId);
     setChatSessionId("");
     setChatTurns([]);
-    await handleCreateChatSession({ agentId: resolvedAgentId });
+    const createdSessionId = await handleCreateChatSession({ agentId: resolvedAgentId });
+    if (createdSessionId) {
+      window.location.hash = `#agents/${resolvedAgentId}/chats/${createdSessionId}`;
+    }
   }
 
   async function handleStartCodexDeviceAuth() {
@@ -7592,10 +7699,15 @@ function App() {
   }
 
   function handleOpenAgentSessions(agentId) {
-    setChatAgentId(agentId);
+    const resolvedAgentId = String(agentId || "").trim();
+    if (!resolvedAgentId) {
+      window.location.hash = "#agents";
+      return;
+    }
+    setChatAgentId(resolvedAgentId);
     setChatSessionId("");
     setChatTurns([]);
-    window.location.hash = "#chats";
+    window.location.hash = `#agents/${resolvedAgentId}/chats`;
   }
 
   const taskLookup = useMemo(() => {
@@ -7745,6 +7857,7 @@ function App() {
           onCompanyChange={setSelectedCompanyId}
           onOpenSettings={() => navigateTo("settings")}
         />
+        <Breadcrumbs items={breadcrumbItems} />
 
         {!selectedCompanyId && activePage !== "settings" && activePage !== "profile" ? (
           <CompanyRequiredPanel hasCompanies={hasCompanies} />
@@ -7935,7 +8048,7 @@ function App() {
         ) : null}
 
         {selectedCompanyId && activePage === "agents" ? (
-          agentsRoute.view === "sessions" ? (
+          agentsRoute.view === "chats" ? (
             <AgentChatsPage
               selectedCompanyId={selectedCompanyId}
               agent={agents.find((agent) => agent.id === chatAgentId) || null}
@@ -7952,7 +8065,7 @@ function App() {
                 if (!chatAgentId || !sessionId) {
                   return;
                 }
-                window.location.hash = `#agents/${chatAgentId}/sessions/${sessionId}/chat`;
+                window.location.hash = `#agents/${chatAgentId}/chats/${sessionId}`;
               }}
               onBackToAgents={() => {
                 window.location.hash = "#agents";
@@ -7974,7 +8087,7 @@ function App() {
                   window.location.hash = "#agents";
                   return;
                 }
-                window.location.hash = `#agents/${chatAgentId}/sessions`;
+                window.location.hash = `#agents/${chatAgentId}/chats`;
               }}
               onSendChatMessage={handleSendChatMessage}
             />

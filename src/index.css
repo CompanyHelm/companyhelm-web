@@ -311,6 +311,59 @@ h3 {
   font-size: 0.82rem;
 }
 
+.breadcrumb-panel {
+  padding: 0.58rem 0.82rem;
+}
+
+.breadcrumb-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.breadcrumb-item {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.breadcrumb-link,
+.breadcrumb-text,
+.breadcrumb-current {
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.breadcrumb-link {
+  color: var(--action);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.breadcrumb-link:hover {
+  text-decoration: underline;
+}
+
+.breadcrumb-text {
+  color: var(--ink-1);
+}
+
+.breadcrumb-current {
+  color: var(--ink-0);
+  font-weight: 700;
+}
+
+.breadcrumb-separator {
+  color: rgba(90, 97, 107, 0.8);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.76rem;
+}
+
 .page-stack {
   display: grid;
   gap: 0.85rem;
