@@ -1289,6 +1289,44 @@ button:disabled {
   color: var(--ink-0);
 }
 
+.chat-message-content-markdown {
+  white-space: normal;
+}
+
+.chat-message-content-markdown > :first-child {
+  margin-top: 0;
+}
+
+.chat-message-content-markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.chat-message-content-markdown pre {
+  margin: 0.35rem 0;
+  padding: 0.56rem 0.62rem;
+  border-radius: 8px;
+  overflow-x: auto;
+  background: rgba(17, 24, 39, 0.92);
+  color: #f8fafc;
+}
+
+.chat-message-content-markdown code {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.8rem;
+}
+
+.chat-message-content-markdown :not(pre) > code {
+  padding: 0.08rem 0.32rem;
+  border-radius: 6px;
+  background: rgba(26, 32, 38, 0.08);
+}
+
+.chat-message-content-markdown ul,
+.chat-message-content-markdown ol {
+  margin: 0.35rem 0 0.35rem 1rem;
+  padding: 0;
+}
+
 .chat-message-content-command code {
   font-family: "IBM Plex Mono", monospace;
   font-size: 0.8rem;

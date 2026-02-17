@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 const GRAPHQL_URL = import.meta.env.VITE_GRAPHQL_URL || "/graphql";
 const GRAPHQL_WS_URL = import.meta.env.VITE_GRAPHQL_WS_URL || resolveGraphQLWebSocketUrl(GRAPHQL_URL);
@@ -4674,7 +4676,6 @@ function AgentChatPage({
                         const itemStatus =
                           String(item?.status || "").toLowerCase() === "running" ? "running" : "completed";
                         const isCommandExecution = itemType === "command_execution";
-                        const hasCommandOutput = Boolean(String(item?.output || "").trim());
                         const bodyText = isCommandExecution
                           ? String(item?.command || "").trim() || "(command unavailable)"
                           : String(item?.content || "").trim() || "(no content)";
@@ -4707,10 +4708,12 @@ function AgentChatPage({
                                 <code>{bodyText}</code>
                               </p>
                             ) : (
-                              <p className="chat-message-content">{bodyText}</p>
+                              <div className="chat-message-content chat-message-content-markdown">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{bodyText}</ReactMarkdown>
+                              </div>
                             )}
 
-                            {isCommandExecution && hasCommandOutput ? (
+                            {isCommandExecution ? (
                               <div className="task-card-actions">
                                 <button
                                   type="button"
