@@ -1307,6 +1307,40 @@ function normalizeRunnerCodexAvailableModels(runner) {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+function mergeAgentRunnerPayloadEntry(currentRunner, incomingRunner) {
+  const fallbackModels = Array.isArray(currentRunner?.codexAvailableModels)
+    ? currentRunner.codexAvailableModels
+    : [];
+  const incomingHasModelsField = Object.prototype.hasOwnProperty.call(
+    incomingRunner || {},
+    "codexAvailableModels",
+  );
+  const incomingModels = incomingHasModelsField ? incomingRunner?.codexAvailableModels : fallbackModels;
+  const resolvedModels = Array.isArray(incomingModels) ? incomingModels : fallbackModels;
+
+  return {
+    ...(currentRunner || {}),
+    ...(incomingRunner || {}),
+    codexAvailableModels: resolvedModels,
+  };
+}
+
+function mergeAgentRunnerPayloadList(currentRunners, incomingRunners) {
+  if (!Array.isArray(incomingRunners)) {
+    return Array.isArray(currentRunners) ? currentRunners : [];
+  }
+
+  const currentById = new Map(
+    (Array.isArray(currentRunners) ? currentRunners : []).map((runner) => [String(runner?.id || ""), runner]),
+  );
+
+  return incomingRunners.map((incomingRunner) => {
+    const incomingId = String(incomingRunner?.id || "");
+    const currentRunner = incomingId ? currentById.get(incomingId) : null;
+    return mergeAgentRunnerPayloadEntry(currentRunner, incomingRunner);
+  });
+}
+
 function getRunnerModelNames(codexModelEntries) {
   return codexModelEntries.map((entry) => entry.name);
 }
@@ -4579,6 +4613,7 @@ function App() {
   const [skills, setSkills] = useState([]);
   const [mcpServers, setMcpServers] = useState([]);
   const [agentRunners, setAgentRunners] = useState([]);
+  const [hasLoadedAgentRunners, setHasLoadedAgentRunners] = useState(false);
   const [agents, setAgents] = useState([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
   const [isLoadingSkills, setIsLoadingSkills] = useState(false);
@@ -4689,6 +4724,26 @@ function App() {
     activePage === "agents" && agentsRoute.view === "chat" && Boolean(chatSessionId);
   const shouldSubscribeCodexAuth =
     activePage === "dashboard" || (activePage === "agents" && agentsRoute.view === "chat");
+  const shouldLoadGithubData = activePage === "settings";
+  const shouldLoadTaskData = activePage === "dashboard" || activePage === "tasks" || activePage === "profile";
+  const shouldLoadSkillData =
+    activePage === "skills" ||
+    (activePage === "agents" && agentsRoute.view === "list") ||
+    activePage === "profile";
+  const shouldLoadMcpServerData =
+    activePage === "mcp-servers" || (activePage === "agents" && agentsRoute.view === "list");
+  const shouldLoadRunnerData =
+    activePage === "dashboard" ||
+    activePage === "agent-runner" ||
+    activePage === "agents" ||
+    activePage === "profile";
+  const shouldLoadAgentData =
+    activePage === "dashboard" ||
+    activePage === "agent-runner" ||
+    activePage === "agents" ||
+    activePage === "profile";
+  const shouldSubscribeAgentRunners =
+    activePage === "dashboard" || activePage === "agent-runner" || activePage === "agents";
 
   const loadCompanies = useCallback(async () => {
     try {
@@ -4828,6 +4883,7 @@ function App() {
   const loadAgentRunners = useCallback(async ({ silently = false } = {}) => {
     if (!selectedCompanyId) {
       setAgentRunners([]);
+      setHasLoadedAgentRunners(false);
       if (!silently) {
         setRunnerError("");
         setIsLoadingRunners(false);
@@ -4843,7 +4899,10 @@ function App() {
       const data = await executeGraphQL(LIST_AGENT_RUNNERS_QUERY, {
         companyId: selectedCompanyId,
       });
-      setAgentRunners(data.agentRunners || []);
+      setAgentRunners((currentRunners) =>
+        mergeAgentRunnerPayloadList(currentRunners, data.agentRunners || []),
+      );
+      setHasLoadedAgentRunners(true);
     } catch (loadError) {
       if (!silently) {
         setRunnerError(loadError.message);
@@ -4991,7 +5050,9 @@ function App() {
   );
 
   const handleAgentRunnersSubscriptionData = useCallback((payload) => {
-    setAgentRunners(payload?.agentRunnersUpdated || []);
+    setAgentRunners((currentRunners) =>
+      mergeAgentRunnerPayloadList(currentRunners, payload?.agentRunnersUpdated || []),
+    );
     setRunnerError("");
     setIsLoadingRunners(false);
   }, []);
@@ -5031,7 +5092,7 @@ function App() {
   }, []);
 
   useGraphQLSubscription({
-    enabled: Boolean(selectedCompanyId),
+    enabled: Boolean(selectedCompanyId && shouldSubscribeAgentRunners && hasLoadedAgentRunners),
     query: AGENT_RUNNERS_SUBSCRIPTION,
     variables: selectedCompanyId ? { companyId: selectedCompanyId } : undefined,
     onData: handleAgentRunnersSubscriptionData,
@@ -5087,6 +5148,7 @@ function App() {
   }, [selectedCompanyId]);
 
   useEffect(() => {
+    setAgentRunners([]);
     setAgentRunnerId("");
     setAgentSkillIds([]);
     setAgentSdk(DEFAULT_AGENT_SDK);
@@ -5095,6 +5157,7 @@ function App() {
     setRunnerIdDraft("");
     setRunnerSecretDraft("");
     setRunnerSecretsById({});
+    setHasLoadedAgentRunners(false);
     setRegeneratingRunnerId(null);
     setGithubInstallations([]);
     setGithubRepositories([]);
@@ -5212,21 +5275,52 @@ function App() {
   }, [mcpServers]);
 
   useEffect(() => {
+    if (!selectedCompanyId || !shouldLoadGithubData) {
+      return;
+    }
     loadGithubInstallations();
     loadGithubRepositories();
-    loadTasks();
-    loadSkills();
-    loadMcpServers();
-    loadAgents();
   }, [
     loadGithubInstallations,
     loadGithubRepositories,
-    loadAgents,
-    loadMcpServers,
-    loadSkills,
-    loadTasks,
     selectedCompanyId,
+    shouldLoadGithubData,
   ]);
+
+  useEffect(() => {
+    if (!selectedCompanyId || !shouldLoadTaskData) {
+      return;
+    }
+    loadTasks();
+  }, [loadTasks, selectedCompanyId, shouldLoadTaskData]);
+
+  useEffect(() => {
+    if (!selectedCompanyId || !shouldLoadSkillData) {
+      return;
+    }
+    loadSkills();
+  }, [loadSkills, selectedCompanyId, shouldLoadSkillData]);
+
+  useEffect(() => {
+    if (!selectedCompanyId || !shouldLoadMcpServerData) {
+      return;
+    }
+    loadMcpServers();
+  }, [loadMcpServers, selectedCompanyId, shouldLoadMcpServerData]);
+
+  useEffect(() => {
+    if (!selectedCompanyId || !shouldLoadRunnerData) {
+      return;
+    }
+    loadAgentRunners();
+  }, [loadAgentRunners, selectedCompanyId, shouldLoadRunnerData]);
+
+  useEffect(() => {
+    if (!selectedCompanyId || !shouldLoadAgentData) {
+      return;
+    }
+    loadAgents();
+  }, [loadAgents, selectedCompanyId, shouldLoadAgentData]);
 
   useEffect(() => {
     if (!selectedCompanyId) {
