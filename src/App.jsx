@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const GRAPHQL_URL = import.meta.env.VITE_GRAPHQL_URL || "/graphql";
 const GRAPHQL_WS_URL = import.meta.env.VITE_GRAPHQL_WS_URL || resolveGraphQLWebSocketUrl(GRAPHQL_URL);
@@ -30,6 +30,7 @@ const MCP_AUTH_TYPE_OPTIONS = [
   { value: MCP_AUTH_TYPE_BEARER_TOKEN, label: "Bearer token" },
   { value: MCP_AUTH_TYPE_CUSTOM_HEADERS, label: "Custom headers" },
 ];
+const CHAT_MESSAGE_BATCH_SIZE = 20;
 
 function resolveGraphQLWebSocketUrl(rawUrl) {
   const cleanUrl = String(rawUrl || "").trim();
@@ -1017,6 +1018,7 @@ const PRIMARY_NAV_ITEMS = [
     tone: "sky",
     requiresCompany: true,
   },
+  { id: "chats", label: "Chats", href: "#chats", tone: "coral", requiresCompany: true },
   { id: "agents", label: "Agents", href: "#agents", tone: "coral", requiresCompany: true },
   {
     id: "settings",
@@ -1648,6 +1650,45 @@ function getActiveCodexTurnKeys(chatMessages) {
   return activeTurnKeys;
 }
 
+function compareTurnsByTimestamp(a, b) {
+  const leftTime = toSortableTimestamp(a?.createdAt || a?.startedAt);
+  const rightTime = toSortableTimestamp(b?.createdAt || b?.startedAt);
+  if (leftTime !== rightTime) {
+    return leftTime - rightTime;
+  }
+  return String(a?.id || "").localeCompare(String(b?.id || ""));
+}
+
+function selectVisibleTurnsByMessageCount(chatTurns, visibleMessageCount) {
+  const normalizedTurns = Array.isArray(chatTurns) ? chatTurns : [];
+  const totalMessageCount = normalizedTurns.reduce((count, turn) => {
+    return count + (Array.isArray(turn?.items) ? turn.items.length : 0);
+  }, 0);
+  const startMessageIndex = Math.max(0, totalMessageCount - Math.max(0, visibleMessageCount));
+
+  let itemCursor = 0;
+  const visibleTurns = [];
+  for (const turn of normalizedTurns) {
+    const turnItems = Array.isArray(turn?.items) ? turn.items : [];
+    const visibleItems = [];
+    for (const item of turnItems) {
+      if (itemCursor >= startMessageIndex) {
+        visibleItems.push(item);
+      }
+      itemCursor += 1;
+    }
+
+    if (visibleItems.length > 0 || (turnItems.length === 0 && itemCursor >= startMessageIndex)) {
+      visibleTurns.push({ ...turn, items: visibleItems });
+    }
+  }
+
+  return {
+    visibleTurns,
+    totalMessageCount,
+  };
+}
+
 function quoteShellArg(value) {
   const normalizedValue = String(value ?? "");
   if (/^[A-Za-z0-9_./:-]+$/.test(normalizedValue)) {
@@ -2149,9 +2190,9 @@ function DashboardPage({
               <button
                 type="button"
                 className="secondary-btn"
-                onClick={() => onNavigate("chat")}
+                onClick={() => onNavigate("chats")}
               >
-                Open chat
+                Open chats
               </button>
             </div>
           </header>
@@ -2162,7 +2203,7 @@ function DashboardPage({
 
           {authAgent && !authAgentIsCodex ? (
             <p className="empty-hint">
-              No Codex agent is selected for chat. Choose a Codex agent in the chat page.
+              No Codex agent is selected for chat. Choose a Codex agent in the chats page.
             </p>
           ) : null}
 
@@ -3268,7 +3309,7 @@ function AgentsPage({
                           initializingAgentId === agent.id
                         }
                       >
-                        Sessions
+                        Chats
                       </button>
                       <button
                         type="button"
@@ -4246,7 +4287,115 @@ function McpServersPage({
   );
 }
 
-function AgentSessionsPage({
+function ChatsOverviewPage({
+  selectedCompanyId,
+  agents,
+  chatSessionsByAgent,
+  isLoadingChatIndex,
+  chatIndexError,
+  isCreatingChatSession,
+  onRefreshChatLists,
+  onCreateChatForAgent,
+  onOpenChat,
+}) {
+  const sortedAgents = useMemo(() => {
+    return [...(Array.isArray(agents) ? agents : [])].sort((leftAgent, rightAgent) =>
+      String(leftAgent?.name || "").localeCompare(String(rightAgent?.name || "")),
+    );
+  }, [agents]);
+
+  return (
+    <div className="page-stack">
+      <section className="panel hero-panel">
+        <p className="eyebrow">Agent Runtime</p>
+        <h1>Chats</h1>
+        <p className="subcopy">Browse all agents and open chats from a single page.</p>
+        <p className="context-pill">Company: {selectedCompanyId}</p>
+      </section>
+
+      <section className="panel list-panel">
+        <header className="panel-header panel-header-row">
+          <h2>Agent chats</h2>
+          <button type="button" className="secondary-btn" onClick={onRefreshChatLists}>
+            Refresh
+          </button>
+        </header>
+        {chatIndexError ? <p className="error-banner">Chat error: {chatIndexError}</p> : null}
+        {isLoadingChatIndex ? <p className="empty-hint">Loading chats...</p> : null}
+        {!isLoadingChatIndex && sortedAgents.length === 0 ? (
+          <p className="empty-hint">No agents available yet.</p>
+        ) : null}
+        {sortedAgents.length > 0 ? (
+          <ul className="task-list">
+            {sortedAgents.map((agent) => {
+              const agentChats = Array.isArray(chatSessionsByAgent?.[agent.id])
+                ? chatSessionsByAgent[agent.id]
+                : [];
+              const sortedChats = [...agentChats].sort((leftChat, rightChat) =>
+                compareTurnsByTimestamp(
+                  { createdAt: leftChat?.updatedAt, id: leftChat?.id },
+                  { createdAt: rightChat?.updatedAt, id: rightChat?.id },
+                ),
+              );
+              const hasChats = sortedChats.length > 0;
+              return (
+                <li key={`chat-agent-${agent.id}`} className="task-card">
+                  <div className="task-card-top">
+                    <strong>{agent.name}</strong>
+                    <code className="runner-id">{agent.id}</code>
+                  </div>
+                  <p className="agent-subcopy">
+                    SDK: <strong>{agent.agentSdk}</strong> • model: <strong>{agent.model}</strong>
+                  </p>
+                  <div className="task-card-actions">
+                    <button
+                      type="button"
+                      className="secondary-btn"
+                      onClick={() => onCreateChatForAgent(agent.id)}
+                      disabled={isCreatingChatSession}
+                    >
+                      {isCreatingChatSession ? "Creating..." : "New chat"}
+                    </button>
+                  </div>
+                  {!hasChats ? <p className="empty-hint">No chats yet for this agent.</p> : null}
+                  {hasChats ? (
+                    <ul className="chat-session-list">
+                      {sortedChats.map((chatSession) => (
+                        <li key={`chat-session-${agent.id}-${chatSession.id}`} className="chat-session-row">
+                          <div>
+                            <strong>{chatSession.title || "Untitled chat"}</strong>
+                            <p className="agent-subcopy">
+                              Updated: <strong>{formatTimestamp(chatSession.updatedAt)}</strong>
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            className="secondary-btn"
+                            onClick={() =>
+                              onOpenChat({
+                                agentId: agent.id,
+                                sessionId: chatSession.id,
+                                sessionsForAgent: sortedChats,
+                              })
+                            }
+                          >
+                            Open chat
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
+      </section>
+    </div>
+  );
+}
+
+function AgentChatsPage({
   selectedCompanyId,
   agent,
   chatSessions,
@@ -4265,8 +4414,8 @@ function AgentSessionsPage({
     <div className="page-stack">
       <section className="panel hero-panel">
         <p className="eyebrow">Agent Runtime</p>
-        <h1>Agent sessions</h1>
-        <p className="subcopy">Browse, create, and open chat sessions for a single agent.</p>
+        <h1>Agent chats</h1>
+        <p className="subcopy">Browse, create, and open chats for a single agent.</p>
         <p className="context-pill">Company: {selectedCompanyId}</p>
         <p className="context-pill">
           Agent: {agent ? `${agent.name} (${agent.id.slice(0, 8)})` : "Unknown agent"}
@@ -4280,20 +4429,20 @@ function AgentSessionsPage({
 
       <section className="panel list-panel">
         <header className="panel-header">
-          <h2>Sessions</h2>
+          <h2>Chats</h2>
         </header>
         {chatError ? <p className="error-banner">Chat error: {chatError}</p> : null}
         {!agent ? <p className="empty-hint">Agent not found.</p> : null}
-        {agent && isLoadingChatSessions ? <p className="empty-hint">Loading sessions...</p> : null}
+        {agent && isLoadingChatSessions ? <p className="empty-hint">Loading chats...</p> : null}
         {agent && !isLoadingChatSessions && chatSessions.length === 0 ? (
-          <p className="empty-hint">No sessions yet. Create one below.</p>
+          <p className="empty-hint">No chats yet. Create one below.</p>
         ) : null}
         {agent && chatSessions.length > 0 ? (
           <ul className="task-list">
             {chatSessions.map((session) => (
               <li key={`agent-session-${session.id}`} className="task-card">
                 <div className="task-card-top">
-                  <strong>{session.title || "Untitled session"}</strong>
+                  <strong>{session.title || "Untitled chat"}</strong>
                   <code className="runner-id">{session.id}</code>
                 </div>
                 <p className="agent-subcopy">
@@ -4301,7 +4450,7 @@ function AgentSessionsPage({
                 </p>
                 {session.remoteSessionId ? (
                   <p className="agent-subcopy">
-                    Remote session ID: <strong>{session.remoteSessionId}</strong>
+                    Remote chat ID: <strong>{session.remoteSessionId}</strong>
                   </p>
                 ) : null}
                 <div className="task-card-actions">
@@ -4321,7 +4470,7 @@ function AgentSessionsPage({
 
       <section className="panel codex-auth-panel">
         <header className="panel-header">
-          <h2>Create session</h2>
+          <h2>Create chat</h2>
         </header>
         <form
           className="task-form"
@@ -4344,16 +4493,16 @@ function AgentSessionsPage({
             placeholder="e.g. Release planning"
             disabled={!agent || isCreatingChatSession}
           />
-          <label htmlFor="chat-session-remote-id">Remote session ID (optional)</label>
+          <label htmlFor="chat-session-remote-id">Remote chat ID (optional)</label>
           <input
             id="chat-session-remote-id"
             value={chatSessionRemoteIdDraft}
             onChange={(event) => onChatSessionRemoteIdDraftChange(event.target.value)}
-            placeholder="Provider thread/session id"
+            placeholder="Provider thread/chat id"
             disabled={!agent || isCreatingChatSession}
           />
           <button type="submit" disabled={!agent || isCreatingChatSession}>
-            {isCreatingChatSession ? "Creating..." : "Create session"}
+            {isCreatingChatSession ? "Creating..." : "Create chat"}
           </button>
         </form>
       </section>
@@ -4371,11 +4520,44 @@ function AgentChatPage({
   chatDraftMessage,
   isSendingChatMessage,
   onChatDraftMessageChange,
-  onBackToSessions,
+  onBackToChats,
   onSendChatMessage,
 }) {
   const canChat = Boolean(agent && session);
   const [selectedCommandOutputItem, setSelectedCommandOutputItem] = useState(null);
+  const [visibleMessageCount, setVisibleMessageCount] = useState(CHAT_MESSAGE_BATCH_SIZE);
+  const transcriptScrollRef = useRef(null);
+  const orderedTurns = useMemo(
+    () => [...(Array.isArray(chatTurns) ? chatTurns : [])].sort(compareTurnsByTimestamp),
+    [chatTurns],
+  );
+  const { visibleTurns, totalMessageCount } = useMemo(
+    () => selectVisibleTurnsByMessageCount(orderedTurns, visibleMessageCount),
+    [orderedTurns, visibleMessageCount],
+  );
+  const visibleMessageTotal = useMemo(() => {
+    return visibleTurns.reduce((count, turn) => {
+      return count + (Array.isArray(turn?.items) ? turn.items.length : 0);
+    }, 0);
+  }, [visibleTurns]);
+  const isShowingPartialTranscript = visibleMessageCount < totalMessageCount;
+
+  useEffect(() => {
+    setVisibleMessageCount(CHAT_MESSAGE_BATCH_SIZE);
+  }, [session?.id]);
+
+  useEffect(() => {
+    const transcriptNode = transcriptScrollRef.current;
+    if (!transcriptNode) {
+      return;
+    }
+    const distanceFromBottom =
+      transcriptNode.scrollHeight - transcriptNode.scrollTop - transcriptNode.clientHeight;
+    const isNearBottom = distanceFromBottom <= 32;
+    if (isNearBottom || visibleMessageCount <= CHAT_MESSAGE_BATCH_SIZE) {
+      transcriptNode.scrollTop = transcriptNode.scrollHeight;
+    }
+  }, [session?.id, visibleMessageCount, visibleMessageTotal]);
 
   function handleChatMessageKeyDown(event) {
     if (event.key !== "Enter" || event.shiftKey || event.isComposing) {
@@ -4388,41 +4570,52 @@ function AgentChatPage({
     onSendChatMessage();
   }
 
+  function handleTranscriptScroll(event) {
+    const transcriptNode = event.currentTarget;
+    const canLoadMoreMessages = visibleMessageCount < totalMessageCount;
+    if (!canLoadMoreMessages || transcriptNode.scrollTop > 12) {
+      return;
+    }
+    setVisibleMessageCount((currentCount) =>
+      Math.min(currentCount + CHAT_MESSAGE_BATCH_SIZE, totalMessageCount),
+    );
+  }
+
   return (
     <div className="page-stack">
       <section className="panel hero-panel">
         <p className="eyebrow">Agent Runtime</p>
         <h1>Agent chat</h1>
-        <p className="subcopy">Send new messages to the selected agent session.</p>
+        <p className="subcopy">Send new messages to the selected agent chat.</p>
         <p className="context-pill">Company: {selectedCompanyId}</p>
         <p className="context-pill">
           Agent: {agent ? `${agent.name} (${agent.id.slice(0, 8)})` : "Unknown agent"}
         </p>
         <div className="hero-actions">
-          <button type="button" className="secondary-btn" onClick={onBackToSessions}>
-            Back to sessions
+          <button type="button" className="secondary-btn" onClick={onBackToChats}>
+            Back to chats
           </button>
         </div>
       </section>
 
       <section className="panel composer-panel">
         <header className="panel-header">
-          <h2>Session</h2>
+          <h2>Chat</h2>
         </header>
         {session ? (
           <div className="codex-auth-state">
             <p className="codex-auth-row">
-              <strong>Title:</strong> {session.title || "Untitled session"}
+              <strong>Title:</strong> {session.title || "Untitled chat"}
             </p>
             <p className="codex-auth-row">
-              <strong>Session ID:</strong> <code className="runner-id">{session.id}</code>
+              <strong>Chat ID:</strong> <code className="runner-id">{session.id}</code>
             </p>
             <p className="codex-auth-row">
-              <strong>Remote session ID:</strong> {session.remoteSessionId || "not set"}
+              <strong>Remote chat ID:</strong> {session.remoteSessionId || "not set"}
             </p>
           </div>
         ) : (
-          <p className="empty-hint">Session not found.</p>
+          <p className="empty-hint">Chat not found.</p>
         )}
       </section>
 
@@ -4432,14 +4625,25 @@ function AgentChatPage({
         </header>
         {chatError ? <p className="error-banner">Chat error: {chatError}</p> : null}
         {!agent ? <p className="empty-hint">Agent not found.</p> : null}
-        {agent && !session ? <p className="empty-hint">Session not found.</p> : null}
-        {canChat && isLoadingChat ? <p className="empty-hint">Loading chat turns...</p> : null}
-        {canChat && !isLoadingChat && chatTurns.length === 0 ? (
-          <p className="empty-hint">No turns yet. Send the first prompt below.</p>
+        {agent && !session ? <p className="empty-hint">Chat not found.</p> : null}
+        {canChat && isLoadingChat ? <p className="empty-hint">Loading chat messages...</p> : null}
+        {canChat && !isLoadingChat && orderedTurns.length === 0 ? (
+          <p className="empty-hint">No messages yet. Send the first prompt below.</p>
         ) : null}
-        {chatTurns.length > 0 ? (
-          <ul className="chat-turn-list">
-            {chatTurns.map((turn) => {
+        {orderedTurns.length > 0 ? (
+          <div
+            ref={transcriptScrollRef}
+            className="chat-transcript-scroll"
+            onScroll={handleTranscriptScroll}
+          >
+            {isShowingPartialTranscript ? (
+              <p className="chat-transcript-hint">
+                Showing latest {visibleMessageTotal} of {totalMessageCount} messages. Scroll up to load older
+                messages.
+              </p>
+            ) : null}
+            <ul className="chat-turn-list">
+              {visibleTurns.map((turn) => {
               const turnStatus = String(turn?.status || "").toLowerCase() === "running" ? "running" : "idle";
               const turnItems = Array.isArray(turn?.items) ? turn.items : [];
 
@@ -4532,8 +4736,9 @@ function AgentChatPage({
                   ) : null}
                 </li>
               );
-            })}
-          </ul>
+              })}
+            </ul>
+          </div>
         ) : null}
       </section>
 
@@ -4950,12 +5155,15 @@ function App() {
   const [agentDrafts, setAgentDrafts] = useState({});
   const [chatAgentId, setChatAgentId] = useState("");
   const [chatSessions, setChatSessions] = useState([]);
+  const [chatSessionsByAgent, setChatSessionsByAgent] = useState({});
   const [chatSessionId, setChatSessionId] = useState("");
   const [chatSessionTitleDraft, setChatSessionTitleDraft] = useState("");
   const [chatSessionRemoteIdDraft, setChatSessionRemoteIdDraft] = useState("");
   const [chatTurns, setChatTurns] = useState([]);
   const [chatDraftMessage, setChatDraftMessage] = useState("");
   const [chatError, setChatError] = useState("");
+  const [chatIndexError, setChatIndexError] = useState("");
+  const [isLoadingChatIndex, setIsLoadingChatIndex] = useState(false);
   const [isLoadingChatSessions, setIsLoadingChatSessions] = useState(false);
   const [isCreatingChatSession, setIsCreatingChatSession] = useState(false);
   const [isLoadingChat, setIsLoadingChat] = useState(false);
@@ -4989,12 +5197,15 @@ function App() {
     return chatSessions.find((session) => session.id === chatSessionId) || null;
   }, [chatSessions, chatSessionId]);
 
+  const isChatsConversationView = activePage === "chats" && Boolean(chatAgentId) && Boolean(chatSessionId);
   const shouldSubscribeChatSessions =
-    activePage === "agents" && (agentsRoute.view === "sessions" || agentsRoute.view === "chat");
-  const shouldSubscribeChatTurns =
-    activePage === "agents" && agentsRoute.view === "chat" && Boolean(chatSessionId);
+    (activePage === "agents" && (agentsRoute.view === "sessions" || agentsRoute.view === "chat")) ||
+    (activePage === "chats" && Boolean(chatAgentId));
+  const shouldSubscribeChatTurns = isChatsConversationView || (
+    activePage === "agents" && agentsRoute.view === "chat" && Boolean(chatSessionId)
+  );
   const shouldSubscribeCodexAuth =
-    activePage === "dashboard" || (activePage === "agents" && agentsRoute.view === "chat");
+    activePage === "dashboard" || (activePage === "agents" && agentsRoute.view === "chat") || isChatsConversationView;
   const shouldLoadGithubData = activePage === "settings";
   const shouldLoadTaskData = activePage === "dashboard" || activePage === "tasks" || activePage === "profile";
   const shouldLoadSkillData =
@@ -5012,6 +5223,7 @@ function App() {
     activePage === "dashboard" ||
     activePage === "agent-runner" ||
     activePage === "agents" ||
+    activePage === "chats" ||
     activePage === "profile";
   const shouldSubscribeAgentRunners =
     activePage === "dashboard" || activePage === "agent-runner" || activePage === "agents";
@@ -5236,7 +5448,12 @@ function App() {
           agentId: chatAgentId,
           limit: 200,
         });
-        setChatSessions(data.agentChatSessions || []);
+        const nextSessions = data.agentChatSessions || [];
+        setChatSessions(nextSessions);
+        setChatSessionsByAgent((currentSessionsByAgent) => ({
+          ...currentSessionsByAgent,
+          [chatAgentId]: nextSessions,
+        }));
       } catch (loadError) {
         if (!silently) {
           setChatError(loadError.message);
@@ -5284,6 +5501,66 @@ function App() {
       }
     },
     [selectedCompanyId, chatAgentId, chatSessionId],
+  );
+
+  const loadChatSessionIndexByAgent = useCallback(
+    async ({ silently = false } = {}) => {
+      if (!selectedCompanyId) {
+        setChatSessionsByAgent({});
+        setChatIndexError("");
+        setIsLoadingChatIndex(false);
+        return;
+      }
+
+      const agentsToLoad = Array.isArray(agents) ? agents : [];
+      if (agentsToLoad.length === 0) {
+        setChatSessionsByAgent({});
+        if (!silently) {
+          setChatIndexError("");
+          setIsLoadingChatIndex(false);
+        }
+        return;
+      }
+
+      try {
+        if (!silently) {
+          setChatIndexError("");
+          setIsLoadingChatIndex(true);
+        }
+        const sessionEntries = await Promise.all(
+          agentsToLoad.map(async (agentEntry) => {
+            const resolvedAgentId = String(agentEntry?.id || "").trim();
+            if (!resolvedAgentId) {
+              return [resolvedAgentId, []];
+            }
+            const data = await executeGraphQL(LIST_AGENT_CHAT_SESSIONS_QUERY, {
+              companyId: selectedCompanyId,
+              agentId: resolvedAgentId,
+              limit: 200,
+            });
+            return [resolvedAgentId, data.agentChatSessions || []];
+          }),
+        );
+
+        const nextSessionsByAgent = {};
+        for (const [agentId, sessionsForAgent] of sessionEntries) {
+          if (!agentId) {
+            continue;
+          }
+          nextSessionsByAgent[agentId] = sessionsForAgent;
+        }
+        setChatSessionsByAgent(nextSessionsByAgent);
+      } catch (loadError) {
+        if (!silently) {
+          setChatIndexError(loadError.message);
+        }
+      } finally {
+        if (!silently) {
+          setIsLoadingChatIndex(false);
+        }
+      }
+    },
+    [agents, selectedCompanyId],
   );
 
   const loadCodexAuthState = useCallback(
@@ -5334,10 +5611,17 @@ function App() {
   }, []);
 
   const handleAgentChatSessionsSubscriptionData = useCallback((payload) => {
-    setChatSessions(payload?.agentChatSessionsUpdated || []);
+    const nextSessions = payload?.agentChatSessionsUpdated || [];
+    setChatSessions(nextSessions);
+    if (chatAgentId) {
+      setChatSessionsByAgent((currentSessionsByAgent) => ({
+        ...currentSessionsByAgent,
+        [chatAgentId]: nextSessions,
+      }));
+    }
     setChatError("");
     setIsLoadingChatSessions(false);
-  }, []);
+  }, [chatAgentId]);
 
   const handleAgentChatTurnsSubscriptionData = useCallback((payload) => {
     setChatTurns(payload?.agentChatTurnsUpdated || []);
@@ -5456,12 +5740,15 @@ function App() {
     setMcpServerError("");
     setChatAgentId("");
     setChatSessions([]);
+    setChatSessionsByAgent({});
     setChatSessionId("");
     setChatSessionTitleDraft("");
     setChatSessionRemoteIdDraft("");
     setChatTurns([]);
     setChatDraftMessage("");
     setChatError("");
+    setChatIndexError("");
+    setIsLoadingChatIndex(false);
     setCodexAuthState(null);
     setCodexAuthError("");
     setCodexAuthCopyFeedback("");
@@ -5594,6 +5881,13 @@ function App() {
   }, [loadAgents, selectedCompanyId, shouldLoadAgentData]);
 
   useEffect(() => {
+    if (!selectedCompanyId || activePage !== "chats") {
+      return;
+    }
+    loadChatSessionIndexByAgent();
+  }, [activePage, loadChatSessionIndexByAgent, selectedCompanyId]);
+
+  useEffect(() => {
     if (!selectedCompanyId) {
       setChatAgentId("");
       setChatTurns([]);
@@ -5620,6 +5914,22 @@ function App() {
       return;
     }
 
+    if (activePage === "chats") {
+      setChatSessionId((currentSessionId) => {
+        if (!currentSessionId) {
+          return "";
+        }
+        if (chatSessions.some((session) => session.id === currentSessionId)) {
+          return currentSessionId;
+        }
+        return "";
+      });
+      if (!chatSessionId) {
+        setChatTurns((currentTurns) => (currentTurns.length > 0 ? [] : currentTurns));
+      }
+      return;
+    }
+
     if (activePage === "agents" && agentsRoute.view === "chat" && agentsRoute.sessionId) {
       setChatSessionId(agentsRoute.sessionId);
       return;
@@ -5637,7 +5947,7 @@ function App() {
       }
       return chatSessions[0]?.id || "";
     });
-  }, [activePage, agentsRoute.sessionId, agentsRoute.view, chatAgentId, chatSessions]);
+  }, [activePage, agentsRoute.sessionId, agentsRoute.view, chatAgentId, chatSessionId, chatSessions]);
 
   useEffect(() => {
     if (!window.location.hash) {
@@ -6935,39 +7245,53 @@ function App() {
   }
 
   async function handleCreateChatSession({
+    agentId = null,
     title = null,
     remoteSessionId = null,
     preferredRunnerId = null,
   } = {}) {
+    const targetAgentId = String(agentId || chatAgentId || "").trim();
     if (!selectedCompanyId) {
-      setChatError("Select a company before creating a chat session.");
+      setChatError("Select a company before creating a chat.");
       return null;
     }
-    if (!chatAgentId) {
-      setChatError("Select an agent before creating a chat session.");
+    if (!targetAgentId) {
+      setChatError("Select an agent before creating a chat.");
       return null;
     }
 
-    const selectedAgentForChat = agents.find((agent) => agent.id === chatAgentId) || null;
+    const selectedAgentForChat = agents.find((agent) => agent.id === targetAgentId) || null;
 
     try {
       setIsCreatingChatSession(true);
       setChatError("");
       const data = await executeGraphQL(CREATE_AGENT_CHAT_SESSION_MUTATION, {
         companyId: selectedCompanyId,
-        agentId: chatAgentId,
+        agentId: targetAgentId,
         title: title ? title.trim() : null,
         remoteSessionId: remoteSessionId ? remoteSessionId.trim() : null,
         runnerId: preferredRunnerId || selectedAgentForChat?.agentRunnerId || null,
       });
       const result = data.createAgentChatSession;
       if (!result.ok || !result.session) {
-        throw new Error(result.error || "Failed to create chat session.");
+        throw new Error(result.error || "Failed to create chat.");
       }
 
+      const sessionsData = await executeGraphQL(LIST_AGENT_CHAT_SESSIONS_QUERY, {
+        companyId: selectedCompanyId,
+        agentId: targetAgentId,
+        limit: 200,
+      });
+      const nextSessionsForAgent = sessionsData.agentChatSessions || [];
+
+      setChatAgentId(targetAgentId);
+      setChatSessions(nextSessionsForAgent);
+      setChatSessionsByAgent((currentSessionsByAgent) => ({
+        ...currentSessionsByAgent,
+        [targetAgentId]: nextSessionsForAgent,
+      }));
       setChatSessionTitleDraft("");
       setChatSessionRemoteIdDraft("");
-      await loadAgentChatSessions();
       setChatSessionId(result.session.id);
       return result.session.id;
     } catch (createError) {
@@ -6976,6 +7300,31 @@ function App() {
     } finally {
       setIsCreatingChatSession(false);
     }
+  }
+
+  function handleOpenChatFromList({ agentId, sessionId, sessionsForAgent = [] }) {
+    const resolvedAgentId = String(agentId || "").trim();
+    const resolvedSessionId = String(sessionId || "").trim();
+    if (!resolvedAgentId || !resolvedSessionId) {
+      return;
+    }
+
+    setChatAgentId(resolvedAgentId);
+    setChatSessions(Array.isArray(sessionsForAgent) ? sessionsForAgent : []);
+    setChatSessionId(resolvedSessionId);
+    setChatTurns([]);
+    setChatError("");
+  }
+
+  async function handleCreateChatForAgent(agentId) {
+    const resolvedAgentId = String(agentId || "").trim();
+    if (!resolvedAgentId) {
+      return;
+    }
+    setChatAgentId(resolvedAgentId);
+    setChatSessionId("");
+    setChatTurns([]);
+    await handleCreateChatSession({ agentId: resolvedAgentId });
   }
 
   async function handleStartCodexDeviceAuth() {
@@ -7232,12 +7581,8 @@ function App() {
   }
 
   function navigateTo(pageId) {
-    if (pageId === "chat") {
-      if (chatAgentId) {
-        window.location.hash = `#agents/${chatAgentId}/sessions`;
-      } else {
-        window.location.hash = "#agents";
-      }
+    if (pageId === "chats" || pageId === "chat") {
+      window.location.hash = "#chats";
       return;
     }
     window.location.hash = `#${pageId}`;
@@ -7247,7 +7592,7 @@ function App() {
     setChatAgentId(agentId);
     setChatSessionId("");
     setChatTurns([]);
-    window.location.hash = `#agents/${agentId}/sessions`;
+    window.location.hash = "#chats";
   }
 
   const taskLookup = useMemo(() => {
@@ -7552,9 +7897,43 @@ function App() {
           />
         ) : null}
 
+        {selectedCompanyId && activePage === "chats" ? (
+          chatSessionId ? (
+            <AgentChatPage
+              selectedCompanyId={selectedCompanyId}
+              agent={agents.find((agent) => agent.id === chatAgentId) || null}
+              session={selectedChatSession}
+              chatTurns={chatTurns}
+              isLoadingChat={isLoadingChat}
+              chatError={chatError}
+              chatDraftMessage={chatDraftMessage}
+              isSendingChatMessage={isSendingChatMessage}
+              onChatDraftMessageChange={setChatDraftMessage}
+              onBackToChats={() => {
+                setChatSessionId("");
+                setChatTurns([]);
+                loadChatSessionIndexByAgent({ silently: true });
+              }}
+              onSendChatMessage={handleSendChatMessage}
+            />
+          ) : (
+            <ChatsOverviewPage
+              selectedCompanyId={selectedCompanyId}
+              agents={agents}
+              chatSessionsByAgent={chatSessionsByAgent}
+              isLoadingChatIndex={isLoadingChatIndex}
+              chatIndexError={chatIndexError}
+              isCreatingChatSession={isCreatingChatSession}
+              onRefreshChatLists={() => loadChatSessionIndexByAgent()}
+              onCreateChatForAgent={handleCreateChatForAgent}
+              onOpenChat={handleOpenChatFromList}
+            />
+          )
+        ) : null}
+
         {selectedCompanyId && activePage === "agents" ? (
           agentsRoute.view === "sessions" ? (
-            <AgentSessionsPage
+            <AgentChatsPage
               selectedCompanyId={selectedCompanyId}
               agent={agents.find((agent) => agent.id === chatAgentId) || null}
               chatSessions={chatSessions}
@@ -7587,7 +7966,7 @@ function App() {
               chatDraftMessage={chatDraftMessage}
               isSendingChatMessage={isSendingChatMessage}
               onChatDraftMessageChange={setChatDraftMessage}
-              onBackToSessions={() => {
+              onBackToChats={() => {
                 if (!chatAgentId) {
                   window.location.hash = "#agents";
                   return;

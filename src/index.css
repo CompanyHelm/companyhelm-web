@@ -1132,6 +1132,20 @@ button:disabled {
   gap: 0.64rem;
 }
 
+.chat-transcript-scroll {
+  max-height: min(68vh, 880px);
+  overflow-y: auto;
+  display: grid;
+  gap: 0.64rem;
+  padding-right: 0.24rem;
+}
+
+.chat-transcript-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--ink-1);
+}
+
 .chat-turn-list {
   list-style: none;
   margin: 0;
@@ -1246,6 +1260,26 @@ button:disabled {
 .chat-item-spinner {
   width: 0.64rem;
   height: 0.64rem;
+}
+
+.chat-session-list {
+  list-style: none;
+  margin: 0.35rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.chat-session-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.58rem 0.64rem;
+  border-radius: 10px;
+  border: 1px solid rgba(26, 32, 38, 0.12);
+  background: rgba(255, 255, 255, 0.66);
 }
 
 .chat-message-content {
