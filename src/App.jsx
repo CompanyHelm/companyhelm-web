@@ -6,6 +6,8 @@ const SELECTED_COMPANY_STORAGE_KEY = "companyhelm.selectedCompanyId";
 const DEFAULT_RUNNER_GRPC_TARGET =
   import.meta.env.VITE_AGENT_RUNNER_GRPC_TARGET || "localhost:50051";
 const CODEX_DEVICE_AUTH_URL = "https://auth.openai.com/codex/device";
+const GITHUB_APP_INSTALL_URL = "https://github.com/apps/companyhelm";
+const GITHUB_INSTALL_CALLBACK_PATH = "/github/install";
 const AVAILABLE_AGENT_SDKS = ["codex"];
 const DEFAULT_AGENT_SDK = AVAILABLE_AGENT_SDKS[0];
 const SKILL_TYPE_TEXT = "text";
@@ -88,6 +90,48 @@ const DELETE_COMPANY_MUTATION = `
       ok
       error
       companyId
+    }
+  }
+`;
+
+const LIST_GITHUB_INSTALLATIONS_QUERY = `
+  query ListGithubInstallations($companyId: String!) {
+    githubInstallations(companyId: $companyId) {
+      installationId
+      companyId
+      createdAt
+    }
+  }
+`;
+
+const ADD_GITHUB_INSTALLATION_MUTATION = `
+  mutation AddGithubInstallation(
+    $companyId: String!
+    $installationId: String!
+    $setupAction: String
+  ) {
+    addGithubInstallation(
+      companyId: $companyId
+      installationId: $installationId
+      setupAction: $setupAction
+    ) {
+      ok
+      error
+      githubInstallation {
+        installationId
+        companyId
+        createdAt
+      }
+    }
+  }
+`;
+
+const DELETE_GITHUB_INSTALLATION_MUTATION = `
+  mutation DeleteGithubInstallation($companyId: String!, $installationId: String!) {
+    deleteGithubInstallation(companyId: $companyId, installationId: $installationId) {
+      ok
+      error
+      deletedInstallationId
     }
   }
 `;
@@ -1121,6 +1165,23 @@ function getPageFromHash() {
     return pageId;
   }
   return NAV_ITEMS[0].id;
+}
+
+function parseGithubInstallCallbackFromLocation() {
+  const normalizedPath = String(window.location.pathname || "").replace(/\/+$/, "") || "/";
+  if (normalizedPath !== GITHUB_INSTALL_CALLBACK_PATH) {
+    return null;
+  }
+
+  const params = new URLSearchParams(window.location.search || "");
+  const installationId = String(params.get("installation_id") || "").trim();
+  const setupAction = String(params.get("setup_action") || "").trim();
+  return { installationId, setupAction };
+}
+
+function clearGithubInstallCallbackFromLocation() {
+  const nextHash = window.location.hash || "#settings";
+  window.history.replaceState({}, "", `/${nextHash}`);
 }
 
 function getAgentsRouteFromHash() {
@@ -4179,14 +4240,23 @@ function AgentChatPage({
 
 function SettingsPage({
   hasCompanies,
+  selectedCompanyId,
   selectedCompany,
   companyError,
+  githubInstallations,
+  isLoadingGithubInstallations,
+  githubInstallationError,
+  githubInstallationNotice,
+  isAddingGithubInstallationFromCallback,
+  pendingGithubInstallCallback,
+  deletingGithubInstallationId,
   newCompanyName,
   isCreatingCompany,
   isDeletingCompany,
   onNewCompanyNameChange,
   onCreateCompany,
   onDeleteCompany,
+  onDeleteGithubInstallation,
 }) {
   return (
     <div className="page-stack">
@@ -4221,6 +4291,75 @@ function SettingsPage({
           </button>
         </form>
       </section>
+
+      {hasCompanies ? (
+        <section className="panel">
+          <header className="panel-header">
+            <h2>GitHub installations</h2>
+          </header>
+          <p className="subcopy">
+            Link this company to one or more GitHub App installations.
+          </p>
+          <div className="hero-actions">
+            <button
+              type="button"
+              className="secondary-btn"
+              onClick={() => window.location.assign(GITHUB_APP_INSTALL_URL)}
+              disabled={!selectedCompanyId}
+            >
+              Install CompanyHelm GitHub App
+            </button>
+          </div>
+          {pendingGithubInstallCallback && !selectedCompanyId ? (
+            <p className="error-banner">
+              Select a company to finish linking installation{" "}
+              <code>{pendingGithubInstallCallback.installationId || "unknown"}</code>.
+            </p>
+          ) : null}
+          {isAddingGithubInstallationFromCallback ? (
+            <p className="empty-hint">Linking GitHub installation...</p>
+          ) : null}
+          {githubInstallationNotice ? (
+            <p className="success-banner">{githubInstallationNotice}</p>
+          ) : null}
+          {githubInstallationError ? (
+            <p className="error-banner">GitHub installation error: {githubInstallationError}</p>
+          ) : null}
+          {isLoadingGithubInstallations ? (
+            <p className="empty-hint">Loading GitHub installations...</p>
+          ) : null}
+          {!isLoadingGithubInstallations && githubInstallations.length === 0 ? (
+            <p className="empty-hint">No GitHub installations linked to this company yet.</p>
+          ) : null}
+          {githubInstallations.length > 0 ? (
+            <ul className="task-list">
+              {githubInstallations.map((installation) => (
+                <li key={`github-installation-${installation.installationId}`} className="task-card">
+                  <div className="task-card-top">
+                    <strong>Installation {installation.installationId}</strong>
+                    <code className="runner-id">{installation.installationId}</code>
+                  </div>
+                  <p className="agent-subcopy">
+                    Linked at: <strong>{formatTimestamp(installation.createdAt)}</strong>
+                  </p>
+                  <div className="task-card-actions">
+                    <button
+                      type="button"
+                      className="danger-btn"
+                      onClick={() => onDeleteGithubInstallation(installation.installationId)}
+                      disabled={deletingGithubInstallationId === installation.installationId}
+                    >
+                      {deletingGithubInstallationId === installation.installationId
+                        ? "Deleting..."
+                        : "Delete installation"}
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
+      ) : null}
 
       {hasCompanies ? (
         <section className="panel">
@@ -4294,6 +4433,15 @@ function App() {
   const [newCompanyName, setNewCompanyName] = useState("");
   const [isCreatingCompany, setIsCreatingCompany] = useState(false);
   const [isDeletingCompany, setIsDeletingCompany] = useState(false);
+  const [githubInstallations, setGithubInstallations] = useState([]);
+  const [isLoadingGithubInstallations, setIsLoadingGithubInstallations] = useState(false);
+  const [githubInstallationError, setGithubInstallationError] = useState("");
+  const [githubInstallationNotice, setGithubInstallationNotice] = useState("");
+  const [isAddingGithubInstallationFromCallback, setIsAddingGithubInstallationFromCallback] = useState(false);
+  const [deletingGithubInstallationId, setDeletingGithubInstallationId] = useState("");
+  const [pendingGithubInstallCallback, setPendingGithubInstallCallback] = useState(
+    () => parseGithubInstallCallbackFromLocation(),
+  );
   const [tasks, setTasks] = useState([]);
   const [skills, setSkills] = useState([]);
   const [mcpServers, setMcpServers] = useState([]);
@@ -4429,6 +4577,28 @@ function App() {
       setIsLoadingCompanies(false);
     }
   }, []);
+
+  const loadGithubInstallations = useCallback(async () => {
+    if (!selectedCompanyId) {
+      setGithubInstallations([]);
+      setGithubInstallationError("");
+      setIsLoadingGithubInstallations(false);
+      return;
+    }
+
+    try {
+      setGithubInstallationError("");
+      setIsLoadingGithubInstallations(true);
+      const data = await executeGraphQL(LIST_GITHUB_INSTALLATIONS_QUERY, {
+        companyId: selectedCompanyId,
+      });
+      setGithubInstallations(data.githubInstallations || []);
+    } catch (loadError) {
+      setGithubInstallationError(loadError.message);
+    } finally {
+      setIsLoadingGithubInstallations(false);
+    }
+  }, [selectedCompanyId]);
 
   const loadTasks = useCallback(async () => {
     if (!selectedCompanyId) {
@@ -4770,6 +4940,10 @@ function App() {
     setRunnerSecretDraft("");
     setRunnerSecretsById({});
     setRegeneratingRunnerId(null);
+    setGithubInstallations([]);
+    setGithubInstallationError("");
+    setGithubInstallationNotice("");
+    setDeletingGithubInstallationId("");
     setSkillName("");
     setSkillType(SKILL_TYPE_TEXT);
     setSkillSkillsMpPackageName("");
@@ -4880,11 +5054,13 @@ function App() {
   }, [mcpServers]);
 
   useEffect(() => {
+    loadGithubInstallations();
     loadTasks();
     loadSkills();
     loadMcpServers();
     loadAgents();
   }, [
+    loadGithubInstallations,
     loadAgents,
     loadMcpServers,
     loadSkills,
@@ -4981,6 +5157,68 @@ function App() {
     }
   }, [activePage, isLoadingCompanies, selectedCompanyId]);
 
+  useEffect(() => {
+    if (!pendingGithubInstallCallback) {
+      return;
+    }
+
+    window.location.hash = "#settings";
+
+    const installationId = String(pendingGithubInstallCallback.installationId || "").trim();
+    const setupAction = String(pendingGithubInstallCallback.setupAction || "").trim();
+    if (!installationId) {
+      setGithubInstallationError("GitHub install callback is missing installation_id.");
+      setPendingGithubInstallCallback(null);
+      clearGithubInstallCallbackFromLocation();
+      return;
+    }
+
+    if (!selectedCompanyId) {
+      setGithubInstallationError(
+        `Select a company to link GitHub installation ${installationId}.`,
+      );
+      return;
+    }
+
+    let isCancelled = false;
+    const linkGithubInstallation = async () => {
+      try {
+        setIsAddingGithubInstallationFromCallback(true);
+        setGithubInstallationError("");
+        setGithubInstallationNotice("");
+        const data = await executeGraphQL(ADD_GITHUB_INSTALLATION_MUTATION, {
+          companyId: selectedCompanyId,
+          installationId,
+          setupAction: setupAction || null,
+        });
+        const result = data.addGithubInstallation;
+        if (!result.ok) {
+          throw new Error(result.error || "Failed to link GitHub installation.");
+        }
+
+        if (!isCancelled) {
+          setGithubInstallationNotice(`Linked GitHub installation ${installationId}.`);
+          await loadGithubInstallations();
+        }
+      } catch (linkError) {
+        if (!isCancelled) {
+          setGithubInstallationError(linkError.message);
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsAddingGithubInstallationFromCallback(false);
+          setPendingGithubInstallCallback(null);
+          clearGithubInstallCallbackFromLocation();
+        }
+      }
+    };
+
+    linkGithubInstallation();
+    return () => {
+      isCancelled = true;
+    };
+  }, [loadGithubInstallations, pendingGithubInstallCallback, selectedCompanyId]);
+
   async function handleCreateCompany(event) {
     event.preventDefault();
     if (!newCompanyName.trim()) {
@@ -5047,6 +5285,46 @@ function App() {
       setCompanyError(deleteError.message);
     } finally {
       setIsDeletingCompany(false);
+    }
+  }
+
+  async function handleDeleteGithubInstallation(installationId) {
+    if (!selectedCompanyId) {
+      setGithubInstallationError("Select a company before deleting GitHub installations.");
+      return;
+    }
+
+    const resolvedInstallationId = String(installationId || "").trim();
+    if (!resolvedInstallationId) {
+      setGithubInstallationError("installationId is required.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete GitHub installation ${resolvedInstallationId} from this company?`,
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setDeletingGithubInstallationId(resolvedInstallationId);
+      setGithubInstallationError("");
+      setGithubInstallationNotice("");
+      const data = await executeGraphQL(DELETE_GITHUB_INSTALLATION_MUTATION, {
+        companyId: selectedCompanyId,
+        installationId: resolvedInstallationId,
+      });
+      const result = data.deleteGithubInstallation;
+      if (!result.ok) {
+        throw new Error(result.error || "Failed to delete GitHub installation.");
+      }
+      setGithubInstallationNotice(`Deleted GitHub installation ${resolvedInstallationId}.`);
+      await loadGithubInstallations();
+    } catch (deleteError) {
+      setGithubInstallationError(deleteError.message);
+    } finally {
+      setDeletingGithubInstallationId("");
     }
   }
 
@@ -6802,14 +7080,23 @@ function App() {
         {activePage === "settings" ? (
           <SettingsPage
             hasCompanies={hasCompanies}
+            selectedCompanyId={selectedCompanyId}
             selectedCompany={selectedCompany}
             companyError={companyError}
+            githubInstallations={githubInstallations}
+            isLoadingGithubInstallations={isLoadingGithubInstallations}
+            githubInstallationError={githubInstallationError}
+            githubInstallationNotice={githubInstallationNotice}
+            isAddingGithubInstallationFromCallback={isAddingGithubInstallationFromCallback}
+            pendingGithubInstallCallback={pendingGithubInstallCallback}
+            deletingGithubInstallationId={deletingGithubInstallationId}
             newCompanyName={newCompanyName}
             isCreatingCompany={isCreatingCompany}
             isDeletingCompany={isDeletingCompany}
             onNewCompanyNameChange={setNewCompanyName}
             onCreateCompany={handleCreateCompany}
             onDeleteCompany={handleDeleteCompany}
+            onDeleteGithubInstallation={handleDeleteGithubInstallation}
           />
         ) : null}
 

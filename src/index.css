@@ -581,6 +581,15 @@ button:disabled {
   padding: 0.68rem 0.74rem;
 }
 
+.success-banner {
+  margin: 0;
+  color: #14532d;
+  background: rgba(22, 163, 74, 0.1);
+  border: 1px solid rgba(22, 163, 74, 0.32);
+  border-radius: 12px;
+  padding: 0.68rem 0.74rem;
+}
+
 .empty-hint {
   margin: 0;
   color: var(--ink-1);
