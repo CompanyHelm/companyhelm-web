@@ -8,6 +8,12 @@ const DEFAULT_RUNNER_GRPC_TARGET =
 const CODEX_DEVICE_AUTH_URL = "https://auth.openai.com/codex/device";
 const AVAILABLE_AGENT_SDKS = ["codex"];
 const DEFAULT_AGENT_SDK = AVAILABLE_AGENT_SDKS[0];
+const MCP_TRANSPORT_TYPE_STREAMABLE_HTTP = "streamable_http";
+const MCP_TRANSPORT_TYPE_STDIO = "stdio";
+const MCP_TRANSPORT_TYPE_OPTIONS = [
+  { value: MCP_TRANSPORT_TYPE_STREAMABLE_HTTP, label: "Streamable HTTP" },
+  { value: MCP_TRANSPORT_TYPE_STDIO, label: "Stdio" },
+];
 const MCP_AUTH_TYPE_NONE = "none";
 const MCP_AUTH_TYPE_BEARER_TOKEN = "bearer_token";
 const MCP_AUTH_TYPE_CUSTOM_HEADERS = "custom_headers";
@@ -201,7 +207,14 @@ const LIST_MCP_SERVERS_QUERY = `
       id
       companyId
       name
+      transportType
       url
+      command
+      args
+      envVars {
+        key
+        value
+      }
       authType
       bearerToken
       customHeaders {
@@ -445,7 +458,11 @@ const CREATE_MCP_SERVER_MUTATION = `
   mutation CreateMcpServer(
     $companyId: String!
     $name: String!
-    $url: String!
+    $transportType: String
+    $url: String
+    $command: String
+    $args: [String!]
+    $envVars: [McpEnvVarInput!]
     $authType: String
     $bearerToken: String
     $customHeaders: [McpHeaderInput!]
@@ -454,7 +471,11 @@ const CREATE_MCP_SERVER_MUTATION = `
     createMcpServer(
       companyId: $companyId
       name: $name
+      transportType: $transportType
       url: $url
+      command: $command
+      args: $args
+      envVars: $envVars
       authType: $authType
       bearerToken: $bearerToken
       customHeaders: $customHeaders
@@ -466,7 +487,14 @@ const CREATE_MCP_SERVER_MUTATION = `
         id
         companyId
         name
+        transportType
         url
+        command
+        args
+        envVars {
+          key
+          value
+        }
         authType
         bearerToken
         customHeaders {
@@ -484,7 +512,11 @@ const UPDATE_MCP_SERVER_MUTATION = `
     $companyId: String!
     $id: String!
     $name: String!
-    $url: String!
+    $transportType: String
+    $url: String
+    $command: String
+    $args: [String!]
+    $envVars: [McpEnvVarInput!]
     $authType: String
     $bearerToken: String
     $customHeaders: [McpHeaderInput!]
@@ -494,7 +526,11 @@ const UPDATE_MCP_SERVER_MUTATION = `
       companyId: $companyId
       id: $id
       name: $name
+      transportType: $transportType
       url: $url
+      command: $command
+      args: $args
+      envVars: $envVars
       authType: $authType
       bearerToken: $bearerToken
       customHeaders: $customHeaders
@@ -506,7 +542,14 @@ const UPDATE_MCP_SERVER_MUTATION = `
         id
         companyId
         name
+        transportType
         url
+        command
+        args
+        envVars {
+          key
+          value
+        }
         authType
         bearerToken
         customHeaders {
@@ -826,6 +869,21 @@ function normalizeUniqueStringList(values) {
   return normalizedValues;
 }
 
+function normalizeMcpTransportType(value) {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/-/g, "_")
+    .replace(/\s+/g, "_");
+  if (
+    normalized === MCP_TRANSPORT_TYPE_STREAMABLE_HTTP ||
+    normalized === MCP_TRANSPORT_TYPE_STDIO
+  ) {
+    return normalized;
+  }
+  return MCP_TRANSPORT_TYPE_STREAMABLE_HTTP;
+}
+
 function normalizeMcpAuthType(value) {
   const normalized = String(value || "")
     .trim()
@@ -848,6 +906,81 @@ function mcpHeadersToText(headers) {
     .map((header) => `${String(header?.key || "").trim()}: ${String(header?.value || "").trim()}`)
     .filter((line) => line !== ":")
     .join("\n");
+}
+
+function mcpArgsToText(args) {
+  if (!Array.isArray(args) || args.length === 0) {
+    return "";
+  }
+  return args
+    .map((arg) => String(arg || "").trim())
+    .filter(Boolean)
+    .join("\n");
+}
+
+function parseMcpArgsText(rawText) {
+  const args = String(rawText || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  return {
+    args,
+    error: "",
+  };
+}
+
+function mcpEnvVarsToText(envVars) {
+  if (!Array.isArray(envVars) || envVars.length === 0) {
+    return "";
+  }
+  return envVars
+    .map((envVar) => `${String(envVar?.key || "").trim()}=${String(envVar?.value || "").trim()}`)
+    .filter((line) => line !== "=")
+    .join("\n");
+}
+
+function parseMcpEnvVarsText(rawText) {
+  const lines = String(rawText || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const envVars = [];
+  const seenKeys = new Set();
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const delimiterIndex = line.indexOf("=");
+    if (delimiterIndex <= 0) {
+      return {
+        envVars: [],
+        error: `Env var line ${index + 1} must be in "KEY=VALUE" format.`,
+      };
+    }
+    const key = line.slice(0, delimiterIndex).trim();
+    const value = line.slice(delimiterIndex + 1).trim();
+    if (!key) {
+      return {
+        envVars: [],
+        error: `Env var line ${index + 1} is missing a key.`,
+      };
+    }
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) {
+      return {
+        envVars: [],
+        error: `Env var line ${index + 1} has invalid key "${key}".`,
+      };
+    }
+    if (seenKeys.has(key)) {
+      return {
+        envVars: [],
+        error: `Duplicate env var key "${key}" is not allowed.`,
+      };
+    }
+    seenKeys.add(key);
+    envVars.push({ key, value });
+  }
+
+  return { envVars, error: "" };
 }
 
 function parseMcpHeadersText(rawText) {
@@ -1068,7 +1201,11 @@ function createMcpServerDrafts(mcpServers) {
   return mcpServers.reduce((drafts, mcpServer) => {
     drafts[mcpServer.id] = {
       name: mcpServer.name || "",
+      transportType: normalizeMcpTransportType(mcpServer.transportType),
       url: mcpServer.url || "",
+      command: mcpServer.command || "",
+      argsText: mcpArgsToText(mcpServer.args || []),
+      envVarsText: mcpEnvVarsToText(mcpServer.envVars || []),
       authType: normalizeMcpAuthType(mcpServer.authType),
       bearerToken: mcpServer.bearerToken || "",
       customHeadersText: mcpHeadersToText(mcpServer.customHeaders || []),
@@ -3110,7 +3247,11 @@ function McpServersPage({
   savingMcpServerId,
   deletingMcpServerId,
   mcpServerName,
+  mcpServerTransportType,
   mcpServerUrl,
+  mcpServerCommand,
+  mcpServerArgsText,
+  mcpServerEnvVarsText,
   mcpServerAuthType,
   mcpServerBearerToken,
   mcpServerCustomHeadersText,
@@ -3118,7 +3259,11 @@ function McpServersPage({
   mcpServerDrafts,
   mcpServerCountLabel,
   onMcpServerNameChange,
+  onMcpServerTransportTypeChange,
   onMcpServerUrlChange,
+  onMcpServerCommandChange,
+  onMcpServerArgsTextChange,
+  onMcpServerEnvVarsTextChange,
   onMcpServerAuthTypeChange,
   onMcpServerBearerTokenChange,
   onMcpServerCustomHeadersTextChange,
@@ -3143,7 +3288,7 @@ function McpServersPage({
         <p className="eyebrow">MCP Registry</p>
         <h1>MCP servers page</h1>
         <p className="subcopy">
-          Register company-level MCP servers and configure bearer-token or custom-header auth.
+          Register company-level MCP servers as streamable HTTP or stdio transports.
         </p>
         <p className="context-pill">Company: {selectedCompanyId}</p>
       </section>
@@ -3185,7 +3330,11 @@ function McpServersPage({
             {mcpServers.map((mcpServer) => {
               const draft = mcpServerDrafts[mcpServer.id] || {
                 name: "",
+                transportType: MCP_TRANSPORT_TYPE_STREAMABLE_HTTP,
                 url: "",
+                command: "",
+                argsText: "",
+                envVarsText: "",
                 authType: MCP_AUTH_TYPE_NONE,
                 bearerToken: "",
                 customHeadersText: "",
@@ -3193,9 +3342,16 @@ function McpServersPage({
               };
               const isSavingOrDeleting =
                 savingMcpServerId === mcpServer.id || deletingMcpServerId === mcpServer.id;
+              const transportLabel =
+                MCP_TRANSPORT_TYPE_OPTIONS.find((option) => option.value === draft.transportType)
+                  ?.label || "Streamable HTTP";
               const authLabel =
                 MCP_AUTH_TYPE_OPTIONS.find((option) => option.value === draft.authType)?.label ||
                 "No auth";
+              const endpointLabel =
+                draft.transportType === MCP_TRANSPORT_TYPE_STDIO
+                  ? `Command: ${draft.command || "-"}`
+                  : `URL: ${draft.url || "-"}`;
 
               return (
                 <li key={mcpServer.id} className="task-card">
@@ -3204,10 +3360,14 @@ function McpServersPage({
                     <code className="runner-id">{mcpServer.id}</code>
                   </div>
                   <p className="agent-subcopy">
-                    URL: <strong>{mcpServer.url}</strong>
+                    Transport: <strong>{transportLabel}</strong> • {endpointLabel}
                   </p>
                   <p className="agent-subcopy">
-                    Auth: <strong>{authLabel}</strong> • enabled:{" "}
+                    Auth:{" "}
+                    <strong>
+                      {draft.transportType === MCP_TRANSPORT_TYPE_STDIO ? "n/a" : authLabel}
+                    </strong>{" "}
+                    • enabled:{" "}
                     <strong>{draft.enabled ? "yes" : "no"}</strong>
                   </p>
 
@@ -3226,70 +3386,138 @@ function McpServersPage({
                         disabled={isSavingOrDeleting}
                       />
 
-                      <label className="relationship-field" htmlFor={`mcp-url-${mcpServer.id}`}>
-                        URL
-                      </label>
-                      <input
-                        id={`mcp-url-${mcpServer.id}`}
-                        type="text"
-                        value={draft.url}
-                        onChange={(event) =>
-                          onMcpServerDraftChange(mcpServer.id, "url", event.target.value)
-                        }
-                        disabled={isSavingOrDeleting}
-                      />
-
-                      <label className="relationship-field" htmlFor={`mcp-auth-${mcpServer.id}`}>
-                        Auth
+                      <label className="relationship-field" htmlFor={`mcp-transport-${mcpServer.id}`}>
+                        Transport
                       </label>
                       <select
-                        id={`mcp-auth-${mcpServer.id}`}
-                        value={draft.authType}
+                        id={`mcp-transport-${mcpServer.id}`}
+                        value={draft.transportType}
                         onChange={(event) =>
-                          onMcpServerDraftChange(mcpServer.id, "authType", event.target.value)
+                          onMcpServerDraftChange(mcpServer.id, "transportType", event.target.value)
                         }
                         disabled={isSavingOrDeleting}
                       >
-                        {MCP_AUTH_TYPE_OPTIONS.map((option) => (
-                          <option key={`${mcpServer.id}-auth-${option.value}`} value={option.value}>
+                        {MCP_TRANSPORT_TYPE_OPTIONS.map((option) => (
+                          <option key={`${mcpServer.id}-transport-${option.value}`} value={option.value}>
                             {option.label}
                           </option>
                         ))}
                       </select>
 
-                      <label className="relationship-field" htmlFor={`mcp-token-${mcpServer.id}`}>
-                        Bearer token
-                      </label>
-                      <input
-                        id={`mcp-token-${mcpServer.id}`}
-                        type="text"
-                        value={draft.bearerToken}
-                        onChange={(event) =>
-                          onMcpServerDraftChange(mcpServer.id, "bearerToken", event.target.value)
-                        }
-                        placeholder="Token value only"
-                        disabled={isSavingOrDeleting || draft.authType !== MCP_AUTH_TYPE_BEARER_TOKEN}
-                      />
+                      {draft.transportType === MCP_TRANSPORT_TYPE_STDIO ? (
+                        <>
+                          <label className="relationship-field" htmlFor={`mcp-command-${mcpServer.id}`}>
+                            Command
+                          </label>
+                          <input
+                            id={`mcp-command-${mcpServer.id}`}
+                            type="text"
+                            value={draft.command}
+                            onChange={(event) =>
+                              onMcpServerDraftChange(mcpServer.id, "command", event.target.value)
+                            }
+                            placeholder="npx"
+                            disabled={isSavingOrDeleting}
+                          />
 
-                      <label className="relationship-field" htmlFor={`mcp-headers-${mcpServer.id}`}>
-                        Custom headers
-                      </label>
-                      <textarea
-                        id={`mcp-headers-${mcpServer.id}`}
-                        rows={4}
-                        value={draft.customHeadersText}
-                        onChange={(event) =>
-                          onMcpServerDraftChange(
-                            mcpServer.id,
-                            "customHeadersText",
-                            event.target.value,
-                          )
-                        }
-                        placeholder={"Authorization: Bearer <token>\nX-Env: staging"}
-                        disabled={
-                          isSavingOrDeleting || draft.authType !== MCP_AUTH_TYPE_CUSTOM_HEADERS
-                        }
-                      />
+                          <label className="relationship-field" htmlFor={`mcp-args-${mcpServer.id}`}>
+                            Arguments
+                          </label>
+                          <textarea
+                            id={`mcp-args-${mcpServer.id}`}
+                            rows={4}
+                            value={draft.argsText}
+                            onChange={(event) =>
+                              onMcpServerDraftChange(mcpServer.id, "argsText", event.target.value)
+                            }
+                            placeholder={"-y\n@modelcontextprotocol/server-filesystem\n/workspace"}
+                            disabled={isSavingOrDeleting}
+                          />
+
+                          <label className="relationship-field" htmlFor={`mcp-env-${mcpServer.id}`}>
+                            Environment variables
+                          </label>
+                          <textarea
+                            id={`mcp-env-${mcpServer.id}`}
+                            rows={4}
+                            value={draft.envVarsText}
+                            onChange={(event) =>
+                              onMcpServerDraftChange(mcpServer.id, "envVarsText", event.target.value)
+                            }
+                            placeholder={"API_KEY=secret\nLOG_LEVEL=debug"}
+                            disabled={isSavingOrDeleting}
+                          />
+                        </>
+                      ) : (
+                        <>
+                          <label className="relationship-field" htmlFor={`mcp-url-${mcpServer.id}`}>
+                            URL
+                          </label>
+                          <input
+                            id={`mcp-url-${mcpServer.id}`}
+                            type="text"
+                            value={draft.url}
+                            onChange={(event) =>
+                              onMcpServerDraftChange(mcpServer.id, "url", event.target.value)
+                            }
+                            disabled={isSavingOrDeleting}
+                          />
+
+                          <label className="relationship-field" htmlFor={`mcp-auth-${mcpServer.id}`}>
+                            Auth
+                          </label>
+                          <select
+                            id={`mcp-auth-${mcpServer.id}`}
+                            value={draft.authType}
+                            onChange={(event) =>
+                              onMcpServerDraftChange(mcpServer.id, "authType", event.target.value)
+                            }
+                            disabled={isSavingOrDeleting}
+                          >
+                            {MCP_AUTH_TYPE_OPTIONS.map((option) => (
+                              <option key={`${mcpServer.id}-auth-${option.value}`} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+
+                          <label className="relationship-field" htmlFor={`mcp-token-${mcpServer.id}`}>
+                            Bearer token
+                          </label>
+                          <input
+                            id={`mcp-token-${mcpServer.id}`}
+                            type="text"
+                            value={draft.bearerToken}
+                            onChange={(event) =>
+                              onMcpServerDraftChange(mcpServer.id, "bearerToken", event.target.value)
+                            }
+                            placeholder="Token value only"
+                            disabled={
+                              isSavingOrDeleting || draft.authType !== MCP_AUTH_TYPE_BEARER_TOKEN
+                            }
+                          />
+
+                          <label className="relationship-field" htmlFor={`mcp-headers-${mcpServer.id}`}>
+                            Custom headers
+                          </label>
+                          <textarea
+                            id={`mcp-headers-${mcpServer.id}`}
+                            rows={4}
+                            value={draft.customHeadersText}
+                            onChange={(event) =>
+                              onMcpServerDraftChange(
+                                mcpServer.id,
+                                "customHeadersText",
+                                event.target.value,
+                              )
+                            }
+                            placeholder={"Authorization: Bearer <token>\nX-Env: staging"}
+                            disabled={
+                              isSavingOrDeleting || draft.authType !== MCP_AUTH_TYPE_CUSTOM_HEADERS
+                            }
+                          />
+                        </>
+                      )}
 
                       <label className="relationship-field" htmlFor={`mcp-enabled-${mcpServer.id}`}>
                         Enabled
@@ -3336,7 +3564,7 @@ function McpServersPage({
       <CreationModal
         modalId="create-mcp-server-modal"
         title="Create MCP server"
-        description="Add a company-level MCP server and auth settings."
+        description="Add a company-level MCP server with streamable HTTP or stdio transport."
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
       >
@@ -3351,46 +3579,92 @@ function McpServersPage({
             autoFocus
           />
 
-          <label htmlFor="create-mcp-url">URL</label>
-          <input
-            id="create-mcp-url"
-            value={mcpServerUrl}
-            onChange={(event) => onMcpServerUrlChange(event.target.value)}
-            placeholder="https://example.com/mcp"
-            required
-          />
-
-          <label htmlFor="create-mcp-auth">Auth</label>
+          <label htmlFor="create-mcp-transport">Transport</label>
           <select
-            id="create-mcp-auth"
-            value={mcpServerAuthType}
-            onChange={(event) => onMcpServerAuthTypeChange(event.target.value)}
+            id="create-mcp-transport"
+            value={mcpServerTransportType}
+            onChange={(event) => onMcpServerTransportTypeChange(event.target.value)}
           >
-            {MCP_AUTH_TYPE_OPTIONS.map((option) => (
-              <option key={`create-mcp-auth-${option.value}`} value={option.value}>
+            {MCP_TRANSPORT_TYPE_OPTIONS.map((option) => (
+              <option key={`create-mcp-transport-${option.value}`} value={option.value}>
                 {option.label}
               </option>
             ))}
           </select>
 
-          <label htmlFor="create-mcp-token">Bearer token</label>
-          <input
-            id="create-mcp-token"
-            value={mcpServerBearerToken}
-            onChange={(event) => onMcpServerBearerTokenChange(event.target.value)}
-            placeholder="Token value only"
-            disabled={mcpServerAuthType !== MCP_AUTH_TYPE_BEARER_TOKEN}
-          />
+          {mcpServerTransportType === MCP_TRANSPORT_TYPE_STDIO ? (
+            <>
+              <label htmlFor="create-mcp-command">Command</label>
+              <input
+                id="create-mcp-command"
+                value={mcpServerCommand}
+                onChange={(event) => onMcpServerCommandChange(event.target.value)}
+                placeholder="npx"
+                required
+              />
 
-          <label htmlFor="create-mcp-headers">Custom headers</label>
-          <textarea
-            id="create-mcp-headers"
-            rows={4}
-            value={mcpServerCustomHeadersText}
-            onChange={(event) => onMcpServerCustomHeadersTextChange(event.target.value)}
-            placeholder={"Authorization: Bearer <token>\nX-Env: staging"}
-            disabled={mcpServerAuthType !== MCP_AUTH_TYPE_CUSTOM_HEADERS}
-          />
+              <label htmlFor="create-mcp-args">Arguments</label>
+              <textarea
+                id="create-mcp-args"
+                rows={4}
+                value={mcpServerArgsText}
+                onChange={(event) => onMcpServerArgsTextChange(event.target.value)}
+                placeholder={"-y\n@modelcontextprotocol/server-filesystem\n/workspace"}
+              />
+
+              <label htmlFor="create-mcp-env">Environment variables</label>
+              <textarea
+                id="create-mcp-env"
+                rows={4}
+                value={mcpServerEnvVarsText}
+                onChange={(event) => onMcpServerEnvVarsTextChange(event.target.value)}
+                placeholder={"API_KEY=secret\nLOG_LEVEL=debug"}
+              />
+            </>
+          ) : (
+            <>
+              <label htmlFor="create-mcp-url">URL</label>
+              <input
+                id="create-mcp-url"
+                value={mcpServerUrl}
+                onChange={(event) => onMcpServerUrlChange(event.target.value)}
+                placeholder="https://example.com/mcp"
+                required
+              />
+
+              <label htmlFor="create-mcp-auth">Auth</label>
+              <select
+                id="create-mcp-auth"
+                value={mcpServerAuthType}
+                onChange={(event) => onMcpServerAuthTypeChange(event.target.value)}
+              >
+                {MCP_AUTH_TYPE_OPTIONS.map((option) => (
+                  <option key={`create-mcp-auth-${option.value}`} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+
+              <label htmlFor="create-mcp-token">Bearer token</label>
+              <input
+                id="create-mcp-token"
+                value={mcpServerBearerToken}
+                onChange={(event) => onMcpServerBearerTokenChange(event.target.value)}
+                placeholder="Token value only"
+                disabled={mcpServerAuthType !== MCP_AUTH_TYPE_BEARER_TOKEN}
+              />
+
+              <label htmlFor="create-mcp-headers">Custom headers</label>
+              <textarea
+                id="create-mcp-headers"
+                rows={4}
+                value={mcpServerCustomHeadersText}
+                onChange={(event) => onMcpServerCustomHeadersTextChange(event.target.value)}
+                placeholder={"Authorization: Bearer <token>\nX-Env: staging"}
+                disabled={mcpServerAuthType !== MCP_AUTH_TYPE_CUSTOM_HEADERS}
+              />
+            </>
+          )}
 
           <label htmlFor="create-mcp-enabled">
             <input
@@ -3811,7 +4085,13 @@ function App() {
   const [skillInstructions, setSkillInstructions] = useState("");
   const [skillDrafts, setSkillDrafts] = useState({});
   const [mcpServerName, setMcpServerName] = useState("");
+  const [mcpServerTransportType, setMcpServerTransportType] = useState(
+    MCP_TRANSPORT_TYPE_STREAMABLE_HTTP,
+  );
   const [mcpServerUrl, setMcpServerUrl] = useState("");
+  const [mcpServerCommand, setMcpServerCommand] = useState("");
+  const [mcpServerArgsText, setMcpServerArgsText] = useState("");
+  const [mcpServerEnvVarsText, setMcpServerEnvVarsText] = useState("");
   const [mcpServerAuthType, setMcpServerAuthType] = useState(MCP_AUTH_TYPE_NONE);
   const [mcpServerBearerToken, setMcpServerBearerToken] = useState("");
   const [mcpServerCustomHeadersText, setMcpServerCustomHeadersText] = useState("");
@@ -4240,7 +4520,11 @@ function App() {
     setMcpServers([]);
     setMcpServerDrafts({});
     setMcpServerName("");
+    setMcpServerTransportType(MCP_TRANSPORT_TYPE_STREAMABLE_HTTP);
     setMcpServerUrl("");
+    setMcpServerCommand("");
+    setMcpServerArgsText("");
+    setMcpServerEnvVarsText("");
     setMcpServerAuthType(MCP_AUTH_TYPE_NONE);
     setMcpServerBearerToken("");
     setMcpServerCustomHeadersText("");
@@ -4718,14 +5002,22 @@ function App() {
 
   function resolveMcpServerMutationPayload({
     name: rawName,
+    transportType: rawTransportType,
     url: rawUrl,
+    command: rawCommand,
+    argsText: rawArgsText,
+    envVarsText: rawEnvVarsText,
     authType: rawAuthType,
     bearerToken: rawBearerToken,
     customHeadersText: rawCustomHeadersText,
     enabled: rawEnabled,
   }) {
     const name = String(rawName || "").trim();
+    const transportType = normalizeMcpTransportType(rawTransportType);
     const url = String(rawUrl || "").trim();
+    const command = String(rawCommand || "").trim();
+    const argsText = String(rawArgsText || "");
+    const envVarsText = String(rawEnvVarsText || "");
     const authType = normalizeMcpAuthType(rawAuthType);
     const bearerToken = String(rawBearerToken || "").trim();
     const customHeadersText = String(rawCustomHeadersText || "");
@@ -4733,8 +5025,39 @@ function App() {
     if (!name) {
       return { payload: null, error: "MCP server name is required." };
     }
+
+    if (transportType === MCP_TRANSPORT_TYPE_STDIO) {
+      if (!command) {
+        return { payload: null, error: "MCP server command is required for stdio transport." };
+      }
+      const parsedArgs = parseMcpArgsText(argsText);
+      if (parsedArgs.error) {
+        return { payload: null, error: parsedArgs.error };
+      }
+      const parsedEnvVars = parseMcpEnvVarsText(envVarsText);
+      if (parsedEnvVars.error) {
+        return { payload: null, error: parsedEnvVars.error };
+      }
+
+      return {
+        payload: {
+          name,
+          transportType,
+          url: null,
+          command,
+          args: parsedArgs.args,
+          envVars: parsedEnvVars.envVars,
+          authType: MCP_AUTH_TYPE_NONE,
+          bearerToken: null,
+          customHeaders: [],
+          enabled: Boolean(rawEnabled),
+        },
+        error: "",
+      };
+    }
+
     if (!url) {
-      return { payload: null, error: "MCP server URL is required." };
+      return { payload: null, error: "MCP server URL is required for streamable HTTP transport." };
     }
 
     let customHeaders = [];
@@ -4761,7 +5084,11 @@ function App() {
     return {
       payload: {
         name,
+        transportType,
         url,
+        command: null,
+        args: [],
+        envVars: [],
         authType,
         bearerToken: authType === MCP_AUTH_TYPE_BEARER_TOKEN ? bearerToken : null,
         customHeaders: authType === MCP_AUTH_TYPE_CUSTOM_HEADERS ? customHeaders : [],
@@ -4780,7 +5107,11 @@ function App() {
 
     const { payload, error } = resolveMcpServerMutationPayload({
       name: mcpServerName,
+      transportType: mcpServerTransportType,
       url: mcpServerUrl,
+      command: mcpServerCommand,
+      argsText: mcpServerArgsText,
+      envVarsText: mcpServerEnvVarsText,
       authType: mcpServerAuthType,
       bearerToken: mcpServerBearerToken,
       customHeadersText: mcpServerCustomHeadersText,
@@ -4803,7 +5134,11 @@ function App() {
         throw new Error(result.error || "MCP server creation failed.");
       }
       setMcpServerName("");
+      setMcpServerTransportType(MCP_TRANSPORT_TYPE_STREAMABLE_HTTP);
       setMcpServerUrl("");
+      setMcpServerCommand("");
+      setMcpServerArgsText("");
+      setMcpServerEnvVarsText("");
       setMcpServerAuthType(MCP_AUTH_TYPE_NONE);
       setMcpServerBearerToken("");
       setMcpServerCustomHeadersText("");
@@ -4822,7 +5157,11 @@ function App() {
     setMcpServerDrafts((currentDrafts) => {
       const currentDraft = currentDrafts[mcpServerId] || {
         name: "",
+        transportType: MCP_TRANSPORT_TYPE_STREAMABLE_HTTP,
         url: "",
+        command: "",
+        argsText: "",
+        envVarsText: "",
         authType: MCP_AUTH_TYPE_NONE,
         bearerToken: "",
         customHeadersText: "",
@@ -4836,6 +5175,12 @@ function App() {
 
       if (field === "authType") {
         nextDraft.authType = normalizeMcpAuthType(value);
+      }
+      if (field === "transportType") {
+        nextDraft.transportType = normalizeMcpTransportType(value);
+        if (nextDraft.transportType === MCP_TRANSPORT_TYPE_STDIO) {
+          nextDraft.authType = MCP_AUTH_TYPE_NONE;
+        }
       }
       if (field === "enabled") {
         nextDraft.enabled = Boolean(value);
@@ -4855,7 +5200,11 @@ function App() {
     }
     const draft = mcpServerDrafts[mcpServerId] || {
       name: "",
+      transportType: MCP_TRANSPORT_TYPE_STREAMABLE_HTTP,
       url: "",
+      command: "",
+      argsText: "",
+      envVarsText: "",
       authType: MCP_AUTH_TYPE_NONE,
       bearerToken: "",
       customHeadersText: "",
@@ -5906,7 +6255,11 @@ function App() {
             savingMcpServerId={savingMcpServerId}
             deletingMcpServerId={deletingMcpServerId}
             mcpServerName={mcpServerName}
+            mcpServerTransportType={mcpServerTransportType}
             mcpServerUrl={mcpServerUrl}
+            mcpServerCommand={mcpServerCommand}
+            mcpServerArgsText={mcpServerArgsText}
+            mcpServerEnvVarsText={mcpServerEnvVarsText}
             mcpServerAuthType={mcpServerAuthType}
             mcpServerBearerToken={mcpServerBearerToken}
             mcpServerCustomHeadersText={mcpServerCustomHeadersText}
@@ -5914,7 +6267,13 @@ function App() {
             mcpServerDrafts={mcpServerDrafts}
             mcpServerCountLabel={mcpServerCountLabel}
             onMcpServerNameChange={setMcpServerName}
+            onMcpServerTransportTypeChange={(value) =>
+              setMcpServerTransportType(normalizeMcpTransportType(value))
+            }
             onMcpServerUrlChange={setMcpServerUrl}
+            onMcpServerCommandChange={setMcpServerCommand}
+            onMcpServerArgsTextChange={setMcpServerArgsText}
+            onMcpServerEnvVarsTextChange={setMcpServerEnvVarsText}
             onMcpServerAuthTypeChange={(value) => setMcpServerAuthType(normalizeMcpAuthType(value))}
             onMcpServerBearerTokenChange={setMcpServerBearerToken}
             onMcpServerCustomHeadersTextChange={setMcpServerCustomHeadersText}
