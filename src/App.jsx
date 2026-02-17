@@ -5053,7 +5053,6 @@ function App() {
     setAgentRunners((currentRunners) =>
       mergeAgentRunnerPayloadList(currentRunners, payload?.agentRunnersUpdated || []),
     );
-    setHasLoadedAgentRunners(true);
     setRunnerError("");
     setIsLoadingRunners(false);
   }, []);
@@ -5149,6 +5148,7 @@ function App() {
   }, [selectedCompanyId]);
 
   useEffect(() => {
+    setAgentRunners([]);
     setAgentRunnerId("");
     setAgentSkillIds([]);
     setAgentSdk(DEFAULT_AGENT_SDK);
