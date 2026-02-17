@@ -136,6 +136,50 @@ const DELETE_GITHUB_INSTALLATION_MUTATION = `
   }
 `;
 
+const LIST_REPOSITORIES_QUERY = `
+  query ListRepositories($companyId: String!, $provider: String) {
+    repositories(companyId: $companyId, provider: $provider) {
+      id
+      companyId
+      provider
+      externalId
+      githubInstallationId
+      name
+      fullName
+      htmlUrl
+      isPrivate
+      defaultBranch
+      archived
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+const REFRESH_GITHUB_INSTALLATION_REPOSITORIES_MUTATION = `
+  mutation RefreshGithubInstallationRepositories($companyId: String!, $installationId: String!) {
+    refreshGithubInstallationRepositories(companyId: $companyId, installationId: $installationId) {
+      ok
+      error
+      repositories {
+        id
+        companyId
+        provider
+        externalId
+        githubInstallationId
+        name
+        fullName
+        htmlUrl
+        isPrivate
+        defaultBranch
+        archived
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`;
+
 const LIST_TASKS_QUERY = `
   query ListTasks($companyId: String!) {
     tasks(companyId: $companyId) {
@@ -4244,12 +4288,15 @@ function SettingsPage({
   selectedCompany,
   companyError,
   githubInstallations,
+  githubRepositories,
   isLoadingGithubInstallations,
+  isLoadingGithubRepositories,
   githubInstallationError,
   githubInstallationNotice,
   isAddingGithubInstallationFromCallback,
   pendingGithubInstallCallback,
   deletingGithubInstallationId,
+  refreshingGithubInstallationId,
   newCompanyName,
   isCreatingCompany,
   isDeletingCompany,
@@ -4257,7 +4304,20 @@ function SettingsPage({
   onCreateCompany,
   onDeleteCompany,
   onDeleteGithubInstallation,
+  onRefreshGithubInstallationRepositories,
 }) {
+  const repositoriesByInstallationId = githubRepositories.reduce((grouped, repository) => {
+    const installationId = String(repository.githubInstallationId || "").trim();
+    if (!installationId) {
+      return grouped;
+    }
+    if (!grouped[installationId]) {
+      grouped[installationId] = [];
+    }
+    grouped[installationId].push(repository);
+    return grouped;
+  }, {});
+
   return (
     <div className="page-stack">
       <section className="panel hero-panel">
@@ -4345,9 +4405,27 @@ function SettingsPage({
                   <div className="task-card-actions">
                     <button
                       type="button"
+                      className="secondary-btn"
+                      onClick={() =>
+                        onRefreshGithubInstallationRepositories(installation.installationId)
+                      }
+                      disabled={
+                        refreshingGithubInstallationId === installation.installationId ||
+                        deletingGithubInstallationId === installation.installationId
+                      }
+                    >
+                      {refreshingGithubInstallationId === installation.installationId
+                        ? "Refreshing repos..."
+                        : "Refresh repos"}
+                    </button>
+                    <button
+                      type="button"
                       className="danger-btn"
                       onClick={() => onDeleteGithubInstallation(installation.installationId)}
-                      disabled={deletingGithubInstallationId === installation.installationId}
+                      disabled={
+                        deletingGithubInstallationId === installation.installationId ||
+                        refreshingGithubInstallationId === installation.installationId
+                      }
                     >
                       {deletingGithubInstallationId === installation.installationId
                         ? "Deleting..."
@@ -4356,6 +4434,58 @@ function SettingsPage({
                   </div>
                 </li>
               ))}
+            </ul>
+          ) : null}
+        </section>
+      ) : null}
+
+      {hasCompanies ? (
+        <section className="panel">
+          <header className="panel-header">
+            <h2>Repos</h2>
+          </header>
+          <p className="subcopy">Repositories linked through this company’s GitHub installations.</p>
+          {isLoadingGithubRepositories ? (
+            <p className="empty-hint">Loading repositories...</p>
+          ) : null}
+          {!isLoadingGithubRepositories && githubRepositories.length === 0 ? (
+            <p className="empty-hint">No repositories imported yet. Refresh an installation above.</p>
+          ) : null}
+          {githubInstallations.length > 0 ? (
+            <ul className="task-list">
+              {githubInstallations.map((installation) => {
+                const installationRepositories =
+                  repositoriesByInstallationId[installation.installationId] || [];
+                return (
+                  <li
+                    key={`repo-installation-${installation.installationId}`}
+                    className="task-card"
+                  >
+                    <div className="task-card-top">
+                      <strong>Installation {installation.installationId}</strong>
+                      <span>{installationRepositories.length} repos</span>
+                    </div>
+                    {installationRepositories.length === 0 ? (
+                      <p className="empty-hint">No repos cached for this installation.</p>
+                    ) : (
+                      <ul className="repo-list">
+                        {installationRepositories.map((repository) => (
+                          <li key={repository.id} className="repo-list-item">
+                            <a
+                              href={repository.htmlUrl || undefined}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              {repository.fullName}
+                            </a>
+                            <code>{repository.defaultBranch || "no-default-branch"}</code>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           ) : null}
         </section>
@@ -4434,11 +4564,14 @@ function App() {
   const [isCreatingCompany, setIsCreatingCompany] = useState(false);
   const [isDeletingCompany, setIsDeletingCompany] = useState(false);
   const [githubInstallations, setGithubInstallations] = useState([]);
+  const [githubRepositories, setGithubRepositories] = useState([]);
   const [isLoadingGithubInstallations, setIsLoadingGithubInstallations] = useState(false);
+  const [isLoadingGithubRepositories, setIsLoadingGithubRepositories] = useState(false);
   const [githubInstallationError, setGithubInstallationError] = useState("");
   const [githubInstallationNotice, setGithubInstallationNotice] = useState("");
   const [isAddingGithubInstallationFromCallback, setIsAddingGithubInstallationFromCallback] = useState(false);
   const [deletingGithubInstallationId, setDeletingGithubInstallationId] = useState("");
+  const [refreshingGithubInstallationId, setRefreshingGithubInstallationId] = useState("");
   const [pendingGithubInstallCallback, setPendingGithubInstallCallback] = useState(
     () => parseGithubInstallCallbackFromLocation(),
   );
@@ -4597,6 +4730,29 @@ function App() {
       setGithubInstallationError(loadError.message);
     } finally {
       setIsLoadingGithubInstallations(false);
+    }
+  }, [selectedCompanyId]);
+
+  const loadGithubRepositories = useCallback(async () => {
+    if (!selectedCompanyId) {
+      setGithubRepositories([]);
+      setGithubInstallationError("");
+      setIsLoadingGithubRepositories(false);
+      return;
+    }
+
+    try {
+      setGithubInstallationError("");
+      setIsLoadingGithubRepositories(true);
+      const data = await executeGraphQL(LIST_REPOSITORIES_QUERY, {
+        companyId: selectedCompanyId,
+        provider: "github",
+      });
+      setGithubRepositories(data.repositories || []);
+    } catch (loadError) {
+      setGithubInstallationError(loadError.message);
+    } finally {
+      setIsLoadingGithubRepositories(false);
     }
   }, [selectedCompanyId]);
 
@@ -4941,9 +5097,11 @@ function App() {
     setRunnerSecretsById({});
     setRegeneratingRunnerId(null);
     setGithubInstallations([]);
+    setGithubRepositories([]);
     setGithubInstallationError("");
     setGithubInstallationNotice("");
     setDeletingGithubInstallationId("");
+    setRefreshingGithubInstallationId("");
     setSkillName("");
     setSkillType(SKILL_TYPE_TEXT);
     setSkillSkillsMpPackageName("");
@@ -5055,12 +5213,14 @@ function App() {
 
   useEffect(() => {
     loadGithubInstallations();
+    loadGithubRepositories();
     loadTasks();
     loadSkills();
     loadMcpServers();
     loadAgents();
   }, [
     loadGithubInstallations,
+    loadGithubRepositories,
     loadAgents,
     loadMcpServers,
     loadSkills,
@@ -5199,6 +5359,7 @@ function App() {
         if (!isCancelled) {
           setGithubInstallationNotice(`Linked GitHub installation ${installationId}.`);
           await loadGithubInstallations();
+          await loadGithubRepositories();
         }
       } catch (linkError) {
         if (!isCancelled) {
@@ -5217,7 +5378,7 @@ function App() {
     return () => {
       isCancelled = true;
     };
-  }, [loadGithubInstallations, pendingGithubInstallCallback, selectedCompanyId]);
+  }, [loadGithubInstallations, loadGithubRepositories, pendingGithubInstallCallback, selectedCompanyId]);
 
   async function handleCreateCompany(event) {
     event.preventDefault();
@@ -5321,10 +5482,47 @@ function App() {
       }
       setGithubInstallationNotice(`Deleted GitHub installation ${resolvedInstallationId}.`);
       await loadGithubInstallations();
+      await loadGithubRepositories();
     } catch (deleteError) {
       setGithubInstallationError(deleteError.message);
     } finally {
       setDeletingGithubInstallationId("");
+    }
+  }
+
+  async function handleRefreshGithubInstallationRepositories(installationId) {
+    if (!selectedCompanyId) {
+      setGithubInstallationError("Select a company before refreshing repositories.");
+      return;
+    }
+
+    const resolvedInstallationId = String(installationId || "").trim();
+    if (!resolvedInstallationId) {
+      setGithubInstallationError("installationId is required.");
+      return;
+    }
+
+    try {
+      setRefreshingGithubInstallationId(resolvedInstallationId);
+      setGithubInstallationError("");
+      setGithubInstallationNotice("");
+      const data = await executeGraphQL(REFRESH_GITHUB_INSTALLATION_REPOSITORIES_MUTATION, {
+        companyId: selectedCompanyId,
+        installationId: resolvedInstallationId,
+      });
+      const result = data.refreshGithubInstallationRepositories;
+      if (!result.ok) {
+        throw new Error(result.error || "Failed to refresh repositories.");
+      }
+      const refreshedRepositories = result.repositories || [];
+      setGithubInstallationNotice(
+        `Refreshed ${refreshedRepositories.length} repos for installation ${resolvedInstallationId}.`,
+      );
+      await loadGithubRepositories();
+    } catch (refreshError) {
+      setGithubInstallationError(refreshError.message);
+    } finally {
+      setRefreshingGithubInstallationId("");
     }
   }
 
@@ -7084,12 +7282,15 @@ function App() {
             selectedCompany={selectedCompany}
             companyError={companyError}
             githubInstallations={githubInstallations}
+            githubRepositories={githubRepositories}
             isLoadingGithubInstallations={isLoadingGithubInstallations}
+            isLoadingGithubRepositories={isLoadingGithubRepositories}
             githubInstallationError={githubInstallationError}
             githubInstallationNotice={githubInstallationNotice}
             isAddingGithubInstallationFromCallback={isAddingGithubInstallationFromCallback}
             pendingGithubInstallCallback={pendingGithubInstallCallback}
             deletingGithubInstallationId={deletingGithubInstallationId}
+            refreshingGithubInstallationId={refreshingGithubInstallationId}
             newCompanyName={newCompanyName}
             isCreatingCompany={isCreatingCompany}
             isDeletingCompany={isDeletingCompany}
@@ -7097,6 +7298,7 @@ function App() {
             onCreateCompany={handleCreateCompany}
             onDeleteCompany={handleDeleteCompany}
             onDeleteGithubInstallation={handleDeleteGithubInstallation}
+            onRefreshGithubInstallationRepositories={handleRefreshGithubInstallationRepositories}
           />
         ) : null}
 

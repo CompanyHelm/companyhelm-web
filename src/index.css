@@ -793,6 +793,39 @@ button:disabled {
   font-size: 0.88rem;
 }
 
+.repo-list {
+  list-style: none;
+  margin: 0.38rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.34rem;
+}
+
+.repo-list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.34rem 0.44rem;
+  border-radius: 8px;
+  background: rgba(24, 31, 37, 0.05);
+}
+
+.repo-list-item a {
+  color: var(--action);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  font-size: 0.86rem;
+}
+
+.repo-list-item a:hover {
+  text-decoration: underline;
+}
+
+.repo-list-item code {
+  font-size: 0.73rem;
+}
+
 .agent-installed-skills {
   margin: 0.4rem 0 0.58rem;
   padding: 0.52rem 0.6rem;
