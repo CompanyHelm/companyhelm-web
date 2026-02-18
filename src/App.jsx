@@ -2067,14 +2067,7 @@ function Breadcrumbs({ items, onNavigate }) {
 
           return (
             <li key={key} className="breadcrumb-item">
-              {isLast || !href ? (
-                <span
-                  className={isLast ? "breadcrumb-current" : "breadcrumb-text"}
-                  aria-current={isLast ? "page" : undefined}
-                >
-                  {label || "Untitled"}
-                </span>
-              ) : (
+              {href ? (
                 <a
                   className="breadcrumb-link"
                   href={href}
@@ -2086,8 +2079,12 @@ function Breadcrumbs({ items, onNavigate }) {
                     onNavigate(href);
                   }}
                 >
-                  {label}
+                  {label || "Untitled"}
                 </a>
+              ) : (
+                <span className={isLast ? "breadcrumb-current" : "breadcrumb-text"}>
+                  {label || "Untitled"}
+                </span>
               )}
               {!isLast ? <span className="breadcrumb-separator">/</span> : null}
             </li>
@@ -5381,7 +5378,7 @@ function App() {
 
     if (activePage === "agents") {
       if (agentsRoute.view === "list" || !agentsRoute.agentId) {
-        return [{ label: "Agents" }];
+        return [{ label: "Agents", href: "#agents" }];
       }
 
       const chatsHref = `/agents/${agentsRoute.agentId}/chats`;
@@ -5391,28 +5388,33 @@ function App() {
       ];
 
       if (agentsRoute.view === "chat" && agentsRoute.sessionId) {
+        const chatHref = `/agents/${agentsRoute.agentId}/chats/${agentsRoute.sessionId}`;
         return [
           ...items,
           { label: "Chats", href: chatsHref },
-          { label: getChatLabel(agentsRoute.sessionId) },
+          { label: getChatLabel(agentsRoute.sessionId), href: chatHref },
         ];
       }
 
-      return [...items, { label: "Chats" }];
+      return [...items, { label: "Chats", href: chatsHref }];
     }
 
     if (activePage === "chats") {
-      const items = [{ label: "Chats" }];
+      const items = [{ label: "Chats", href: "/chats" }];
       if (chatAgentId) {
-        items.push({ label: getAgentLabel(chatAgentId) });
-      }
-      if (chatSessionId) {
-        items.push({ label: getChatLabel(chatSessionId) });
+        const chatsHref = `/agents/${chatAgentId}/chats`;
+        items.push({ label: getAgentLabel(chatAgentId), href: chatsHref });
+        if (chatSessionId) {
+          items.push({
+            label: getChatLabel(chatSessionId),
+            href: `/agents/${chatAgentId}/chats/${chatSessionId}`,
+          });
+        }
       }
       return items;
     }
 
-    return [{ label: currentPageLabel }];
+    return [{ label: currentPageLabel, href: getPathForPage(activePage) }];
   }, [
     activePage,
     agents,
