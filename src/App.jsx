@@ -1060,10 +1060,6 @@ function toSelectValue(value) {
   return String(value);
 }
 
-function getSelectedMultiValues(selectElement) {
-  return Array.from(selectElement.selectedOptions, (option) => option.value);
-}
-
 function normalizeUniqueStringList(values) {
   if (!Array.isArray(values)) {
     return [];
@@ -1092,6 +1088,15 @@ function normalizeSkillType(value) {
     return SKILL_TYPE_SKILLSMP;
   }
   return SKILL_TYPE_TEXT;
+}
+
+function formatSkillLabel(skill) {
+  if (!skill || typeof skill !== "object") {
+    return "";
+  }
+  const skillTypeLabel =
+    normalizeSkillType(skill.skillType) === SKILL_TYPE_SKILLSMP ? " (SkillsMP)" : "";
+  return `${skill.name}${skillTypeLabel}`;
 }
 
 function normalizeMcpTransportType(value) {
@@ -3003,6 +3008,11 @@ function AgentsPage({
     () => normalizeUniqueStringList(agentMcpServerIds),
     [agentMcpServerIds],
   );
+  const createAssignedSkillIds = useMemo(() => normalizeUniqueStringList(agentSkillIds), [agentSkillIds]);
+  const createAvailableSkills = useMemo(
+    () => skills.filter((skill) => !createAssignedSkillIds.includes(skill.id)),
+    [createAssignedSkillIds, skills],
+  );
   const createAvailableMcpServers = useMemo(
     () => mcpServers.filter((mcpServer) => !createAssignedMcpServerIds.includes(mcpServer.id)),
     [createAssignedMcpServerIds, mcpServers],
@@ -3075,9 +3085,7 @@ function AgentsPage({
                 if (!skill) {
                   return skillId;
                 }
-                const skillTypeLabel =
-                  normalizeSkillType(skill.skillType) === SKILL_TYPE_SKILLSMP ? " (SkillsMP)" : "";
-                return `${skill.name}${skillTypeLabel}`;
+                return formatSkillLabel(skill);
               });
               const assignedSkillSummary =
                 assignedSkillLabels.length > 0 ? assignedSkillLabels.join(", ") : "none";
@@ -3102,6 +3110,10 @@ function AgentsPage({
                 model: "",
                 modelReasoningLevel: "",
               };
+              const draftSkillIds = normalizeUniqueStringList(draft.skillIds);
+              const draftAvailableSkills = skills.filter(
+                (skill) => !draftSkillIds.includes(skill.id),
+              );
               const draftMcpServerIds = normalizeUniqueStringList(draft.mcpServerIds);
               const draftAvailableMcpServers = mcpServers.filter(
                 (mcpServer) => !draftMcpServerIds.includes(mcpServer.id),
@@ -3291,31 +3303,61 @@ function AgentsPage({
                         )}
                       </select>
 
-                      <label className="relationship-field" htmlFor={`agent-skills-${agent.id}`}>
-                        Skills
+                      <label className="relationship-field" htmlFor={`agent-skills-assigned-${agent.id}`}>
+                        Assigned skills
+                      </label>
+                      <div id={`agent-skills-assigned-${agent.id}`} className="inline-selection-list">
+                        {draftSkillIds.length === 0 ? (
+                          <span className="empty-hint">No skills assigned.</span>
+                        ) : (
+                          draftSkillIds.map((skillId) => {
+                            const skill = skillLookup.get(skillId);
+                            const skillLabel = skill ? formatSkillLabel(skill) : skillId;
+                            return (
+                              <button
+                                key={`agent-remove-skill-${agent.id}-${skillId}`}
+                                type="button"
+                                className="tag-remove-btn"
+                                onClick={() =>
+                                  onAgentDraftChange(
+                                    agent.id,
+                                    "skillIds",
+                                    draftSkillIds.filter((candidateId) => candidateId !== skillId),
+                                  )
+                                }
+                                disabled={isSavingOrDeleting}
+                                title={`Remove ${skillLabel}`}
+                              >
+                                {skillLabel} ×
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+
+                      <label className="relationship-field" htmlFor={`agent-skills-add-${agent.id}`}>
+                        Add skill
                       </label>
                       <select
-                        id={`agent-skills-${agent.id}`}
-                        className="multi-select-input"
-                        multiple
-                        size={Math.min(6, Math.max(3, skills.length || 3))}
-                        value={draft.skillIds}
-                        onChange={(event) =>
-                          onAgentDraftChange(
-                            agent.id,
-                            "skillIds",
-                            getSelectedMultiValues(event.target),
-                          )
-                        }
-                        disabled={isSavingOrDeleting}
+                        id={`agent-skills-add-${agent.id}`}
+                        value=""
+                        onChange={(event) => {
+                          const nextSkillId = String(event.target.value || "").trim();
+                          if (!nextSkillId) {
+                            return;
+                          }
+                          onAgentDraftChange(agent.id, "skillIds", [...draftSkillIds, nextSkillId]);
+                        }}
+                        disabled={isSavingOrDeleting || draftAvailableSkills.length === 0}
                       >
-                        {skills.map((skill) => (
+                        <option value="">
+                          {draftAvailableSkills.length === 0
+                            ? "All company skills already assigned"
+                            : "Select skill to assign"}
+                        </option>
+                        {draftAvailableSkills.map((skill) => (
                           <option key={`agent-skill-option-${agent.id}-${skill.id}`} value={skill.id}>
-                            {`${skill.name}${
-                              normalizeSkillType(skill.skillType) === SKILL_TYPE_SKILLSMP
-                                ? " (SkillsMP)"
-                                : ""
-                            }`}
+                            {formatSkillLabel(skill)}
                           </option>
                         ))}
                       </select>
@@ -3465,21 +3507,54 @@ function AgentsPage({
             ))}
           </select>
 
-          <label htmlFor="agent-skill-ids">Assigned skills (optional)</label>
+          <label htmlFor="create-agent-skills-assigned">Assigned skills (optional)</label>
+          <div id="create-agent-skills-assigned" className="inline-selection-list">
+            {createAssignedSkillIds.length === 0 ? (
+              <span className="empty-hint">No skills assigned.</span>
+            ) : (
+              createAssignedSkillIds.map((skillId) => {
+                const skill = skillLookup.get(skillId);
+                const skillLabel = skill ? formatSkillLabel(skill) : skillId;
+                return (
+                  <button
+                    key={`create-agent-remove-skill-${skillId}`}
+                    type="button"
+                    className="tag-remove-btn"
+                    onClick={() =>
+                      onAgentSkillIdsChange(
+                        createAssignedSkillIds.filter((candidateId) => candidateId !== skillId),
+                      )
+                    }
+                    title={`Remove ${skillLabel}`}
+                  >
+                    {skillLabel} ×
+                  </button>
+                );
+              })
+            )}
+          </div>
+
+          <label htmlFor="create-agent-skill-add">Add skill</label>
           <select
-            id="agent-skill-ids"
-            className="multi-select-input"
-            name="skillIds"
-            multiple
-            size={Math.min(6, Math.max(3, skills.length || 3))}
-            value={agentSkillIds}
-            onChange={(event) => onAgentSkillIdsChange(getSelectedMultiValues(event.target))}
+            id="create-agent-skill-add"
+            value=""
+            onChange={(event) => {
+              const nextSkillId = String(event.target.value || "").trim();
+              if (!nextSkillId) {
+                return;
+              }
+              onAgentSkillIdsChange([...createAssignedSkillIds, nextSkillId]);
+            }}
+            disabled={createAvailableSkills.length === 0}
           >
-            {skills.map((skill) => (
+            <option value="">
+              {createAvailableSkills.length === 0
+                ? "All company skills already assigned"
+                : "Select skill to assign"}
+            </option>
+            {createAvailableSkills.map((skill) => (
               <option key={`create-agent-skill-${skill.id}`} value={skill.id}>
-                {`${skill.name}${
-                  normalizeSkillType(skill.skillType) === SKILL_TYPE_SKILLSMP ? " (SkillsMP)" : ""
-                }`}
+                {formatSkillLabel(skill)}
               </option>
             ))}
           </select>
@@ -7690,6 +7765,10 @@ function App() {
     setAgentModelReasoningLevel(String(nextReasoningLevel || "").trim());
   }
 
+  function handleCreateAgentSkillIdsChange(nextSkillIds) {
+    setAgentSkillIds(normalizeUniqueStringList(nextSkillIds));
+  }
+
   function handleAgentDraftChange(agentId, field, value) {
     setAgentDrafts((currentDrafts) => {
       const currentDraft = currentDrafts[agentId] || {
@@ -7713,6 +7792,9 @@ function App() {
 
       if (field === "agentRunnerId") {
         nextDraft.agentRunnerId = String(value || "").trim();
+      }
+      if (field === "skillIds") {
+        nextDraft.skillIds = normalizeUniqueStringList(value);
       }
       if (field === "mcpServerIds") {
         nextDraft.mcpServerIds = normalizeUniqueStringList(value);
@@ -8174,7 +8256,7 @@ function App() {
               agentDrafts={agentDrafts}
               agentCountLabel={agentCountLabel}
               onAgentRunnerChange={handleCreateAgentRunnerChange}
-              onAgentSkillIdsChange={setAgentSkillIds}
+              onAgentSkillIdsChange={handleCreateAgentSkillIdsChange}
               onAgentMcpServerIdsChange={setAgentMcpServerIds}
               onAgentNameChange={setAgentName}
               onAgentSdkChange={handleCreateAgentSdkChange}
