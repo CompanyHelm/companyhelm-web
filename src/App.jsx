@@ -1573,6 +1573,26 @@ function formatTimestamp(value) {
   return parsedDate.toLocaleString();
 }
 
+function normalizeChatStatus(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return normalized === "running" ? "running" : "idle";
+}
+
+function hasRunningChatTurns(turns) {
+  return (Array.isArray(turns) ? turns : []).some((turn) => normalizeChatStatus(turn?.status) === "running");
+}
+
+function isChatSessionRunning(session, chatSessionRunningById) {
+  if (!session) {
+    return false;
+  }
+  if (normalizeChatStatus(session.status) === "running") {
+    return true;
+  }
+  const sessionId = String(session.id || "").trim();
+  return Boolean(sessionId && chatSessionRunningById?.[sessionId]);
+}
+
 const CODEX_STREAM_DEFAULT_TURN_KEY = "__default_turn__";
 const CODEX_TURN_COMPLETION_TYPES = new Set([
   "turn.completed",
@@ -4450,6 +4470,7 @@ function ChatsOverviewPage({
   selectedCompanyId,
   agents,
   chatSessionsByAgent,
+  chatSessionRunningById,
   isLoadingChatIndex,
   chatIndexError,
   isCreatingChatSession,
@@ -4519,29 +4540,35 @@ function ChatsOverviewPage({
                   {!hasChats ? <p className="empty-hint">No chats yet for this agent.</p> : null}
                   {hasChats ? (
                     <ul className="chat-session-list">
-                      {sortedChats.map((chatSession) => (
-                        <li key={`chat-session-${agent.id}-${chatSession.id}`} className="chat-session-row">
-                          <div>
-                            <strong>{chatSession.title || "Untitled chat"}</strong>
-                            <p className="agent-subcopy">
-                              Updated: <strong>{formatTimestamp(chatSession.updatedAt)}</strong>
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            className="secondary-btn"
-                            onClick={() =>
-                              onOpenChat({
-                                agentId: agent.id,
-                                sessionId: chatSession.id,
-                                sessionsForAgent: sortedChats,
-                              })
-                            }
-                          >
-                            Open chat
-                          </button>
-                        </li>
-                      ))}
+                      {sortedChats.map((chatSession) => {
+                        const isRunning = isChatSessionRunning(chatSession, chatSessionRunningById);
+                        return (
+                          <li key={`chat-session-${agent.id}-${chatSession.id}`} className="chat-session-row">
+                            <div>
+                              <p className="chat-session-title-row">
+                                <strong>{chatSession.title || "Untitled chat"}</strong>
+                                {isRunning ? <ChatSessionRunningBadge /> : null}
+                              </p>
+                              <p className="agent-subcopy">
+                                Updated: <strong>{formatTimestamp(chatSession.updatedAt)}</strong>
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              className="secondary-btn"
+                              onClick={() =>
+                                onOpenChat({
+                                  agentId: agent.id,
+                                  sessionId: chatSession.id,
+                                  sessionsForAgent: sortedChats,
+                                })
+                              }
+                            >
+                              Open chat
+                            </button>
+                          </li>
+                        );
+                      })}
                     </ul>
                   ) : null}
                 </li>
@@ -4554,10 +4581,20 @@ function ChatsOverviewPage({
   );
 }
 
+function ChatSessionRunningBadge() {
+  return (
+    <span className="chat-session-running-badge" title="Chat is running">
+      <span className="chat-turn-spinner chat-session-spinner" aria-hidden="true" />
+      running
+    </span>
+  );
+}
+
 function AgentChatsPage({
   selectedCompanyId,
   agent,
   chatSessions,
+  chatSessionRunningById,
   isLoadingChatSessions,
   isCreatingChatSession,
   chatError,
@@ -4598,31 +4635,37 @@ function AgentChatsPage({
         ) : null}
         {agent && chatSessions.length > 0 ? (
           <ul className="task-list">
-            {chatSessions.map((session) => (
-              <li key={`agent-session-${session.id}`} className="task-card">
-                <div className="task-card-top">
-                  <strong>{session.title || "Untitled chat"}</strong>
-                  <code className="runner-id">{session.id}</code>
-                </div>
-                <p className="agent-subcopy">
-                  Updated: <strong>{formatTimestamp(session.updatedAt)}</strong>
-                </p>
-                {session.remoteSessionId ? (
+            {chatSessions.map((session) => {
+              const isRunning = isChatSessionRunning(session, chatSessionRunningById);
+              return (
+                <li key={`agent-session-${session.id}`} className="task-card">
+                  <div className="task-card-top">
+                    <p className="chat-session-title-row">
+                      <strong>{session.title || "Untitled chat"}</strong>
+                      {isRunning ? <ChatSessionRunningBadge /> : null}
+                    </p>
+                    <code className="runner-id">{session.id}</code>
+                  </div>
                   <p className="agent-subcopy">
-                    Remote chat ID: <strong>{session.remoteSessionId}</strong>
+                    Updated: <strong>{formatTimestamp(session.updatedAt)}</strong>
                   </p>
-                ) : null}
-                <div className="task-card-actions">
-                  <button
-                    type="button"
-                    className="secondary-btn"
-                    onClick={() => onOpenChat(session.id)}
-                  >
-                    Open chat
-                  </button>
-                </div>
-              </li>
-            ))}
+                  {session.remoteSessionId ? (
+                    <p className="agent-subcopy">
+                      Remote chat ID: <strong>{session.remoteSessionId}</strong>
+                    </p>
+                  ) : null}
+                  <div className="task-card-actions">
+                    <button
+                      type="button"
+                      className="secondary-btn"
+                      onClick={() => onOpenChat(session.id)}
+                    >
+                      Open chat
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         ) : null}
       </section>
@@ -5328,6 +5371,7 @@ function App() {
   const [chatAgentId, setChatAgentId] = useState("");
   const [chatSessions, setChatSessions] = useState([]);
   const [chatSessionsByAgent, setChatSessionsByAgent] = useState({});
+  const [chatSessionRunningById, setChatSessionRunningById] = useState({});
   const [chatSessionId, setChatSessionId] = useState("");
   const [chatSessionTitleDraft, setChatSessionTitleDraft] = useState("");
   const [chatSessionRemoteIdDraft, setChatSessionRemoteIdDraft] = useState("");
@@ -5369,6 +5413,31 @@ function App() {
   const selectedChatSession = useMemo(() => {
     return chatSessions.find((session) => session.id === chatSessionId) || null;
   }, [chatSessions, chatSessionId]);
+
+  const setChatSessionRunningState = useCallback((sessionId, isRunning) => {
+    const resolvedSessionId = String(sessionId || "").trim();
+    if (!resolvedSessionId) {
+      return;
+    }
+    setChatSessionRunningById((currentState) => {
+      const currentlyRunning = Boolean(currentState[resolvedSessionId]);
+      if (currentlyRunning === isRunning) {
+        return currentState;
+      }
+      if (isRunning) {
+        return {
+          ...currentState,
+          [resolvedSessionId]: true,
+        };
+      }
+      if (!(resolvedSessionId in currentState)) {
+        return currentState;
+      }
+      const nextState = { ...currentState };
+      delete nextState[resolvedSessionId];
+      return nextState;
+    });
+  }, []);
 
   const breadcrumbItems = useMemo(() => {
     const currentPageLabel = NAV_ITEM_LOOKUP.get(activePage)?.label || "Dashboard";
@@ -5733,7 +5802,9 @@ function App() {
           sessionId: chatSessionId,
           limit: 200,
         });
-        setChatTurns(data.agentChatTurns || []);
+        const nextTurns = data.agentChatTurns || [];
+        setChatTurns(nextTurns);
+        setChatSessionRunningState(chatSessionId, hasRunningChatTurns(nextTurns));
       } catch (loadError) {
         if (!silently) {
           setChatError(loadError.message);
@@ -5744,7 +5815,7 @@ function App() {
         }
       }
     },
-    [selectedCompanyId, chatAgentId, chatSessionId],
+    [selectedCompanyId, chatAgentId, chatSessionId, setChatSessionRunningState],
   );
 
   const loadChatSessionIndexByAgent = useCallback(
@@ -5868,10 +5939,14 @@ function App() {
   }, [chatAgentId]);
 
   const handleAgentChatTurnsSubscriptionData = useCallback((payload) => {
-    setChatTurns(payload?.agentChatTurnsUpdated || []);
+    const nextTurns = payload?.agentChatTurnsUpdated || [];
+    setChatTurns(nextTurns);
+    if (chatSessionId) {
+      setChatSessionRunningState(chatSessionId, hasRunningChatTurns(nextTurns));
+    }
     setChatError("");
     setIsLoadingChat(false);
-  }, []);
+  }, [chatSessionId, setChatSessionRunningState]);
 
   const handleAgentChatSubscriptionError = useCallback((error) => {
     setChatError(error.message);
@@ -5985,6 +6060,7 @@ function App() {
     setChatAgentId("");
     setChatSessions([]);
     setChatSessionsByAgent({});
+    setChatSessionRunningById({});
     setChatSessionId("");
     setChatSessionTitleDraft("");
     setChatSessionRemoteIdDraft("");
@@ -7485,6 +7561,7 @@ function App() {
       if (!result.ok) {
         throw new Error(result.error || "Failed to send chat message.");
       }
+      setChatSessionRunningState(targetSessionId, true);
       if (result.sessionId) {
         setChatSessionId(result.sessionId);
       }
@@ -8199,6 +8276,7 @@ function App() {
               selectedCompanyId={selectedCompanyId}
               agents={agents}
               chatSessionsByAgent={chatSessionsByAgent}
+              chatSessionRunningById={chatSessionRunningById}
               isLoadingChatIndex={isLoadingChatIndex}
               chatIndexError={chatIndexError}
               isCreatingChatSession={isCreatingChatSession}
@@ -8215,6 +8293,7 @@ function App() {
               selectedCompanyId={selectedCompanyId}
               agent={agents.find((agent) => agent.id === chatAgentId) || null}
               chatSessions={chatSessions}
+              chatSessionRunningById={chatSessionRunningById}
               isLoadingChatSessions={isLoadingChatSessions}
               isCreatingChatSession={isCreatingChatSession}
               chatError={chatError}
