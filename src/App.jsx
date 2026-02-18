@@ -7828,6 +7828,10 @@ function App() {
   }
 
   function navigateTo(pageId) {
+    if (String(pageId || "").trim().toLowerCase() === "chats") {
+      setChatSessionId("");
+      setChatTurns([]);
+    }
     setBrowserPath(getPathForPage(pageId));
   }
 
