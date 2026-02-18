@@ -854,6 +854,7 @@ const SEND_AGENT_SESSION_MESSAGE_MUTATION = `
     $sessionId: String!
     $message: String!
     $runnerId: String
+    $messageMode: String
   ) {
     sendAgentSessionMessage(
       companyId: $companyId
@@ -861,6 +862,7 @@ const SEND_AGENT_SESSION_MESSAGE_MUTATION = `
       sessionId: $sessionId
       message: $message
       runnerId: $runnerId
+      messageMode: $messageMode
     ) {
       ok
       error
@@ -4603,8 +4605,10 @@ function AgentChatPage({
   isLoadingChat,
   chatError,
   chatDraftMessage,
+  chatMessageMode,
   isSendingChatMessage,
   onChatDraftMessageChange,
+  onChatMessageModeChange,
   onBackToChats,
   onSendChatMessage,
 }) {
@@ -4856,6 +4860,16 @@ function AgentChatPage({
           <h2>Send message</h2>
         </header>
         <form className="task-form" onSubmit={onSendChatMessage}>
+          <label htmlFor="chat-message-mode">Mode</label>
+          <select
+            id="chat-message-mode"
+            value={chatMessageMode}
+            onChange={(event) => onChatMessageModeChange(event.target.value)}
+            disabled={!canChat || isSendingChatMessage}
+          >
+            <option value="queue">Queue</option>
+            <option value="steer">Steer</option>
+          </select>
           <label htmlFor="chat-message-input">Message</label>
           <textarea
             id="chat-message-input"
@@ -5247,6 +5261,7 @@ function App() {
   const [chatSessionRemoteIdDraft, setChatSessionRemoteIdDraft] = useState("");
   const [chatTurns, setChatTurns] = useState([]);
   const [chatDraftMessage, setChatDraftMessage] = useState("");
+  const [chatMessageMode, setChatMessageMode] = useState("queue");
   const [chatError, setChatError] = useState("");
   const [chatIndexError, setChatIndexError] = useState("");
   const [isLoadingChatIndex, setIsLoadingChatIndex] = useState(false);
@@ -7387,6 +7402,7 @@ function App() {
         sessionId: targetSessionId,
         message: chatDraftMessage.trim(),
         runnerId: selectedAgentForChat?.agentRunnerId || null,
+        messageMode: chatMessageMode,
       });
       const result = data.sendAgentSessionMessage;
       if (!result.ok) {
@@ -8079,8 +8095,10 @@ function App() {
               isLoadingChat={isLoadingChat}
               chatError={chatError}
               chatDraftMessage={chatDraftMessage}
+              chatMessageMode={chatMessageMode}
               isSendingChatMessage={isSendingChatMessage}
               onChatDraftMessageChange={setChatDraftMessage}
+              onChatMessageModeChange={setChatMessageMode}
               onBackToChats={() => {
                 setChatSessionId("");
                 setChatTurns([]);
@@ -8136,8 +8154,10 @@ function App() {
               isLoadingChat={isLoadingChat}
               chatError={chatError}
               chatDraftMessage={chatDraftMessage}
+              chatMessageMode={chatMessageMode}
               isSendingChatMessage={isSendingChatMessage}
               onChatDraftMessageChange={setChatDraftMessage}
+              onChatMessageModeChange={setChatMessageMode}
               onBackToChats={() => {
                 if (!chatAgentId) {
                   navigateTo("agents");
