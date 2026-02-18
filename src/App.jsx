@@ -1006,26 +1006,26 @@ const PRIMARY_NAV_ITEMS = [
   {
     id: "dashboard",
     label: "Dashboard",
-    href: "#dashboard",
+    href: "/dashboard",
     tone: "mint",
     requiresCompany: true,
   },
-  { id: "tasks", label: "Tasks", href: "#tasks", tone: "sand", requiresCompany: true },
-  { id: "skills", label: "Skills", href: "#skills", tone: "sand", requiresCompany: true },
-  { id: "mcp-servers", label: "MCP", href: "#mcp-servers", tone: "mint", requiresCompany: true },
+  { id: "tasks", label: "Tasks", href: "/tasks", tone: "sand", requiresCompany: true },
+  { id: "skills", label: "Skills", href: "/skills", tone: "sand", requiresCompany: true },
+  { id: "mcp-servers", label: "MCP", href: "/mcp-servers", tone: "mint", requiresCompany: true },
   {
     id: "agent-runner",
     label: "Agent Runner",
-    href: "#agent-runner",
+    href: "/agent-runner",
     tone: "sky",
     requiresCompany: true,
   },
-  { id: "chats", label: "Chats", href: "#chats", tone: "coral", requiresCompany: true },
-  { id: "agents", label: "Agents", href: "#agents", tone: "coral", requiresCompany: true },
+  { id: "chats", label: "Chats", href: "/chats", tone: "coral", requiresCompany: true },
+  { id: "agents", label: "Agents", href: "/agents", tone: "coral", requiresCompany: true },
   {
     id: "settings",
     label: "Settings",
-    href: "#settings",
+    href: "/settings",
     tone: "slate",
     requiresCompany: false,
   },
@@ -1034,7 +1034,7 @@ const PRIMARY_NAV_ITEMS = [
 const PROFILE_NAV_ITEM = {
   id: "profile",
   label: "Profile",
-  href: "#profile",
+  href: "/profile",
   tone: "stone",
   requiresCompany: false,
 };
@@ -1253,11 +1253,24 @@ function parseMcpHeadersText(rawText) {
   return { headers, error: "" };
 }
 
-function getPageFromHash() {
-  const parsed = window.location.hash.replace("#", "").toLowerCase();
-  const [pageId] = parsed.split("/").filter(Boolean);
+function normalizePathname(rawPathname) {
+  const trimmed = String(rawPathname || "").trim();
+  if (!trimmed || trimmed === "/") {
+    return "/";
+  }
+
+  const cleanPath = trimmed.replace(/^\/+|\/+$/g, "");
+  return cleanPath ? `/${cleanPath}` : "/";
+}
+
+function getPageFromPathname(pathname = window.location.pathname) {
+  const segments = normalizePathname(pathname).toLowerCase().split("/").filter(Boolean);
+  const pageId = segments[0] || "";
   if (pageId && PAGE_IDS.has(pageId)) {
     return pageId;
+  }
+  if (pageId === "agents") {
+    return "agents";
   }
   return NAV_ITEMS[0].id;
 }
@@ -1275,13 +1288,11 @@ function parseGithubInstallCallbackFromLocation() {
 }
 
 function clearGithubInstallCallbackFromLocation() {
-  const nextHash = window.location.hash || "#settings";
-  window.history.replaceState({}, "", `/${nextHash}`);
+  setBrowserPath("/settings", { replace: true });
 }
 
-function getAgentsRouteFromHash() {
-  const parsed = window.location.hash.replace("#", "").trim();
-  const segments = parsed.split("/").filter(Boolean);
+function getAgentsRouteFromPathname(pathname = window.location.pathname) {
+  const segments = normalizePathname(pathname).split("/").filter(Boolean);
   if (segments[0] !== "agents") {
     return { view: "list", agentId: "", sessionId: "" };
   }
@@ -1300,6 +1311,31 @@ function getAgentsRouteFromHash() {
     return { view: "chat", agentId, sessionId };
   }
   return { view: "chats", agentId, sessionId: "" };
+}
+
+function setBrowserPath(pathname, { replace = false } = {}) {
+  const nextPath = normalizePathname(pathname);
+  const currentPath = normalizePathname(window.location.pathname);
+  if (nextPath === currentPath) {
+    return;
+  }
+  if (replace) {
+    window.history.replaceState({}, "", nextPath);
+  } else {
+    window.history.pushState({}, "", nextPath);
+  }
+  window.dispatchEvent(new PopStateEvent("popstate"));
+}
+
+function getPathForPage(pageId) {
+  const normalizedPageId = String(pageId || "").trim().toLowerCase();
+  if (normalizedPageId === "chat") {
+    return "/chats";
+  }
+  if (!PAGE_IDS.has(normalizedPageId)) {
+    return `/${NAV_ITEMS[0].id}`;
+  }
+  return `/${normalizedPageId}`;
 }
 
 function getPersistedCompanyId() {
@@ -2010,7 +2046,7 @@ function AppHeader({
   );
 }
 
-function Breadcrumbs({ items }) {
+function Breadcrumbs({ items, onNavigate }) {
   if (!Array.isArray(items) || items.length === 0) {
     return null;
   }
@@ -2034,7 +2070,17 @@ function Breadcrumbs({ items }) {
                   {label || "Untitled"}
                 </span>
               ) : (
-                <a className="breadcrumb-link" href={href}>
+                <a
+                  className="breadcrumb-link"
+                  href={href}
+                  onClick={(event) => {
+                    if (!onNavigate) {
+                      return;
+                    }
+                    event.preventDefault();
+                    onNavigate(href);
+                  }}
+                >
                   {label}
                 </a>
               )}
@@ -5104,8 +5150,8 @@ function ProfilePage({ selectedCompany, tasks, skills, agents, agentRunners }) {
 }
 
 function App() {
-  const [activePage, setActivePage] = useState(() => getPageFromHash());
-  const [agentsRoute, setAgentsRoute] = useState(() => getAgentsRouteFromHash());
+  const [activePage, setActivePage] = useState(() => getPageFromPathname());
+  const [agentsRoute, setAgentsRoute] = useState(() => getAgentsRouteFromPathname());
   const [companies, setCompanies] = useState([]);
   const [isLoadingCompanies, setIsLoadingCompanies] = useState(true);
   const [companyError, setCompanyError] = useState("");
@@ -5263,9 +5309,9 @@ function App() {
         return [{ label: "Agents" }];
       }
 
-      const chatsHref = `#agents/${agentsRoute.agentId}/chats`;
+      const chatsHref = `/agents/${agentsRoute.agentId}/chats`;
       const items = [
-        { label: "Agents", href: "#agents" },
+        { label: "Agents", href: "/agents" },
         { label: getAgentLabel(agentsRoute.agentId), href: chatsHref },
       ];
 
@@ -6056,18 +6102,27 @@ function App() {
   }, [activePage, agentsRoute.sessionId, agentsRoute.view, chatAgentId, chatSessionId, chatSessions]);
 
   useEffect(() => {
-    if (!window.location.hash) {
-      window.location.hash = `#${NAV_ITEMS[0].id}`;
+    const legacyHashRoute = String(window.location.hash || "")
+      .replace(/^#/, "")
+      .trim();
+    if (legacyHashRoute) {
+      setBrowserPath(`/${legacyHashRoute}`, { replace: true });
+      return;
     }
 
-    const handleHashChange = () => {
-      setActivePage(getPageFromHash());
-      setAgentsRoute(getAgentsRouteFromHash());
+    if (normalizePathname(window.location.pathname) === "/") {
+      setBrowserPath(`/${NAV_ITEMS[0].id}`, { replace: true });
+      return;
+    }
+
+    const handlePopState = () => {
+      setActivePage(getPageFromPathname());
+      setAgentsRoute(getAgentsRouteFromPathname());
     };
 
-    handleHashChange();
-    window.addEventListener("hashchange", handleHashChange);
-    return () => window.removeEventListener("hashchange", handleHashChange);
+    handlePopState();
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
   useEffect(() => {
@@ -6094,7 +6149,7 @@ function App() {
     }
     const activeItem = NAV_ITEM_LOOKUP.get(activePage);
     if (activeItem?.requiresCompany && !selectedCompanyId) {
-      window.location.hash = "#settings";
+      navigateTo("settings");
     }
   }, [activePage, isLoadingCompanies, selectedCompanyId]);
 
@@ -6103,7 +6158,7 @@ function App() {
       return;
     }
 
-    window.location.hash = "#settings";
+    navigateTo("settings");
 
     const installationId = String(pendingGithubInstallCallback.installationId || "").trim();
     const setupAction = String(pendingGithubInstallCallback.setupAction || "").trim();
@@ -7420,7 +7475,7 @@ function App() {
     setChatSessionId(resolvedSessionId);
     setChatTurns([]);
     setChatError("");
-    window.location.hash = `#agents/${resolvedAgentId}/chats/${resolvedSessionId}`;
+    setBrowserPath(`/agents/${resolvedAgentId}/chats/${resolvedSessionId}`);
   }
 
   async function handleCreateChatForAgent(agentId) {
@@ -7433,7 +7488,7 @@ function App() {
     setChatTurns([]);
     const createdSessionId = await handleCreateChatSession({ agentId: resolvedAgentId });
     if (createdSessionId) {
-      window.location.hash = `#agents/${resolvedAgentId}/chats/${createdSessionId}`;
+      setBrowserPath(`/agents/${resolvedAgentId}/chats/${createdSessionId}`);
     }
   }
 
@@ -7691,23 +7746,19 @@ function App() {
   }
 
   function navigateTo(pageId) {
-    if (pageId === "chats" || pageId === "chat") {
-      window.location.hash = "#chats";
-      return;
-    }
-    window.location.hash = `#${pageId}`;
+    setBrowserPath(getPathForPage(pageId));
   }
 
   function handleOpenAgentSessions(agentId) {
     const resolvedAgentId = String(agentId || "").trim();
     if (!resolvedAgentId) {
-      window.location.hash = "#agents";
+      navigateTo("agents");
       return;
     }
     setChatAgentId(resolvedAgentId);
     setChatSessionId("");
     setChatTurns([]);
-    window.location.hash = `#agents/${resolvedAgentId}/chats`;
+    setBrowserPath(`/agents/${resolvedAgentId}/chats`);
   }
 
   const taskLookup = useMemo(() => {
@@ -7807,11 +7858,12 @@ function App() {
                 href={item.href}
                 aria-disabled={isDisabled ? "true" : undefined}
                 onClick={(event) => {
-                  if (!isDisabled) {
+                  event.preventDefault();
+                  if (isDisabled) {
+                    navigateTo("settings");
                     return;
                   }
-                  event.preventDefault();
-                  navigateTo("settings");
+                  navigateTo(item.id);
                 }}
                 className={`nav-link nav-link-${item.tone} ${
                   activePage === item.id ? "nav-link-active" : ""
@@ -7826,6 +7878,10 @@ function App() {
         <nav className="side-nav side-nav-profile" aria-label="Profile navigation">
           <a
             href={PROFILE_NAV_ITEM.href}
+            onClick={(event) => {
+              event.preventDefault();
+              navigateTo(PROFILE_NAV_ITEM.id);
+            }}
             className={`nav-link nav-link-${PROFILE_NAV_ITEM.tone} ${
               activePage === PROFILE_NAV_ITEM.id ? "nav-link-active" : ""
             }`}
@@ -7857,7 +7913,7 @@ function App() {
           onCompanyChange={setSelectedCompanyId}
           onOpenSettings={() => navigateTo("settings")}
         />
-        <Breadcrumbs items={breadcrumbItems} />
+        <Breadcrumbs items={breadcrumbItems} onNavigate={setBrowserPath} />
 
         {!selectedCompanyId && activePage !== "settings" && activePage !== "profile" ? (
           <CompanyRequiredPanel hasCompanies={hasCompanies} />
@@ -8065,10 +8121,10 @@ function App() {
                 if (!chatAgentId || !sessionId) {
                   return;
                 }
-                window.location.hash = `#agents/${chatAgentId}/chats/${sessionId}`;
+                setBrowserPath(`/agents/${chatAgentId}/chats/${sessionId}`);
               }}
               onBackToAgents={() => {
-                window.location.hash = "#agents";
+                navigateTo("agents");
               }}
             />
           ) : agentsRoute.view === "chat" ? (
@@ -8084,10 +8140,10 @@ function App() {
               onChatDraftMessageChange={setChatDraftMessage}
               onBackToChats={() => {
                 if (!chatAgentId) {
-                  window.location.hash = "#agents";
+                  navigateTo("agents");
                   return;
                 }
-                window.location.hash = `#agents/${chatAgentId}/chats`;
+                setBrowserPath(`/agents/${chatAgentId}/chats`);
               }}
               onSendChatMessage={handleSendChatMessage}
             />
