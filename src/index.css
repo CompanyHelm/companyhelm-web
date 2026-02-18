@@ -1323,6 +1323,34 @@ button:disabled {
   gap: 0.5rem;
 }
 
+.chat-session-title-row {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.42rem;
+}
+
+.chat-session-running-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.1rem 0.46rem;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 118, 110, 0.3);
+  background: rgba(15, 118, 110, 0.12);
+  color: #0f766e;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-transform: lowercase;
+}
+
+.chat-session-spinner {
+  width: 0.56rem;
+  height: 0.56rem;
+}
+
 .chat-session-row {
   display: flex;
   flex-wrap: wrap;
