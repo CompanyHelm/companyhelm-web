@@ -7,7 +7,6 @@ const GRAPHQL_WS_URL = import.meta.env.VITE_GRAPHQL_WS_URL || resolveGraphQLWebS
 const SELECTED_COMPANY_STORAGE_KEY = "companyhelm.selectedCompanyId";
 const DEFAULT_RUNNER_GRPC_TARGET =
   import.meta.env.VITE_AGENT_RUNNER_GRPC_TARGET || "localhost:50051";
-const CODEX_DEVICE_AUTH_URL = "https://auth.openai.com/codex/device";
 const GITHUB_APP_INSTALL_URL = "https://github.com/apps/companyhelm";
 const GITHUB_INSTALL_CALLBACK_PATH = "/github/install";
 const AVAILABLE_AGENT_SDKS = ["codex"];
@@ -201,15 +200,20 @@ const LIST_AGENT_RUNNERS_QUERY = `
     agentRunners(companyId: $companyId) {
       id
       companyId
+      callbackUrl
       hasAuthSecret
-      codexAuthenticated
-      codexAvailableModels {
+      availableAgentSdks {
         name
-        reasoning
+        availableModels {
+          name
+          reasoningLevels
+        }
       }
       status
       lastHealthCheckAt
       lastSeenAt
+      createdAt
+      updatedAt
     }
   }
 `;
@@ -232,15 +236,20 @@ const CREATE_AGENT_RUNNER_MUTATION = `
       agentRunner {
         id
         companyId
+        callbackUrl
         hasAuthSecret
-        codexAuthenticated
-        codexAvailableModels {
+        availableAgentSdks {
           name
-          reasoning
+          availableModels {
+            name
+            reasoningLevels
+          }
         }
         status
         lastHealthCheckAt
         lastSeenAt
+        createdAt
+        updatedAt
       }
     }
   }
@@ -256,15 +265,20 @@ const REGENERATE_AGENT_RUNNER_SECRET_MUTATION = `
       agentRunner {
       id
       companyId
+      callbackUrl
       hasAuthSecret
-      codexAuthenticated
-      codexAvailableModels {
+      availableAgentSdks {
         name
-          reasoning
+        availableModels {
+          name
+          reasoningLevels
         }
+      }
         status
         lastHealthCheckAt
         lastSeenAt
+        createdAt
+        updatedAt
       }
     }
   }
@@ -749,26 +763,24 @@ const RETRY_AGENT_SKILL_INSTALL_MUTATION = `
   }
 `;
 
-const LIST_AGENT_CHAT_TURNS_QUERY = `
-  query ListAgentChatTurns(
+const LIST_AGENT_TURNS_QUERY = `
+  query ListAgentTurns(
     $companyId: String!
     $agentId: String!
-    $sessionId: String
+    $threadId: String
     $limit: Int
   ) {
-    agentChatTurns(
+    agentTurns(
       companyId: $companyId
       agentId: $agentId
-      sessionId: $sessionId
+      threadId: $threadId
       limit: $limit
     ) {
       id
-      sessionId
+      threadId
       companyId
       agentId
       runnerId
-      commandId
-      providerTurnId
       status
       reasoningText
       startedAt
@@ -778,18 +790,16 @@ const LIST_AGENT_CHAT_TURNS_QUERY = `
       items {
         id
         turnId
-        sessionId
+        threadId
         companyId
         agentId
         runnerId
-        commandId
         providerItemId
         role
         itemType
-        content
+        text
         command
         output
-        unknownType
         status
         startedAt
         endedAt
@@ -801,45 +811,45 @@ const LIST_AGENT_CHAT_TURNS_QUERY = `
   }
 `;
 
-const LIST_AGENT_CHAT_SESSIONS_QUERY = `
-  query ListAgentChatSessions($companyId: String!, $agentId: String!, $limit: Int) {
-    agentChatSessions(companyId: $companyId, agentId: $agentId, limit: $limit) {
+const LIST_AGENT_THREADS_QUERY = `
+  query ListAgentThreads($companyId: String!, $agentId: String!, $limit: Int) {
+    agentThreads(companyId: $companyId, agentId: $agentId, limit: $limit) {
       id
+      threadId
       companyId
       agentId
       runnerId
       title
-      remoteSessionId
+      status
       createdAt
       updatedAt
     }
   }
 `;
 
-const CREATE_AGENT_CHAT_SESSION_MUTATION = `
-  mutation CreateAgentChatSession(
+const CREATE_AGENT_THREAD_MUTATION = `
+  mutation CreateAgentThread(
     $companyId: String!
     $agentId: String!
     $title: String
     $runnerId: String
-    $remoteSessionId: String
   ) {
-    createAgentChatSession(
+    createAgentThread(
       companyId: $companyId
       agentId: $agentId
       title: $title
       runnerId: $runnerId
-      remoteSessionId: $remoteSessionId
     ) {
       ok
       error
-      session {
+      thread {
         id
+        threadId
         companyId
         agentId
         runnerId
         title
-        remoteSessionId
+        status
         createdAt
         updatedAt
       }
@@ -847,49 +857,57 @@ const CREATE_AGENT_CHAT_SESSION_MUTATION = `
   }
 `;
 
-const SEND_AGENT_SESSION_MESSAGE_MUTATION = `
-  mutation SendAgentSessionMessage(
+const CREATE_AGENT_TURN_MUTATION = `
+  mutation CreateAgentTurn(
     $companyId: String!
     $agentId: String!
-    $sessionId: String!
-    $message: String!
+    $threadId: String!
+    $text: String!
     $runnerId: String
-    $messageMode: String
   ) {
-    sendAgentSessionMessage(
+    createAgentTurn(
       companyId: $companyId
       agentId: $agentId
-      sessionId: $sessionId
-      message: $message
+      threadId: $threadId
+      text: $text
       runnerId: $runnerId
-      messageMode: $messageMode
     ) {
       ok
       error
-      commandId
-      messageId
+      itemId
       turnId
-      sessionId
+      queuedUserMessageId
+      threadId
       runnerId
       agentId
     }
   }
 `;
 
-const GET_AGENT_CODEX_AUTH_STATE_QUERY = `
-  query GetAgentCodexAuthState($companyId: String!, $agentId: String!) {
-    agentCodexAuthState(companyId: $companyId, agentId: $agentId) {
-      requestId
-      companyId
-      agentId
+const STEER_AGENT_TURN_MUTATION = `
+  mutation SteerAgentTurn(
+    $companyId: String!
+    $agentId: String!
+    $threadId: String!
+    $turnId: String!
+    $message: String!
+    $runnerId: String
+  ) {
+    steerAgentTurn(
+      companyId: $companyId
+      agentId: $agentId
+      threadId: $threadId
+      turnId: $turnId
+      message: $message
+      runnerId: $runnerId
+    ) {
+      ok
+      error
+      itemId
+      turnId
+      threadId
       runnerId
-      status
-      verificationUri
-      userCode
-      message
-      rawOutput
-      createdAt
-      updatedAt
+      agentId
     }
   }
 `;
@@ -899,48 +917,52 @@ const AGENT_RUNNERS_SUBSCRIPTION = `
     agentRunnersUpdated(companyId: $companyId) {
       id
       companyId
+      callbackUrl
       hasAuthSecret
-      codexAuthenticated
-      codexAvailableModels {
+      availableAgentSdks {
         name
-        reasoning
+        availableModels {
+          name
+          reasoningLevels
+        }
       }
       status
       lastHealthCheckAt
       lastSeenAt
-    }
-  }
-`;
-
-const AGENT_CHAT_SESSIONS_SUBSCRIPTION = `
-  subscription AgentChatSessionsUpdated($companyId: String!, $agentId: String!) {
-    agentChatSessionsUpdated(companyId: $companyId, agentId: $agentId) {
-      id
-      companyId
-      agentId
-      runnerId
-      title
-      remoteSessionId
       createdAt
       updatedAt
     }
   }
 `;
 
-const AGENT_CHAT_TURNS_SUBSCRIPTION = `
-  subscription AgentChatTurnsUpdated(
-    $companyId: String!
-    $agentId: String!
-    $sessionId: String!
-  ) {
-    agentChatTurnsUpdated(companyId: $companyId, agentId: $agentId, sessionId: $sessionId) {
+const AGENT_THREADS_SUBSCRIPTION = `
+  subscription AgentThreadsUpdated($companyId: String!, $agentId: String!) {
+    agentThreadsUpdated(companyId: $companyId, agentId: $agentId) {
       id
-      sessionId
+      threadId
       companyId
       agentId
       runnerId
-      commandId
-      providerTurnId
+      title
+      status
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+const AGENT_TURNS_SUBSCRIPTION = `
+  subscription AgentTurnsUpdated(
+    $companyId: String!
+    $agentId: String!
+    $threadId: String!
+  ) {
+    agentTurnsUpdated(companyId: $companyId, agentId: $agentId, threadId: $threadId) {
+      id
+      threadId
+      companyId
+      agentId
+      runnerId
       status
       reasoningText
       startedAt
@@ -950,18 +972,16 @@ const AGENT_CHAT_TURNS_SUBSCRIPTION = `
       items {
         id
         turnId
-        sessionId
+        threadId
         companyId
         agentId
         runnerId
-        commandId
         providerItemId
         role
         itemType
-        content
+        text
         command
         output
-        unknownType
         status
         startedAt
         endedAt
@@ -969,37 +989,6 @@ const AGENT_CHAT_TURNS_SUBSCRIPTION = `
         createdAt
         updatedAt
       }
-    }
-  }
-`;
-
-const AGENT_CODEX_AUTH_STATE_SUBSCRIPTION = `
-  subscription AgentCodexAuthStateUpdated($companyId: String!, $agentId: String!) {
-    agentCodexAuthStateUpdated(companyId: $companyId, agentId: $agentId) {
-      requestId
-      companyId
-      agentId
-      runnerId
-      status
-      verificationUri
-      userCode
-      message
-      rawOutput
-      createdAt
-      updatedAt
-    }
-  }
-`;
-
-const START_AGENT_CODEX_DEVICE_AUTH_MUTATION = `
-  mutation StartAgentCodexDeviceAuth($companyId: String!, $agentId: String!, $runnerId: String) {
-    startAgentCodexDeviceAuth(companyId: $companyId, agentId: $agentId, runnerId: $runnerId) {
-      ok
-      error
-      requestId
-      runnerId
-      agentId
-      status
     }
   }
 `;
@@ -1365,12 +1354,6 @@ function persistCompanyId(companyId) {
   }
 }
 
-function isCodexAgent(agent) {
-  return String(agent?.agentSdk || "")
-    .trim()
-    .toLowerCase() === "codex";
-}
-
 function normalizeAgentSdkValue(value) {
   return String(value || "")
     .trim()
@@ -1381,41 +1364,65 @@ function isAvailableAgentSdk(value) {
   return AVAILABLE_AGENT_SDKS.includes(normalizeAgentSdkValue(value));
 }
 
-function normalizeRunnerCodexAvailableModels(runner) {
-  if (!Array.isArray(runner?.codexAvailableModels)) {
+function normalizeRunnerAvailableAgentSdks(runner) {
+  if (!Array.isArray(runner?.availableAgentSdks)) {
     return [];
   }
 
-  return runner.codexAvailableModels
-    .map((entry) => ({
-      name: String(entry?.name || "").trim(),
-      reasoning: [
-        ...new Set(
-          (Array.isArray(entry?.reasoning) ? entry.reasoning : [entry?.reasoning])
-            .map((value) => String(value || "").trim())
-            .filter(Boolean),
-        ),
-      ].sort((a, b) => a.localeCompare(b)),
+  return runner.availableAgentSdks
+    .map((sdkEntry) => ({
+      name: normalizeAgentSdkValue(sdkEntry?.name),
+      availableModels: (Array.isArray(sdkEntry?.availableModels) ? sdkEntry.availableModels : [])
+        .map((modelEntry) => ({
+          name: String(modelEntry?.name || "").trim(),
+          reasoningLevels: [
+            ...new Set(
+              (Array.isArray(modelEntry?.reasoningLevels)
+                ? modelEntry.reasoningLevels
+                : [modelEntry?.reasoningLevels]
+              )
+                .map((value) => String(value || "").trim())
+                .filter(Boolean),
+            ),
+          ].sort((a, b) => a.localeCompare(b)),
+        }))
+        .filter((modelEntry) => Boolean(modelEntry.name))
+        .sort((leftModel, rightModel) => leftModel.name.localeCompare(rightModel.name)),
     }))
-    .filter((entry) => Boolean(entry.name))
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .filter((sdkEntry) => Boolean(sdkEntry.name))
+    .sort((leftSdk, rightSdk) => leftSdk.name.localeCompare(rightSdk.name));
+}
+
+function normalizeRunnerCodexAvailableModels(runner) {
+  const availableAgentSdks = normalizeRunnerAvailableAgentSdks(runner);
+  const codexSdk = availableAgentSdks.find((sdkEntry) => sdkEntry.name === DEFAULT_AGENT_SDK) || null;
+  if (!codexSdk) {
+    return [];
+  }
+
+  return codexSdk.availableModels.map((entry) => ({
+    name: entry.name,
+    reasoning: entry.reasoningLevels,
+  }));
 }
 
 function mergeAgentRunnerPayloadEntry(currentRunner, incomingRunner) {
-  const fallbackModels = Array.isArray(currentRunner?.codexAvailableModels)
-    ? currentRunner.codexAvailableModels
+  const fallbackSdks = Array.isArray(currentRunner?.availableAgentSdks)
+    ? currentRunner.availableAgentSdks
     : [];
-  const incomingHasModelsField = Object.prototype.hasOwnProperty.call(
+  const incomingHasAvailableAgentSdks = Object.prototype.hasOwnProperty.call(
     incomingRunner || {},
-    "codexAvailableModels",
+    "availableAgentSdks",
   );
-  const incomingModels = incomingHasModelsField ? incomingRunner?.codexAvailableModels : fallbackModels;
-  const resolvedModels = Array.isArray(incomingModels) ? incomingModels : fallbackModels;
+  const incomingSdks = incomingHasAvailableAgentSdks
+    ? incomingRunner?.availableAgentSdks
+    : fallbackSdks;
+  const resolvedSdks = Array.isArray(incomingSdks) ? incomingSdks : fallbackSdks;
 
   return {
     ...(currentRunner || {}),
     ...(incomingRunner || {}),
-    codexAvailableModels: resolvedModels,
+    availableAgentSdks: resolvedSdks,
   };
 }
 
@@ -1473,11 +1480,6 @@ function resolveRunnerBackedModelSelection({
     : reasoningLevels[0] || "";
 
   return { model: nextModel, modelReasoningLevel: nextReasoning };
-}
-
-function getCodexAuthVerificationUrl(codexAuthState) {
-  const authUrl = String(codexAuthState?.verificationUri || "").trim();
-  return authUrl || CODEX_DEVICE_AUTH_URL;
 }
 
 function createRelationshipDrafts(tasks) {
@@ -1582,6 +1584,16 @@ function hasRunningChatTurns(turns) {
   return (Array.isArray(turns) ? turns : []).some((turn) => normalizeChatStatus(turn?.status) === "running");
 }
 
+function getLatestRunningChatTurn(turns) {
+  const runningTurns = (Array.isArray(turns) ? turns : []).filter(
+    (turn) => normalizeChatStatus(turn?.status) === "running",
+  );
+  if (runningTurns.length === 0) {
+    return null;
+  }
+  return [...runningTurns].sort(compareTurnsByTimestamp).at(-1) || null;
+}
+
 function isChatSessionRunning(session, chatSessionRunningById) {
   if (!session) {
     return false;
@@ -1605,7 +1617,7 @@ function parseCodexStreamPayload(message) {
   if (String(message?.role || "").trim().toLowerCase() !== "llm") {
     return null;
   }
-  const rawContent = String(message?.content || "").trim();
+  const rawContent = String(message?.text || "").trim();
   if (!rawContent.startsWith("{") || !rawContent.endsWith("}")) {
     return null;
   }
@@ -2121,19 +2133,10 @@ function DashboardPage({
   selectedCompanyId,
   tasks,
   agentRunners,
-  agents,
-  chatAgentId,
-  codexAuthState,
-  isLoadingCodexAuthState,
-  isStartingCodexAuth,
-  codexVerificationUrl,
-  codexAuthCopyFeedback,
   isLoadingTasks,
   isLoadingRunners,
   taskError,
   runnerError,
-  onStartCodexDeviceAuth,
-  onCopyDeviceCode,
   onNavigate,
 }) {
   const readyRunnerCount = useMemo(() => {
@@ -2154,18 +2157,6 @@ function DashboardPage({
       .sort((a, b) => toSortableTimestamp(b.lastSeenAt) - toSortableTimestamp(a.lastSeenAt))
       .slice(0, 5);
   }, [agentRunners]);
-
-  const authAgent = useMemo(() => {
-    if (chatAgentId) {
-      const selectedAgent = agents.find((agent) => agent.id === chatAgentId);
-      if (selectedAgent) {
-        return selectedAgent;
-      }
-    }
-    return agents.find((agent) => isCodexAgent(agent)) || null;
-  }, [agents, chatAgentId]);
-
-  const authAgentIsCodex = isCodexAgent(authAgent);
 
   return (
     <div className="page-stack">
@@ -2284,101 +2275,6 @@ function DashboardPage({
           ) : null}
         </article>
 
-        <article className="panel codex-home-auth-panel">
-          <header className="panel-header panel-header-row">
-            <h2>Codex device auth</h2>
-            <div className="hero-actions codex-home-auth-actions">
-              <button
-                type="button"
-                className="secondary-btn"
-                onClick={onStartCodexDeviceAuth}
-                disabled={!authAgentIsCodex || isStartingCodexAuth}
-              >
-                {isStartingCodexAuth ? "Starting..." : "Start device auth"}
-              </button>
-              <button
-                type="button"
-                className="secondary-btn"
-                onClick={() => onNavigate("chats")}
-              >
-                Open chats
-              </button>
-            </div>
-          </header>
-
-          {!authAgent ? (
-            <p className="empty-hint">Create a Codex agent, then start device authentication.</p>
-          ) : null}
-
-          {authAgent && !authAgentIsCodex ? (
-            <p className="empty-hint">
-              No Codex agent is selected for chat. Choose a Codex agent in the chats page.
-            </p>
-          ) : null}
-
-          {authAgent && authAgentIsCodex ? (
-            <div className="codex-auth-state">
-              <p className="codex-auth-row">
-                <strong>Agent:</strong> {authAgent.name} ({authAgent.id.slice(0, 8)})
-              </p>
-              <p className="codex-auth-row">
-                <strong>Codex URL:</strong>{" "}
-                <a
-                  className="codex-auth-link"
-                  href={codexVerificationUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {codexVerificationUrl}
-                </a>
-              </p>
-              {isLoadingCodexAuthState ? (
-                <p className="codex-auth-row">Loading auth state...</p>
-              ) : null}
-              {!isLoadingCodexAuthState && !codexAuthState ? (
-                <p className="codex-auth-row">
-                  No auth request yet. Click &quot;Start device auth&quot; to request a code.
-                </p>
-              ) : null}
-              {codexAuthState ? (
-                <>
-                  <p className="codex-auth-row">
-                    <strong>Status:</strong>{" "}
-                    <span className={`codex-auth-status codex-auth-status-${codexAuthState.status}`}>
-                      {codexAuthState.status}
-                    </span>
-                  </p>
-                  <p className="codex-auth-row">
-                    <strong>Updated:</strong> {formatTimestamp(codexAuthState.updatedAt)}
-                  </p>
-                  {codexAuthState.userCode ? (
-                    <p className="codex-auth-row codex-auth-row-with-action">
-                      <strong>Device code:</strong>{" "}
-                      <code className="codex-auth-code">{codexAuthState.userCode}</code>
-                      <button
-                        type="button"
-                        className="secondary-btn codex-auth-copy-btn"
-                        onClick={() => onCopyDeviceCode(codexAuthState.userCode)}
-                      >
-                        Copy code
-                      </button>
-                    </p>
-                  ) : (
-                    <p className="codex-auth-row">
-                      Device code will appear here after the runner starts the auth flow.
-                    </p>
-                  )}
-                  {codexAuthState.message ? (
-                    <p className="codex-auth-row">{codexAuthState.message}</p>
-                  ) : null}
-                </>
-              ) : null}
-              {codexAuthCopyFeedback ? (
-                <p className="codex-auth-row codex-auth-copy-feedback">{codexAuthCopyFeedback}</p>
-              ) : null}
-            </div>
-          ) : null}
-        </article>
       </section>
     </div>
   );
@@ -2624,11 +2520,8 @@ function TasksPage({
 function AgentRunnerPage({
   selectedCompanyId,
   agentRunners,
-  agents,
   isLoadingRunners,
   runnerError,
-  codexAuthError,
-  isStartingCodexAuth,
   isCreatingRunner,
   runnerIdDraft,
   runnerSecretDraft,
@@ -2641,8 +2534,6 @@ function AgentRunnerPage({
   onRunnerSecretChange,
   onRunnerCommandSecretChange,
   onCreateRunner,
-  onStartRunnerCodexDeviceAuth,
-  onNavigate,
   onRegenerateRunnerSecret,
   onDeleteRunner,
 }) {
@@ -2710,7 +2601,6 @@ function AgentRunnerPage({
         </header>
 
         {runnerError ? <p className="error-banner">{runnerError}</p> : null}
-        {codexAuthError ? <p className="error-banner">Auth error: {codexAuthError}</p> : null}
         {isLoadingRunners ? <p className="empty-hint">Loading runners...</p> : null}
         {!isLoadingRunners && agentRunners.length === 0 ? (
           <div className="empty-state">
@@ -2732,17 +2622,14 @@ function AgentRunnerPage({
               .map((runner) => {
                 const runnerStatus = normalizeRunnerStatus(runner.status);
                 const runnerSecret = runnerSecretsById[runner.id] || "";
+                const availableAgentSdks = normalizeRunnerAvailableAgentSdks(runner);
+                const availableSdkNames = availableAgentSdks.map((entry) => entry.name);
                 const codexAvailableModels = normalizeRunnerCodexAvailableModels(runner);
                 const codexAvailableModelsPreview = codexAvailableModels.slice(0, 4);
                 const codexAvailableModelsOverflow = Math.max(
                   0,
                   codexAvailableModels.length - codexAvailableModelsPreview.length,
                 );
-                const codexAgentsForRunner = (agents || [])
-                  .filter((agent) => agent?.agentRunnerId === runner.id && isCodexAgent(agent))
-                  .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
-                const codexAgentForAuth = codexAgentsForRunner[0] || null;
-                const canStartAuth = runnerStatus === "ready" && codexAgentForAuth;
                 const runnerCommand = buildRunnerStartCommand({
                   backendGrpcTarget: runnerGrpcTarget,
                   runnerSecret: runnerSecret || "<RUNNER_SECRET>",
@@ -2786,19 +2673,13 @@ function AgentRunnerPage({
                       Last health check: <em>{formatTimestamp(runner.lastHealthCheckAt)}</em>
                     </p>
                     <section className="runner-codex-section">
-                      <h3 className="runner-section-title">Codex</h3>
+                      <h3 className="runner-section-title">SDK catalog</h3>
                       <p className="runner-last-seen">
-                        Authentication status:{" "}
-                        <span
-                          className={`runner-codex-auth runner-codex-auth-${
-                            runner.codexAuthenticated ? "authenticated" : "not-authenticated"
-                          }`}
-                        >
-                          {runner.codexAuthenticated ? "authenticated" : "not authenticated"}
-                        </span>
+                        Available SDKs:{" "}
+                        <strong>{availableSdkNames.length > 0 ? availableSdkNames.join(", ") : "none reported"}</strong>
                       </p>
                       <div className="runner-last-seen runner-models-row">
-                        <span className="runner-models-label">Reported models:</span>
+                        <span className="runner-models-label">{DEFAULT_AGENT_SDK} models:</span>
                         {codexAvailableModels.length === 0 ? (
                           <em className="runner-models-empty">none reported yet</em>
                         ) : codexAvailableModelsOverflow === 0 ? (
@@ -2830,43 +2711,6 @@ function AgentRunnerPage({
                         )}
                       </div>
                     </section>
-                    {!runner.codexAuthenticated ? (
-                      <div className="runner-auth-block">
-                        {codexAgentForAuth ? (
-                          <>
-                            <p className="runner-command-hint">
-                              Uses Codex agent:{" "}
-                              <strong>
-                                {codexAgentForAuth.name} ({codexAgentForAuth.id.slice(0, 8)})
-                              </strong>
-                            </p>
-                            <button
-                              type="button"
-                              className="secondary-btn"
-                              onClick={() =>
-                                onStartRunnerCodexDeviceAuth(runner.id, codexAgentForAuth.id)
-                              }
-                              disabled={!canStartAuth || isStartingCodexAuth}
-                            >
-                              {isStartingCodexAuth ? "Starting..." : "Start auth process"}
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <p className="runner-command-hint">
-                              No Codex agent is assigned to this runner yet.
-                            </p>
-                            <button
-                              type="button"
-                              className="secondary-btn"
-                              onClick={() => onNavigate("agents")}
-                            >
-                              Open agents
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    ) : null}
                     <div className="runner-cli-block">
                       <label
                         className="relationship-field"
@@ -4599,9 +4443,7 @@ function AgentChatsPage({
   isCreatingChatSession,
   chatError,
   chatSessionTitleDraft,
-  chatSessionRemoteIdDraft,
   onChatSessionTitleDraftChange,
-  onChatSessionRemoteIdDraftChange,
   onCreateChatSession,
   onOpenChat,
   onBackToAgents,
@@ -4649,11 +4491,6 @@ function AgentChatsPage({
                   <p className="agent-subcopy">
                     Updated: <strong>{formatTimestamp(session.updatedAt)}</strong>
                   </p>
-                  {session.remoteSessionId ? (
-                    <p className="agent-subcopy">
-                      Remote chat ID: <strong>{session.remoteSessionId}</strong>
-                    </p>
-                  ) : null}
                   <div className="task-card-actions">
                     <button
                       type="button"
@@ -4680,7 +4517,6 @@ function AgentChatsPage({
             event.preventDefault();
             const createdSessionId = await onCreateChatSession({
               title: chatSessionTitleDraft,
-              remoteSessionId: chatSessionRemoteIdDraft,
             });
             if (createdSessionId) {
               onOpenChat(createdSessionId);
@@ -4693,14 +4529,6 @@ function AgentChatsPage({
             value={chatSessionTitleDraft}
             onChange={(event) => onChatSessionTitleDraftChange(event.target.value)}
             placeholder="e.g. Release planning"
-            disabled={!agent || isCreatingChatSession}
-          />
-          <label htmlFor="chat-session-remote-id">Remote chat ID (optional)</label>
-          <input
-            id="chat-session-remote-id"
-            value={chatSessionRemoteIdDraft}
-            onChange={(event) => onChatSessionRemoteIdDraftChange(event.target.value)}
-            placeholder="Provider thread/chat id"
             disabled={!agent || isCreatingChatSession}
           />
           <button type="submit" disabled={!agent || isCreatingChatSession}>
@@ -4735,6 +4563,7 @@ function AgentChatPage({
     () => [...(Array.isArray(chatTurns) ? chatTurns : [])].sort(compareTurnsByTimestamp),
     [chatTurns],
   );
+  const hasRunningTurn = useMemo(() => Boolean(getLatestRunningChatTurn(orderedTurns)), [orderedTurns]);
   const { visibleTurns, totalMessageCount } = useMemo(
     () => selectVisibleTurnsByMessageCount(orderedTurns, visibleMessageCount),
     [orderedTurns, visibleMessageCount],
@@ -4812,10 +4641,7 @@ function AgentChatPage({
               <strong>Title:</strong> {session.title || "Untitled chat"}
             </p>
             <p className="codex-auth-row">
-              <strong>Chat ID:</strong> <code className="runner-id">{session.id}</code>
-            </p>
-            <p className="codex-auth-row">
-              <strong>Remote chat ID:</strong> {session.remoteSessionId || "not set"}
+              <strong>Thread ID:</strong> <code className="runner-id">{session.id}</code>
             </p>
           </div>
         ) : (
@@ -4848,7 +4674,12 @@ function AgentChatPage({
             ) : null}
             <ul className="chat-turn-list">
               {visibleTurns.map((turn) => {
-              const turnStatus = String(turn?.status || "").toLowerCase() === "running" ? "running" : "idle";
+              const normalizedTurnStatus = String(turn?.status || "").trim().toLowerCase();
+              const turnStatus = normalizedTurnStatus === "running"
+                ? "running"
+                : normalizedTurnStatus === "pending"
+                  ? "pending"
+                  : "completed";
               const turnItems = Array.isArray(turn?.items) ? turn.items : [];
 
               return (
@@ -4873,14 +4704,18 @@ function AgentChatPage({
                     <ul className="chat-item-list">
                       {turnItems.map((item) => {
                         const itemRole = String(item?.role || "").toLowerCase();
-                        const roleLabel = itemRole === "human" ? "human" : "llm";
-                        const itemType = String(item?.itemType || "").trim() || "agent_message";
-                        const itemStatus =
-                          String(item?.status || "").toLowerCase() === "running" ? "running" : "completed";
+                        const roleLabel = itemRole === "user" || itemRole === "human" ? "human" : "llm";
+                        const itemType = String(item?.itemType || "").trim().toLowerCase() || "agent_message";
+                        const normalizedItemStatus = String(item?.status || "").trim().toLowerCase();
+                        const itemStatus = normalizedItemStatus === "running"
+                          ? "running"
+                          : normalizedItemStatus === "pending"
+                            ? "pending"
+                            : "completed";
                         const isCommandExecution = itemType === "command_execution";
                         const bodyText = isCommandExecution
                           ? String(item?.command || "").trim() || "(command unavailable)"
-                          : String(item?.content || "").trim() || "(no content)";
+                          : String(item?.text || "").trim() || "(no content)";
 
                         return (
                           <li
@@ -4889,10 +4724,7 @@ function AgentChatPage({
                           >
                             <div className="chat-item-meta">
                               <strong>{roleLabel}</strong>
-                              <span className="chat-message-kind">
-                                {itemType}
-                                {item.unknownType ? " (unknown)" : ""}
-                              </span>
+                              <span className="chat-message-kind">{itemType}</span>
                               <span>{itemStatus}</span>
                               {itemStatus === "running" ? (
                                 <span
@@ -4975,16 +4807,24 @@ function AgentChatPage({
           <h2>Send message</h2>
         </header>
         <form className="task-form" onSubmit={onSendChatMessage}>
-          <label htmlFor="chat-message-mode">Mode</label>
-          <select
-            id="chat-message-mode"
-            value={chatMessageMode}
-            onChange={(event) => onChatMessageModeChange(event.target.value)}
-            disabled={!canChat || isSendingChatMessage}
-          >
-            <option value="queue">Queue</option>
-            <option value="steer">Steer</option>
-          </select>
+          {hasRunningTurn ? (
+            <>
+              <label htmlFor="chat-message-mode">Mode</label>
+              <select
+                id="chat-message-mode"
+                value={chatMessageMode}
+                onChange={(event) => onChatMessageModeChange(event.target.value)}
+                disabled={!canChat || isSendingChatMessage}
+              >
+                <option value="queue">Queue next turn</option>
+                <option value="steer">Steer running turn</option>
+              </select>
+            </>
+          ) : (
+            <p className="empty-hint">
+              No running turn. Sending will always create a new turn immediately.
+            </p>
+          )}
           <label htmlFor="chat-message-input">Message</label>
           <textarea
             id="chat-message-input"
@@ -5374,7 +5214,6 @@ function App() {
   const [chatSessionRunningById, setChatSessionRunningById] = useState({});
   const [chatSessionId, setChatSessionId] = useState("");
   const [chatSessionTitleDraft, setChatSessionTitleDraft] = useState("");
-  const [chatSessionRemoteIdDraft, setChatSessionRemoteIdDraft] = useState("");
   const [chatTurns, setChatTurns] = useState([]);
   const [chatDraftMessage, setChatDraftMessage] = useState("");
   const [chatMessageMode, setChatMessageMode] = useState("queue");
@@ -5385,11 +5224,6 @@ function App() {
   const [isCreatingChatSession, setIsCreatingChatSession] = useState(false);
   const [isLoadingChat, setIsLoadingChat] = useState(false);
   const [isSendingChatMessage, setIsSendingChatMessage] = useState(false);
-  const [codexAuthState, setCodexAuthState] = useState(null);
-  const [isLoadingCodexAuthState, setIsLoadingCodexAuthState] = useState(false);
-  const [codexAuthError, setCodexAuthError] = useState("");
-  const [isStartingCodexAuth, setIsStartingCodexAuth] = useState(false);
-  const [codexAuthCopyFeedback, setCodexAuthCopyFeedback] = useState("");
   const hasCompanies = companies.length > 0;
 
   const selectedCompany = useMemo(() => {
@@ -5517,8 +5351,6 @@ function App() {
   const shouldSubscribeChatTurns = isChatsConversationView || (
     activePage === "agents" && agentsRoute.view === "chat" && Boolean(chatSessionId)
   );
-  const shouldSubscribeCodexAuth =
-    activePage === "dashboard" || (activePage === "agents" && agentsRoute.view === "chat") || isChatsConversationView;
   const shouldLoadGithubData = activePage === "settings";
   const shouldLoadTaskData = activePage === "dashboard" || activePage === "tasks" || activePage === "profile";
   const shouldLoadSkillData =
@@ -5756,12 +5588,12 @@ function App() {
           setChatError("");
           setIsLoadingChatSessions(true);
         }
-        const data = await executeGraphQL(LIST_AGENT_CHAT_SESSIONS_QUERY, {
+        const data = await executeGraphQL(LIST_AGENT_THREADS_QUERY, {
           companyId: selectedCompanyId,
           agentId: chatAgentId,
           limit: 200,
         });
-        const nextSessions = data.agentChatSessions || [];
+        const nextSessions = data.agentThreads || [];
         setChatSessions(nextSessions);
         setChatSessionsByAgent((currentSessionsByAgent) => ({
           ...currentSessionsByAgent,
@@ -5796,13 +5628,13 @@ function App() {
           setChatError("");
           setIsLoadingChat(true);
         }
-        const data = await executeGraphQL(LIST_AGENT_CHAT_TURNS_QUERY, {
+        const data = await executeGraphQL(LIST_AGENT_TURNS_QUERY, {
           companyId: selectedCompanyId,
           agentId: chatAgentId,
-          sessionId: chatSessionId,
+          threadId: chatSessionId,
           limit: 200,
         });
-        const nextTurns = data.agentChatTurns || [];
+        const nextTurns = data.agentTurns || [];
         setChatTurns(nextTurns);
         setChatSessionRunningState(chatSessionId, hasRunningChatTurns(nextTurns));
       } catch (loadError) {
@@ -5848,12 +5680,12 @@ function App() {
             if (!resolvedAgentId) {
               return [resolvedAgentId, []];
             }
-            const data = await executeGraphQL(LIST_AGENT_CHAT_SESSIONS_QUERY, {
+            const data = await executeGraphQL(LIST_AGENT_THREADS_QUERY, {
               companyId: selectedCompanyId,
               agentId: resolvedAgentId,
               limit: 200,
             });
-            return [resolvedAgentId, data.agentChatSessions || []];
+            return [resolvedAgentId, data.agentThreads || []];
           }),
         );
 
@@ -5878,40 +5710,6 @@ function App() {
     [agents, selectedCompanyId],
   );
 
-  const loadCodexAuthState = useCallback(
-    async ({ silently = false } = {}) => {
-      if (!selectedCompanyId || !chatAgentId) {
-        setCodexAuthState(null);
-        if (!silently) {
-          setCodexAuthError("");
-          setIsLoadingCodexAuthState(false);
-        }
-        return;
-      }
-
-      try {
-        if (!silently) {
-          setCodexAuthError("");
-          setIsLoadingCodexAuthState(true);
-        }
-        const data = await executeGraphQL(GET_AGENT_CODEX_AUTH_STATE_QUERY, {
-          companyId: selectedCompanyId,
-          agentId: chatAgentId,
-        });
-        setCodexAuthState(data.agentCodexAuthState || null);
-      } catch (loadError) {
-        if (!silently) {
-          setCodexAuthError(loadError.message);
-        }
-      } finally {
-        if (!silently) {
-          setIsLoadingCodexAuthState(false);
-        }
-      }
-    },
-    [selectedCompanyId, chatAgentId],
-  );
-
   const handleAgentRunnersSubscriptionData = useCallback((payload) => {
     setAgentRunners((currentRunners) =>
       mergeAgentRunnerPayloadList(currentRunners, payload?.agentRunnersUpdated || []),
@@ -5926,7 +5724,7 @@ function App() {
   }, []);
 
   const handleAgentChatSessionsSubscriptionData = useCallback((payload) => {
-    const nextSessions = payload?.agentChatSessionsUpdated || [];
+    const nextSessions = payload?.agentThreadsUpdated || [];
     setChatSessions(nextSessions);
     if (chatAgentId) {
       setChatSessionsByAgent((currentSessionsByAgent) => ({
@@ -5939,7 +5737,7 @@ function App() {
   }, [chatAgentId]);
 
   const handleAgentChatTurnsSubscriptionData = useCallback((payload) => {
-    const nextTurns = payload?.agentChatTurnsUpdated || [];
+    const nextTurns = payload?.agentTurnsUpdated || [];
     setChatTurns(nextTurns);
     if (chatSessionId) {
       setChatSessionRunningState(chatSessionId, hasRunningChatTurns(nextTurns));
@@ -5954,17 +5752,6 @@ function App() {
     setIsLoadingChatSessions(false);
   }, []);
 
-  const handleCodexAuthSubscriptionData = useCallback((payload) => {
-    setCodexAuthState(payload?.agentCodexAuthStateUpdated || null);
-    setCodexAuthError("");
-    setIsLoadingCodexAuthState(false);
-  }, []);
-
-  const handleCodexAuthSubscriptionError = useCallback((error) => {
-    setCodexAuthError(error.message);
-    setIsLoadingCodexAuthState(false);
-  }, []);
-
   useGraphQLSubscription({
     enabled: Boolean(selectedCompanyId && shouldSubscribeAgentRunners && hasLoadedAgentRunners),
     query: AGENT_RUNNERS_SUBSCRIPTION,
@@ -5975,7 +5762,7 @@ function App() {
 
   useGraphQLSubscription({
     enabled: Boolean(selectedCompanyId && chatAgentId && shouldSubscribeChatSessions),
-    query: AGENT_CHAT_SESSIONS_SUBSCRIPTION,
+    query: AGENT_THREADS_SUBSCRIPTION,
     variables:
       selectedCompanyId && chatAgentId
         ? { companyId: selectedCompanyId, agentId: chatAgentId }
@@ -5986,31 +5773,17 @@ function App() {
 
   useGraphQLSubscription({
     enabled: Boolean(selectedCompanyId && chatAgentId && chatSessionId && shouldSubscribeChatTurns),
-    query: AGENT_CHAT_TURNS_SUBSCRIPTION,
+    query: AGENT_TURNS_SUBSCRIPTION,
     variables:
       selectedCompanyId && chatAgentId && chatSessionId
         ? {
             companyId: selectedCompanyId,
             agentId: chatAgentId,
-            sessionId: chatSessionId,
+            threadId: chatSessionId,
           }
         : undefined,
     onData: handleAgentChatTurnsSubscriptionData,
     onError: handleAgentChatSubscriptionError,
-  });
-
-  useGraphQLSubscription({
-    enabled: Boolean(selectedCompanyId && chatAgentId && shouldSubscribeCodexAuth),
-    query: AGENT_CODEX_AUTH_STATE_SUBSCRIPTION,
-    variables:
-      selectedCompanyId && chatAgentId
-        ? {
-            companyId: selectedCompanyId,
-            agentId: chatAgentId,
-          }
-        : undefined,
-    onData: handleCodexAuthSubscriptionData,
-    onError: handleCodexAuthSubscriptionError,
   });
 
   useEffect(() => {
@@ -6063,15 +5836,11 @@ function App() {
     setChatSessionRunningById({});
     setChatSessionId("");
     setChatSessionTitleDraft("");
-    setChatSessionRemoteIdDraft("");
     setChatTurns([]);
     setChatDraftMessage("");
     setChatError("");
     setChatIndexError("");
     setIsLoadingChatIndex(false);
-    setCodexAuthState(null);
-    setCodexAuthError("");
-    setCodexAuthCopyFeedback("");
     setAgentMcpServerIds([]);
     setRetryingAgentSkillInstallKey("");
   }, [selectedCompanyId]);
@@ -6221,10 +5990,6 @@ function App() {
       return agents[0]?.id || "";
     });
   }, [agents, selectedCompanyId]);
-
-  useEffect(() => {
-    setCodexAuthCopyFeedback("");
-  }, [chatAgentId, codexAuthState?.requestId, codexAuthState?.userCode]);
 
   useEffect(() => {
     if (!chatAgentId) {
@@ -7534,11 +7299,12 @@ function App() {
     }
 
     const selectedAgentForChat = agents.find((agent) => agent.id === chatAgentId) || null;
+    const latestRunningTurn = getLatestRunningChatTurn(chatTurns);
+    const hasRunningTurn = Boolean(latestRunningTurn);
     let targetSessionId = chatSessionId;
     if (!targetSessionId) {
       targetSessionId = await handleCreateChatSession({
         title: chatSessionTitleDraft || null,
-        remoteSessionId: chatSessionRemoteIdDraft || null,
         preferredRunnerId: selectedAgentForChat?.agentRunnerId || null,
       });
       if (!targetSessionId) {
@@ -7549,21 +7315,38 @@ function App() {
     try {
       setIsSendingChatMessage(true);
       setChatError("");
-      const data = await executeGraphQL(SEND_AGENT_SESSION_MESSAGE_MUTATION, {
-        companyId: selectedCompanyId,
-        agentId: chatAgentId,
-        sessionId: targetSessionId,
-        message: chatDraftMessage.trim(),
-        runnerId: selectedAgentForChat?.agentRunnerId || null,
-        messageMode: chatMessageMode,
-      });
-      const result = data.sendAgentSessionMessage;
+      const runnerId = selectedAgentForChat?.agentRunnerId || null;
+      const nextMode = hasRunningTurn && chatMessageMode === "steer" ? "steer" : "queue";
+      const payloadText = chatDraftMessage.trim();
+      const data =
+        nextMode === "steer"
+          ? await executeGraphQL(STEER_AGENT_TURN_MUTATION, {
+              companyId: selectedCompanyId,
+              agentId: chatAgentId,
+              threadId: targetSessionId,
+              turnId: latestRunningTurn.id,
+              message: payloadText,
+              runnerId,
+            })
+          : await executeGraphQL(CREATE_AGENT_TURN_MUTATION, {
+              companyId: selectedCompanyId,
+              agentId: chatAgentId,
+              threadId: targetSessionId,
+              text: payloadText,
+              runnerId,
+            });
+      const result = nextMode === "steer" ? data.steerAgentTurn : data.createAgentTurn;
       if (!result.ok) {
-        throw new Error(result.error || "Failed to send chat message.");
+        throw new Error(
+          result.error || (nextMode === "steer" ? "Failed to steer running turn." : "Failed to create turn."),
+        );
       }
-      setChatSessionRunningState(targetSessionId, true);
-      if (result.sessionId) {
-        setChatSessionId(result.sessionId);
+      setChatSessionRunningState(
+        targetSessionId,
+        Boolean(hasRunningTurn || result.turnId || result.queuedUserMessageId),
+      );
+      if (result.threadId) {
+        setChatSessionId(result.threadId);
       }
       setChatDraftMessage("");
       await loadAgentChatSessions({ silently: true });
@@ -7578,7 +7361,6 @@ function App() {
   async function handleCreateChatSession({
     agentId = null,
     title = null,
-    remoteSessionId = null,
     preferredRunnerId = null,
   } = {}) {
     const targetAgentId = String(agentId || chatAgentId || "").trim();
@@ -7596,24 +7378,23 @@ function App() {
     try {
       setIsCreatingChatSession(true);
       setChatError("");
-      const data = await executeGraphQL(CREATE_AGENT_CHAT_SESSION_MUTATION, {
+      const data = await executeGraphQL(CREATE_AGENT_THREAD_MUTATION, {
         companyId: selectedCompanyId,
         agentId: targetAgentId,
         title: title ? title.trim() : null,
-        remoteSessionId: remoteSessionId ? remoteSessionId.trim() : null,
         runnerId: preferredRunnerId || selectedAgentForChat?.agentRunnerId || null,
       });
-      const result = data.createAgentChatSession;
-      if (!result.ok || !result.session) {
+      const result = data.createAgentThread;
+      if (!result.ok || !result.thread) {
         throw new Error(result.error || "Failed to create chat.");
       }
 
-      const sessionsData = await executeGraphQL(LIST_AGENT_CHAT_SESSIONS_QUERY, {
+      const sessionsData = await executeGraphQL(LIST_AGENT_THREADS_QUERY, {
         companyId: selectedCompanyId,
         agentId: targetAgentId,
         limit: 200,
       });
-      const nextSessionsForAgent = sessionsData.agentChatSessions || [];
+      const nextSessionsForAgent = sessionsData.agentThreads || [];
 
       setChatAgentId(targetAgentId);
       setChatSessions(nextSessionsForAgent);
@@ -7622,9 +7403,8 @@ function App() {
         [targetAgentId]: nextSessionsForAgent,
       }));
       setChatSessionTitleDraft("");
-      setChatSessionRemoteIdDraft("");
-      setChatSessionId(result.session.id);
-      return result.session.id;
+      setChatSessionId(result.thread.id);
+      return result.thread.id;
     } catch (createError) {
       setChatError(createError.message);
       return null;
@@ -7659,124 +7439,6 @@ function App() {
     const createdSessionId = await handleCreateChatSession({ agentId: resolvedAgentId });
     if (createdSessionId) {
       setBrowserPath(`/agents/${resolvedAgentId}/chats/${createdSessionId}`);
-    }
-  }
-
-  async function handleStartCodexDeviceAuth() {
-    if (!selectedCompanyId) {
-      setCodexAuthError("Select a company before starting device auth.");
-      return;
-    }
-    if (!chatAgentId) {
-      setCodexAuthError("Select an agent before starting device auth.");
-      return;
-    }
-
-    const selectedAgentForAuth = agents.find((agent) => agent.id === chatAgentId) || null;
-    if (!selectedAgentForAuth) {
-      setCodexAuthError("Selected agent was not found.");
-      return;
-    }
-    if (!isCodexAgent(selectedAgentForAuth)) {
-      setCodexAuthError("Only agents with SDK codex support device auth.");
-      return;
-    }
-
-    try {
-      setIsStartingCodexAuth(true);
-      setCodexAuthError("");
-      setCodexAuthCopyFeedback("");
-      const data = await executeGraphQL(START_AGENT_CODEX_DEVICE_AUTH_MUTATION, {
-        companyId: selectedCompanyId,
-        agentId: chatAgentId,
-        runnerId: selectedAgentForAuth.agentRunnerId || null,
-      });
-      const result = data.startAgentCodexDeviceAuth;
-      if (!result.ok) {
-        throw new Error(result.error || "Failed to start Codex device auth.");
-      }
-      await loadCodexAuthState();
-    } catch (startError) {
-      setCodexAuthError(startError.message);
-    } finally {
-      setIsStartingCodexAuth(false);
-    }
-  }
-
-  async function handleStartRunnerCodexDeviceAuth(runnerId, agentId) {
-    if (!selectedCompanyId) {
-      setCodexAuthError("Select a company before starting device auth.");
-      return;
-    }
-
-    const resolvedRunnerId = String(runnerId || "").trim();
-    const resolvedAgentId = String(agentId || "").trim();
-    if (!resolvedRunnerId) {
-      setCodexAuthError("Runner id is required to start device auth from the runner page.");
-      return;
-    }
-    if (!resolvedAgentId) {
-      setCodexAuthError("Assign a Codex agent to this runner before starting device auth.");
-      return;
-    }
-
-    const selectedAgentForAuth = agents.find((agent) => agent.id === resolvedAgentId) || null;
-    if (!selectedAgentForAuth) {
-      setCodexAuthError("Selected agent was not found.");
-      return;
-    }
-    if (!isCodexAgent(selectedAgentForAuth)) {
-      setCodexAuthError("Only agents with SDK codex support device auth.");
-      return;
-    }
-
-    try {
-      setIsStartingCodexAuth(true);
-      setCodexAuthError("");
-      setCodexAuthCopyFeedback("");
-      setChatAgentId(resolvedAgentId);
-
-      const data = await executeGraphQL(START_AGENT_CODEX_DEVICE_AUTH_MUTATION, {
-        companyId: selectedCompanyId,
-        agentId: resolvedAgentId,
-        runnerId: resolvedRunnerId,
-      });
-      const result = data.startAgentCodexDeviceAuth;
-      if (!result.ok) {
-        throw new Error(result.error || "Failed to start Codex device auth.");
-      }
-
-      const stateData = await executeGraphQL(GET_AGENT_CODEX_AUTH_STATE_QUERY, {
-        companyId: selectedCompanyId,
-        agentId: resolvedAgentId,
-      });
-      setCodexAuthState(stateData.agentCodexAuthState || null);
-      navigateTo("dashboard");
-    } catch (startError) {
-      setCodexAuthError(startError.message);
-    } finally {
-      setIsStartingCodexAuth(false);
-    }
-  }
-
-  async function handleCopyDeviceCode(deviceCode) {
-    const trimmedCode = String(deviceCode || "").trim();
-    if (!trimmedCode) {
-      setCodexAuthCopyFeedback("No device code available yet.");
-      return;
-    }
-
-    try {
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(trimmedCode);
-        setCodexAuthCopyFeedback("Device code copied.");
-        return;
-      }
-      throw new Error("Clipboard API unavailable.");
-    } catch (copyError) {
-      setCodexAuthCopyFeedback(
-        `Copy failed (${copyError?.message || "unknown error"}). Copy the code manually.`,
-      );
     }
   }
 
@@ -8003,11 +7665,6 @@ function App() {
     return agentRunners.some((runner) => normalizeRunnerStatus(runner.status) === "ready");
   }, [agentRunners]);
 
-  const codexVerificationUrl = useMemo(
-    () => getCodexAuthVerificationUrl(codexAuthState),
-    [codexAuthState],
-  );
-
   const renderTaskLink = useCallback(
     (taskId) => {
       if (taskId == null) {
@@ -8105,19 +7762,10 @@ function App() {
             selectedCompanyId={selectedCompanyId}
             tasks={tasks}
             agentRunners={agentRunners}
-            agents={agents}
-            chatAgentId={chatAgentId}
-            codexAuthState={codexAuthState}
-            isLoadingCodexAuthState={isLoadingCodexAuthState}
-            isStartingCodexAuth={isStartingCodexAuth}
-            codexVerificationUrl={codexVerificationUrl}
-            codexAuthCopyFeedback={codexAuthCopyFeedback}
             isLoadingTasks={isLoadingTasks}
             isLoadingRunners={isLoadingRunners}
             taskError={taskError}
             runnerError={runnerError}
-            onStartCodexDeviceAuth={handleStartCodexDeviceAuth}
-            onCopyDeviceCode={handleCopyDeviceCode}
             onNavigate={navigateTo}
           />
         ) : null}
@@ -8221,11 +7869,8 @@ function App() {
           <AgentRunnerPage
             selectedCompanyId={selectedCompanyId}
             agentRunners={agentRunners}
-            agents={agents}
             isLoadingRunners={isLoadingRunners}
             runnerError={runnerError}
-            codexAuthError={codexAuthError}
-            isStartingCodexAuth={isStartingCodexAuth}
             isCreatingRunner={isCreatingRunner}
             runnerIdDraft={runnerIdDraft}
             runnerSecretDraft={runnerSecretDraft}
@@ -8243,8 +7888,6 @@ function App() {
               }))
             }
             onCreateRunner={handleCreateRunner}
-            onStartRunnerCodexDeviceAuth={handleStartRunnerCodexDeviceAuth}
-            onNavigate={navigateTo}
             onRegenerateRunnerSecret={handleRegenerateRunnerSecret}
             onDeleteRunner={handleDeleteRunner}
           />
@@ -8298,9 +7941,7 @@ function App() {
               isCreatingChatSession={isCreatingChatSession}
               chatError={chatError}
               chatSessionTitleDraft={chatSessionTitleDraft}
-              chatSessionRemoteIdDraft={chatSessionRemoteIdDraft}
               onChatSessionTitleDraftChange={setChatSessionTitleDraft}
-              onChatSessionRemoteIdDraftChange={setChatSessionRemoteIdDraft}
               onCreateChatSession={handleCreateChatSession}
               onOpenChat={(sessionId) => {
                 if (!chatAgentId || !sessionId) {
