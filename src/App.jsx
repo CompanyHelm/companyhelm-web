@@ -1131,6 +1131,13 @@ const COMPANY_API_LIST_AGENT_RUNNERS_CONNECTION_QUERY = `
         node {
           id
           companyId
+          agentSdks {
+            name
+            models {
+              name
+              reasoning
+            }
+          }
           status
         }
       }
@@ -1149,6 +1156,13 @@ const COMPANY_API_CREATE_AGENT_RUNNER_MUTATION = `
       agentRunner {
         id
         companyId
+        agentSdks {
+          name
+          models {
+            name
+            reasoning
+          }
+        }
         status
       }
     }
@@ -1162,6 +1176,13 @@ const COMPANY_API_REGENERATE_AGENT_RUNNER_SECRET_MUTATION = `
       agentRunner {
         id
         companyId
+        agentSdks {
+          name
+          models {
+            name
+            reasoning
+          }
+        }
         status
       }
     }
@@ -1631,21 +1652,32 @@ function isAvailableAgentSdk(value) {
 }
 
 function normalizeRunnerAvailableAgentSdks(runner) {
-  if (!Array.isArray(runner?.availableAgentSdks)) {
-    return [];
-  }
+  const runnerSdks = Array.isArray(runner?.availableAgentSdks)
+    ? runner.availableAgentSdks
+    : Array.isArray(runner?.agentSdks)
+      ? runner.agentSdks
+      : [];
 
-  return runner.availableAgentSdks
+  return runnerSdks
     .map((sdkEntry) => ({
       name: normalizeAgentSdkValue(sdkEntry?.name),
-      availableModels: (Array.isArray(sdkEntry?.availableModels) ? sdkEntry.availableModels : [])
+      availableModels: (
+        Array.isArray(sdkEntry?.availableModels)
+          ? sdkEntry.availableModels
+          : Array.isArray(sdkEntry?.models)
+            ? sdkEntry.models
+            : []
+      )
         .map((modelEntry) => ({
           name: String(modelEntry?.name || "").trim(),
           reasoningLevels: [
             ...new Set(
-              (Array.isArray(modelEntry?.reasoningLevels)
-                ? modelEntry.reasoningLevels
-                : [modelEntry?.reasoningLevels]
+              (
+                Array.isArray(modelEntry?.reasoningLevels)
+                  ? modelEntry.reasoningLevels
+                  : Array.isArray(modelEntry?.reasoning)
+                    ? modelEntry.reasoning
+                    : [modelEntry?.reasoningLevels, modelEntry?.reasoning]
               )
                 .map((value) => String(value || "").trim())
                 .filter(Boolean),
