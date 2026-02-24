@@ -1,6 +1,6 @@
 # CompanyHelm
 
-Minimal React SPA scaffolded with Vite.
+React SPA for `companyhelm-api` GraphQL.
 
 ## Run locally
 
@@ -11,6 +11,9 @@ npm run dev
 ```
 
 Open `http://localhost:5173`.
+
+By default, `/graphql` is proxied to `http://127.0.0.1:4000` (the `companyhelm-api` local default).
+Override with `VITE_GRAPHQL_PROXY_TARGET` when needed.
 
 ## Build
 
