@@ -1261,6 +1261,56 @@ const COMPANY_API_CREATE_THREAD_MUTATION = `
   }
 `;
 
+const COMPANY_API_LIST_THREAD_TURNS_CONNECTION_QUERY = `
+  query CompanyApiListThreadTurns($threadId: ID!, $first: Int!, $after: String) {
+    threadTurns(threadId: $threadId, first: $first, after: $after) {
+      edges {
+        node {
+          id
+          sdkTurnId
+          companyId
+          threadId
+          agentId
+          status
+          reasoningText
+          startedAt
+          endedAt
+          items {
+            id
+            sdkItemId
+            companyId
+            turnId
+            type
+            status
+            text
+            commandOutput
+            consoleOutput
+            processId
+            startedAt
+            completedAt
+          }
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+`;
+
+const COMPANY_API_QUEUE_USER_MESSAGE_MUTATION = `
+  mutation CompanyApiQueueUserMessage($threadId: ID!, $text: String!, $allowSteer: Boolean!) {
+    queueUserMessage(threadId: $threadId, text: $text, allowSteer: $allowSteer) {
+      id
+      companyId
+      threadId
+      allowSteer
+      text
+    }
+  }
+`;
+
 const NAV_SECTIONS = [
   {
     label: "Work",
@@ -2258,6 +2308,71 @@ function toLegacyThreadPayload(thread, { metadataOverride } = {}) {
   };
 }
 
+function toLegacyTurnItemRole(itemType) {
+  const normalizedType = String(itemType || "").trim().toLowerCase();
+  if (normalizedType === "user_message") {
+    return "user";
+  }
+  if (normalizedType === "agent_message") {
+    return "assistant";
+  }
+  return "system";
+}
+
+function toLegacyTurnPayload(turn, { runnerId } = {}) {
+  const resolvedTurnId = resolveLegacyId(turn?.id);
+  const resolvedThreadId = resolveLegacyId(turn?.threadId);
+  const resolvedCompanyId = resolveLegacyId(turn?.companyId);
+  const resolvedAgentId = resolveLegacyId(turn?.agentId);
+  const resolvedRunnerId = resolveLegacyId(runnerId) || null;
+  const resolvedStartedAt = resolveLegacyId(turn?.startedAt) || null;
+  const resolvedEndedAt = resolveLegacyId(turn?.endedAt) || null;
+  const fallbackTimestamp = resolvedStartedAt || resolvedEndedAt || new Date().toISOString();
+
+  const items = (Array.isArray(turn?.items) ? turn.items : []).map((item) => {
+    const resolvedItemType = resolveLegacyId(item?.type) || "unknown";
+    const itemStartedAt = resolveLegacyId(item?.startedAt) || null;
+    const itemEndedAt = resolveLegacyId(item?.completedAt) || null;
+    const itemTimestamp = itemStartedAt || itemEndedAt || fallbackTimestamp;
+
+    return {
+      id: resolveLegacyId(item?.id),
+      turnId: resolvedTurnId,
+      threadId: resolvedThreadId,
+      companyId: resolvedCompanyId,
+      agentId: resolvedAgentId,
+      runnerId: resolvedRunnerId,
+      providerItemId: resolveLegacyId(item?.sdkItemId),
+      role: toLegacyTurnItemRole(resolvedItemType),
+      itemType: resolvedItemType,
+      text: resolveLegacyId(item?.text),
+      command: resolveLegacyId(item?.commandOutput),
+      output: resolveLegacyId(item?.consoleOutput),
+      status: resolveLegacyId(item?.status) || "running",
+      startedAt: itemStartedAt,
+      endedAt: itemEndedAt,
+      error: null,
+      createdAt: itemTimestamp,
+      updatedAt: itemEndedAt || itemStartedAt || itemTimestamp,
+    };
+  });
+
+  return {
+    id: resolvedTurnId,
+    threadId: resolvedThreadId,
+    companyId: resolvedCompanyId,
+    agentId: resolvedAgentId,
+    runnerId: resolvedRunnerId,
+    status: resolveLegacyId(turn?.status) || "running",
+    reasoningText: resolveLegacyId(turn?.reasoningText),
+    startedAt: resolvedStartedAt,
+    endedAt: resolvedEndedAt,
+    createdAt: fallbackTimestamp,
+    updatedAt: resolvedEndedAt || resolvedStartedAt || fallbackTimestamp,
+    items,
+  };
+}
+
 function unsupportedMutation(resultKey) {
   return {
     [resultKey]: {
@@ -2544,15 +2659,47 @@ async function executeGraphQL(query, variables = {}) {
   }
 
   if (query === CREATE_AGENT_THREAD_MUTATION) {
+    const companyId = resolveLegacyId(variables?.companyId);
+    const agentId = resolveLegacyId(variables?.agentId);
+    const previousThreads = await fetchCompanyApiConnectionNodes({
+      query: COMPANY_API_LIST_THREADS_CONNECTION_QUERY,
+      rootField: "threads",
+      variables: {
+        companyId,
+        agentId,
+      },
+      limit: 500,
+    });
+    const previousThreadIds = new Set(previousThreads.map((thread) => resolveLegacyId(thread?.id)));
+
     const data = await executeRawGraphQL(COMPANY_API_CREATE_THREAD_MUTATION, {
-      companyId: resolveLegacyId(variables?.companyId),
-      agentId: resolveLegacyId(variables?.agentId),
+      companyId,
+      agentId,
     });
     const metadata = {
       title: resolveLegacyId(variables?.title),
       runnerId: resolveLegacyId(variables?.runnerId) || null,
     };
-    const legacyThread = toLegacyThreadPayload(data?.createThread, { metadataOverride: metadata });
+    const requestedThreadId = resolveLegacyId(data?.createThread?.id);
+
+    const updatedThreads = await fetchCompanyApiConnectionNodes({
+      query: COMPANY_API_LIST_THREADS_CONNECTION_QUERY,
+      rootField: "threads",
+      variables: {
+        companyId,
+        agentId,
+      },
+      limit: 500,
+    });
+    const newlyCreatedThreads = updatedThreads.filter(
+      (thread) => !previousThreadIds.has(resolveLegacyId(thread?.id)),
+    );
+    const canonicalThread = updatedThreads.find((thread) => resolveLegacyId(thread?.id) === requestedThreadId)
+      || (newlyCreatedThreads.length === 1 ? newlyCreatedThreads[0] : null)
+      || newlyCreatedThreads[0]
+      || data?.createThread;
+
+    const legacyThread = toLegacyThreadPayload(canonicalThread, { metadataOverride: metadata });
     return {
       createAgentThread: {
         ok: true,
@@ -2563,18 +2710,43 @@ async function executeGraphQL(query, variables = {}) {
   }
 
   if (query === LIST_AGENT_TURNS_QUERY) {
-    return { agentTurns: [] };
+    const threadId = resolveLegacyId(variables?.threadId);
+    if (!threadId) {
+      return { agentTurns: [] };
+    }
+
+    const limit = Number.isInteger(variables?.limit) ? Math.max(0, variables.limit) : null;
+    const turns = await fetchCompanyApiConnectionNodes({
+      query: COMPANY_API_LIST_THREAD_TURNS_CONNECTION_QUERY,
+      rootField: "threadTurns",
+      variables: { threadId },
+      limit,
+    });
+    const metadata = companyApiThreadMetadataById.get(threadId) || {};
+    const runnerId = resolveLegacyId(variables?.runnerId, metadata.runnerId) || null;
+
+    return {
+      agentTurns: turns.map((turn) => toLegacyTurnPayload(turn, { runnerId })),
+    };
   }
 
   if (query === CREATE_AGENT_TURN_MUTATION) {
+    const requestedThreadId = resolveLegacyId(variables?.threadId);
+    const data = await executeRawGraphQL(COMPANY_API_QUEUE_USER_MESSAGE_MUTATION, {
+      threadId: requestedThreadId,
+      text: resolveLegacyId(variables?.text),
+      allowSteer: false,
+    });
+    const queuedUserMessage = data?.queueUserMessage;
+
     return {
       createAgentTurn: {
-        ok: false,
-        error: COMPANY_API_NOT_IMPLEMENTED_ERROR,
+        ok: true,
+        error: null,
         itemId: null,
         turnId: null,
-        queuedUserMessageId: null,
-        threadId: resolveLegacyId(variables?.threadId) || null,
+        queuedUserMessageId: resolveLegacyId(queuedUserMessage?.id) || null,
+        threadId: resolveLegacyId(queuedUserMessage?.threadId, requestedThreadId) || null,
         runnerId: resolveLegacyId(variables?.runnerId) || null,
         agentId: resolveLegacyId(variables?.agentId) || null,
       },
@@ -2582,13 +2754,20 @@ async function executeGraphQL(query, variables = {}) {
   }
 
   if (query === STEER_AGENT_TURN_MUTATION) {
+    const requestedThreadId = resolveLegacyId(variables?.threadId);
+    await executeRawGraphQL(COMPANY_API_QUEUE_USER_MESSAGE_MUTATION, {
+      threadId: requestedThreadId,
+      text: resolveLegacyId(variables?.message),
+      allowSteer: true,
+    });
+
     return {
       steerAgentTurn: {
-        ok: false,
-        error: COMPANY_API_NOT_IMPLEMENTED_ERROR,
+        ok: true,
+        error: null,
         itemId: null,
         turnId: resolveLegacyId(variables?.turnId) || null,
-        threadId: resolveLegacyId(variables?.threadId) || null,
+        threadId: requestedThreadId || null,
         runnerId: resolveLegacyId(variables?.runnerId) || null,
         agentId: resolveLegacyId(variables?.agentId) || null,
       },
@@ -6611,6 +6790,24 @@ function App() {
     onData: handleAgentChatTurnsSubscriptionData,
     onError: handleAgentChatSubscriptionError,
   });
+
+  useEffect(() => {
+    if (!chatSessionId || !chatSessionRunningById[chatSessionId]) {
+      return undefined;
+    }
+
+    const pollIntervalId = setInterval(() => {
+      void loadAgentChatTurns({ silently: true });
+      void loadAgentChatSessions({ silently: true });
+    }, 2000);
+
+    return () => clearInterval(pollIntervalId);
+  }, [
+    chatSessionId,
+    chatSessionRunningById,
+    loadAgentChatSessions,
+    loadAgentChatTurns,
+  ]);
 
   useEffect(() => {
     loadCompanies();
