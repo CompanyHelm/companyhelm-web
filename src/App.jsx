@@ -1008,20 +1008,6 @@ const AGENT_TURNS_SUBSCRIPTION = `
 
 const COMPANY_API_NOT_IMPLEMENTED_ERROR = "Not implemented in companyhelm-api yet.";
 const COMPANY_API_PAGE_SIZE = 100;
-const COMPANY_API_DEFAULT_MODEL = "gpt-5";
-const COMPANY_API_DEFAULT_REASONING_LEVELS = ["low", "medium", "high"];
-const COMPANY_API_DEFAULT_REASONING = "medium";
-const COMPANY_API_DEFAULT_AVAILABLE_AGENT_SDKS = [
-  {
-    name: DEFAULT_AGENT_SDK,
-    availableModels: [
-      {
-        name: COMPANY_API_DEFAULT_MODEL,
-        reasoningLevels: COMPANY_API_DEFAULT_REASONING_LEVELS,
-      },
-    ],
-  },
-];
 
 const companyApiAgentMetadataById = new Map();
 const companyApiThreadMetadataById = new Map();
@@ -2084,16 +2070,6 @@ async function executeRawGraphQL(query, variables) {
   return payload.data;
 }
 
-function cloneDefaultAvailableAgentSdks() {
-  return COMPANY_API_DEFAULT_AVAILABLE_AGENT_SDKS.map((sdkEntry) => ({
-    name: sdkEntry.name,
-    availableModels: sdkEntry.availableModels.map((modelEntry) => ({
-      name: modelEntry.name,
-      reasoningLevels: [...modelEntry.reasoningLevels],
-    })),
-  }));
-}
-
 function normalizeCompanyApiRunnerStatus(value) {
   return String(value || "").trim().toLowerCase() === "connected" ? "ready" : "disconnected";
 }
@@ -2182,7 +2158,7 @@ function toLegacyRunnerPayload(agentRunner) {
     companyId: resolveLegacyId(agentRunner?.companyId),
     callbackUrl: null,
     hasAuthSecret: true,
-    availableAgentSdks: cloneDefaultAvailableAgentSdks(),
+    availableAgentSdks: normalizeRunnerAvailableAgentSdks(agentRunner),
     status: runnerStatus,
     lastHealthCheckAt: nextMetadata.lastHealthCheckAt,
     lastSeenAt: nextMetadata.lastSeenAt,
@@ -2205,9 +2181,11 @@ function toLegacyAgentPayload(agent, { metadataOverride } = {}) {
   const resolvedSdk = isAvailableAgentSdk(nextMetadata.agentSdk)
     ? normalizeAgentSdkValue(nextMetadata.agentSdk)
     : DEFAULT_AGENT_SDK;
-  const resolvedModel = resolveLegacyId(nextMetadata.model) || COMPANY_API_DEFAULT_MODEL;
-  const resolvedReasoning =
-    resolveLegacyId(nextMetadata.modelReasoningLevel) || COMPANY_API_DEFAULT_REASONING;
+  const resolvedModel = resolveLegacyId(nextMetadata.model, agent?.model);
+  const resolvedReasoning = resolveLegacyId(
+    nextMetadata.modelReasoningLevel,
+    agent?.modelReasoningLevel,
+  );
 
   return {
     id: agentId,
@@ -2458,9 +2436,8 @@ async function executeGraphQL(query, variables = {}) {
       mcpServerIds: normalizeUniqueStringList(variables?.mcpServerIds || []),
       name: resolveLegacyId(variables?.name),
       agentSdk: isAvailableAgentSdk(variables?.agentSdk) ? normalizeAgentSdkValue(variables?.agentSdk) : DEFAULT_AGENT_SDK,
-      model: resolveLegacyId(variables?.model) || COMPANY_API_DEFAULT_MODEL,
-      modelReasoningLevel:
-        resolveLegacyId(variables?.modelReasoningLevel) || COMPANY_API_DEFAULT_REASONING,
+      model: resolveLegacyId(variables?.model),
+      modelReasoningLevel: resolveLegacyId(variables?.modelReasoningLevel),
       installedSkills: [],
     };
     const data = await executeRawGraphQL(COMPANY_API_CREATE_AGENT_MUTATION, {
@@ -2486,9 +2463,8 @@ async function executeGraphQL(query, variables = {}) {
       mcpServerIds: normalizeUniqueStringList(variables?.mcpServerIds || []),
       name: resolveLegacyId(variables?.name),
       agentSdk: isAvailableAgentSdk(variables?.agentSdk) ? normalizeAgentSdkValue(variables?.agentSdk) : DEFAULT_AGENT_SDK,
-      model: resolveLegacyId(variables?.model) || COMPANY_API_DEFAULT_MODEL,
-      modelReasoningLevel:
-        resolveLegacyId(variables?.modelReasoningLevel) || COMPANY_API_DEFAULT_REASONING,
+      model: resolveLegacyId(variables?.model),
+      modelReasoningLevel: resolveLegacyId(variables?.modelReasoningLevel),
     };
     companyApiAgentMetadataById.set(agentId, nextMetadata);
     return {
