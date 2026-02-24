@@ -148,8 +148,12 @@ const DELETE_GITHUB_INSTALLATION_MUTATION = `
 `;
 
 const LIST_REPOSITORIES_QUERY = `
-  query ListRepositories($companyId: String!, $provider: String) {
-    repositories(companyId: $companyId, provider: $provider) {
+  query ListRepositories($companyId: String!, $provider: String, $githubInstallationId: String) {
+    repositories(
+      companyId: $companyId
+      provider: $provider
+      githubInstallationId: $githubInstallationId
+    ) {
       id
       companyId
       provider
@@ -1070,6 +1074,44 @@ const COMPANY_API_LIST_GITHUB_INSTALLATIONS_QUERY = `
       installationId
       companyId
       createdAt
+    }
+  }
+`;
+
+const COMPANY_API_LIST_REPOSITORIES_CONNECTION_QUERY = `
+  query CompanyApiListRepositories(
+    $companyId: ID!
+    $githubInstallationId: ID
+    $first: Int!
+    $after: String
+  ) {
+    repositories(
+      companyId: $companyId
+      githubInstallationId: $githubInstallationId
+      first: $first
+      after: $after
+    ) {
+      edges {
+        node {
+          id
+          companyId
+          provider
+          externalId
+          githubInstallationId
+          name
+          fullName
+          htmlUrl
+          isPrivate
+          defaultBranch
+          archived
+          createdAt
+          updatedAt
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
     }
   }
 `;
@@ -2549,7 +2591,37 @@ async function executeGraphQL(query, variables = {}) {
   }
 
   if (query === LIST_REPOSITORIES_QUERY) {
-    return { repositories: [] };
+    const provider = resolveLegacyId(variables?.provider).toLowerCase();
+    if (provider && provider !== "github") {
+      return { repositories: [] };
+    }
+
+    const repositories = await fetchCompanyApiConnectionNodes({
+      query: COMPANY_API_LIST_REPOSITORIES_CONNECTION_QUERY,
+      rootField: "repositories",
+      variables: {
+        companyId: resolveLegacyId(variables?.companyId),
+        githubInstallationId: resolveLegacyId(variables?.githubInstallationId) || null,
+      },
+    });
+
+    return {
+      repositories: repositories.map((repository) => ({
+        id: resolveLegacyId(repository?.id),
+        companyId: resolveLegacyId(repository?.companyId),
+        provider: resolveLegacyId(repository?.provider) || "github",
+        externalId: resolveLegacyId(repository?.externalId),
+        githubInstallationId: resolveLegacyId(repository?.githubInstallationId),
+        name: resolveLegacyId(repository?.name),
+        fullName: resolveLegacyId(repository?.fullName),
+        htmlUrl: resolveLegacyId(repository?.htmlUrl) || null,
+        isPrivate: Boolean(repository?.isPrivate),
+        defaultBranch: resolveLegacyId(repository?.defaultBranch) || null,
+        archived: Boolean(repository?.archived),
+        createdAt: String(repository?.createdAt || ""),
+        updatedAt: String(repository?.updatedAt || ""),
+      })),
+    };
   }
 
   if (query === LIST_TASKS_QUERY) {
