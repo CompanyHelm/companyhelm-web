@@ -1261,44 +1261,41 @@ const COMPANY_API_CREATE_THREAD_MUTATION = `
   }
 `;
 
-const PRIMARY_NAV_ITEMS = [
+const NAV_SECTIONS = [
   {
-    id: "dashboard",
-    label: "Dashboard",
-    href: "/dashboard",
-    tone: "mint",
-    requiresCompany: true,
+    label: "Work",
+    items: [
+      { id: "dashboard", label: "Dashboard", href: "/dashboard", requiresCompany: true },
+      { id: "tasks", label: "Tasks", href: "/tasks", requiresCompany: true },
+    ],
   },
-  { id: "tasks", label: "Tasks", href: "/tasks", tone: "sand", requiresCompany: true },
-  { id: "skills", label: "Skills", href: "/skills", tone: "sand", requiresCompany: true },
-  { id: "mcp-servers", label: "MCP", href: "/mcp-servers", tone: "mint", requiresCompany: true },
   {
-    id: "agent-runner",
-    label: "Agent Runner",
-    href: "/agent-runner",
-    tone: "sky",
-    requiresCompany: true,
+    label: "Intelligence",
+    items: [
+      { id: "agents", label: "Agents", href: "/agents", requiresCompany: true },
+      { id: "skills", label: "Skills", href: "/skills", requiresCompany: true },
+      { id: "mcp-servers", label: "MCP Servers", href: "/mcp-servers", requiresCompany: true },
+    ],
   },
-  { id: "chats", label: "Chats", href: "/chats", tone: "coral", requiresCompany: true },
-  { id: "agents", label: "Agents", href: "/agents", tone: "coral", requiresCompany: true },
   {
-    id: "settings",
-    label: "Settings",
-    href: "/settings",
-    tone: "slate",
-    requiresCompany: false,
+    label: "Operate",
+    items: [
+      { id: "agent-runner", label: "Agent Runner", href: "/agent-runner", requiresCompany: true },
+      { id: "chats", label: "Chats", href: "/chats", requiresCompany: true },
+    ],
   },
 ];
 
-const PROFILE_NAV_ITEM = {
-  id: "profile",
-  label: "Profile",
-  href: "/profile",
-  tone: "stone",
-  requiresCompany: false,
-};
+const BOTTOM_NAV_ITEMS = [
+  { id: "settings", label: "Settings", href: "/settings", requiresCompany: false },
+  { id: "profile", label: "Profile", href: "/profile", requiresCompany: false },
+];
 
-const NAV_ITEMS = [...PRIMARY_NAV_ITEMS, PROFILE_NAV_ITEM];
+const PRIMARY_NAV_ITEMS = NAV_SECTIONS.flatMap((s) => s.items);
+
+const PROFILE_NAV_ITEM = BOTTOM_NAV_ITEMS[1];
+
+const NAV_ITEMS = [...PRIMARY_NAV_ITEMS, ...BOTTOM_NAV_ITEMS];
 const NAV_ITEM_LOOKUP = NAV_ITEMS.reduce((map, item) => {
   map.set(item.id, item);
   return map;
@@ -2871,62 +2868,6 @@ function CreationModal({ modalId, title, description, isOpen, onClose, children 
         {children}
       </section>
     </div>
-  );
-}
-
-function AppHeader({
-  hasCompanies,
-  companies,
-  selectedCompanyId,
-  selectedCompany,
-  isLoadingCompanies,
-  companyError,
-  onCompanyChange,
-  onOpenSettings,
-}) {
-  return (
-    <header className="panel app-header">
-      <div className="app-header-title">
-        <p className="eyebrow">Workspace</p>
-        <h2>Company scope</h2>
-      </div>
-
-      <div className="app-header-controls">
-        <label className="header-select-label" htmlFor="header-company-select">
-          Active company
-        </label>
-        <div className="header-select-row">
-          <select
-            id="header-company-select"
-            className="header-select"
-            value={selectedCompanyId}
-            onChange={(event) => onCompanyChange(event.target.value)}
-            disabled={isLoadingCompanies}
-          >
-            <option value="">
-              {isLoadingCompanies ? "Loading companies..." : "Select a company"}
-            </option>
-            {companies.map((company) => (
-              <option key={company.id} value={company.id}>
-                {company.name} ({company.id.slice(0, 8)})
-              </option>
-            ))}
-          </select>
-          <button type="button" className="secondary-btn" onClick={onOpenSettings}>
-            Open settings
-          </button>
-        </div>
-      </div>
-
-      <p className="header-company-meta">
-        {selectedCompany
-          ? `${selectedCompany.name} (${selectedCompany.id.slice(0, 8)})`
-          : hasCompanies
-            ? "No company selected"
-            : "No companies yet. Use Settings to create one."}
-      </p>
-      {companyError ? <p className="header-error">Company error: {companyError}</p> : null}
-    </header>
   );
 }
 
@@ -8601,70 +8542,76 @@ function App() {
           <h2>CompanyHelm</h2>
         </div>
 
-        <nav className="side-nav" aria-label="Main navigation">
-          {PRIMARY_NAV_ITEMS.map((item) => {
-            const isDisabled = item.requiresCompany && !selectedCompanyId;
-            return (
-              <a
-                key={item.id}
-                href={item.href}
-                aria-disabled={isDisabled ? "true" : undefined}
-                onClick={(event) => {
-                  event.preventDefault();
-                  if (isDisabled) {
-                    navigateTo("settings");
-                    return;
-                  }
-                  navigateTo(item.id);
-                }}
-                className={`nav-link nav-link-${item.tone} ${
-                  activePage === item.id ? "nav-link-active" : ""
-                } ${isDisabled ? "nav-link-disabled" : ""}`}
-              >
-                {item.label}
-              </a>
-            );
-          })}
-        </nav>
-
-        <nav className="side-nav side-nav-profile" aria-label="Profile navigation">
-          <a
-            href={PROFILE_NAV_ITEM.href}
-            onClick={(event) => {
-              event.preventDefault();
-              navigateTo(PROFILE_NAV_ITEM.id);
-            }}
-            className={`nav-link nav-link-${PROFILE_NAV_ITEM.tone} ${
-              activePage === PROFILE_NAV_ITEM.id ? "nav-link-active" : ""
-            }`}
+        <div className="side-company-scope">
+          <select
+            className="side-company-select"
+            value={selectedCompanyId}
+            onChange={(event) => setSelectedCompanyId(event.target.value)}
+            disabled={isLoadingCompanies}
           >
-            {PROFILE_NAV_ITEM.label}
-          </a>
-        </nav>
+            <option value="">
+              {isLoadingCompanies ? "Loading..." : "Select company"}
+            </option>
+            {companies.map((company) => (
+              <option key={company.id} value={company.id}>
+                {company.name}
+              </option>
+            ))}
+          </select>
+          {companyError ? <p className="side-error">{companyError}</p> : null}
+        </div>
 
-        {hasCompanies ? (
-          <div className="side-status">
-            <p>Company: {selectedCompany ? selectedCompany.name : "none"}</p>
-            <p>Tasks: {selectedCompanyId ? tasks.length : "n/a"}</p>
-            <p>Skills: {selectedCompanyId ? skills.length : "n/a"}</p>
-            <p>MCP: {selectedCompanyId ? mcpServers.length : "n/a"}</p>
-            <p>Agents: {selectedCompanyId ? agents.length : "n/a"}</p>
-            <p>Runners: {selectedCompanyId ? agentRunners.length : "n/a"}</p>
+        {NAV_SECTIONS.map((section) => (
+          <div key={section.label} className="side-nav-section">
+            <p className="side-nav-label">{section.label}</p>
+            <nav className="side-nav" aria-label={`${section.label} navigation`}>
+              {section.items.map((item) => {
+                const isDisabled = item.requiresCompany && !selectedCompanyId;
+                return (
+                  <a
+                    key={item.id}
+                    href={item.href}
+                    aria-disabled={isDisabled ? "true" : undefined}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      if (isDisabled) {
+                        navigateTo("settings");
+                        return;
+                      }
+                      navigateTo(item.id);
+                    }}
+                    className={`nav-link ${
+                      activePage === item.id ? "nav-link-active" : ""
+                    } ${isDisabled ? "nav-link-disabled" : ""}`}
+                  >
+                    {item.label}
+                  </a>
+                );
+              })}
+            </nav>
           </div>
-        ) : null}
+        ))}
+
+        <nav className="side-nav side-nav-bottom" aria-label="Utility navigation">
+          {BOTTOM_NAV_ITEMS.map((item) => (
+            <a
+              key={item.id}
+              href={item.href}
+              onClick={(event) => {
+                event.preventDefault();
+                navigateTo(item.id);
+              }}
+              className={`nav-link ${
+                activePage === item.id ? "nav-link-active" : ""
+              }`}
+            >
+              {item.label}
+            </a>
+          ))}
+        </nav>
       </aside>
 
       <main className="page-shell">
-        <AppHeader
-          hasCompanies={hasCompanies}
-          companies={companies}
-          selectedCompanyId={selectedCompanyId}
-          selectedCompany={selectedCompany}
-          isLoadingCompanies={isLoadingCompanies}
-          companyError={companyError}
-          onCompanyChange={setSelectedCompanyId}
-          onOpenSettings={() => navigateTo("settings")}
-        />
         <Breadcrumbs items={breadcrumbItems} onNavigate={setBrowserPath} />
 
         {!selectedCompanyId && activePage !== "settings" && activePage !== "profile" ? (
