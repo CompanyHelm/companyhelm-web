@@ -5933,13 +5933,8 @@ function AgentChatPage({
     if (!transcriptNode) {
       return;
     }
-    const distanceFromBottom =
-      transcriptNode.scrollHeight - transcriptNode.scrollTop - transcriptNode.clientHeight;
-    const isNearBottom = distanceFromBottom <= 32;
-    if (isNearBottom || visibleMessageCount <= CHAT_MESSAGE_BATCH_SIZE) {
-      transcriptNode.scrollTop = transcriptNode.scrollHeight;
-    }
-  }, [session?.id, visibleMessageCount, visibleMessageTotal]);
+    transcriptNode.scrollTop = transcriptNode.scrollHeight;
+  }, [session?.id, orderedTurns.length, totalMessageCount]);
 
   function handleChatMessageKeyDown(event) {
     if (event.key !== "Enter" || event.shiftKey || event.isComposing) {
