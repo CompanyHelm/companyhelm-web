@@ -4091,7 +4091,6 @@ function AgentsPage({
   deletingAgentId,
   initializingAgentId,
   retryingAgentSkillInstallKey,
-  canInitializeAgents,
   agentRunnerId,
   agentSkillIds,
   agentMcpServerIds,
@@ -4111,7 +4110,6 @@ function AgentsPage({
   onCreateAgent,
   onAgentDraftChange,
   onSaveAgent,
-  onInitializeAgent,
   onRetryAgentSkillInstall,
   onOpenAgentSessions,
   onDeleteAgent,
@@ -4614,19 +4612,6 @@ function AgentsPage({
                         }
                       >
                         {savingAgentId === agent.id ? "Saving..." : "Save"}
-                      </button>
-                      <button
-                        type="button"
-                        className="secondary-btn"
-                        onClick={() => onInitializeAgent(agent.id)}
-                        disabled={
-                          !canInitializeAgents ||
-                          savingAgentId === agent.id ||
-                          deletingAgentId === agent.id ||
-                          initializingAgentId === agent.id
-                        }
-                      >
-                        {initializingAgentId === agent.id ? "Initializing..." : "Initialize"}
                       </button>
                       <button
                         type="button"
