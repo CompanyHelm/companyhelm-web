@@ -1948,8 +1948,8 @@ function buildRunnerStartCommand({
   runnerSecret,
 }) {
   return [
-    "agent-runner",
-    "--backend-grpc-target",
+    "companyhelm",
+    "--server-url",
     quoteShellArg(backendGrpcTarget),
     "--runner-secret",
     quoteShellArg(runnerSecret),
