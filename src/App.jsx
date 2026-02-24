@@ -1242,8 +1242,11 @@ const COMPANY_API_CREATE_AGENT_MUTATION = `
 `;
 
 const COMPANY_API_DELETE_AGENT_MUTATION = `
-  mutation CompanyApiDeleteAgent($agentId: ID!) {
-    deleteAgent(agentId: $agentId)
+  mutation CompanyApiDeleteAgent($input: DeleteAgentInput!) {
+    deleteAgent(input: $input) {
+      ok
+      errors
+    }
   }
 `;
 
@@ -2682,15 +2685,28 @@ async function executeGraphQL(query, variables = {}) {
 
   if (query === DELETE_AGENT_MUTATION) {
     const agentId = resolveLegacyId(variables?.id, variables?.agentId);
+    const force = Boolean(variables?.force);
     const data = await executeRawGraphQL(COMPANY_API_DELETE_AGENT_MUTATION, {
-      agentId,
+      input: {
+        agentId,
+        force,
+      },
     });
-    companyApiAgentMetadataById.delete(agentId);
+    const payload = data?.deleteAgent;
+    const responseErrors = Array.isArray(payload?.errors)
+      ? payload.errors
+          .map((errorMessage) => String(errorMessage || "").trim())
+          .filter(Boolean)
+      : [];
+    const ok = Boolean(payload?.ok);
+    if (ok) {
+      companyApiAgentMetadataById.delete(agentId);
+    }
     return {
       deleteAgent: {
-        ok: Boolean(data?.deleteAgent),
-        error: data?.deleteAgent ? null : "Agent deletion failed.",
-        deletedAgentId: agentId,
+        ok,
+        error: ok ? null : responseErrors.join(" ") || "Agent deletion failed.",
+        deletedAgentId: ok ? agentId : null,
       },
     };
   }
@@ -4101,6 +4117,8 @@ function AgentsPage({
   onDeleteAgent,
 }) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [pendingDeleteAgent, setPendingDeleteAgent] = useState(null);
+  const [forceDeleteAgent, setForceDeleteAgent] = useState(false);
   const skillLookup = useMemo(() => {
     return skills.reduce((map, skill) => {
       map.set(skill.id, skill);
@@ -4140,6 +4158,35 @@ function AgentsPage({
     const didCreate = await onCreateAgent(event);
     if (didCreate) {
       setIsCreateModalOpen(false);
+    }
+  }
+
+  function openDeleteAgentModal(agentId, agentName) {
+    setPendingDeleteAgent({
+      id: agentId,
+      name: agentName,
+    });
+    setForceDeleteAgent(false);
+  }
+
+  function closeDeleteAgentModal() {
+    setPendingDeleteAgent(null);
+    setForceDeleteAgent(false);
+  }
+
+  async function handleDeleteAgentSubmit(event) {
+    event.preventDefault();
+    if (!pendingDeleteAgent) {
+      return;
+    }
+
+    const didDelete = await onDeleteAgent(
+      pendingDeleteAgent.id,
+      pendingDeleteAgent.name,
+      forceDeleteAgent,
+    );
+    if (didDelete) {
+      closeDeleteAgentModal();
     }
   }
 
@@ -4584,7 +4631,7 @@ function AgentsPage({
                       <button
                         type="button"
                         className="danger-btn"
-                        onClick={() => onDeleteAgent(agent.id, agent.name)}
+                        onClick={() => openDeleteAgentModal(agent.id, agent.name)}
                         disabled={
                           savingAgentId === agent.id ||
                           deletingAgentId === agent.id ||
@@ -4810,6 +4857,52 @@ function AgentsPage({
           <button type="submit" disabled={isCreatingAgent}>
             {isCreatingAgent ? "Creating..." : "Create agent"}
           </button>
+        </form>
+      </CreationModal>
+
+      <CreationModal
+        modalId="delete-agent-modal"
+        title={pendingDeleteAgent ? `Delete agent "${pendingDeleteAgent.name}"` : "Delete agent"}
+        description="Remove this agent from the selected company."
+        isOpen={Boolean(pendingDeleteAgent)}
+        onClose={closeDeleteAgentModal}
+      >
+        <form className="task-form" onSubmit={handleDeleteAgentSubmit}>
+          <p className="subcopy">
+            This action deletes the agent record from companyhelm-api.
+          </p>
+          <label
+            htmlFor="delete-agent-force"
+            title="Forcing deletion doesn't delete resources on agent runner side."
+          >
+            <input
+              id="delete-agent-force"
+              type="checkbox"
+              checked={forceDeleteAgent}
+              onChange={(event) => setForceDeleteAgent(event.target.checked)}
+              disabled={!pendingDeleteAgent || deletingAgentId === pendingDeleteAgent.id}
+            />{" "}
+            Force deletion
+          </label>
+          <div className="task-card-actions">
+            <button
+              type="submit"
+              className="danger-btn"
+              disabled={!pendingDeleteAgent || deletingAgentId === pendingDeleteAgent.id}
+            >
+              {pendingDeleteAgent && deletingAgentId === pendingDeleteAgent.id
+                ? "Deleting..."
+                : "Delete agent"}
+            </button>
+            <button
+              type="button"
+              className="secondary-btn"
+              onClick={closeDeleteAgentModal}
+              disabled={pendingDeleteAgent && deletingAgentId === pendingDeleteAgent.id}
+            >
+              Cancel
+            </button>
+          </div>
         </form>
       </CreationModal>
     </div>
@@ -8597,15 +8690,10 @@ function App() {
     }
   }
 
-  async function handleDeleteAgent(agentId, agentDisplayName) {
+  async function handleDeleteAgent(agentId, agentDisplayName, forceDelete = false) {
     if (!selectedCompanyId) {
       setAgentError("Select a company before deleting agents.");
-      return;
-    }
-
-    const confirmed = window.confirm(`Delete agent "${agentDisplayName}"?`);
-    if (!confirmed) {
-      return;
+      return false;
     }
 
     try {
@@ -8614,14 +8702,17 @@ function App() {
       const data = await executeGraphQL(DELETE_AGENT_MUTATION, {
         companyId: selectedCompanyId,
         id: agentId,
+        force: Boolean(forceDelete),
       });
       const result = data.deleteAgent;
       if (!result.ok) {
-        throw new Error(result.error || "Agent deletion failed.");
+        throw new Error(result.error || `Agent deletion failed for "${agentDisplayName}".`);
       }
       await loadAgents();
+      return true;
     } catch (deleteError) {
       setAgentError(deleteError.message);
+      return false;
     } finally {
       setDeletingAgentId(null);
     }
