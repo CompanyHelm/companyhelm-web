@@ -925,82 +925,98 @@ const STEER_AGENT_TURN_MUTATION = `
   }
 `;
 
+const INTERRUPT_AGENT_TURN_MUTATION = `
+  mutation InterruptAgentTurn(
+    $companyId: String!
+    $agentId: String!
+    $threadId: String!
+    $runnerId: String
+  ) {
+    interruptAgentTurn(
+      companyId: $companyId
+      agentId: $agentId
+      threadId: $threadId
+      runnerId: $runnerId
+    ) {
+      ok
+      error
+      threadId
+      runnerId
+      agentId
+    }
+  }
+`;
+
 const AGENT_RUNNERS_SUBSCRIPTION = `
-  subscription AgentRunnersUpdated($companyId: String!) {
-    agentRunnersUpdated(companyId: $companyId) {
-      id
-      companyId
-      callbackUrl
-      hasAuthSecret
-      availableAgentSdks {
-        name
-        availableModels {
-          name
-          reasoningLevels
+  subscription AgentRunnersUpdated($companyId: ID!, $first: Int = 200) {
+    agentRunnersUpdated(companyId: $companyId, first: $first) {
+      edges {
+        node {
+          id
+          companyId
+          agentSdks {
+            name
+            models {
+              name
+              reasoning
+            }
+          }
+          status
         }
       }
-      status
-      lastHealthCheckAt
-      lastSeenAt
-      createdAt
-      updatedAt
     }
   }
 `;
 
 const AGENT_THREADS_SUBSCRIPTION = `
-  subscription AgentThreadsUpdated($companyId: String!, $agentId: String!) {
-    agentThreadsUpdated(companyId: $companyId, agentId: $agentId) {
-      id
-      threadId
-      companyId
-      agentId
-      runnerId
-      title
-      status
-      createdAt
-      updatedAt
+  subscription AgentThreadsUpdated($companyId: ID!, $agentId: ID!, $first: Int = 500) {
+    agentThreadsUpdated(companyId: $companyId, agentId: $agentId, first: $first) {
+      edges {
+        node {
+          id
+          companyId
+          agentId
+          status
+        }
+      }
     }
   }
 `;
 
 const AGENT_TURNS_SUBSCRIPTION = `
   subscription AgentTurnsUpdated(
-    $companyId: String!
-    $agentId: String!
-    $threadId: String!
+    $companyId: ID!
+    $agentId: ID!
+    $threadId: ID!
+    $first: Int = 100
   ) {
-    agentTurnsUpdated(companyId: $companyId, agentId: $agentId, threadId: $threadId) {
-      id
-      threadId
-      companyId
-      agentId
-      runnerId
-      status
-      reasoningText
-      startedAt
-      endedAt
-      createdAt
-      updatedAt
-      items {
-        id
-        turnId
-        threadId
-        companyId
-        agentId
-        runnerId
-        providerItemId
-        role
-        itemType
-        text
-        command
-        output
-        status
-        startedAt
-        endedAt
-        error
-        createdAt
-        updatedAt
+    agentTurnsUpdated(companyId: $companyId, agentId: $agentId, threadId: $threadId, first: $first) {
+      edges {
+        node {
+          id
+          sdkTurnId
+          companyId
+          threadId
+          agentId
+          status
+          reasoningText
+          startedAt
+          endedAt
+          items {
+            id
+            sdkItemId
+            companyId
+            turnId
+            type
+            status
+            text
+            commandOutput
+            consoleOutput
+            processId
+            startedAt
+            completedAt
+          }
+        }
       }
     }
   }
@@ -1308,6 +1324,12 @@ const COMPANY_API_QUEUE_USER_MESSAGE_MUTATION = `
       allowSteer
       text
     }
+  }
+`;
+
+const COMPANY_API_INTERRUPT_TURN_MUTATION = `
+  mutation CompanyApiInterruptTurn($threadId: ID!) {
+    interruptTurn(threadId: $threadId)
   }
 `;
 
@@ -2215,6 +2237,39 @@ async function fetchCompanyApiConnectionNodes({
   return nodes;
 }
 
+async function loadCompanyApiAgentThreads({
+  companyId,
+  agentId,
+  limit = null,
+}) {
+  const threadNodes = await fetchCompanyApiConnectionNodes({
+    query: COMPANY_API_LIST_THREADS_CONNECTION_QUERY,
+    rootField: "threads",
+    variables: {
+      companyId,
+      agentId,
+    },
+    limit,
+  });
+
+  return threadNodes.map((threadNode) => toLegacyThreadPayload(threadNode));
+}
+
+async function loadCompanyApiThreadTurns({
+  threadId,
+  runnerId = null,
+  limit = null,
+}) {
+  const turnNodes = await fetchCompanyApiConnectionNodes({
+    query: COMPANY_API_LIST_THREAD_TURNS_CONNECTION_QUERY,
+    rootField: "threadTurns",
+    variables: { threadId },
+    limit,
+  });
+
+  return turnNodes.map((turnNode) => toLegacyTurnPayload(turnNode, { runnerId }));
+}
+
 function toLegacyRunnerPayload(agentRunner) {
   const runnerId = resolveLegacyId(agentRunner?.id);
   const nowIso = new Date().toISOString();
@@ -2644,23 +2699,30 @@ async function executeGraphQL(query, variables = {}) {
     const companyId = resolveLegacyId(variables?.companyId) || null;
     const agentId = resolveLegacyId(variables?.agentId) || null;
     const limit = Number.isInteger(variables?.limit) ? Math.max(0, variables.limit) : null;
-    const threads = await fetchCompanyApiConnectionNodes({
-      query: COMPANY_API_LIST_THREADS_CONNECTION_QUERY,
-      rootField: "threads",
-      variables: {
-        companyId,
-        agentId,
-      },
+    const threads = await loadCompanyApiAgentThreads({
+      companyId,
+      agentId,
       limit,
     });
     return {
-      agentThreads: threads.map((thread) => toLegacyThreadPayload(thread)),
+      agentThreads: threads,
     };
   }
 
   if (query === CREATE_AGENT_THREAD_MUTATION) {
     const companyId = resolveLegacyId(variables?.companyId);
     const agentId = resolveLegacyId(variables?.agentId);
+    const loadThreadsForAgent = async () =>
+      fetchCompanyApiConnectionNodes({
+        query: COMPANY_API_LIST_THREADS_CONNECTION_QUERY,
+        rootField: "threads",
+        variables: {
+          companyId,
+          agentId,
+        },
+        limit: 500,
+      });
+
     const previousThreads = await fetchCompanyApiConnectionNodes({
       query: COMPANY_API_LIST_THREADS_CONNECTION_QUERY,
       rootField: "threads",
@@ -2682,22 +2744,35 @@ async function executeGraphQL(query, variables = {}) {
     };
     const requestedThreadId = resolveLegacyId(data?.createThread?.id);
 
-    const updatedThreads = await fetchCompanyApiConnectionNodes({
-      query: COMPANY_API_LIST_THREADS_CONNECTION_QUERY,
-      rootField: "threads",
-      variables: {
-        companyId,
-        agentId,
-      },
-      limit: 500,
-    });
-    const newlyCreatedThreads = updatedThreads.filter(
-      (thread) => !previousThreadIds.has(resolveLegacyId(thread?.id)),
-    );
-    const canonicalThread = updatedThreads.find((thread) => resolveLegacyId(thread?.id) === requestedThreadId)
-      || (newlyCreatedThreads.length === 1 ? newlyCreatedThreads[0] : null)
-      || newlyCreatedThreads[0]
-      || data?.createThread;
+    const pickCanonicalThread = (threadsSnapshot) => {
+      const requestedThread = threadsSnapshot.find(
+        (thread) => resolveLegacyId(thread?.id) === requestedThreadId,
+      );
+      const newlyCreatedThreads = threadsSnapshot.filter(
+        (thread) => !previousThreadIds.has(resolveLegacyId(thread?.id)),
+      );
+      const readyRequestedThread = requestedThread
+        && resolveLegacyId(requestedThread?.status) === "ready"
+        ? requestedThread
+        : null;
+      const readyCreatedThread = newlyCreatedThreads.find(
+        (thread) => resolveLegacyId(thread?.status) === "ready",
+      );
+      const idChangedCreatedThread = newlyCreatedThreads.find(
+        (thread) => resolveLegacyId(thread?.id) !== requestedThreadId,
+      );
+
+      return readyRequestedThread
+        || readyCreatedThread
+        || idChangedCreatedThread
+        || requestedThread
+        || (newlyCreatedThreads.length === 1 ? newlyCreatedThreads[0] : null)
+        || newlyCreatedThreads[0]
+        || data?.createThread;
+    };
+
+    const updatedThreads = await loadThreadsForAgent();
+    const canonicalThread = pickCanonicalThread(updatedThreads);
 
     const legacyThread = toLegacyThreadPayload(canonicalThread, { metadataOverride: metadata });
     return {
@@ -2716,17 +2791,16 @@ async function executeGraphQL(query, variables = {}) {
     }
 
     const limit = Number.isInteger(variables?.limit) ? Math.max(0, variables.limit) : null;
-    const turns = await fetchCompanyApiConnectionNodes({
-      query: COMPANY_API_LIST_THREAD_TURNS_CONNECTION_QUERY,
-      rootField: "threadTurns",
-      variables: { threadId },
-      limit,
-    });
     const metadata = companyApiThreadMetadataById.get(threadId) || {};
     const runnerId = resolveLegacyId(variables?.runnerId, metadata.runnerId) || null;
+    const turns = await loadCompanyApiThreadTurns({
+      threadId,
+      runnerId,
+      limit,
+    });
 
     return {
-      agentTurns: turns.map((turn) => toLegacyTurnPayload(turn, { runnerId })),
+      agentTurns: turns,
     };
   }
 
@@ -2767,6 +2841,23 @@ async function executeGraphQL(query, variables = {}) {
         error: null,
         itemId: null,
         turnId: resolveLegacyId(variables?.turnId) || null,
+        threadId: requestedThreadId || null,
+        runnerId: resolveLegacyId(variables?.runnerId) || null,
+        agentId: resolveLegacyId(variables?.agentId) || null,
+      },
+    };
+  }
+
+  if (query === INTERRUPT_AGENT_TURN_MUTATION) {
+    const requestedThreadId = resolveLegacyId(variables?.threadId);
+    const data = await executeRawGraphQL(COMPANY_API_INTERRUPT_TURN_MUTATION, {
+      threadId: requestedThreadId,
+    });
+
+    return {
+      interruptAgentTurn: {
+        ok: Boolean(data?.interruptTurn),
+        error: data?.interruptTurn ? null : "Failed to interrupt running turn.",
         threadId: requestedThreadId || null,
         runnerId: resolveLegacyId(variables?.runnerId) || null,
         agentId: resolveLegacyId(variables?.agentId) || null,
@@ -2949,8 +3040,133 @@ async function executeGraphQL(query, variables = {}) {
   throw new Error("Unsupported frontend operation for companyhelm-api.");
 }
 
-function subscribeGraphQL() {
-  return () => {};
+let nextGraphQLSubscriptionRequestId = 1;
+
+function subscribeGraphQL({
+  query,
+  variables,
+  onData,
+  onError,
+}) {
+  if (typeof window === "undefined" || typeof WebSocket === "undefined") {
+    return () => {};
+  }
+
+  const endpoint = String(GRAPHQL_WS_URL || "").trim();
+  if (!endpoint) {
+    return () => {};
+  }
+
+  let isClosedByClient = false;
+  let hasStartedOperation = false;
+  const operationId = `sub-${nextGraphQLSubscriptionRequestId++}`;
+  const socket = new WebSocket(endpoint, "graphql-transport-ws");
+
+  const notifyError = (rawError) => {
+    if (!onError || isClosedByClient) {
+      return;
+    }
+
+    if (rawError instanceof Error) {
+      onError(rawError);
+      return;
+    }
+
+    if (Array.isArray(rawError) && rawError.length > 0) {
+      const firstError = rawError[0];
+      const message = typeof firstError?.message === "string"
+        ? firstError.message
+        : JSON.stringify(firstError);
+      onError(new Error(message));
+      return;
+    }
+
+    const message = typeof rawError === "string" && rawError.trim()
+      ? rawError
+      : "GraphQL subscription error.";
+    onError(new Error(message));
+  };
+
+  socket.addEventListener("open", () => {
+    socket.send(
+      JSON.stringify({
+        type: "connection_init",
+      }),
+    );
+  });
+
+  socket.addEventListener("message", (event) => {
+    try {
+      const payload = JSON.parse(event.data);
+      switch (payload?.type) {
+        case "connection_ack": {
+          if (hasStartedOperation) {
+            return;
+          }
+          hasStartedOperation = true;
+          socket.send(
+            JSON.stringify({
+              id: operationId,
+              type: "subscribe",
+              payload: {
+                query,
+                variables: variables || {},
+              },
+            }),
+          );
+          return;
+        }
+        case "next":
+          if (payload?.id === operationId) {
+            onData?.(payload?.payload?.data || {});
+          }
+          return;
+        case "error":
+          if (payload?.id === operationId) {
+            notifyError(payload?.payload);
+          }
+          return;
+        case "ping":
+          socket.send(JSON.stringify({ type: "pong" }));
+          return;
+        case "complete":
+          return;
+        default:
+          return;
+      }
+    } catch (error) {
+      notifyError(error);
+    }
+  });
+
+  socket.addEventListener("error", () => {
+    notifyError("Subscription socket error.");
+  });
+
+  socket.addEventListener("close", () => {
+    if (!isClosedByClient) {
+      notifyError("Subscription socket closed unexpectedly.");
+    }
+  });
+
+  return () => {
+    isClosedByClient = true;
+    if (socket.readyState === WebSocket.OPEN) {
+      if (hasStartedOperation) {
+        socket.send(
+          JSON.stringify({
+            id: operationId,
+            type: "complete",
+          }),
+        );
+      }
+      socket.close(1000);
+      return;
+    }
+    if (socket.readyState === WebSocket.CONNECTING) {
+      socket.close(1000);
+    }
+  };
 }
 
 function useGraphQLSubscription({
@@ -2976,6 +3192,80 @@ function useGraphQLSubscription({
       unsubscribe();
     };
   }, [enabled, onData, onError, query, serializedVariables]);
+}
+
+function waitForCanonicalThreadViaSubscription({
+  companyId,
+  agentId,
+  requestedThreadId,
+  knownThreadIds,
+  timeoutMs = 15000,
+}) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const knownIds = new Set(
+      (Array.isArray(knownThreadIds) ? knownThreadIds : [])
+        .map((threadId) => String(threadId || "").trim())
+        .filter(Boolean),
+    );
+
+    const finalize = (threadOrNull) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      clearTimeout(timeoutId);
+      unsubscribe();
+      resolve(threadOrNull);
+    };
+
+    const resolveFromThreadNodes = (threadNodes) => {
+      const nextSessions = threadNodes.map((threadNode) => toLegacyThreadPayload(threadNode));
+      const readyRequestedThread = nextSessions.find(
+        (thread) => thread.id === requestedThreadId && thread.status === "ready",
+      );
+      const readyNewThread = nextSessions.find(
+        (thread) => !knownIds.has(thread.id) && thread.status === "ready",
+      );
+      const remappedThread = nextSessions.find(
+        (thread) => !knownIds.has(thread.id) && thread.id !== requestedThreadId,
+      );
+      const resolvedThread = readyRequestedThread || readyNewThread || remappedThread || null;
+      if (resolvedThread) {
+        finalize(resolvedThread);
+      }
+    };
+
+    const timeoutId = setTimeout(() => finalize(null), timeoutMs);
+
+    const unsubscribe = subscribeGraphQL({
+      query: AGENT_THREADS_SUBSCRIPTION,
+      variables: {
+        companyId,
+        agentId,
+        first: 500,
+      },
+      onData: (payload) => {
+        const nextThreadNodes = toConnectionNodes(payload?.agentThreadsUpdated);
+        resolveFromThreadNodes(nextThreadNodes);
+      },
+      onError: () => {},
+    });
+
+    executeRawGraphQL(COMPANY_API_LIST_THREADS_CONNECTION_QUERY, {
+      companyId,
+      agentId,
+      first: 500,
+    })
+      .then((data) => {
+        if (settled) {
+          return;
+        }
+        const initialThreadNodes = toConnectionNodes(data?.threads);
+        resolveFromThreadNodes(initialThreadNodes);
+      })
+      .catch(() => {});
+  });
 }
 
 function CompanyRequiredPanel({ hasCompanies }) {
@@ -5515,10 +5805,12 @@ function AgentChatPage({
   chatDraftMessage,
   chatMessageMode,
   isSendingChatMessage,
+  isInterruptingChatTurn,
   onChatDraftMessageChange,
   onChatMessageModeChange,
   onBackToChats,
   onSendChatMessage,
+  onInterruptChatTurn,
 }) {
   const canChat = Boolean(agent && session);
   const [selectedCommandOutputItem, setSelectedCommandOutputItem] = useState(null);
@@ -5779,7 +6071,7 @@ function AgentChatPage({
                 id="chat-message-mode"
                 value={chatMessageMode}
                 onChange={(event) => onChatMessageModeChange(event.target.value)}
-                disabled={!canChat || isSendingChatMessage}
+                disabled={!canChat || isSendingChatMessage || isInterruptingChatTurn}
               >
                 <option value="queue">Queue next turn</option>
                 <option value="steer">Steer running turn</option>
@@ -5798,11 +6090,21 @@ function AgentChatPage({
             value={chatDraftMessage}
             onChange={(event) => onChatDraftMessageChange(event.target.value)}
             onKeyDown={handleChatMessageKeyDown}
-            disabled={!canChat || isSendingChatMessage}
+            disabled={!canChat || isSendingChatMessage || isInterruptingChatTurn}
           />
+          {hasRunningTurn ? (
+            <button
+              type="button"
+              className="secondary-btn"
+              disabled={!canChat || isSendingChatMessage || isInterruptingChatTurn}
+              onClick={onInterruptChatTurn}
+            >
+              {isInterruptingChatTurn ? "Interrupting..." : "Interrupt turn"}
+            </button>
+          ) : null}
           <button
             type="submit"
-            disabled={!canChat || !chatDraftMessage.trim() || isSendingChatMessage}
+            disabled={!canChat || !chatDraftMessage.trim() || isSendingChatMessage || isInterruptingChatTurn}
           >
             {isSendingChatMessage ? "Sending..." : "Send message"}
           </button>
@@ -6201,6 +6503,7 @@ function App() {
   const [isCreatingChatSession, setIsCreatingChatSession] = useState(false);
   const [isLoadingChat, setIsLoadingChat] = useState(false);
   const [isSendingChatMessage, setIsSendingChatMessage] = useState(false);
+  const [isInterruptingChatTurn, setIsInterruptingChatTurn] = useState(false);
   const hasCompanies = companies.length > 0;
 
   const selectedCompany = useMemo(() => {
@@ -6228,9 +6531,36 @@ function App() {
     }, new Map());
   }, [agentRunners]);
 
+  const resolvedChatSessionId = useMemo(
+    () => resolveLegacyId(chatSessionId, agentsRoute.sessionId),
+    [chatSessionId, agentsRoute.sessionId],
+  );
+
   const selectedChatSession = useMemo(() => {
-    return chatSessions.find((session) => session.id === chatSessionId) || null;
-  }, [chatSessions, chatSessionId]);
+    const existingSession = chatSessions.find((session) => session.id === resolvedChatSessionId);
+    if (existingSession) {
+      return existingSession;
+    }
+
+    const resolvedSessionId = String(resolvedChatSessionId || "").trim();
+    if (!resolvedSessionId || !chatAgentId || !selectedCompanyId) {
+      return null;
+    }
+
+    const metadata = companyApiThreadMetadataById.get(resolvedSessionId) || {};
+    const nowIso = new Date().toISOString();
+    return {
+      id: resolvedSessionId,
+      threadId: resolvedSessionId,
+      companyId: selectedCompanyId,
+      agentId: chatAgentId,
+      runnerId: resolveLegacyId(metadata.runnerId) || null,
+      title: resolveLegacyId(metadata.title) || `Thread ${resolvedSessionId.slice(0, 8)}`,
+      status: "ready",
+      createdAt: resolveLegacyId(metadata.createdAt) || nowIso,
+      updatedAt: resolveLegacyId(metadata.updatedAt) || nowIso,
+    };
+  }, [chatSessions, resolvedChatSessionId, chatAgentId, selectedCompanyId]);
 
   const setChatSessionRunningState = useCallback((sessionId, isRunning) => {
     const resolvedSessionId = String(sessionId || "").trim();
@@ -6306,10 +6636,10 @@ function App() {
       if (chatAgentId) {
         const chatsHref = `/agents/${chatAgentId}/chats`;
         items.push({ label: getAgentLabel(chatAgentId), href: chatsHref });
-        if (chatSessionId) {
+        if (resolvedChatSessionId) {
           items.push({
-            label: getChatLabel(chatSessionId),
-            href: `/agents/${chatAgentId}/chats/${chatSessionId}`,
+            label: getChatLabel(resolvedChatSessionId),
+            href: `/agents/${chatAgentId}/chats/${resolvedChatSessionId}`,
           });
         }
       }
@@ -6324,16 +6654,16 @@ function App() {
     agentsRoute.sessionId,
     agentsRoute.view,
     chatAgentId,
-    chatSessionId,
+    resolvedChatSessionId,
     selectedChatSession?.title,
   ]);
 
-  const isChatsConversationView = activePage === "chats" && Boolean(chatAgentId) && Boolean(chatSessionId);
+  const isChatsConversationView = activePage === "chats" && Boolean(chatAgentId) && Boolean(resolvedChatSessionId);
   const shouldSubscribeChatSessions =
     (activePage === "agents" && (agentsRoute.view === "chats" || agentsRoute.view === "chat")) ||
     (activePage === "chats" && Boolean(chatAgentId));
   const shouldSubscribeChatTurns = isChatsConversationView || (
-    activePage === "agents" && agentsRoute.view === "chat" && Boolean(chatSessionId)
+    activePage === "agents" && agentsRoute.view === "chat" && Boolean(resolvedChatSessionId)
   );
   const shouldLoadGithubData = activePage === "settings";
   const shouldLoadTaskData = activePage === "dashboard" || activePage === "tasks" || activePage === "profile";
@@ -6577,8 +6907,9 @@ function App() {
   }, [selectedCompanyId]);
 
   const loadAgentChatSessions = useCallback(
-    async ({ silently = false } = {}) => {
-      if (!selectedCompanyId || !chatAgentId) {
+    async ({ silently = false, agentIdOverride = null } = {}) => {
+      const targetAgentId = String(agentIdOverride || chatAgentId || "").trim();
+      if (!selectedCompanyId || !targetAgentId) {
         setChatSessions([]);
         setChatSessionId("");
         if (!silently) {
@@ -6593,16 +6924,15 @@ function App() {
           setChatError("");
           setIsLoadingChatSessions(true);
         }
-        const data = await executeGraphQL(LIST_AGENT_THREADS_QUERY, {
+        const nextSessions = await loadCompanyApiAgentThreads({
           companyId: selectedCompanyId,
-          agentId: chatAgentId,
+          agentId: targetAgentId,
           limit: 200,
         });
-        const nextSessions = data.agentThreads || [];
         setChatSessions(nextSessions);
         setChatSessionsByAgent((currentSessionsByAgent) => ({
           ...currentSessionsByAgent,
-          [chatAgentId]: nextSessions,
+          [targetAgentId]: nextSessions,
         }));
       } catch (loadError) {
         if (!silently) {
@@ -6618,8 +6948,10 @@ function App() {
   );
 
   const loadAgentChatTurns = useCallback(
-    async ({ silently = false } = {}) => {
-      if (!selectedCompanyId || !chatAgentId || !chatSessionId) {
+    async ({ silently = false, agentIdOverride = null, sessionIdOverride = null } = {}) => {
+      const targetAgentId = String(agentIdOverride || chatAgentId || "").trim();
+      const targetSessionId = String(sessionIdOverride || resolvedChatSessionId || "").trim();
+      if (!selectedCompanyId || !targetAgentId || !targetSessionId) {
         setChatTurns([]);
         if (!silently) {
           setChatError("");
@@ -6633,15 +6965,15 @@ function App() {
           setChatError("");
           setIsLoadingChat(true);
         }
-        const data = await executeGraphQL(LIST_AGENT_TURNS_QUERY, {
-          companyId: selectedCompanyId,
-          agentId: chatAgentId,
-          threadId: chatSessionId,
+        const metadata = companyApiThreadMetadataById.get(targetSessionId) || {};
+        const runnerId = resolveLegacyId(metadata.runnerId) || null;
+        const nextTurns = await loadCompanyApiThreadTurns({
+          threadId: targetSessionId,
+          runnerId,
           limit: 200,
         });
-        const nextTurns = data.agentTurns || [];
         setChatTurns(nextTurns);
-        setChatSessionRunningState(chatSessionId, hasRunningChatTurns(nextTurns));
+        setChatSessionRunningState(targetSessionId, hasRunningChatTurns(nextTurns));
       } catch (loadError) {
         if (!silently) {
           setChatError(loadError.message);
@@ -6652,7 +6984,7 @@ function App() {
         }
       }
     },
-    [selectedCompanyId, chatAgentId, chatSessionId, setChatSessionRunningState],
+    [selectedCompanyId, chatAgentId, resolvedChatSessionId, setChatSessionRunningState],
   );
 
   const loadChatSessionIndexByAgent = useCallback(
@@ -6685,12 +7017,12 @@ function App() {
             if (!resolvedAgentId) {
               return [resolvedAgentId, []];
             }
-            const data = await executeGraphQL(LIST_AGENT_THREADS_QUERY, {
+            const sessionsForAgent = await loadCompanyApiAgentThreads({
               companyId: selectedCompanyId,
               agentId: resolvedAgentId,
               limit: 200,
             });
-            return [resolvedAgentId, data.agentThreads || []];
+            return [resolvedAgentId, sessionsForAgent];
           }),
         );
 
@@ -6716,8 +7048,13 @@ function App() {
   );
 
   const handleAgentRunnersSubscriptionData = useCallback((payload) => {
+    if (!payload?.agentRunnersUpdated) {
+      return;
+    }
+    const nextRunnerNodes = toConnectionNodes(payload?.agentRunnersUpdated);
+    const nextRunnerPayload = nextRunnerNodes.map((runnerNode) => toLegacyRunnerPayload(runnerNode));
     setAgentRunners((currentRunners) =>
-      mergeAgentRunnerPayloadList(currentRunners, payload?.agentRunnersUpdated || []),
+      mergeAgentRunnerPayloadList(currentRunners, nextRunnerPayload),
     );
     setRunnerError("");
     setIsLoadingRunners(false);
@@ -6729,7 +7066,11 @@ function App() {
   }, []);
 
   const handleAgentChatSessionsSubscriptionData = useCallback((payload) => {
-    const nextSessions = payload?.agentThreadsUpdated || [];
+    if (!payload?.agentThreadsUpdated) {
+      return;
+    }
+    const nextThreadNodes = toConnectionNodes(payload?.agentThreadsUpdated);
+    const nextSessions = nextThreadNodes.map((threadNode) => toLegacyThreadPayload(threadNode));
     setChatSessions(nextSessions);
     if (chatAgentId) {
       setChatSessionsByAgent((currentSessionsByAgent) => ({
@@ -6742,14 +7083,21 @@ function App() {
   }, [chatAgentId]);
 
   const handleAgentChatTurnsSubscriptionData = useCallback((payload) => {
-    const nextTurns = payload?.agentTurnsUpdated || [];
+    if (!payload?.agentTurnsUpdated) {
+      return;
+    }
+    const nextTurnNodes = toConnectionNodes(payload?.agentTurnsUpdated);
+    const threadMetadata = companyApiThreadMetadataById.get(resolvedChatSessionId) || {};
+    const nextTurns = nextTurnNodes.map((turnNode) =>
+      toLegacyTurnPayload(turnNode, { runnerId: threadMetadata.runnerId }),
+    );
     setChatTurns(nextTurns);
-    if (chatSessionId) {
-      setChatSessionRunningState(chatSessionId, hasRunningChatTurns(nextTurns));
+    if (resolvedChatSessionId) {
+      setChatSessionRunningState(resolvedChatSessionId, hasRunningChatTurns(nextTurns));
     }
     setChatError("");
     setIsLoadingChat(false);
-  }, [chatSessionId, setChatSessionRunningState]);
+  }, [resolvedChatSessionId, setChatSessionRunningState]);
 
   const handleAgentChatSubscriptionError = useCallback((error) => {
     setChatError(error.message);
@@ -6760,7 +7108,7 @@ function App() {
   useGraphQLSubscription({
     enabled: Boolean(selectedCompanyId && shouldSubscribeAgentRunners && hasLoadedAgentRunners),
     query: AGENT_RUNNERS_SUBSCRIPTION,
-    variables: selectedCompanyId ? { companyId: selectedCompanyId } : undefined,
+    variables: selectedCompanyId ? { companyId: selectedCompanyId, first: 200 } : undefined,
     onData: handleAgentRunnersSubscriptionData,
     onError: handleAgentRunnersSubscriptionError,
   });
@@ -6770,44 +7118,27 @@ function App() {
     query: AGENT_THREADS_SUBSCRIPTION,
     variables:
       selectedCompanyId && chatAgentId
-        ? { companyId: selectedCompanyId, agentId: chatAgentId }
+        ? { companyId: selectedCompanyId, agentId: chatAgentId, first: 500 }
         : undefined,
     onData: handleAgentChatSessionsSubscriptionData,
     onError: handleAgentChatSubscriptionError,
   });
 
   useGraphQLSubscription({
-    enabled: Boolean(selectedCompanyId && chatAgentId && chatSessionId && shouldSubscribeChatTurns),
+    enabled: Boolean(selectedCompanyId && chatAgentId && resolvedChatSessionId && shouldSubscribeChatTurns),
     query: AGENT_TURNS_SUBSCRIPTION,
     variables:
-      selectedCompanyId && chatAgentId && chatSessionId
+      selectedCompanyId && chatAgentId && resolvedChatSessionId
         ? {
             companyId: selectedCompanyId,
             agentId: chatAgentId,
-            threadId: chatSessionId,
+            threadId: resolvedChatSessionId,
+            first: 100,
           }
         : undefined,
     onData: handleAgentChatTurnsSubscriptionData,
     onError: handleAgentChatSubscriptionError,
   });
-
-  useEffect(() => {
-    if (!chatSessionId || !chatSessionRunningById[chatSessionId]) {
-      return undefined;
-    }
-
-    const pollIntervalId = setInterval(() => {
-      void loadAgentChatTurns({ silently: true });
-      void loadAgentChatSessions({ silently: true });
-    }, 2000);
-
-    return () => clearInterval(pollIntervalId);
-  }, [
-    chatSessionId,
-    chatSessionRunningById,
-    loadAgentChatSessions,
-    loadAgentChatTurns,
-  ]);
 
   useEffect(() => {
     loadCompanies();
@@ -6863,6 +7194,7 @@ function App() {
     setChatDraftMessage("");
     setChatError("");
     setChatIndexError("");
+    setIsInterruptingChatTurn(false);
     setIsLoadingChatIndex(false);
     setAgentMcpServerIds([]);
     setRetryingAgentSkillInstallKey("");
@@ -7000,6 +7332,32 @@ function App() {
   }, [loadAgents, selectedCompanyId, shouldLoadAgentData]);
 
   useEffect(() => {
+    if (!selectedCompanyId || !chatAgentId) {
+      return;
+    }
+    loadAgentChatSessions({
+      silently: true,
+      agentIdOverride: chatAgentId,
+    });
+  }, [chatAgentId, loadAgentChatSessions, selectedCompanyId]);
+
+  useEffect(() => {
+    if (!selectedCompanyId || !chatAgentId || !resolvedChatSessionId) {
+      return;
+    }
+    loadAgentChatTurns({
+      silently: true,
+      agentIdOverride: chatAgentId,
+      sessionIdOverride: resolvedChatSessionId,
+    });
+  }, [
+    chatAgentId,
+    resolvedChatSessionId,
+    loadAgentChatTurns,
+    selectedCompanyId,
+  ]);
+
+  useEffect(() => {
     if (!selectedCompanyId || activePage !== "chats") {
       return;
     }
@@ -7089,7 +7447,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (activePage !== "agents") {
+    if (activePage !== "agents" || !selectedCompanyId) {
       return;
     }
     if (agentsRoute.view === "chats" || agentsRoute.view === "chat") {
@@ -7104,7 +7462,41 @@ function App() {
         setChatSessionId(agentsRoute.sessionId);
       }
     }
-  }, [activePage, agentsRoute.agentId, agentsRoute.sessionId, agentsRoute.view]);
+  }, [activePage, agentsRoute.agentId, agentsRoute.sessionId, agentsRoute.view, selectedCompanyId]);
+
+  useEffect(() => {
+    if (activePage !== "agents" || !selectedCompanyId || !agentsRoute.agentId) {
+      return;
+    }
+
+    if (agentsRoute.view === "chats") {
+      loadAgentChatSessions({
+        silently: true,
+        agentIdOverride: agentsRoute.agentId,
+      });
+      return;
+    }
+
+    if (agentsRoute.view === "chat" && agentsRoute.sessionId) {
+      loadAgentChatSessions({
+        silently: true,
+        agentIdOverride: agentsRoute.agentId,
+      });
+      loadAgentChatTurns({
+        silently: true,
+        agentIdOverride: agentsRoute.agentId,
+        sessionIdOverride: agentsRoute.sessionId,
+      });
+    }
+  }, [
+    activePage,
+    agentsRoute.agentId,
+    agentsRoute.sessionId,
+    agentsRoute.view,
+    loadAgentChatSessions,
+    loadAgentChatTurns,
+    selectedCompanyId,
+  ]);
 
   useEffect(() => {
     if (isLoadingCompanies) {
@@ -8333,9 +8725,58 @@ function App() {
     }
   }
 
+  async function handleInterruptChatTurn() {
+    if (isSendingChatMessage) {
+      return;
+    }
+    if (!selectedCompanyId) {
+      setChatError("Select a company before interrupting a turn.");
+      return;
+    }
+    if (!chatAgentId) {
+      setChatError("Select an agent before interrupting a turn.");
+      return;
+    }
+    if (!resolvedChatSessionId) {
+      setChatError("Select a chat before interrupting a turn.");
+      return;
+    }
+
+    const latestRunningTurn = getLatestRunningChatTurn(chatTurns);
+    if (!latestRunningTurn) {
+      setChatError("No running turn to interrupt.");
+      return;
+    }
+
+    const selectedAgentForChat = agents.find((agent) => agent.id === chatAgentId) || null;
+
+    try {
+      setIsInterruptingChatTurn(true);
+      setChatError("");
+      const data = await executeGraphQL(INTERRUPT_AGENT_TURN_MUTATION, {
+        companyId: selectedCompanyId,
+        agentId: chatAgentId,
+        threadId: resolvedChatSessionId,
+        runnerId: selectedAgentForChat?.agentRunnerId || null,
+      });
+      const result = data.interruptAgentTurn;
+      if (!result?.ok) {
+        throw new Error(result?.error || "Failed to interrupt running turn.");
+      }
+      setChatSessionRunningState(resolvedChatSessionId, true);
+    } catch (interruptError) {
+      setChatError(interruptError.message);
+    } finally {
+      setIsInterruptingChatTurn(false);
+    }
+  }
+
   async function handleSendChatMessage(event) {
     if (event?.preventDefault) {
       event.preventDefault();
+    }
+    if (isInterruptingChatTurn) {
+      return;
     }
     if (!selectedCompanyId) {
       setChatError("Select a company before sending chat messages.");
@@ -8353,7 +8794,7 @@ function App() {
     const selectedAgentForChat = agents.find((agent) => agent.id === chatAgentId) || null;
     const latestRunningTurn = getLatestRunningChatTurn(chatTurns);
     const hasRunningTurn = Boolean(latestRunningTurn);
-    let targetSessionId = chatSessionId;
+    let targetSessionId = resolvedChatSessionId;
     if (!targetSessionId) {
       targetSessionId = await handleCreateChatSession({
         title: chatSessionTitleDraft || null,
@@ -8426,6 +8867,11 @@ function App() {
     }
 
     const selectedAgentForChat = agents.find((agent) => agent.id === targetAgentId) || null;
+    const knownThreadIds = new Set(
+      (Array.isArray(chatSessionsByAgent[targetAgentId]) ? chatSessionsByAgent[targetAgentId] : []).map(
+        (session) => String(session?.id || "").trim(),
+      ),
+    );
 
     try {
       setIsCreatingChatSession(true);
@@ -8441,12 +8887,51 @@ function App() {
         throw new Error(result.error || "Failed to create chat.");
       }
 
-      const sessionsData = await executeGraphQL(LIST_AGENT_THREADS_QUERY, {
+      let canonicalThread = result.thread;
+      if (String(canonicalThread?.status || "").trim().toLowerCase() !== "ready") {
+        const resolvedThread = await waitForCanonicalThreadViaSubscription({
+          companyId: selectedCompanyId,
+          agentId: targetAgentId,
+          requestedThreadId: canonicalThread.id,
+          knownThreadIds: [...knownThreadIds],
+          timeoutMs: 15000,
+        });
+        if (resolvedThread) {
+          canonicalThread = {
+            ...canonicalThread,
+            ...resolvedThread,
+            title: canonicalThread.title || resolvedThread.title,
+            runnerId: canonicalThread.runnerId || resolvedThread.runnerId || null,
+          };
+        }
+      }
+
+      const sessionsForAgent = await loadCompanyApiAgentThreads({
         companyId: selectedCompanyId,
         agentId: targetAgentId,
         limit: 200,
       });
-      const nextSessionsForAgent = sessionsData.agentThreads || [];
+      const requestedThreadId = String(canonicalThread?.id || result.thread.id || "").trim();
+
+      const isReadySession = (session) => String(session?.status || "").trim().toLowerCase() === "ready";
+      const isNewSession = (session) => !knownThreadIds.has(String(session?.id || "").trim());
+      const requestedSession = sessionsForAgent.find(
+        (session) => String(session?.id || "").trim() === requestedThreadId,
+      );
+      const readyRequestedSession = requestedSession && isReadySession(requestedSession) ? requestedSession : null;
+      const readyNewSession = sessionsForAgent.find((session) => isNewSession(session) && isReadySession(session));
+      const remappedSession = sessionsForAgent.find(
+        (session) =>
+          isNewSession(session) && String(session?.id || "").trim() !== requestedThreadId,
+      );
+      const resolvedThread =
+        readyRequestedSession || readyNewSession || remappedSession || requestedSession || canonicalThread;
+      const resolvedThreadId = String(resolvedThread?.id || requestedThreadId || "").trim();
+
+      let nextSessionsForAgent = sessionsForAgent;
+      if (resolvedThreadId && !sessionsForAgent.some((session) => String(session?.id || "").trim() === resolvedThreadId)) {
+        nextSessionsForAgent = [resolvedThread, ...sessionsForAgent];
+      }
 
       setChatAgentId(targetAgentId);
       setChatSessions(nextSessionsForAgent);
@@ -8455,8 +8940,8 @@ function App() {
         [targetAgentId]: nextSessionsForAgent,
       }));
       setChatSessionTitleDraft("");
-      setChatSessionId(result.thread.id);
-      return result.thread.id;
+      setChatSessionId(resolvedThreadId);
+      return resolvedThreadId;
     } catch (createError) {
       setChatError(createError.message);
       return null;
@@ -8952,7 +9437,7 @@ function App() {
         ) : null}
 
         {selectedCompanyId && activePage === "chats" ? (
-          chatSessionId ? (
+          resolvedChatSessionId ? (
             <AgentChatPage
               selectedCompanyId={selectedCompanyId}
               agent={agents.find((agent) => agent.id === chatAgentId) || null}
@@ -8963,6 +9448,7 @@ function App() {
               chatDraftMessage={chatDraftMessage}
               chatMessageMode={chatMessageMode}
               isSendingChatMessage={isSendingChatMessage}
+              isInterruptingChatTurn={isInterruptingChatTurn}
               onChatDraftMessageChange={setChatDraftMessage}
               onChatMessageModeChange={setChatMessageMode}
               onBackToChats={() => {
@@ -8971,6 +9457,7 @@ function App() {
                 loadChatSessionIndexByAgent({ silently: true });
               }}
               onSendChatMessage={handleSendChatMessage}
+              onInterruptChatTurn={handleInterruptChatTurn}
             />
           ) : (
             <ChatsOverviewPage
@@ -9022,6 +9509,7 @@ function App() {
               chatDraftMessage={chatDraftMessage}
               chatMessageMode={chatMessageMode}
               isSendingChatMessage={isSendingChatMessage}
+              isInterruptingChatTurn={isInterruptingChatTurn}
               onChatDraftMessageChange={setChatDraftMessage}
               onChatMessageModeChange={setChatMessageMode}
               onBackToChats={() => {
@@ -9032,6 +9520,7 @@ function App() {
                 setBrowserPath(`/agents/${chatAgentId}/chats`);
               }}
               onSendChatMessage={handleSendChatMessage}
+              onInterruptChatTurn={handleInterruptChatTurn}
             />
           ) : (
             <AgentsPage
