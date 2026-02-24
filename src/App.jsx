@@ -2106,17 +2106,31 @@ function compareTurnsByTimestamp(a, b) {
   return String(a?.id || "").localeCompare(String(b?.id || ""));
 }
 
+function compareTurnItemsByStartedAt(a, b) {
+  const leftTime = toSortableTimestamp(a?.startedAt || a?.createdAt || a?.endedAt);
+  const rightTime = toSortableTimestamp(b?.startedAt || b?.createdAt || b?.endedAt);
+  if (leftTime !== rightTime) {
+    return leftTime - rightTime;
+  }
+  return String(a?.id || "").localeCompare(String(b?.id || ""));
+}
+
+function getSortedTurnItems(turn) {
+  const turnItems = Array.isArray(turn?.items) ? turn.items : [];
+  return [...turnItems].sort(compareTurnItemsByStartedAt);
+}
+
 function selectVisibleTurnsByMessageCount(chatTurns, visibleMessageCount) {
   const normalizedTurns = Array.isArray(chatTurns) ? chatTurns : [];
   const totalMessageCount = normalizedTurns.reduce((count, turn) => {
-    return count + (Array.isArray(turn?.items) ? turn.items.length : 0);
+    return count + getSortedTurnItems(turn).length;
   }, 0);
   const startMessageIndex = Math.max(0, totalMessageCount - Math.max(0, visibleMessageCount));
 
   let itemCursor = 0;
   const visibleTurns = [];
   for (const turn of normalizedTurns) {
-    const turnItems = Array.isArray(turn?.items) ? turn.items : [];
+    const turnItems = getSortedTurnItems(turn);
     const visibleItems = [];
     for (const item of turnItems) {
       if (itemCursor >= startMessageIndex) {
