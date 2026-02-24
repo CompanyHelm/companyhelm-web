@@ -1455,6 +1455,20 @@ button:disabled {
   animation: reasoning-shimmer 1.6s linear infinite;
 }
 
+.chat-turn-reasoning-running {
+  animation-play-state: running;
+}
+
+.chat-turn-reasoning-pending {
+  opacity: 0.85;
+  animation-duration: 2.1s;
+}
+
+.chat-turn-reasoning-completed {
+  animation: none;
+  background: rgba(124, 77, 17, 0.12);
+}
+
 @keyframes reasoning-shimmer {
   0% {
     background-position: 180% 50%;

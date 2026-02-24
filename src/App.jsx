@@ -6029,6 +6029,11 @@ function AgentChatPage({
                 : normalizedTurnStatus === "pending"
                   ? "pending"
                   : "completed";
+              const reasoningState = turnStatus === "running"
+                ? "running"
+                : turnStatus === "pending"
+                  ? "pending"
+                  : "completed";
               const turnItems = Array.isArray(turn?.items) ? turn.items : [];
 
               return (
@@ -6116,7 +6121,10 @@ function AgentChatPage({
                   )}
 
                   {turn.reasoningText ? (
-                    <p className="chat-turn-reasoning">
+                    <p
+                      className={`chat-turn-reasoning chat-turn-reasoning-${reasoningState}`}
+                      data-state={reasoningState}
+                    >
                       <span>{turn.reasoningText}</span>
                     </p>
                   ) : null}
