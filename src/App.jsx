@@ -1951,7 +1951,7 @@ function buildRunnerStartCommand({
     "companyhelm",
     "--server-url",
     quoteShellArg(backendGrpcTarget),
-    "--runner-secret",
+    "--secret",
     quoteShellArg(runnerSecret),
   ].join(" ");
 }
