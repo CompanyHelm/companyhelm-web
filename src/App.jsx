@@ -4371,6 +4371,7 @@ function AgentsPage({
     () => mcpServers.filter((mcpServer) => !createAssignedMcpServerIds.includes(mcpServer.id)),
     [createAssignedMcpServerIds, mcpServers],
   );
+  const hasRegisteredRunners = agentRunners.length > 0;
 
   async function handleCreateAgentSubmit(event) {
     const didCreate = await onCreateAgent(event);
@@ -4428,8 +4429,13 @@ function AgentsPage({
               type="button"
               className="icon-create-btn"
               aria-label="Create agent"
-              title="Create agent"
+              title={
+                hasRegisteredRunners
+                  ? "Create agent"
+                  : "Register at least one runner before creating an agent"
+              }
               onClick={() => setIsCreateModalOpen(true)}
+              disabled={!hasRegisteredRunners}
             >
               +
             </button>
@@ -4441,10 +4447,16 @@ function AgentsPage({
         {!isLoadingAgents && agents.length === 0 ? (
           <div className="empty-state">
             <p className="empty-hint">No agents created for this company yet.</p>
+            {!hasRegisteredRunners ? (
+              <p className="empty-hint">
+                Register at least one runner before creating an agent.
+              </p>
+            ) : null}
             <button
               type="button"
               className="secondary-btn empty-create-btn"
               onClick={() => setIsCreateModalOpen(true)}
+              disabled={!hasRegisteredRunners}
             >
               + Create agent
             </button>
@@ -4857,24 +4869,32 @@ function AgentsPage({
       <CreationModal
         modalId="create-agent-modal"
         title="Create agent"
-        description="Register a new agent profile for this company."
+        description="Register a new agent profile for this company. A registered runner is required."
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
       >
         <form className="task-form" onSubmit={handleCreateAgentSubmit}>
-          <label htmlFor="agent-runner-id">Assigned runner (optional)</label>
+          <label htmlFor="agent-runner-id">Assigned runner</label>
           <select
             id="agent-runner-id"
             name="agentRunnerId"
             value={agentRunnerId}
             onChange={(event) => onAgentRunnerChange(event.target.value)}
+            required
+            disabled={!hasRegisteredRunners}
           >
-            <option value="">Unassigned</option>
-            {agentRunners.map((runner) => (
-              <option key={runner.id} value={runner.id}>
-                {formatRunnerLabel(runner)}
-              </option>
-            ))}
+            {!hasRegisteredRunners ? (
+              <option value="">No registered runners available</option>
+            ) : (
+              <>
+                <option value="">Select runner</option>
+                {agentRunners.map((runner) => (
+                  <option key={runner.id} value={runner.id}>
+                    {formatRunnerLabel(runner)}
+                  </option>
+                ))}
+              </>
+            )}
           </select>
 
           <label htmlFor="create-agent-skills-assigned">Assigned skills (optional)</label>
@@ -5007,10 +5027,10 @@ function AgentsPage({
             ))}
           </select>
 
-          <label htmlFor="agent-model">Model</label>
+          <label htmlFor="agent-model">Default model</label>
           <select
             id="agent-model"
-            name="model"
+            name="defaultModel"
             value={agentModel}
             onChange={(event) => onAgentModelChange(event.target.value)}
             required
@@ -5022,7 +5042,7 @@ function AgentsPage({
               <option value="">No models reported by selected runner</option>
             ) : (
               <>
-                <option value="">Select model</option>
+                <option value="">Select default model</option>
                 {createRunnerModelNames.map((modelName) => (
                   <option key={`create-agent-model-${modelName}`} value={modelName}>
                     {modelName}
@@ -5032,10 +5052,10 @@ function AgentsPage({
             )}
           </select>
 
-          <label htmlFor="agent-reasoning-level">Model reasoning level</label>
+          <label htmlFor="agent-reasoning-level">Default reasoning level</label>
           <select
             id="agent-reasoning-level"
-            name="modelReasoningLevel"
+            name="defaultReasoningLevel"
             value={agentModelReasoningLevel}
             onChange={(event) => onAgentModelReasoningLevelChange(event.target.value)}
             required
@@ -5049,7 +5069,7 @@ function AgentsPage({
               <option value="">No reasoning levels reported for this model</option>
             ) : (
               <>
-                <option value="">Select reasoning</option>
+                <option value="">Select default reasoning level</option>
                 {createRunnerReasoningLevels.map((reasoningLevel) => (
                   <option key={`create-agent-reasoning-${reasoningLevel}`} value={reasoningLevel}>
                     {reasoningLevel}
@@ -5059,7 +5079,7 @@ function AgentsPage({
             )}
           </select>
 
-          <button type="submit" disabled={isCreatingAgent}>
+          <button type="submit" disabled={isCreatingAgent || !hasRegisteredRunners}>
             {isCreatingAgent ? "Creating..." : "Create agent"}
           </button>
         </form>
@@ -8830,6 +8850,10 @@ function App() {
     event.preventDefault();
     if (!selectedCompanyId) {
       setAgentError("Select a company before creating agents.");
+      return false;
+    }
+    if (agentRunners.length === 0) {
+      setAgentError("Register at least one runner before creating an agent.");
       return false;
     }
     if (!agentName.trim()) {
