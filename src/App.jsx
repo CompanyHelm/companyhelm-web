@@ -213,6 +213,7 @@ const LIST_AGENT_RUNNERS_QUERY = `
     agentRunners(companyId: $companyId) {
       id
       companyId
+      name
       callbackUrl
       hasAuthSecret
       availableAgentSdks {
@@ -234,13 +235,11 @@ const LIST_AGENT_RUNNERS_QUERY = `
 const CREATE_AGENT_RUNNER_MUTATION = `
   mutation CreateAgentRunner(
     $companyId: String!
-    $id: String
-    $authSecret: String
+    $name: String!
   ) {
     createAgentRunner(
       companyId: $companyId
-      id: $id
-      authSecret: $authSecret
+      name: $name
     ) {
       ok
       error
@@ -249,6 +248,7 @@ const CREATE_AGENT_RUNNER_MUTATION = `
       agentRunner {
         id
         companyId
+        name
         callbackUrl
         hasAuthSecret
         availableAgentSdks {
@@ -278,6 +278,7 @@ const REGENERATE_AGENT_RUNNER_SECRET_MUTATION = `
       agentRunner {
       id
       companyId
+      name
       callbackUrl
       hasAuthSecret
       availableAgentSdks {
@@ -1157,6 +1158,7 @@ const COMPANY_API_LIST_AGENT_RUNNERS_CONNECTION_QUERY = `
         node {
           id
           companyId
+          name
           agentSdks {
             id
             companyId
@@ -1182,12 +1184,13 @@ const COMPANY_API_LIST_AGENT_RUNNERS_CONNECTION_QUERY = `
 `;
 
 const COMPANY_API_CREATE_AGENT_RUNNER_MUTATION = `
-  mutation CompanyApiCreateAgentRunner($companyId: ID!) {
-    createAgentRunner(companyId: $companyId) {
+  mutation CompanyApiCreateAgentRunner($companyId: ID!, $name: String!) {
+    createAgentRunner(companyId: $companyId, name: $name) {
       secret
       agentRunner {
         id
         companyId
+        name
         agentSdks {
           id
           companyId
@@ -1214,6 +1217,7 @@ const COMPANY_API_REGENERATE_AGENT_RUNNER_SECRET_MUTATION = `
       agentRunner {
         id
         companyId
+        name
         agentSdks {
           id
           companyId
@@ -2432,12 +2436,14 @@ async function loadCompanyApiThreadTurns({
 
 function toLegacyRunnerPayload(agentRunner) {
   const runnerId = resolveLegacyId(agentRunner?.id);
+  const runnerName = resolveLegacyId(agentRunner?.name);
   const nowIso = new Date().toISOString();
   const currentMetadata = companyApiRunnerMetadataById.get(runnerId) || {};
   const runnerStatus = normalizeCompanyApiRunnerStatus(agentRunner?.status);
   const availableAgentSdks = normalizeRunnerAvailableAgentSdks(agentRunner);
 
   const nextMetadata = {
+    name: runnerName || currentMetadata.name || runnerId,
     createdAt: currentMetadata.createdAt || nowIso,
     updatedAt: nowIso,
     lastSeenAt: runnerStatus === "ready" ? nowIso : currentMetadata.lastSeenAt || null,
@@ -2452,6 +2458,7 @@ function toLegacyRunnerPayload(agentRunner) {
   return {
     id: runnerId,
     companyId: resolveLegacyId(agentRunner?.companyId),
+    name: nextMetadata.name,
     callbackUrl: null,
     hasAuthSecret: true,
     availableAgentSdks,
@@ -2717,20 +2724,9 @@ async function executeGraphQL(query, variables = {}) {
   }
 
   if (query === CREATE_AGENT_RUNNER_MUTATION) {
-    if (resolveLegacyId(variables?.id) || resolveLegacyId(variables?.authSecret)) {
-      return {
-        createAgentRunner: {
-          ok: false,
-          error: "Custom runner id and custom runner secret are not supported by companyhelm-api.",
-          provisionedAuthSecret: null,
-          runnerLaunchCommand: null,
-          agentRunner: null,
-        },
-      };
-    }
-
     const data = await executeRawGraphQL(COMPANY_API_CREATE_AGENT_RUNNER_MUTATION, {
       companyId: resolveLegacyId(variables?.companyId),
+      name: resolveLegacyId(variables?.name),
     });
     const payload = data?.createAgentRunner;
     const legacyRunner = toLegacyRunnerPayload(payload?.agentRunner);
@@ -4014,15 +4010,13 @@ function AgentRunnerPage({
   isLoadingRunners,
   runnerError,
   isCreatingRunner,
-  runnerIdDraft,
-  runnerSecretDraft,
+  runnerNameDraft,
   runnerGrpcTarget,
   runnerSecretsById,
   regeneratingRunnerId,
   deletingRunnerId,
   runnerCountLabel,
-  onRunnerIdChange,
-  onRunnerSecretChange,
+  onRunnerNameChange,
   onRunnerCommandSecretChange,
   onCreateRunner,
   onRegenerateRunnerSecret,
@@ -4152,7 +4146,10 @@ function AgentRunnerPage({
                 return (
                   <li key={runner.id} className="runner-card">
                     <div className="runner-card-top">
-                      <code className="runner-id">{runner.id}</code>
+                      <div>
+                        <p className="runner-card-title">{runner.name || "Unnamed runner"}</p>
+                        <code className="runner-id">{runner.id}</code>
+                      </div>
                       <span className={`runner-status runner-status-${runnerStatus}`}>
                         {runnerStatus}
                       </span>
@@ -4268,23 +4265,15 @@ function AgentRunnerPage({
         onClose={() => setIsCreateModalOpen(false)}
       >
         <form className="task-form" onSubmit={handleCreateRunnerSubmit}>
-          <label htmlFor="runner-id">Runner UUID (optional)</label>
+          <label htmlFor="runner-name">Runner name</label>
           <input
-            id="runner-id"
-            name="runnerId"
-            placeholder="Leave blank to auto-generate"
-            value={runnerIdDraft}
-            onChange={(event) => onRunnerIdChange(event.target.value)}
+            id="runner-name"
+            name="runnerName"
+            placeholder="Example: Production runner"
+            value={runnerNameDraft}
+            onChange={(event) => onRunnerNameChange(event.target.value)}
             autoFocus
-          />
-
-          <label htmlFor="runner-secret">Runner secret (optional)</label>
-          <input
-            id="runner-secret"
-            name="runnerSecret"
-            placeholder="Leave blank to auto-generate"
-            value={runnerSecretDraft}
-            onChange={(event) => onRunnerSecretChange(event.target.value)}
+            required
           />
 
           <button type="submit" disabled={isCreatingRunner}>
@@ -6849,8 +6838,7 @@ function App() {
   const [deletingRunnerId, setDeletingRunnerId] = useState(null);
   const [regeneratingRunnerId, setRegeneratingRunnerId] = useState(null);
   const [isCreatingRunner, setIsCreatingRunner] = useState(false);
-  const [runnerIdDraft, setRunnerIdDraft] = useState("");
-  const [runnerSecretDraft, setRunnerSecretDraft] = useState("");
+  const [runnerNameDraft, setRunnerNameDraft] = useState("");
   const [runnerSecretsById, setRunnerSecretsById] = useState({});
   const [isCreatingAgent, setIsCreatingAgent] = useState(false);
   const [savingAgentId, setSavingAgentId] = useState(null);
@@ -8810,15 +8798,18 @@ function App() {
       setRunnerError("Select a company before creating runners.");
       return false;
     }
+    const requestedRunnerName = runnerNameDraft.trim();
+    if (!requestedRunnerName) {
+      setRunnerError("Runner name is required.");
+      return false;
+    }
 
     try {
       setIsCreatingRunner(true);
       setRunnerError("");
-      const requestedRunnerSecret = runnerSecretDraft.trim();
       const data = await executeGraphQL(CREATE_AGENT_RUNNER_MUTATION, {
         companyId: selectedCompanyId,
-        id: runnerIdDraft.trim() || null,
-        authSecret: requestedRunnerSecret || null,
+        name: requestedRunnerName,
       });
       const result = data.createAgentRunner;
       if (!result.ok) {
@@ -8826,16 +8817,15 @@ function App() {
       }
 
       const createdRunnerId = result.agentRunner?.id;
-      const effectiveRunnerSecret = requestedRunnerSecret || result.provisionedAuthSecret || "";
-      if (createdRunnerId && effectiveRunnerSecret) {
+      const provisionedRunnerSecret = result.provisionedAuthSecret || "";
+      if (createdRunnerId && provisionedRunnerSecret) {
         setRunnerSecretsById((currentSecrets) => ({
           ...currentSecrets,
-          [createdRunnerId]: effectiveRunnerSecret,
+          [createdRunnerId]: provisionedRunnerSecret,
         }));
       }
 
-      setRunnerIdDraft("");
-      setRunnerSecretDraft("");
+      setRunnerNameDraft("");
       await loadAgentRunners();
       return true;
     } catch (createError) {
@@ -10034,15 +10024,13 @@ function App() {
             isLoadingRunners={isLoadingRunners}
             runnerError={runnerError}
             isCreatingRunner={isCreatingRunner}
-            runnerIdDraft={runnerIdDraft}
-            runnerSecretDraft={runnerSecretDraft}
+            runnerNameDraft={runnerNameDraft}
             runnerGrpcTarget={DEFAULT_RUNNER_GRPC_TARGET}
             runnerSecretsById={runnerSecretsById}
             regeneratingRunnerId={regeneratingRunnerId}
             deletingRunnerId={deletingRunnerId}
             runnerCountLabel={runnerCountLabel}
-            onRunnerIdChange={setRunnerIdDraft}
-            onRunnerSecretChange={setRunnerSecretDraft}
+            onRunnerNameChange={setRunnerNameDraft}
             onRunnerCommandSecretChange={(runnerId, value) =>
               setRunnerSecretsById((currentSecrets) => ({
                 ...currentSecrets,

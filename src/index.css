@@ -965,6 +965,13 @@ button:disabled {
   overflow-wrap: anywhere;
 }
 
+.runner-card-title {
+  margin: 0 0 0.12rem;
+  font-size: 0.92rem;
+  color: var(--ink-0);
+  font-weight: 600;
+}
+
 .task-links {
   display: flex;
   flex-wrap: wrap;
