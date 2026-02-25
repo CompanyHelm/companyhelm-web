@@ -6283,16 +6283,22 @@ function AgentChatPage({
   isSendingChatMessage,
   isInterruptingChatTurn,
   isUpdatingChatTitle,
+  deletingChatSessionKey,
   steeringQueuedMessageId,
   onChatSessionRenameDraftChange,
   onChatDraftMessageChange,
   onBackToChats,
+  onDeleteChat,
   onSaveChatSessionTitle,
   onSendChatMessage,
   onInterruptChatTurn,
   onSteerQueuedMessage,
 }) {
   const canChat = Boolean(agent && session);
+  const currentChatSessionKey = canChat ? `${agent.id}:${session.id}` : "";
+  const isDeletingCurrentChat = Boolean(
+    currentChatSessionKey && deletingChatSessionKey === currentChatSessionKey,
+  );
   const [selectedCommandOutputItem, setSelectedCommandOutputItem] = useState(null);
   const [visibleMessageCount, setVisibleMessageCount] = useState(CHAT_MESSAGE_BATCH_SIZE);
   const transcriptScrollRef = useRef(null);
@@ -6369,6 +6375,20 @@ function AgentChatPage({
     );
   }
 
+  async function handleDeleteCurrentChat() {
+    if (!canChat || isDeletingCurrentChat) {
+      return;
+    }
+    const deleted = await onDeleteChat({
+      agentId: agent.id,
+      sessionId: session.id,
+      title: session.title,
+    });
+    if (deleted) {
+      onBackToChats();
+    }
+  }
+
   return (
     <div className="page-stack">
       <section className="panel hero-panel">
@@ -6382,6 +6402,14 @@ function AgentChatPage({
         <div className="hero-actions">
           <button type="button" className="secondary-btn" onClick={onBackToChats}>
             Back to chats
+          </button>
+          <button
+            type="button"
+            className="danger-btn"
+            onClick={handleDeleteCurrentChat}
+            disabled={!canChat || isDeletingCurrentChat}
+          >
+            {isDeletingCurrentChat ? "Deleting..." : "Delete chat"}
           </button>
         </div>
       </section>
@@ -10326,6 +10354,7 @@ function App() {
               isSendingChatMessage={isSendingChatMessage}
               isInterruptingChatTurn={isInterruptingChatTurn}
               isUpdatingChatTitle={isUpdatingChatTitle}
+              deletingChatSessionKey={deletingChatSessionKey}
               steeringQueuedMessageId={steeringQueuedMessageId}
               onChatSessionRenameDraftChange={setChatSessionRenameDraft}
               onChatDraftMessageChange={setChatDraftMessage}
@@ -10335,6 +10364,7 @@ function App() {
                 setQueuedChatMessages([]);
                 loadChatSessionIndexByAgent({ silently: true });
               }}
+              onDeleteChat={handleDeleteChatSession}
               onSaveChatSessionTitle={handleUpdateChatSessionTitle}
               onSendChatMessage={handleSendChatMessage}
               onInterruptChatTurn={handleInterruptChatTurn}
@@ -10397,6 +10427,7 @@ function App() {
               isSendingChatMessage={isSendingChatMessage}
               isInterruptingChatTurn={isInterruptingChatTurn}
               isUpdatingChatTitle={isUpdatingChatTitle}
+              deletingChatSessionKey={deletingChatSessionKey}
               steeringQueuedMessageId={steeringQueuedMessageId}
               onChatSessionRenameDraftChange={setChatSessionRenameDraft}
               onChatDraftMessageChange={setChatDraftMessage}
@@ -10407,6 +10438,7 @@ function App() {
                 }
                 setBrowserPath(`/agents/${chatAgentId}/chats`);
               }}
+              onDeleteChat={handleDeleteChatSession}
               onSaveChatSessionTitle={handleUpdateChatSessionTitle}
               onSendChatMessage={handleSendChatMessage}
               onInterruptChatTurn={handleInterruptChatTurn}
