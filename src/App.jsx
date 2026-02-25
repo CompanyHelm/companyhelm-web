@@ -6659,43 +6659,43 @@ function AgentChatPage({
                 })}
               </ul>
             ) : null}
-            {queuedMessages.length > 0 ? (
-              <div className="chat-queued-block">
-                <h3 className="chat-queued-title">Queued messages</h3>
-                <ul className="chat-queued-list">
-                  {queuedMessages.map((queuedMessage) => {
-                    const queuedMessageId = String(queuedMessage?.id || "").trim();
-                    const isSteerMode = Boolean(queuedMessage?.allowSteer);
-                    const isSteeringThisMessage = steeringQueuedMessageId === queuedMessageId;
+          </div>
+        ) : null}
+        {queuedMessages.length > 0 ? (
+          <div className="chat-queued-block">
+            <h3 className="chat-queued-title">Queued messages</h3>
+            <ul className="chat-queued-list">
+              {queuedMessages.map((queuedMessage) => {
+                const queuedMessageId = String(queuedMessage?.id || "").trim();
+                const isSteerMode = Boolean(queuedMessage?.allowSteer);
+                const isSteeringThisMessage = steeringQueuedMessageId === queuedMessageId;
 
-                    return (
-                      <li key={queuedMessageId} className="chat-queued-item">
-                        <div className="chat-queued-meta">
-                          <span className="chat-message-kind">queued</span>
-                          <span className={`chat-turn-status ${isSteerMode ? "chat-turn-status-running" : "chat-turn-status-idle"}`}>
-                            {isSteerMode ? "steer" : "queue"}
-                          </span>
-                          <code className="runner-id">{queuedMessageId.slice(0, 8)}</code>
-                        </div>
-                        <p className="chat-message-content">{String(queuedMessage?.text || "").trim() || "(no content)"}</p>
-                        {!isSteerMode ? (
-                          <div className="task-card-actions">
-                            <button
-                              type="button"
-                              className="secondary-btn"
-                              disabled={!canChat || isSendingChatMessage || isInterruptingChatTurn || isSteeringThisMessage}
-                              onClick={() => onSteerQueuedMessage(queuedMessageId)}
-                            >
-                              {isSteeringThisMessage ? "Changing..." : "Change to steer"}
-                            </button>
-                          </div>
-                        ) : null}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            ) : null}
+                return (
+                  <li key={queuedMessageId} className="chat-queued-item">
+                    <div className="chat-queued-meta">
+                      <span className="chat-message-kind">queued</span>
+                      <span className={`chat-turn-status ${isSteerMode ? "chat-turn-status-running" : "chat-turn-status-idle"}`}>
+                        {isSteerMode ? "steer" : "queue"}
+                      </span>
+                      <code className="runner-id">{queuedMessageId.slice(0, 8)}</code>
+                    </div>
+                    <p className="chat-message-content">{String(queuedMessage?.text || "").trim() || "(no content)"}</p>
+                    {!isSteerMode ? (
+                      <div className="task-card-actions">
+                        <button
+                          type="button"
+                          className="secondary-btn"
+                          disabled={!canChat || isSendingChatMessage || isInterruptingChatTurn || isSteeringThisMessage}
+                          onClick={() => onSteerQueuedMessage(queuedMessageId)}
+                        >
+                          {isSteeringThisMessage ? "Changing..." : "Change to steer"}
+                        </button>
+                      </div>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         ) : null}
       </section>
