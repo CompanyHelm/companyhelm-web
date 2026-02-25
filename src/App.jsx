@@ -6280,14 +6280,12 @@ function AgentChatPage({
   isLoadingChat,
   chatError,
   chatDraftMessage,
-  chatMessageMode,
   isSendingChatMessage,
   isInterruptingChatTurn,
   isUpdatingChatTitle,
   steeringQueuedMessageId,
   onChatSessionRenameDraftChange,
   onChatDraftMessageChange,
-  onChatMessageModeChange,
   onBackToChats,
   onSaveChatSessionTitle,
   onSendChatMessage,
@@ -6349,7 +6347,7 @@ function AgentChatPage({
       return;
     }
     event.preventDefault();
-    onSendChatMessage();
+    onSendChatMessage(event, "queue");
   }
 
   function handleTranscriptScroll(event) {
@@ -6629,18 +6627,9 @@ function AgentChatPage({
         </header>
         <form className="task-form" onSubmit={onSendChatMessage}>
           {hasRunningTurn ? (
-            <>
-              <label htmlFor="chat-message-mode">Mode</label>
-              <select
-                id="chat-message-mode"
-                value={chatMessageMode}
-                onChange={(event) => onChatMessageModeChange(event.target.value)}
-                disabled={!canChat || isSendingChatMessage || isInterruptingChatTurn}
-              >
-                <option value="queue">Queue next turn</option>
-                <option value="steer">Steer running turn</option>
-              </select>
-            </>
+            <p className="empty-hint">
+              A turn is currently running. Queue this message, send it to the active turn, or stop the turn.
+            </p>
           ) : (
             <p className="empty-hint">
               No running turn. Sending will always create a new turn immediately.
@@ -6656,22 +6645,46 @@ function AgentChatPage({
             onKeyDown={handleChatMessageKeyDown}
             disabled={!canChat || isSendingChatMessage || isInterruptingChatTurn}
           />
-          {hasRunningTurn ? (
-            <button
-              type="button"
-              className="secondary-btn"
-              disabled={!canChat || isSendingChatMessage || isInterruptingChatTurn}
-              onClick={onInterruptChatTurn}
-            >
-              {isInterruptingChatTurn ? "Interrupting..." : "Interrupt turn"}
-            </button>
-          ) : null}
-          <button
-            type="submit"
-            disabled={!canChat || !chatDraftMessage.trim() || isSendingChatMessage || isInterruptingChatTurn}
-          >
-            {isSendingChatMessage ? "Sending..." : "Send message"}
-          </button>
+          <div className={`chat-composer-actions${hasRunningTurn ? " chat-composer-actions-running" : ""}`}>
+            {hasRunningTurn ? (
+              <>
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  disabled={!canChat || !chatDraftMessage.trim() || isSendingChatMessage || isInterruptingChatTurn}
+                  onClick={(event) => onSendChatMessage(event, "queue")}
+                >
+                  {isSendingChatMessage ? "Queueing..." : "Queue"}
+                </button>
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  disabled={!canChat || !chatDraftMessage.trim() || isSendingChatMessage || isInterruptingChatTurn}
+                  onClick={(event) => onSendChatMessage(event, "steer")}
+                  title="Send as a turn update"
+                >
+                  {isSendingChatMessage ? "Sending..." : "Turn"}
+                </button>
+                <button
+                  type="button"
+                  className="chat-stop-btn"
+                  disabled={!canChat || isSendingChatMessage || isInterruptingChatTurn}
+                  onClick={onInterruptChatTurn}
+                  aria-label={isInterruptingChatTurn ? "Stopping turn..." : "Stop running turn"}
+                  title={isInterruptingChatTurn ? "Stopping turn..." : "Stop running turn"}
+                >
+                  <span className="chat-stop-icon" aria-hidden="true" />
+                </button>
+              </>
+            ) : (
+              <button
+                type="submit"
+                disabled={!canChat || !chatDraftMessage.trim() || isSendingChatMessage || isInterruptingChatTurn}
+              >
+                {isSendingChatMessage ? "Sending..." : "Send message"}
+              </button>
+            )}
+          </div>
         </form>
       </section>
     </div>
@@ -7060,7 +7073,6 @@ function App() {
   const [chatTurns, setChatTurns] = useState([]);
   const [queuedChatMessages, setQueuedChatMessages] = useState([]);
   const [chatDraftMessage, setChatDraftMessage] = useState("");
-  const [chatMessageMode, setChatMessageMode] = useState("queue");
   const [deletingChatSessionKey, setDeletingChatSessionKey] = useState("");
   const [chatError, setChatError] = useState("");
   const [chatIndexError, setChatIndexError] = useState("");
@@ -9469,7 +9481,7 @@ function App() {
     }
   }
 
-  async function handleSendChatMessage(event) {
+  async function handleSendChatMessage(event, modeOverride = "queue") {
     if (event?.preventDefault) {
       event.preventDefault();
     }
@@ -9507,7 +9519,9 @@ function App() {
       setIsSendingChatMessage(true);
       setChatError("");
       const runnerId = selectedAgentForChat?.agentRunnerId || null;
-      const nextMode = hasRunningTurn && chatMessageMode === "steer" ? "steer" : "queue";
+      const normalizedModeOverride = String(modeOverride || "").trim().toLowerCase();
+      const shouldSteerMode = normalizedModeOverride === "steer" || normalizedModeOverride === "turn";
+      const nextMode = hasRunningTurn && shouldSteerMode ? "steer" : "queue";
       const payloadText = chatDraftMessage.trim();
       const data =
         nextMode === "steer"
@@ -10309,14 +10323,12 @@ function App() {
               isLoadingChat={isLoadingChat}
               chatError={chatError}
               chatDraftMessage={chatDraftMessage}
-              chatMessageMode={chatMessageMode}
               isSendingChatMessage={isSendingChatMessage}
               isInterruptingChatTurn={isInterruptingChatTurn}
               isUpdatingChatTitle={isUpdatingChatTitle}
               steeringQueuedMessageId={steeringQueuedMessageId}
               onChatSessionRenameDraftChange={setChatSessionRenameDraft}
               onChatDraftMessageChange={setChatDraftMessage}
-              onChatMessageModeChange={setChatMessageMode}
               onBackToChats={() => {
                 setChatSessionId("");
                 setChatTurns([]);
@@ -10382,14 +10394,12 @@ function App() {
               isLoadingChat={isLoadingChat}
               chatError={chatError}
               chatDraftMessage={chatDraftMessage}
-              chatMessageMode={chatMessageMode}
               isSendingChatMessage={isSendingChatMessage}
               isInterruptingChatTurn={isInterruptingChatTurn}
               isUpdatingChatTitle={isUpdatingChatTitle}
               steeringQueuedMessageId={steeringQueuedMessageId}
               onChatSessionRenameDraftChange={setChatSessionRenameDraft}
               onChatDraftMessageChange={setChatDraftMessage}
-              onChatMessageModeChange={setChatMessageMode}
               onBackToChats={() => {
                 if (!chatAgentId) {
                   navigateTo("agents");
