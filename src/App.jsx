@@ -6303,8 +6303,10 @@ function AgentChatPage({
   const isDeletingCurrentChat = Boolean(
     currentChatSessionKey && deletingChatSessionKey === currentChatSessionKey,
   );
+  const [isEditingChatTitle, setIsEditingChatTitle] = useState(false);
   const [selectedCommandOutputItem, setSelectedCommandOutputItem] = useState(null);
   const [visibleMessageCount, setVisibleMessageCount] = useState(CHAT_MESSAGE_BATCH_SIZE);
+  const chatTitleInputRef = useRef(null);
   const transcriptScrollRef = useRef(null);
   const shouldStickTranscriptToBottomRef = useRef(true);
   const pendingTranscriptScrollRestoreRef = useRef(null);
@@ -6330,6 +6332,18 @@ function AgentChatPage({
     shouldStickTranscriptToBottomRef.current = true;
     pendingTranscriptScrollRestoreRef.current = null;
   }, [session?.id]);
+
+  useEffect(() => {
+    setIsEditingChatTitle(false);
+  }, [session?.id]);
+
+  useEffect(() => {
+    if (!isEditingChatTitle || !chatTitleInputRef.current) {
+      return;
+    }
+    chatTitleInputRef.current.focus();
+    chatTitleInputRef.current.select();
+  }, [isEditingChatTitle]);
 
   useLayoutEffect(() => {
     const transcriptNode = transcriptScrollRef.current;
@@ -6393,6 +6407,34 @@ function AgentChatPage({
     }
   }
 
+  function handleStartChatTitleEdit() {
+    if (!session || isUpdatingChatTitle) {
+      return;
+    }
+    onChatSessionRenameDraftChange(String(session.title || ""));
+    setIsEditingChatTitle(true);
+  }
+
+  function handleCancelChatTitleEdit() {
+    onChatSessionRenameDraftChange(String(session?.title || ""));
+    setIsEditingChatTitle(false);
+  }
+
+  function handleChatTitleInputKeyDown(event) {
+    if (event.key !== "Escape" || event.isComposing) {
+      return;
+    }
+    event.preventDefault();
+    handleCancelChatTitleEdit();
+  }
+
+  async function handleSubmitChatTitle(event) {
+    const updated = await onSaveChatSessionTitle(event);
+    if (updated) {
+      setIsEditingChatTitle(false);
+    }
+  }
+
   return (
     <div className="page-stack">
       <section className="panel hero-panel">
@@ -6419,27 +6461,52 @@ function AgentChatPage({
       </section>
 
       <section className="panel composer-panel">
-        <header className="panel-header">
+        <header className="panel-header panel-header-row chat-panel-header">
           <h2>Chat</h2>
+          {session ? (
+            isEditingChatTitle ? (
+              <form className="task-form chat-title-inline-form" onSubmit={handleSubmitChatTitle}>
+                <input
+                  id="chat-session-rename"
+                  ref={chatTitleInputRef}
+                  value={chatSessionRenameDraft}
+                  onChange={(event) => onChatSessionRenameDraftChange(event.target.value)}
+                  onKeyDown={handleChatTitleInputKeyDown}
+                  placeholder="e.g. Release planning"
+                  disabled={isUpdatingChatTitle}
+                  aria-label="Chat title"
+                />
+                <p className="chat-title-inline-hint">
+                  {isUpdatingChatTitle ? "Saving..." : "Press Enter to save, Esc to cancel"}
+                </p>
+              </form>
+            ) : (
+              <p className="chat-session-title-row chat-title-inline-display">
+                <strong>{session.title || "Untitled chat"}</strong>
+                <button
+                  type="button"
+                  className="chat-title-edit-btn"
+                  onClick={handleStartChatTitleEdit}
+                  disabled={isUpdatingChatTitle}
+                  aria-label="Edit chat title"
+                  title="Edit chat title"
+                >
+                  <svg
+                    className="chat-title-edit-icon"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path d="M4 20h4l10-10-4-4L4 16v4z" />
+                    <path d="m13 7 4 4" />
+                  </svg>
+                </button>
+              </p>
+            )
+          ) : null}
         </header>
         {session ? (
           <div className="codex-auth-state">
-            <form
-              className="task-form"
-              onSubmit={onSaveChatSessionTitle}
-            >
-              <label htmlFor="chat-session-rename">Title</label>
-              <input
-                id="chat-session-rename"
-                value={chatSessionRenameDraft}
-                onChange={(event) => onChatSessionRenameDraftChange(event.target.value)}
-                placeholder="e.g. Release planning"
-                disabled={isUpdatingChatTitle}
-              />
-              <button type="submit" disabled={isUpdatingChatTitle}>
-                {isUpdatingChatTitle ? "Saving..." : "Save title"}
-              </button>
-            </form>
             <p className="codex-auth-row">
               <strong>Thread ID:</strong> <code className="runner-id">{session.id}</code>
             </p>
@@ -6660,7 +6727,7 @@ function AgentChatPage({
         <form className="task-form" onSubmit={onSendChatMessage}>
           {hasRunningTurn ? (
             <p className="empty-hint">
-              A turn is currently running. Queue this message, send it to the active turn, or stop the turn.
+              A turn is currently running. Queue this message, steer the active turn, or stop the turn.
             </p>
           ) : (
             <p className="empty-hint">
@@ -6682,20 +6749,45 @@ function AgentChatPage({
               <>
                 <button
                   type="button"
-                  className="secondary-btn"
+                  className="secondary-btn chat-action-btn"
                   disabled={!canChat || !chatDraftMessage.trim() || isSendingChatMessage || isInterruptingChatTurn}
                   onClick={(event) => onSendChatMessage(event, "queue")}
                 >
-                  {isSendingChatMessage ? "Queueing..." : "Queue"}
+                  <span className="chat-action-btn-content">
+                    <svg
+                      className="chat-action-icon"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <path d="M3 11 21 3 13 21 11 13 3 11z" />
+                      <path d="m11 13 10-10" />
+                    </svg>
+                    <span>{isSendingChatMessage ? "Queueing..." : "Queue"}</span>
+                  </span>
                 </button>
                 <button
                   type="button"
-                  className="secondary-btn"
+                  className="secondary-btn chat-action-btn"
                   disabled={!canChat || !chatDraftMessage.trim() || isSendingChatMessage || isInterruptingChatTurn}
                   onClick={(event) => onSendChatMessage(event, "steer")}
-                  title="Send as a turn update"
+                  title="Steer the active turn"
                 >
-                  {isSendingChatMessage ? "Sending..." : "Turn"}
+                  <span className="chat-action-btn-content">
+                    <svg
+                      className="chat-action-icon"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <circle cx="6" cy="5" r="2" />
+                      <circle cx="6" cy="19" r="2" />
+                      <circle cx="18" cy="12" r="2" />
+                      <path d="M8 6v4a2 2 0 0 0 2 2h6" />
+                      <path d="M8 18v-4a2 2 0 0 1 2-2h6" />
+                    </svg>
+                    <span>{isSendingChatMessage ? "Steering..." : "Steer"}</span>
+                  </span>
                 </button>
                 <button
                   type="button"
@@ -9802,7 +9894,7 @@ function App() {
     const targetSessionId = String(resolvedChatSessionId || "").trim();
     if (!targetSessionId) {
       setChatError("Select a chat before updating its title.");
-      return;
+      return false;
     }
 
     try {
@@ -9849,8 +9941,10 @@ function App() {
       }
 
       setChatSessionRenameDraft(String(updatedSession?.title || ""));
+      return true;
     } catch (updateError) {
       setChatError(updateError.message);
+      return false;
     } finally {
       setIsUpdatingChatTitle(false);
     }
