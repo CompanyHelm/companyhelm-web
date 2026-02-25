@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -32,6 +32,8 @@ const MCP_AUTH_TYPE_OPTIONS = [
   { value: MCP_AUTH_TYPE_CUSTOM_HEADERS, label: "Custom headers" },
 ];
 const CHAT_MESSAGE_BATCH_SIZE = 20;
+const TRANSCRIPT_TOP_LOAD_THRESHOLD_PX = 12;
+const TRANSCRIPT_BOTTOM_STICKY_THRESHOLD_PX = 12;
 
 function resolveGraphQLWebSocketUrl(rawUrl) {
   const cleanUrl = String(rawUrl || "").trim();
@@ -6220,6 +6222,8 @@ function AgentChatPage({
   const [selectedCommandOutputItem, setSelectedCommandOutputItem] = useState(null);
   const [visibleMessageCount, setVisibleMessageCount] = useState(CHAT_MESSAGE_BATCH_SIZE);
   const transcriptScrollRef = useRef(null);
+  const shouldStickTranscriptToBottomRef = useRef(true);
+  const pendingTranscriptScrollRestoreRef = useRef(null);
   const queuedMessages = Array.isArray(queuedChatMessages) ? queuedChatMessages : [];
   const orderedTurns = useMemo(
     () => [...(Array.isArray(chatTurns) ? chatTurns : [])].sort(compareTurnsByTimestamp),
@@ -6239,15 +6243,27 @@ function AgentChatPage({
 
   useEffect(() => {
     setVisibleMessageCount(CHAT_MESSAGE_BATCH_SIZE);
+    shouldStickTranscriptToBottomRef.current = true;
+    pendingTranscriptScrollRestoreRef.current = null;
   }, [session?.id]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const transcriptNode = transcriptScrollRef.current;
     if (!transcriptNode) {
       return;
     }
+    if (pendingTranscriptScrollRestoreRef.current) {
+      const { previousScrollHeight, previousScrollTop } = pendingTranscriptScrollRestoreRef.current;
+      const scrollHeightDelta = transcriptNode.scrollHeight - previousScrollHeight;
+      transcriptNode.scrollTop = previousScrollTop + scrollHeightDelta;
+      pendingTranscriptScrollRestoreRef.current = null;
+      return;
+    }
+    if (!shouldStickTranscriptToBottomRef.current) {
+      return;
+    }
     transcriptNode.scrollTop = transcriptNode.scrollHeight;
-  }, [session?.id, orderedTurns.length, totalMessageCount]);
+  }, [session?.id, orderedTurns.length, totalMessageCount, visibleMessageCount]);
 
   function handleChatMessageKeyDown(event) {
     if (event.key !== "Enter" || event.shiftKey || event.isComposing) {
@@ -6262,10 +6278,18 @@ function AgentChatPage({
 
   function handleTranscriptScroll(event) {
     const transcriptNode = event.currentTarget;
+    const distanceFromBottom =
+      transcriptNode.scrollHeight - transcriptNode.scrollTop - transcriptNode.clientHeight;
+    shouldStickTranscriptToBottomRef.current =
+      distanceFromBottom <= TRANSCRIPT_BOTTOM_STICKY_THRESHOLD_PX;
     const canLoadMoreMessages = visibleMessageCount < totalMessageCount;
-    if (!canLoadMoreMessages || transcriptNode.scrollTop > 12) {
+    if (!canLoadMoreMessages || transcriptNode.scrollTop > TRANSCRIPT_TOP_LOAD_THRESHOLD_PX) {
       return;
     }
+    pendingTranscriptScrollRestoreRef.current = {
+      previousScrollHeight: transcriptNode.scrollHeight,
+      previousScrollTop: transcriptNode.scrollTop,
+    };
     setVisibleMessageCount((currentCount) =>
       Math.min(currentCount + CHAT_MESSAGE_BATCH_SIZE, totalMessageCount),
     );
