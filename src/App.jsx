@@ -1158,8 +1158,14 @@ const COMPANY_API_LIST_AGENT_RUNNERS_CONNECTION_QUERY = `
           id
           companyId
           agentSdks {
+            id
+            companyId
+            agentRunnerId
             name
             models {
+              id
+              companyId
+              agentRunnerSdkId
               name
               reasoning
             }
@@ -1183,8 +1189,14 @@ const COMPANY_API_CREATE_AGENT_RUNNER_MUTATION = `
         id
         companyId
         agentSdks {
+          id
+          companyId
+          agentRunnerId
           name
           models {
+            id
+            companyId
+            agentRunnerSdkId
             name
             reasoning
           }
@@ -1203,8 +1215,14 @@ const COMPANY_API_REGENERATE_AGENT_RUNNER_SECRET_MUTATION = `
         id
         companyId
         agentSdks {
+          id
+          companyId
+          agentRunnerId
           name
           models {
+            id
+            companyId
+            agentRunnerSdkId
             name
             reasoning
           }
@@ -1241,8 +1259,47 @@ const COMPANY_API_LIST_AGENTS_CONNECTION_QUERY = `
 `;
 
 const COMPANY_API_CREATE_AGENT_MUTATION = `
-  mutation CompanyApiCreateAgent($name: String!, $companyId: ID!) {
-    createAgent(name: $name, companyId: $companyId) {
+  mutation CompanyApiCreateAgent(
+    $name: String!
+    $companyId: ID!
+    $agentRunnerId: ID!
+    $agentRunnerSdkId: ID!
+    $defaultModelId: ID!
+    $defaultReasoningLevel: String
+  ) {
+    createAgent(
+      name: $name
+      companyId: $companyId
+      agentRunnerId: $agentRunnerId
+      agentRunnerSdkId: $agentRunnerSdkId
+      defaultModelId: $defaultModelId
+      defaultReasoningLevel: $defaultReasoningLevel
+    ) {
+      id
+      name
+      companyId
+      status
+    }
+  }
+`;
+
+const COMPANY_API_UPDATE_AGENT_MUTATION = `
+  mutation CompanyApiUpdateAgent(
+    $agentId: ID!
+    $name: String!
+    $agentRunnerId: ID!
+    $agentRunnerSdkId: ID!
+    $defaultModelId: ID!
+    $defaultReasoningLevel: String
+  ) {
+    updateAgent(
+      agentId: $agentId
+      name: $name
+      agentRunnerId: $agentRunnerId
+      agentRunnerSdkId: $agentRunnerSdkId
+      defaultModelId: $defaultModelId
+      defaultReasoningLevel: $defaultReasoningLevel
+    ) {
       id
       name
       companyId
@@ -1347,8 +1404,20 @@ const COMPANY_API_LIST_QUEUED_USER_MESSAGES_QUERY = `
 `;
 
 const COMPANY_API_QUEUE_USER_MESSAGE_MUTATION = `
-  mutation CompanyApiQueueUserMessage($threadId: ID!, $text: String!, $allowSteer: Boolean!) {
-    queueUserMessage(threadId: $threadId, text: $text, allowSteer: $allowSteer) {
+  mutation CompanyApiQueueUserMessage(
+    $threadId: ID!
+    $text: String!
+    $allowSteer: Boolean!
+    $modelId: ID
+    $reasoningLevel: String
+  ) {
+    queueUserMessage(
+      threadId: $threadId
+      text: $text
+      allowSteer: $allowSteer
+      modelId: $modelId
+      reasoningLevel: $reasoningLevel
+    ) {
       id
       companyId
       threadId
@@ -1772,6 +1841,7 @@ function normalizeRunnerAvailableAgentSdks(runner) {
 
   return runnerSdks
     .map((sdkEntry) => ({
+      id: resolveLegacyId(sdkEntry?.id),
       name: normalizeAgentSdkValue(sdkEntry?.name),
       availableModels: (
         Array.isArray(sdkEntry?.availableModels)
@@ -1781,6 +1851,7 @@ function normalizeRunnerAvailableAgentSdks(runner) {
             : []
       )
         .map((modelEntry) => ({
+          id: resolveLegacyId(modelEntry?.id),
           name: String(modelEntry?.name || "").trim(),
           reasoningLevels: [
             ...new Set(
@@ -1811,9 +1882,41 @@ function normalizeRunnerCodexAvailableModels(runner) {
   }
 
   return codexSdk.availableModels.map((entry) => ({
+    id: entry.id,
+    sdkId: codexSdk.id,
     name: entry.name,
     reasoning: entry.reasoningLevels,
   }));
+}
+
+function resolveRunnerSdkAndModelIds({
+  runner,
+  sdkName,
+  modelName,
+}) {
+  const normalizedSdk = normalizeAgentSdkValue(sdkName);
+  const normalizedModel = String(modelName || "").trim();
+  if (!normalizedSdk || !normalizedModel) {
+    return {
+      agentRunnerSdkId: "",
+      defaultModelId: "",
+    };
+  }
+
+  const availableAgentSdks = normalizeRunnerAvailableAgentSdks(runner);
+  const selectedSdk = availableAgentSdks.find((sdkEntry) => sdkEntry.name === normalizedSdk) || null;
+  if (!selectedSdk) {
+    return {
+      agentRunnerSdkId: "",
+      defaultModelId: "",
+    };
+  }
+
+  const selectedModel = selectedSdk.availableModels.find((modelEntry) => modelEntry.name === normalizedModel) || null;
+  return {
+    agentRunnerSdkId: resolveLegacyId(selectedSdk.id),
+    defaultModelId: resolveLegacyId(selectedModel?.id),
+  };
 }
 
 function mergeAgentRunnerPayloadEntry(currentRunner, incomingRunner) {
@@ -2332,6 +2435,7 @@ function toLegacyRunnerPayload(agentRunner) {
   const nowIso = new Date().toISOString();
   const currentMetadata = companyApiRunnerMetadataById.get(runnerId) || {};
   const runnerStatus = normalizeCompanyApiRunnerStatus(agentRunner?.status);
+  const availableAgentSdks = normalizeRunnerAvailableAgentSdks(agentRunner);
 
   const nextMetadata = {
     createdAt: currentMetadata.createdAt || nowIso,
@@ -2339,6 +2443,7 @@ function toLegacyRunnerPayload(agentRunner) {
     lastSeenAt: runnerStatus === "ready" ? nowIso : currentMetadata.lastSeenAt || null,
     lastHealthCheckAt:
       runnerStatus === "ready" ? nowIso : currentMetadata.lastHealthCheckAt || null,
+    availableAgentSdks,
   };
   if (runnerId) {
     companyApiRunnerMetadataById.set(runnerId, nextMetadata);
@@ -2349,7 +2454,7 @@ function toLegacyRunnerPayload(agentRunner) {
     companyId: resolveLegacyId(agentRunner?.companyId),
     callbackUrl: null,
     hasAuthSecret: true,
-    availableAgentSdks: normalizeRunnerAvailableAgentSdks(agentRunner),
+    availableAgentSdks,
     status: runnerStatus,
     lastHealthCheckAt: nextMetadata.lastHealthCheckAt,
     lastSeenAt: nextMetadata.lastSeenAt,
@@ -2696,19 +2801,34 @@ async function executeGraphQL(query, variables = {}) {
   }
 
   if (query === CREATE_AGENT_MUTATION) {
+    const companyId = resolveLegacyId(variables?.companyId);
+    const name = resolveLegacyId(variables?.name);
+    const agentRunnerId = resolveLegacyId(variables?.agentRunnerId);
+    const agentRunnerSdkId = resolveLegacyId(variables?.agentRunnerSdkId);
+    const defaultModelId = resolveLegacyId(variables?.defaultModelId);
+    const defaultReasoningLevel =
+      resolveLegacyId(variables?.defaultReasoningLevel, variables?.modelReasoningLevel) || null;
+    if (!companyId || !name || !agentRunnerId || !agentRunnerSdkId || !defaultModelId) {
+      throw new Error("Agent creation requires company, runner, SDK, and model selections.");
+    }
+
     const metadata = {
-      agentRunnerId: resolveLegacyId(variables?.agentRunnerId),
+      agentRunnerId,
       skillIds: normalizeUniqueStringList(variables?.skillIds || []),
       mcpServerIds: normalizeUniqueStringList(variables?.mcpServerIds || []),
-      name: resolveLegacyId(variables?.name),
+      name,
       agentSdk: isAvailableAgentSdk(variables?.agentSdk) ? normalizeAgentSdkValue(variables?.agentSdk) : DEFAULT_AGENT_SDK,
       model: resolveLegacyId(variables?.model),
-      modelReasoningLevel: resolveLegacyId(variables?.modelReasoningLevel),
+      modelReasoningLevel: defaultReasoningLevel || "",
       installedSkills: [],
     };
     const data = await executeRawGraphQL(COMPANY_API_CREATE_AGENT_MUTATION, {
-      companyId: resolveLegacyId(variables?.companyId),
-      name: resolveLegacyId(variables?.name),
+      companyId,
+      name,
+      agentRunnerId,
+      agentRunnerSdkId,
+      defaultModelId,
+      defaultReasoningLevel,
     });
     return {
       createAgent: {
@@ -2720,29 +2840,43 @@ async function executeGraphQL(query, variables = {}) {
   }
 
   if (query === UPDATE_AGENT_MUTATION) {
-    const agentId = resolveLegacyId(variables?.id);
+    const agentId = resolveLegacyId(variables?.id, variables?.agentId);
+    const name = resolveLegacyId(variables?.name);
+    const agentRunnerId = resolveLegacyId(variables?.agentRunnerId);
+    const agentRunnerSdkId = resolveLegacyId(variables?.agentRunnerSdkId);
+    const defaultModelId = resolveLegacyId(variables?.defaultModelId);
+    const defaultReasoningLevel =
+      resolveLegacyId(variables?.defaultReasoningLevel, variables?.modelReasoningLevel) || null;
+    if (!agentId || !name || !agentRunnerId || !agentRunnerSdkId || !defaultModelId) {
+      throw new Error("Agent update requires id, runner, SDK, and model selections.");
+    }
+
     const currentMetadata = companyApiAgentMetadataById.get(agentId) || {};
     const nextMetadata = {
       ...currentMetadata,
-      agentRunnerId: resolveLegacyId(variables?.agentRunnerId),
+      agentRunnerId,
       skillIds: normalizeUniqueStringList(variables?.skillIds || []),
       mcpServerIds: normalizeUniqueStringList(variables?.mcpServerIds || []),
-      name: resolveLegacyId(variables?.name),
+      name,
       agentSdk: isAvailableAgentSdk(variables?.agentSdk) ? normalizeAgentSdkValue(variables?.agentSdk) : DEFAULT_AGENT_SDK,
       model: resolveLegacyId(variables?.model),
-      modelReasoningLevel: resolveLegacyId(variables?.modelReasoningLevel),
+      modelReasoningLevel: defaultReasoningLevel || "",
     };
-    companyApiAgentMetadataById.set(agentId, nextMetadata);
+
+    const data = await executeRawGraphQL(COMPANY_API_UPDATE_AGENT_MUTATION, {
+      agentId,
+      name,
+      agentRunnerId,
+      agentRunnerSdkId,
+      defaultModelId,
+      defaultReasoningLevel,
+    });
+
     return {
       updateAgent: {
         ok: true,
         error: null,
-        agent: {
-          id: agentId,
-          companyId: resolveLegacyId(variables?.companyId),
-          status: "pending",
-          ...nextMetadata,
-        },
+        agent: toLegacyAgentPayload(data?.updateAgent, { metadataOverride: nextMetadata }),
       },
     };
   }
@@ -2904,10 +3038,14 @@ async function executeGraphQL(query, variables = {}) {
 
   if (query === CREATE_AGENT_TURN_MUTATION) {
     const requestedThreadId = resolveLegacyId(variables?.threadId);
+    const modelId = resolveLegacyId(variables?.modelId);
+    const reasoningLevel = resolveLegacyId(variables?.reasoningLevel);
     const data = await executeRawGraphQL(COMPANY_API_QUEUE_USER_MESSAGE_MUTATION, {
       threadId: requestedThreadId,
       text: resolveLegacyId(variables?.text),
       allowSteer: false,
+      modelId: modelId || null,
+      reasoningLevel: reasoningLevel || null,
     });
     const queuedUserMessage = data?.queueUserMessage;
 
@@ -8747,6 +8885,23 @@ function App() {
       );
       return false;
     }
+    const { agentRunnerSdkId, defaultModelId } = resolveRunnerSdkAndModelIds({
+      runner: selectedRunner,
+      sdkName: normalizedSdk,
+      modelName: normalizedModel,
+    });
+    if (!agentRunnerSdkId) {
+      setAgentError(
+        `Runner ${agentRunnerId} did not provide SDK metadata for "${normalizedSdk}". Refresh runners and try again.`,
+      );
+      return false;
+    }
+    if (!defaultModelId) {
+      setAgentError(
+        `Runner ${agentRunnerId} did not provide model metadata for "${normalizedModel}". Refresh runners and try again.`,
+      );
+      return false;
+    }
 
     try {
       setIsCreatingAgent(true);
@@ -8761,6 +8916,9 @@ function App() {
         agentSdk: normalizedSdk,
         model: normalizedModel,
         modelReasoningLevel: normalizedReasoning,
+        agentRunnerSdkId,
+        defaultModelId,
+        defaultReasoningLevel: normalizedReasoning,
       });
       const result = data.createAgent;
       if (!result.ok) {
@@ -8850,6 +9008,23 @@ function App() {
       );
       return;
     }
+    const { agentRunnerSdkId, defaultModelId } = resolveRunnerSdkAndModelIds({
+      runner: assignedRunner,
+      sdkName: normalizedSdk,
+      modelName: normalizedModel,
+    });
+    if (!agentRunnerSdkId) {
+      setAgentError(
+        `Runner ${draft.agentRunnerId} did not provide SDK metadata for "${normalizedSdk}". Refresh runners and try again.`,
+      );
+      return;
+    }
+    if (!defaultModelId) {
+      setAgentError(
+        `Runner ${draft.agentRunnerId} did not provide model metadata for "${normalizedModel}". Refresh runners and try again.`,
+      );
+      return;
+    }
 
     try {
       setSavingAgentId(agentId);
@@ -8865,6 +9040,9 @@ function App() {
         agentSdk: normalizedSdk,
         model: normalizedModel,
         modelReasoningLevel: normalizedReasoning,
+        agentRunnerSdkId,
+        defaultModelId,
+        defaultReasoningLevel: normalizedReasoning,
       });
       const result = data.updateAgent;
       if (!result.ok) {
