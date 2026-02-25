@@ -988,6 +988,12 @@ const AGENT_THREADS_SUBSCRIPTION = `
           companyId
           agentId
           status
+          currentModelId
+          currentReasoningLevel
+          currentModel {
+            id
+            name
+          }
         }
       }
     }
@@ -1330,6 +1336,12 @@ const COMPANY_API_LIST_THREADS_CONNECTION_QUERY = `
           companyId
           agentId
           status
+          currentModelId
+          currentReasoningLevel
+          currentModel {
+            id
+            name
+          }
         }
       }
       pageInfo {
@@ -1347,6 +1359,12 @@ const COMPANY_API_CREATE_THREAD_MUTATION = `
       companyId
       agentId
       status
+      currentModelId
+      currentReasoningLevel
+      currentModel {
+        id
+        name
+      }
     }
   }
 `;
@@ -2509,11 +2527,33 @@ function toLegacyThreadPayload(thread, { metadataOverride } = {}) {
   const threadId = resolveLegacyId(thread?.id);
   const nowIso = new Date().toISOString();
   const currentMetadata = companyApiThreadMetadataById.get(threadId) || {};
+  const resolvedCurrentModelId = resolveLegacyId(
+    metadataOverride?.currentModelId,
+    metadataOverride?.currentModel?.id,
+    thread?.currentModelId,
+    thread?.currentModel?.id,
+    currentMetadata.currentModelId,
+  ) || null;
+  const resolvedCurrentModelName = resolveLegacyId(
+    metadataOverride?.currentModelName,
+    metadataOverride?.currentModel?.name,
+    thread?.currentModelName,
+    thread?.currentModel?.name,
+    currentMetadata.currentModelName,
+  ) || null;
+  const resolvedCurrentReasoningLevel = resolveLegacyId(
+    metadataOverride?.currentReasoningLevel,
+    thread?.currentReasoningLevel,
+    currentMetadata.currentReasoningLevel,
+  ) || null;
   const nextMetadata = {
     createdAt: currentMetadata.createdAt || nowIso,
     updatedAt: nowIso,
     title: resolveLegacyId(metadataOverride?.title, currentMetadata.title) || `Thread ${threadId.slice(0, 8)}`,
     runnerId: resolveLegacyId(metadataOverride?.runnerId, currentMetadata.runnerId) || null,
+    currentModelId: resolvedCurrentModelId,
+    currentModelName: resolvedCurrentModelName,
+    currentReasoningLevel: resolvedCurrentReasoningLevel,
   };
   if (threadId) {
     companyApiThreadMetadataById.set(threadId, nextMetadata);
@@ -2527,6 +2567,9 @@ function toLegacyThreadPayload(thread, { metadataOverride } = {}) {
     runnerId: nextMetadata.runnerId,
     title: nextMetadata.title,
     status: resolveLegacyId(thread?.status) || "pending",
+    currentModelId: nextMetadata.currentModelId,
+    currentModelName: nextMetadata.currentModelName,
+    currentReasoningLevel: nextMetadata.currentReasoningLevel,
     createdAt: nextMetadata.createdAt,
     updatedAt: nextMetadata.updatedAt,
   };
@@ -5952,6 +5995,9 @@ function ChatsOverviewPage({
                         const isRunning = isChatSessionRunning(chatSession, chatSessionRunningById);
                         const chatSessionKey = `${agent.id}:${chatSession.id}`;
                         const isDeletingChat = deletingChatSessionKey === chatSessionKey;
+                        const modelLabel =
+                          String(chatSession?.currentModelName || chatSession?.currentModelId || "").trim() || "n/a";
+                        const reasoningLabel = String(chatSession?.currentReasoningLevel || "").trim() || "n/a";
                         return (
                           <li key={`chat-session-${agent.id}-${chatSession.id}`} className="chat-session-row">
                             <div>
@@ -5961,6 +6007,9 @@ function ChatsOverviewPage({
                               </p>
                               <p className="agent-subcopy">
                                 Updated: <strong>{formatTimestamp(chatSession.updatedAt)}</strong>
+                              </p>
+                              <p className="agent-subcopy">
+                                Model: <strong>{modelLabel}</strong> • Reasoning: <strong>{reasoningLabel}</strong>
                               </p>
                             </div>
                             <div className="task-card-actions">
@@ -6066,6 +6115,8 @@ function AgentChatsPage({
               const isRunning = isChatSessionRunning(session, chatSessionRunningById);
               const chatSessionKey = `${agent.id}:${session.id}`;
               const isDeletingChat = deletingChatSessionKey === chatSessionKey;
+              const modelLabel = String(session?.currentModelName || session?.currentModelId || "").trim() || "n/a";
+              const reasoningLabel = String(session?.currentReasoningLevel || "").trim() || "n/a";
               return (
                 <li key={`agent-session-${session.id}`} className="task-card">
                   <div className="task-card-top">
@@ -6077,6 +6128,9 @@ function AgentChatsPage({
                   </div>
                   <p className="agent-subcopy">
                     Updated: <strong>{formatTimestamp(session.updatedAt)}</strong>
+                  </p>
+                  <p className="agent-subcopy">
+                    Model: <strong>{modelLabel}</strong> • Reasoning: <strong>{reasoningLabel}</strong>
                   </p>
                   <div className="task-card-actions">
                     <button
@@ -6245,6 +6299,12 @@ function AgentChatPage({
             </p>
             <p className="codex-auth-row">
               <strong>Thread ID:</strong> <code className="runner-id">{session.id}</code>
+            </p>
+            <p className="codex-auth-row">
+              <strong>Model:</strong> {session.currentModelName || session.currentModelId || "n/a"}
+            </p>
+            <p className="codex-auth-row">
+              <strong>Reasoning:</strong> {session.currentReasoningLevel || "n/a"}
             </p>
           </div>
         ) : (
@@ -6950,6 +7010,9 @@ function App() {
       runnerId: resolveLegacyId(metadata.runnerId) || null,
       title: resolveLegacyId(metadata.title) || `Thread ${resolvedSessionId.slice(0, 8)}`,
       status: "ready",
+      currentModelId: resolveLegacyId(metadata.currentModelId) || null,
+      currentModelName: resolveLegacyId(metadata.currentModelName) || null,
+      currentReasoningLevel: resolveLegacyId(metadata.currentReasoningLevel) || null,
       createdAt: resolveLegacyId(metadata.createdAt) || nowIso,
       updatedAt: resolveLegacyId(metadata.updatedAt) || nowIso,
     };
