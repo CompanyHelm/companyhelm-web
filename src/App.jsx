@@ -1318,9 +1318,33 @@ const COMPANY_API_LIST_THREAD_TURNS_CONNECTION_QUERY = `
   }
 `;
 
+const COMPANY_API_LIST_QUEUED_USER_MESSAGES_QUERY = `
+  query CompanyApiListQueuedUserMessages($threadId: ID!, $first: Int!) {
+    queuedUserMessages(threadId: $threadId, first: $first) {
+      id
+      companyId
+      threadId
+      allowSteer
+      text
+    }
+  }
+`;
+
 const COMPANY_API_QUEUE_USER_MESSAGE_MUTATION = `
   mutation CompanyApiQueueUserMessage($threadId: ID!, $text: String!, $allowSteer: Boolean!) {
     queueUserMessage(threadId: $threadId, text: $text, allowSteer: $allowSteer) {
+      id
+      companyId
+      threadId
+      allowSteer
+      text
+    }
+  }
+`;
+
+const COMPANY_API_STEER_QUEUED_USER_MESSAGE_MUTATION = `
+  mutation CompanyApiSteerQueuedUserMessage($queuedMessageId: ID!) {
+    steerQueuedUserMessage(queuedMessageId: $queuedMessageId) {
       id
       companyId
       threadId
@@ -2442,6 +2466,16 @@ function toLegacyTurnPayload(turn, { runnerId } = {}) {
     createdAt: fallbackTimestamp,
     updatedAt: resolvedEndedAt || resolvedStartedAt || fallbackTimestamp,
     items,
+  };
+}
+
+function toLegacyQueuedUserMessagePayload(queuedMessage) {
+  return {
+    id: resolveLegacyId(queuedMessage?.id),
+    companyId: resolveLegacyId(queuedMessage?.companyId),
+    threadId: resolveLegacyId(queuedMessage?.threadId),
+    allowSteer: Boolean(queuedMessage?.allowSteer),
+    text: resolveLegacyId(queuedMessage?.text),
   };
 }
 
@@ -5892,22 +5926,26 @@ function AgentChatPage({
   agent,
   session,
   chatTurns,
+  queuedChatMessages,
   isLoadingChat,
   chatError,
   chatDraftMessage,
   chatMessageMode,
   isSendingChatMessage,
   isInterruptingChatTurn,
+  steeringQueuedMessageId,
   onChatDraftMessageChange,
   onChatMessageModeChange,
   onBackToChats,
   onSendChatMessage,
   onInterruptChatTurn,
+  onSteerQueuedMessage,
 }) {
   const canChat = Boolean(agent && session);
   const [selectedCommandOutputItem, setSelectedCommandOutputItem] = useState(null);
   const [visibleMessageCount, setVisibleMessageCount] = useState(CHAT_MESSAGE_BATCH_SIZE);
   const transcriptScrollRef = useRef(null);
+  const queuedMessages = Array.isArray(queuedChatMessages) ? queuedChatMessages : [];
   const orderedTurns = useMemo(
     () => [...(Array.isArray(chatTurns) ? chatTurns : [])].sort(compareTurnsByTimestamp),
     [chatTurns],
@@ -6125,6 +6163,43 @@ function AgentChatPage({
                   ) : null}
                 </li>
               );
+              })}
+            </ul>
+          </div>
+        ) : null}
+        {queuedMessages.length > 0 ? (
+          <div className="chat-queued-block">
+            <h3 className="chat-queued-title">Queued messages</h3>
+            <ul className="chat-queued-list">
+              {queuedMessages.map((queuedMessage) => {
+                const queuedMessageId = String(queuedMessage?.id || "").trim();
+                const isSteerMode = Boolean(queuedMessage?.allowSteer);
+                const isSteeringThisMessage = steeringQueuedMessageId === queuedMessageId;
+
+                return (
+                  <li key={queuedMessageId} className="chat-queued-item">
+                    <div className="chat-queued-meta">
+                      <span className="chat-message-kind">queued</span>
+                      <span className={`chat-turn-status ${isSteerMode ? "chat-turn-status-running" : "chat-turn-status-idle"}`}>
+                        {isSteerMode ? "steer" : "queue"}
+                      </span>
+                      <code className="runner-id">{queuedMessageId.slice(0, 8)}</code>
+                    </div>
+                    <p className="chat-message-content">{String(queuedMessage?.text || "").trim() || "(no content)"}</p>
+                    {!isSteerMode ? (
+                      <div className="task-card-actions">
+                        <button
+                          type="button"
+                          className="secondary-btn"
+                          disabled={!canChat || isSendingChatMessage || isInterruptingChatTurn || isSteeringThisMessage}
+                          onClick={() => onSteerQueuedMessage(queuedMessageId)}
+                        >
+                          {isSteeringThisMessage ? "Changing..." : "Change to steer"}
+                        </button>
+                      </div>
+                    ) : null}
+                  </li>
+                );
               })}
             </ul>
           </div>
@@ -6589,6 +6664,7 @@ function App() {
   const [chatSessionId, setChatSessionId] = useState("");
   const [chatSessionTitleDraft, setChatSessionTitleDraft] = useState("");
   const [chatTurns, setChatTurns] = useState([]);
+  const [queuedChatMessages, setQueuedChatMessages] = useState([]);
   const [chatDraftMessage, setChatDraftMessage] = useState("");
   const [chatMessageMode, setChatMessageMode] = useState("queue");
   const [chatError, setChatError] = useState("");
@@ -6599,6 +6675,7 @@ function App() {
   const [isLoadingChat, setIsLoadingChat] = useState(false);
   const [isSendingChatMessage, setIsSendingChatMessage] = useState(false);
   const [isInterruptingChatTurn, setIsInterruptingChatTurn] = useState(false);
+  const [steeringQueuedMessageId, setSteeringQueuedMessageId] = useState(null);
   const hasCompanies = companies.length > 0;
 
   const selectedCompany = useMemo(() => {
@@ -7048,6 +7125,7 @@ function App() {
       const targetSessionId = String(sessionIdOverride || resolvedChatSessionId || "").trim();
       if (!selectedCompanyId || !targetAgentId || !targetSessionId) {
         setChatTurns([]);
+        setQueuedChatMessages([]);
         if (!silently) {
           setChatError("");
           setIsLoadingChat(false);
@@ -7062,12 +7140,24 @@ function App() {
         }
         const metadata = companyApiThreadMetadataById.get(targetSessionId) || {};
         const runnerId = resolveLegacyId(metadata.runnerId) || null;
-        const nextTurns = await loadCompanyApiThreadTurns({
-          threadId: targetSessionId,
-          runnerId,
-          limit: 200,
-        });
+        const [nextTurns, queuedUserMessagesPayload] = await Promise.all([
+          loadCompanyApiThreadTurns({
+            threadId: targetSessionId,
+            runnerId,
+            limit: 200,
+          }),
+          executeRawGraphQL(COMPANY_API_LIST_QUEUED_USER_MESSAGES_QUERY, {
+            threadId: targetSessionId,
+            first: 200,
+          }),
+        ]);
+        const nextQueuedMessages = Array.isArray(queuedUserMessagesPayload?.queuedUserMessages)
+          ? queuedUserMessagesPayload.queuedUserMessages.map((queuedMessage) =>
+              toLegacyQueuedUserMessagePayload(queuedMessage),
+            )
+          : [];
         setChatTurns(nextTurns);
+        setQueuedChatMessages(nextQueuedMessages);
         setChatSessionRunningState(targetSessionId, hasRunningChatTurns(nextTurns));
       } catch (loadError) {
         if (!silently) {
@@ -7188,6 +7278,17 @@ function App() {
     );
     setChatTurns(nextTurns);
     if (resolvedChatSessionId) {
+      void executeRawGraphQL(COMPANY_API_LIST_QUEUED_USER_MESSAGES_QUERY, {
+        threadId: resolvedChatSessionId,
+        first: 200,
+      }).then((queuedUserMessagesPayload) => {
+        const nextQueuedMessages = Array.isArray(queuedUserMessagesPayload?.queuedUserMessages)
+          ? queuedUserMessagesPayload.queuedUserMessages.map((queuedMessage) =>
+              toLegacyQueuedUserMessagePayload(queuedMessage),
+            )
+          : [];
+        setQueuedChatMessages(nextQueuedMessages);
+      }).catch(() => {});
       setChatSessionRunningState(resolvedChatSessionId, hasRunningChatTurns(nextTurns));
     }
     setChatError("");
@@ -7286,6 +7387,7 @@ function App() {
     setChatSessionId("");
     setChatSessionTitleDraft("");
     setChatTurns([]);
+    setQueuedChatMessages([]);
     setChatDraftMessage("");
     setChatError("");
     setChatIndexError("");
@@ -7453,6 +7555,10 @@ function App() {
   ]);
 
   useEffect(() => {
+    setSteeringQueuedMessageId(null);
+  }, [resolvedChatSessionId]);
+
+  useEffect(() => {
     if (!selectedCompanyId || activePage !== "chats") {
       return;
     }
@@ -7463,6 +7569,7 @@ function App() {
     if (!selectedCompanyId) {
       setChatAgentId("");
       setChatTurns([]);
+      setQueuedChatMessages([]);
       return;
     }
 
@@ -7479,6 +7586,7 @@ function App() {
       setChatSessionId((currentSessionId) => (currentSessionId ? "" : currentSessionId));
       setChatSessions((currentSessions) => (currentSessions.length > 0 ? [] : currentSessions));
       setChatTurns((currentTurns) => (currentTurns.length > 0 ? [] : currentTurns));
+      setQueuedChatMessages((currentMessages) => (currentMessages.length > 0 ? [] : currentMessages));
       return;
     }
 
@@ -7494,6 +7602,7 @@ function App() {
       });
       if (!chatSessionId) {
         setChatTurns((currentTurns) => (currentTurns.length > 0 ? [] : currentTurns));
+        setQueuedChatMessages((currentMessages) => (currentMessages.length > 0 ? [] : currentMessages));
       }
       return;
     }
@@ -7506,6 +7615,7 @@ function App() {
     if (activePage === "agents" && agentsRoute.view === "chats") {
       setChatSessionId("");
       setChatTurns([]);
+      setQueuedChatMessages([]);
       return;
     }
 
@@ -7552,6 +7662,7 @@ function App() {
       if (agentsRoute.view === "chats") {
         setChatSessionId("");
         setChatTurns([]);
+        setQueuedChatMessages([]);
       }
       if (agentsRoute.view === "chat" && agentsRoute.sessionId) {
         setChatSessionId(agentsRoute.sessionId);
@@ -8864,6 +8975,41 @@ function App() {
     }
   }
 
+  async function handleSteerQueuedChatMessage(queuedMessageId) {
+    const resolvedQueuedMessageId = String(queuedMessageId || "").trim();
+    if (!resolvedQueuedMessageId) {
+      return;
+    }
+    if (!selectedCompanyId) {
+      setChatError("Select a company before steering queued messages.");
+      return;
+    }
+    if (!chatAgentId) {
+      setChatError("Select an agent before steering queued messages.");
+      return;
+    }
+    if (!resolvedChatSessionId) {
+      setChatError("Select a chat before steering queued messages.");
+      return;
+    }
+
+    try {
+      setSteeringQueuedMessageId(resolvedQueuedMessageId);
+      setChatError("");
+      await executeRawGraphQL(COMPANY_API_STEER_QUEUED_USER_MESSAGE_MUTATION, {
+        queuedMessageId: resolvedQueuedMessageId,
+      });
+      await loadAgentChatTurns({
+        agentIdOverride: chatAgentId,
+        sessionIdOverride: resolvedChatSessionId,
+      });
+    } catch (steerError) {
+      setChatError(steerError.message);
+    } finally {
+      setSteeringQueuedMessageId(null);
+    }
+  }
+
   async function handleSendChatMessage(event) {
     if (event?.preventDefault) {
       event.preventDefault();
@@ -9054,6 +9200,7 @@ function App() {
     setChatSessions(Array.isArray(sessionsForAgent) ? sessionsForAgent : []);
     setChatSessionId(resolvedSessionId);
     setChatTurns([]);
+    setQueuedChatMessages([]);
     setChatError("");
     setBrowserPath(`/agents/${resolvedAgentId}/chats/${resolvedSessionId}`);
   }
@@ -9066,6 +9213,7 @@ function App() {
     setChatAgentId(resolvedAgentId);
     setChatSessionId("");
     setChatTurns([]);
+    setQueuedChatMessages([]);
     const createdSessionId = await handleCreateChatSession({ agentId: resolvedAgentId });
     if (createdSessionId) {
       setBrowserPath(`/agents/${resolvedAgentId}/chats/${createdSessionId}`);
@@ -9218,6 +9366,7 @@ function App() {
     if (String(pageId || "").trim().toLowerCase() === "chats") {
       setChatSessionId("");
       setChatTurns([]);
+      setQueuedChatMessages([]);
     }
     setBrowserPath(getPathForPage(pageId));
   }
@@ -9231,6 +9380,7 @@ function App() {
     setChatAgentId(resolvedAgentId);
     setChatSessionId("");
     setChatTurns([]);
+    setQueuedChatMessages([]);
     setBrowserPath(`/agents/${resolvedAgentId}/chats`);
   }
 
@@ -9536,21 +9686,25 @@ function App() {
               agent={agents.find((agent) => agent.id === chatAgentId) || null}
               session={selectedChatSession}
               chatTurns={chatTurns}
+              queuedChatMessages={queuedChatMessages}
               isLoadingChat={isLoadingChat}
               chatError={chatError}
               chatDraftMessage={chatDraftMessage}
               chatMessageMode={chatMessageMode}
               isSendingChatMessage={isSendingChatMessage}
               isInterruptingChatTurn={isInterruptingChatTurn}
+              steeringQueuedMessageId={steeringQueuedMessageId}
               onChatDraftMessageChange={setChatDraftMessage}
               onChatMessageModeChange={setChatMessageMode}
               onBackToChats={() => {
                 setChatSessionId("");
                 setChatTurns([]);
+                setQueuedChatMessages([]);
                 loadChatSessionIndexByAgent({ silently: true });
               }}
               onSendChatMessage={handleSendChatMessage}
               onInterruptChatTurn={handleInterruptChatTurn}
+              onSteerQueuedMessage={handleSteerQueuedChatMessage}
             />
           ) : (
             <ChatsOverviewPage
@@ -9597,12 +9751,14 @@ function App() {
               agent={agents.find((agent) => agent.id === chatAgentId) || null}
               session={selectedChatSession}
               chatTurns={chatTurns}
+              queuedChatMessages={queuedChatMessages}
               isLoadingChat={isLoadingChat}
               chatError={chatError}
               chatDraftMessage={chatDraftMessage}
               chatMessageMode={chatMessageMode}
               isSendingChatMessage={isSendingChatMessage}
               isInterruptingChatTurn={isInterruptingChatTurn}
+              steeringQueuedMessageId={steeringQueuedMessageId}
               onChatDraftMessageChange={setChatDraftMessage}
               onChatMessageModeChange={setChatMessageMode}
               onBackToChats={() => {
@@ -9614,6 +9770,7 @@ function App() {
               }}
               onSendChatMessage={handleSendChatMessage}
               onInterruptChatTurn={handleInterruptChatTurn}
+              onSteerQueuedMessage={handleSteerQueuedChatMessage}
             />
           ) : (
             <AgentsPage
