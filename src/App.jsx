@@ -870,6 +870,16 @@ const CREATE_AGENT_THREAD_MUTATION = `
   }
 `;
 
+const DELETE_AGENT_THREAD_MUTATION = `
+  mutation DeleteAgentThread($companyId: String!, $agentId: String!, $threadId: String!) {
+    deleteAgentThread(companyId: $companyId, agentId: $agentId, threadId: $threadId) {
+      ok
+      error
+      deletedThreadId
+    }
+  }
+`;
+
 const CREATE_AGENT_TURN_MUTATION = `
   mutation CreateAgentTurn(
     $companyId: String!
@@ -1277,6 +1287,12 @@ const COMPANY_API_CREATE_THREAD_MUTATION = `
       agentId
       status
     }
+  }
+`;
+
+const COMPANY_API_DELETE_THREAD_MUTATION = `
+  mutation CompanyApiDeleteThread($threadId: ID!) {
+    deleteThread(threadId: $threadId)
   }
 `;
 
@@ -2844,6 +2860,24 @@ async function executeGraphQL(query, variables = {}) {
         ok: true,
         error: null,
         thread: legacyThread,
+      },
+    };
+  }
+
+  if (query === DELETE_AGENT_THREAD_MUTATION) {
+    const threadId = resolveLegacyId(variables?.threadId, variables?.id);
+    const data = await executeRawGraphQL(COMPANY_API_DELETE_THREAD_MUTATION, {
+      threadId,
+    });
+    const ok = Boolean(data?.deleteThread);
+    if (ok && threadId) {
+      companyApiThreadMetadataById.delete(threadId);
+    }
+    return {
+      deleteAgentThread: {
+        ok,
+        error: ok ? null : "Failed to delete chat.",
+        deletedThreadId: ok ? threadId : null,
       },
     };
   }
@@ -5699,9 +5733,11 @@ function ChatsOverviewPage({
   isLoadingChatIndex,
   chatIndexError,
   isCreatingChatSession,
+  deletingChatSessionKey,
   onRefreshChatLists,
   onCreateChatForAgent,
   onOpenChat,
+  onDeleteChat,
 }) {
   const sortedAgents = useMemo(() => {
     return [...(Array.isArray(agents) ? agents : [])].sort((leftAgent, rightAgent) =>
@@ -5767,6 +5803,8 @@ function ChatsOverviewPage({
                     <ul className="chat-session-list">
                       {sortedChats.map((chatSession) => {
                         const isRunning = isChatSessionRunning(chatSession, chatSessionRunningById);
+                        const chatSessionKey = `${agent.id}:${chatSession.id}`;
+                        const isDeletingChat = deletingChatSessionKey === chatSessionKey;
                         return (
                           <li key={`chat-session-${agent.id}-${chatSession.id}`} className="chat-session-row">
                             <div>
@@ -5778,19 +5816,36 @@ function ChatsOverviewPage({
                                 Updated: <strong>{formatTimestamp(chatSession.updatedAt)}</strong>
                               </p>
                             </div>
-                            <button
-                              type="button"
-                              className="secondary-btn"
-                              onClick={() =>
-                                onOpenChat({
-                                  agentId: agent.id,
-                                  sessionId: chatSession.id,
-                                  sessionsForAgent: sortedChats,
-                                })
-                              }
-                            >
-                              Open chat
-                            </button>
+                            <div className="task-card-actions">
+                              <button
+                                type="button"
+                                className="secondary-btn"
+                                onClick={() =>
+                                  onOpenChat({
+                                    agentId: agent.id,
+                                    sessionId: chatSession.id,
+                                    sessionsForAgent: sortedChats,
+                                  })
+                                }
+                                disabled={isDeletingChat}
+                              >
+                                Open chat
+                              </button>
+                              <button
+                                type="button"
+                                className="danger-btn"
+                                onClick={() =>
+                                  onDeleteChat({
+                                    agentId: agent.id,
+                                    sessionId: chatSession.id,
+                                    title: chatSession.title,
+                                  })
+                                }
+                                disabled={isDeletingChat}
+                              >
+                                {isDeletingChat ? "Deleting..." : "Delete"}
+                              </button>
+                            </div>
                           </li>
                         );
                       })}
@@ -5822,11 +5877,13 @@ function AgentChatsPage({
   chatSessionRunningById,
   isLoadingChatSessions,
   isCreatingChatSession,
+  deletingChatSessionKey,
   chatError,
   chatSessionTitleDraft,
   onChatSessionTitleDraftChange,
   onCreateChatSession,
   onOpenChat,
+  onDeleteChat,
   onBackToAgents,
 }) {
   return (
@@ -5860,6 +5917,8 @@ function AgentChatsPage({
           <ul className="task-list">
             {chatSessions.map((session) => {
               const isRunning = isChatSessionRunning(session, chatSessionRunningById);
+              const chatSessionKey = `${agent.id}:${session.id}`;
+              const isDeletingChat = deletingChatSessionKey === chatSessionKey;
               return (
                 <li key={`agent-session-${session.id}`} className="task-card">
                   <div className="task-card-top">
@@ -5877,8 +5936,23 @@ function AgentChatsPage({
                       type="button"
                       className="secondary-btn"
                       onClick={() => onOpenChat(session.id)}
+                      disabled={isDeletingChat}
                     >
                       Open chat
+                    </button>
+                    <button
+                      type="button"
+                      className="danger-btn"
+                      onClick={() =>
+                        onDeleteChat({
+                          agentId: agent.id,
+                          sessionId: session.id,
+                          title: session.title,
+                        })
+                      }
+                      disabled={isDeletingChat}
+                    >
+                      {isDeletingChat ? "Deleting..." : "Delete"}
                     </button>
                   </div>
                 </li>
@@ -6667,6 +6741,7 @@ function App() {
   const [queuedChatMessages, setQueuedChatMessages] = useState([]);
   const [chatDraftMessage, setChatDraftMessage] = useState("");
   const [chatMessageMode, setChatMessageMode] = useState("queue");
+  const [deletingChatSessionKey, setDeletingChatSessionKey] = useState("");
   const [chatError, setChatError] = useState("");
   const [chatIndexError, setChatIndexError] = useState("");
   const [isLoadingChatIndex, setIsLoadingChatIndex] = useState(false);
@@ -9220,6 +9295,105 @@ function App() {
     }
   }
 
+  async function handleDeleteChatSession({
+    agentId = null,
+    sessionId = null,
+    title = null,
+  } = {}) {
+    const targetAgentId = String(agentId || chatAgentId || "").trim();
+    const targetSessionId = String(sessionId || "").trim();
+    if (!selectedCompanyId) {
+      const errorMessage = "Select a company before deleting chats.";
+      setChatError(errorMessage);
+      setChatIndexError(errorMessage);
+      return false;
+    }
+    if (!targetAgentId || !targetSessionId) {
+      return false;
+    }
+
+    const agentSessions = Array.isArray(chatSessionsByAgent[targetAgentId])
+      ? chatSessionsByAgent[targetAgentId]
+      : [];
+    const matchingSession = agentSessions.find((session) => String(session?.id || "").trim() === targetSessionId)
+      || chatSessions.find((session) => String(session?.id || "").trim() === targetSessionId)
+      || null;
+    const resolvedTitle = String(title || matchingSession?.title || "").trim();
+    const confirmationLabel = resolvedTitle
+      ? `"${resolvedTitle}" (${targetSessionId})`
+      : targetSessionId;
+    const confirmed = window.confirm(`Delete chat ${confirmationLabel}?`);
+    if (!confirmed) {
+      return false;
+    }
+
+    const targetChatSessionKey = `${targetAgentId}:${targetSessionId}`;
+    const isOverviewRoute = activePage === "chats" && !resolvedChatSessionId;
+    try {
+      setDeletingChatSessionKey(targetChatSessionKey);
+      setChatError("");
+      setChatIndexError("");
+      const data = await executeGraphQL(DELETE_AGENT_THREAD_MUTATION, {
+        companyId: selectedCompanyId,
+        agentId: targetAgentId,
+        threadId: targetSessionId,
+      });
+      const result = data.deleteAgentThread;
+      if (!result?.ok) {
+        throw new Error(result?.error || "Chat deletion failed.");
+      }
+
+      companyApiThreadMetadataById.delete(targetSessionId);
+      setChatSessionRunningState(targetSessionId, false);
+      setChatSessions((currentSessions) =>
+        currentSessions.filter((session) => String(session?.id || "").trim() !== targetSessionId),
+      );
+      setChatSessionsByAgent((currentSessionsByAgent) => {
+        const existingSessions = Array.isArray(currentSessionsByAgent[targetAgentId])
+          ? currentSessionsByAgent[targetAgentId]
+          : [];
+        return {
+          ...currentSessionsByAgent,
+          [targetAgentId]: existingSessions.filter(
+            (session) => String(session?.id || "").trim() !== targetSessionId,
+          ),
+        };
+      });
+
+      if (resolvedChatSessionId === targetSessionId) {
+        setChatSessionId("");
+        setChatTurns([]);
+        setQueuedChatMessages([]);
+        if (
+          activePage === "agents"
+          && agentsRoute.view === "chat"
+          && String(agentsRoute.agentId || "").trim() === targetAgentId
+        ) {
+          setBrowserPath(`/agents/${targetAgentId}/chats`);
+        }
+      }
+
+      if (isOverviewRoute) {
+        await loadChatSessionIndexByAgent({ silently: true });
+      } else {
+        await loadAgentChatSessions({
+          silently: true,
+          agentIdOverride: targetAgentId,
+        });
+      }
+      return true;
+    } catch (deleteError) {
+      const errorMessage = deleteError?.message || "Chat deletion failed.";
+      if (isOverviewRoute) {
+        setChatIndexError(errorMessage);
+      }
+      setChatError(errorMessage);
+      return false;
+    } finally {
+      setDeletingChatSessionKey("");
+    }
+  }
+
   function handleDraftChange(taskId, field, value) {
     setRelationshipDrafts((currentDrafts) => ({
       ...currentDrafts,
@@ -9715,9 +9889,11 @@ function App() {
               isLoadingChatIndex={isLoadingChatIndex}
               chatIndexError={chatIndexError}
               isCreatingChatSession={isCreatingChatSession}
+              deletingChatSessionKey={deletingChatSessionKey}
               onRefreshChatLists={() => loadChatSessionIndexByAgent()}
               onCreateChatForAgent={handleCreateChatForAgent}
               onOpenChat={handleOpenChatFromList}
+              onDeleteChat={handleDeleteChatSession}
             />
           )
         ) : null}
@@ -9731,6 +9907,7 @@ function App() {
               chatSessionRunningById={chatSessionRunningById}
               isLoadingChatSessions={isLoadingChatSessions}
               isCreatingChatSession={isCreatingChatSession}
+              deletingChatSessionKey={deletingChatSessionKey}
               chatError={chatError}
               chatSessionTitleDraft={chatSessionTitleDraft}
               onChatSessionTitleDraftChange={setChatSessionTitleDraft}
@@ -9741,6 +9918,7 @@ function App() {
                 }
                 setBrowserPath(`/agents/${chatAgentId}/chats/${sessionId}`);
               }}
+              onDeleteChat={handleDeleteChatSession}
               onBackToAgents={() => {
                 navigateTo("agents");
               }}
