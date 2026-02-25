@@ -2176,8 +2176,12 @@ function isChatSessionRunning(session, chatSessionRunningById) {
   if (!session) {
     return false;
   }
-  if (normalizeChatStatus(session.status) === "running") {
+  const normalizedSessionStatus = String(session.status || "").trim().toLowerCase();
+  if (normalizedSessionStatus === "running") {
     return true;
+  }
+  if (normalizedSessionStatus === "ready") {
+    return false;
   }
   const sessionId = String(session.id || "").trim();
   return Boolean(sessionId && chatSessionRunningById?.[sessionId]);
@@ -7198,6 +7202,63 @@ function App() {
     });
   }, []);
 
+  const syncChatSessionRunningStateFromSessions = useCallback((sessions) => {
+    const sessionsSnapshot = Array.isArray(sessions) ? sessions : [];
+    if (sessionsSnapshot.length === 0) {
+      return;
+    }
+
+    setChatSessionRunningById((currentState) => {
+      let nextState = currentState;
+      let hasChanges = false;
+
+      for (const session of sessionsSnapshot) {
+        const sessionId = String(session?.id || "").trim();
+        if (!sessionId) {
+          continue;
+        }
+
+        const shouldBeRunning = normalizeChatStatus(session?.status) === "running";
+        const currentlyRunning = Boolean(nextState[sessionId]);
+        if (shouldBeRunning === currentlyRunning) {
+          continue;
+        }
+
+        if (nextState === currentState) {
+          nextState = { ...currentState };
+        }
+
+        if (shouldBeRunning) {
+          nextState[sessionId] = true;
+        } else {
+          delete nextState[sessionId];
+        }
+        hasChanges = true;
+      }
+
+      return hasChanges ? nextState : currentState;
+    });
+  }, []);
+
+  const applyChatSessionsSnapshotForAgent = useCallback((agentId, sessions) => {
+    const resolvedAgentId = String(agentId || "").trim();
+    const sessionsSnapshot = Array.isArray(sessions) ? sessions : [];
+    if (!resolvedAgentId) {
+      return;
+    }
+
+    setChatSessionsByAgent((currentSessionsByAgent) => ({
+      ...currentSessionsByAgent,
+      [resolvedAgentId]: sessionsSnapshot,
+    }));
+
+    if (chatAgentId === resolvedAgentId) {
+      setChatSessions(sessionsSnapshot);
+    }
+
+    syncChatSessionRunningStateFromSessions(sessionsSnapshot);
+  }, [chatAgentId, syncChatSessionRunningStateFromSessions]);
+
   const breadcrumbItems = useMemo(() => {
     const currentPageLabel = NAV_ITEM_LOOKUP.get(activePage)?.label || "Dashboard";
 
@@ -7271,8 +7332,7 @@ function App() {
 
   const isChatsConversationView = activePage === "chats" && Boolean(chatAgentId) && Boolean(resolvedChatSessionId);
   const shouldSubscribeChatSessions =
-    (activePage === "agents" && (agentsRoute.view === "chats" || agentsRoute.view === "chat")) ||
-    (activePage === "chats" && Boolean(chatAgentId));
+    activePage === "agents" && (agentsRoute.view === "chats" || agentsRoute.view === "chat");
   const shouldSubscribeChatTurns = isChatsConversationView || (
     activePage === "agents" && agentsRoute.view === "chat" && Boolean(resolvedChatSessionId)
   );
@@ -7540,11 +7600,7 @@ function App() {
           agentId: targetAgentId,
           limit: 200,
         });
-        setChatSessions(nextSessions);
-        setChatSessionsByAgent((currentSessionsByAgent) => ({
-          ...currentSessionsByAgent,
-          [targetAgentId]: nextSessions,
-        }));
+        applyChatSessionsSnapshotForAgent(targetAgentId, nextSessions);
       } catch (loadError) {
         if (!silently) {
           setChatError(loadError.message);
@@ -7555,7 +7611,7 @@ function App() {
         }
       }
     },
-    [selectedCompanyId, chatAgentId],
+    [selectedCompanyId, chatAgentId, applyChatSessionsSnapshotForAgent],
   );
 
   const loadAgentChatTurns = useCallback(
@@ -7658,6 +7714,10 @@ function App() {
           nextSessionsByAgent[agentId] = sessionsForAgent;
         }
         setChatSessionsByAgent(nextSessionsByAgent);
+        syncChatSessionRunningStateFromSessions(
+          Object.values(nextSessionsByAgent).flatMap((sessionsForAgent) =>
+            Array.isArray(sessionsForAgent) ? sessionsForAgent : []),
+        );
       } catch (loadError) {
         if (!silently) {
           setChatIndexError(loadError.message);
@@ -7668,7 +7728,7 @@ function App() {
         }
       }
     },
-    [agents, selectedCompanyId],
+    [agents, selectedCompanyId, syncChatSessionRunningStateFromSessions],
   );
 
   const handleAgentRunnersSubscriptionData = useCallback((payload) => {
@@ -7695,16 +7755,11 @@ function App() {
     }
     const nextThreadNodes = toConnectionNodes(payload?.agentThreadsUpdated);
     const nextSessions = nextThreadNodes.map((threadNode) => toLegacyThreadPayload(threadNode));
-    setChatSessions(nextSessions);
-    if (chatAgentId) {
-      setChatSessionsByAgent((currentSessionsByAgent) => ({
-        ...currentSessionsByAgent,
-        [chatAgentId]: nextSessions,
-      }));
-    }
+    const subscriptionAgentId = resolveLegacyId(nextSessions[0]?.agentId, chatAgentId) || "";
+    applyChatSessionsSnapshotForAgent(subscriptionAgentId, nextSessions);
     setChatError("");
     setIsLoadingChatSessions(false);
-  }, [chatAgentId]);
+  }, [chatAgentId, applyChatSessionsSnapshotForAgent]);
 
   const handleAgentChatTurnsSubscriptionData = useCallback((payload) => {
     if (!payload?.agentTurnsUpdated) {
@@ -7758,6 +7813,55 @@ function App() {
     onData: handleAgentChatSessionsSubscriptionData,
     onError: handleAgentChatSubscriptionError,
   });
+
+  useEffect(() => {
+    if (!selectedCompanyId || activePage !== "chats") {
+      return undefined;
+    }
+
+    const agentIds = [...new Set(
+      (Array.isArray(agents) ? agents : [])
+        .map((agentEntry) => String(agentEntry?.id || "").trim())
+        .filter(Boolean),
+    )];
+    if (agentIds.length === 0) {
+      return undefined;
+    }
+
+    const unsubscribers = agentIds.map((agentId) =>
+      subscribeGraphQL({
+        query: AGENT_THREADS_SUBSCRIPTION,
+        variables: {
+          companyId: selectedCompanyId,
+          agentId,
+          first: 500,
+        },
+        onData: (payload) => {
+          if (!payload?.agentThreadsUpdated) {
+            return;
+          }
+          const nextThreadNodes = toConnectionNodes(payload?.agentThreadsUpdated);
+          const nextSessions = nextThreadNodes.map((threadNode) => toLegacyThreadPayload(threadNode));
+          applyChatSessionsSnapshotForAgent(agentId, nextSessions);
+          setChatError("");
+          setIsLoadingChatSessions(false);
+        },
+        onError: handleAgentChatSubscriptionError,
+      }),
+    );
+
+    return () => {
+      for (const unsubscribe of unsubscribers) {
+        unsubscribe();
+      }
+    };
+  }, [
+    activePage,
+    agents,
+    selectedCompanyId,
+    applyChatSessionsSnapshotForAgent,
+    handleAgentChatSubscriptionError,
+  ]);
 
   useGraphQLSubscription({
     enabled: Boolean(selectedCompanyId && chatAgentId && resolvedChatSessionId && shouldSubscribeChatTurns),
