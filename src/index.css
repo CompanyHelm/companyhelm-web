@@ -1396,6 +1396,58 @@ button:disabled {
   gap: 0.42rem;
 }
 
+.chat-panel-header {
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.chat-title-inline-display {
+  max-width: 100%;
+}
+
+.chat-title-inline-display strong {
+  overflow-wrap: anywhere;
+}
+
+.chat-title-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.76rem;
+  height: 1.76rem;
+  padding: 0;
+  border-radius: 999px;
+  background: rgba(26, 32, 38, 0.08);
+  color: var(--ink-0);
+}
+
+.chat-title-edit-icon {
+  width: 0.88rem;
+  height: 0.88rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.chat-title-inline-form {
+  width: min(100%, 20rem);
+  margin: 0;
+  gap: 0.32rem;
+}
+
+.chat-title-inline-form input {
+  padding: 0.45rem 0.62rem;
+  font-size: 0.84rem;
+}
+
+.chat-title-inline-hint {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--ink-1);
+}
+
 .chat-session-running-badge {
   display: inline-flex;
   align-items: center;
@@ -1489,6 +1541,33 @@ button:disabled {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.45rem;
+}
+
+.chat-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chat-action-btn-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.36rem;
+}
+
+.chat-action-icon {
+  width: 0.86rem;
+  height: 0.86rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.85;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.chat-action-icon circle {
+  fill: currentColor;
+  stroke: none;
 }
 
 .chat-composer-actions-running .chat-stop-btn {
