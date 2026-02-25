@@ -7572,8 +7572,7 @@ function App() {
     setAgentSdk(DEFAULT_AGENT_SDK);
     setAgentModel("");
     setAgentModelReasoningLevel("");
-    setRunnerIdDraft("");
-    setRunnerSecretDraft("");
+    setRunnerNameDraft("");
     setRunnerSecretsById({});
     setHasLoadedAgentRunners(false);
     setRegeneratingRunnerId(null);
