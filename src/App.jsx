@@ -6763,7 +6763,7 @@ function AgentChatPage({
                       <path d="M3 11 21 3 13 21 11 13 3 11z" />
                       <path d="m11 13 10-10" />
                     </svg>
-                    <span>{isSendingChatMessage ? "Queueing..." : "Queue"}</span>
+                    <span>{isSendingChatMessage ? "queueing..." : "queue"}</span>
                   </span>
                 </button>
                 <button
@@ -6786,7 +6786,7 @@ function AgentChatPage({
                       <path d="M8 6v4a2 2 0 0 0 2 2h6" />
                       <path d="M8 18v-4a2 2 0 0 1 2-2h6" />
                     </svg>
-                    <span>{isSendingChatMessage ? "Steering..." : "Steer"}</span>
+                    <span>{isSendingChatMessage ? "steering..." : "steer"}</span>
                   </span>
                 </button>
                 <button
