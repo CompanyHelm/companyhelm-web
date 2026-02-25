@@ -6326,6 +6326,7 @@ function AgentChatPage({
     }, 0);
   }, [visibleTurns]);
   const isShowingPartialTranscript = visibleMessageCount < totalMessageCount;
+  const hasTranscriptContent = orderedTurns.length > 0 || queuedMessages.length > 0;
 
   useEffect(() => {
     setVisibleMessageCount(CHAT_MESSAGE_BATCH_SIZE);
@@ -6361,7 +6362,7 @@ function AgentChatPage({
       return;
     }
     transcriptNode.scrollTop = transcriptNode.scrollHeight;
-  }, [session?.id, orderedTurns.length, totalMessageCount, visibleMessageCount]);
+  }, [session?.id, orderedTurns.length, totalMessageCount, visibleMessageCount, queuedMessages.length]);
 
   function handleChatMessageKeyDown(event) {
     if (event.key !== "Enter" || event.shiftKey || event.isComposing) {
@@ -6436,7 +6437,7 @@ function AgentChatPage({
   }
 
   return (
-    <div className="page-stack">
+    <div className="page-stack chat-page-stack">
       <section className="panel hero-panel">
         <p className="eyebrow">Agent Runtime</p>
         <h1>Agent chat</h1>
@@ -6530,10 +6531,10 @@ function AgentChatPage({
         {!agent ? <p className="empty-hint">Agent not found.</p> : null}
         {agent && !session ? <p className="empty-hint">Chat not found.</p> : null}
         {canChat && isLoadingChat ? <p className="empty-hint">Loading chat messages...</p> : null}
-        {canChat && !isLoadingChat && orderedTurns.length === 0 ? (
+        {canChat && !isLoadingChat && !hasTranscriptContent ? (
           <p className="empty-hint">No messages yet. Send the first prompt below.</p>
         ) : null}
-        {orderedTurns.length > 0 ? (
+        {hasTranscriptContent ? (
           <div
             ref={transcriptScrollRef}
             className="chat-transcript-scroll"
@@ -6545,154 +6546,156 @@ function AgentChatPage({
                 messages.
               </p>
             ) : null}
-            <ul className="chat-turn-list">
-              {visibleTurns.map((turn) => {
-              const normalizedTurnStatus = String(turn?.status || "").trim().toLowerCase();
-              const turnStatus = normalizedTurnStatus === "running"
-                ? "running"
-                : normalizedTurnStatus === "pending"
-                  ? "pending"
-                  : "completed";
-              const reasoningState = turnStatus === "running"
-                ? "running"
-                : turnStatus === "pending"
-                  ? "pending"
-                  : "completed";
-              const turnItems = Array.isArray(turn?.items) ? turn.items : [];
+            {orderedTurns.length > 0 ? (
+              <ul className="chat-turn-list">
+                {visibleTurns.map((turn) => {
+                  const normalizedTurnStatus = String(turn?.status || "").trim().toLowerCase();
+                  const turnStatus = normalizedTurnStatus === "running"
+                    ? "running"
+                    : normalizedTurnStatus === "pending"
+                      ? "pending"
+                      : "completed";
+                  const reasoningState = turnStatus === "running"
+                    ? "running"
+                    : turnStatus === "pending"
+                      ? "pending"
+                      : "completed";
+                  const turnItems = Array.isArray(turn?.items) ? turn.items : [];
 
-              return (
-                <li key={turn.id} className={`chat-turn-item chat-turn-item-${turnStatus}`}>
-                  <div className="chat-turn-meta">
-                    <strong>turn</strong>
-                    <code className="runner-id">{String(turn.id || "").slice(0, 8)}</code>
-                    <span className={`chat-turn-status chat-turn-status-${turnStatus}`}>{turnStatus}</span>
-                    {turnStatus === "running" ? (
-                      <span
-                        className="chat-turn-spinner"
-                        aria-label="Turn is running"
-                        title="Turn in progress"
-                      />
-                    ) : null}
-                    <span>{formatTimestamp(turn.createdAt)}</span>
-                  </div>
-
-                  {turnItems.length === 0 ? (
-                    <p className="empty-hint">No items yet for this turn.</p>
-                  ) : (
-                    <ul className="chat-item-list">
-                      {turnItems.map((item) => {
-                        const itemRole = String(item?.role || "").toLowerCase();
-                        const roleLabel = itemRole === "user" || itemRole === "human" ? "human" : "llm";
-                        const itemType = String(item?.itemType || "").trim().toLowerCase() || "agent_message";
-                        const normalizedItemStatus = String(item?.status || "").trim().toLowerCase();
-                        const itemStatus = normalizedItemStatus === "running"
-                          ? "running"
-                          : normalizedItemStatus === "pending"
-                            ? "pending"
-                            : "completed";
-                        const isCommandExecution = itemType === "command_execution";
-                        const bodyText = isCommandExecution
-                          ? String(item?.command || "").trim() || "(command unavailable)"
-                          : String(item?.text || "").trim() || "(no content)";
-
-                        return (
-                          <li
-                            key={item.id}
-                            className={`chat-item-entry chat-item-entry-${itemStatus} chat-item-entry-${roleLabel}`}
-                          >
-                            <div className="chat-item-meta">
-                              <strong>{roleLabel}</strong>
-                              <span className="chat-message-kind">{itemType}</span>
-                              <span>{itemStatus}</span>
-                              {itemStatus === "running" ? (
-                                <span
-                                  className="chat-turn-spinner chat-item-spinner"
-                                  aria-label="Item is running"
-                                  title="Item in progress"
-                                />
-                              ) : null}
-                              <span>start {formatTimestamp(item.startedAt || item.createdAt)}</span>
-                              <span>end {item.endedAt ? formatTimestamp(item.endedAt) : "..."}</span>
-                            </div>
-
-                            {isCommandExecution ? (
-                              <p className="chat-message-content chat-message-content-command">
-                                <code>{bodyText}</code>
-                              </p>
-                            ) : (
-                              <div className="chat-message-content chat-message-content-markdown">
-                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{bodyText}</ReactMarkdown>
-                              </div>
-                            )}
-
-                            {isCommandExecution ? (
-                              <div className="task-card-actions">
-                                <button
-                                  type="button"
-                                  className="secondary-btn"
-                                  onClick={() => setSelectedCommandOutputItem(item)}
-                                >
-                                  View output
-                                </button>
-                              </div>
-                            ) : null}
-
-                            {item.error ? <p className="chat-message-error">{item.error}</p> : null}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-
-                  {turn.reasoningText ? (
-                    <p
-                      className={`chat-turn-reasoning chat-turn-reasoning-${reasoningState}`}
-                      data-state={reasoningState}
-                    >
-                      <span>{turn.reasoningText}</span>
-                    </p>
-                  ) : null}
-                </li>
-              );
-              })}
-            </ul>
-          </div>
-        ) : null}
-        {queuedMessages.length > 0 ? (
-          <div className="chat-queued-block">
-            <h3 className="chat-queued-title">Queued messages</h3>
-            <ul className="chat-queued-list">
-              {queuedMessages.map((queuedMessage) => {
-                const queuedMessageId = String(queuedMessage?.id || "").trim();
-                const isSteerMode = Boolean(queuedMessage?.allowSteer);
-                const isSteeringThisMessage = steeringQueuedMessageId === queuedMessageId;
-
-                return (
-                  <li key={queuedMessageId} className="chat-queued-item">
-                    <div className="chat-queued-meta">
-                      <span className="chat-message-kind">queued</span>
-                      <span className={`chat-turn-status ${isSteerMode ? "chat-turn-status-running" : "chat-turn-status-idle"}`}>
-                        {isSteerMode ? "steer" : "queue"}
-                      </span>
-                      <code className="runner-id">{queuedMessageId.slice(0, 8)}</code>
-                    </div>
-                    <p className="chat-message-content">{String(queuedMessage?.text || "").trim() || "(no content)"}</p>
-                    {!isSteerMode ? (
-                      <div className="task-card-actions">
-                        <button
-                          type="button"
-                          className="secondary-btn"
-                          disabled={!canChat || isSendingChatMessage || isInterruptingChatTurn || isSteeringThisMessage}
-                          onClick={() => onSteerQueuedMessage(queuedMessageId)}
-                        >
-                          {isSteeringThisMessage ? "Changing..." : "Change to steer"}
-                        </button>
+                  return (
+                    <li key={turn.id} className={`chat-turn-item chat-turn-item-${turnStatus}`}>
+                      <div className="chat-turn-meta">
+                        <strong>turn</strong>
+                        <code className="runner-id">{String(turn.id || "").slice(0, 8)}</code>
+                        <span className={`chat-turn-status chat-turn-status-${turnStatus}`}>{turnStatus}</span>
+                        {turnStatus === "running" ? (
+                          <span
+                            className="chat-turn-spinner"
+                            aria-label="Turn is running"
+                            title="Turn in progress"
+                          />
+                        ) : null}
+                        <span>{formatTimestamp(turn.createdAt)}</span>
                       </div>
-                    ) : null}
-                  </li>
-                );
-              })}
-            </ul>
+
+                      {turnItems.length === 0 ? (
+                        <p className="empty-hint">No items yet for this turn.</p>
+                      ) : (
+                        <ul className="chat-item-list">
+                          {turnItems.map((item) => {
+                            const itemRole = String(item?.role || "").toLowerCase();
+                            const roleLabel = itemRole === "user" || itemRole === "human" ? "human" : "llm";
+                            const itemType = String(item?.itemType || "").trim().toLowerCase() || "agent_message";
+                            const normalizedItemStatus = String(item?.status || "").trim().toLowerCase();
+                            const itemStatus = normalizedItemStatus === "running"
+                              ? "running"
+                              : normalizedItemStatus === "pending"
+                                ? "pending"
+                                : "completed";
+                            const isCommandExecution = itemType === "command_execution";
+                            const bodyText = isCommandExecution
+                              ? String(item?.command || "").trim() || "(command unavailable)"
+                              : String(item?.text || "").trim() || "(no content)";
+
+                            return (
+                              <li
+                                key={item.id}
+                                className={`chat-item-entry chat-item-entry-${itemStatus} chat-item-entry-${roleLabel}`}
+                              >
+                                <div className="chat-item-meta">
+                                  <strong>{roleLabel}</strong>
+                                  <span className="chat-message-kind">{itemType}</span>
+                                  <span>{itemStatus}</span>
+                                  {itemStatus === "running" ? (
+                                    <span
+                                      className="chat-turn-spinner chat-item-spinner"
+                                      aria-label="Item is running"
+                                      title="Item in progress"
+                                    />
+                                  ) : null}
+                                  <span>start {formatTimestamp(item.startedAt || item.createdAt)}</span>
+                                  <span>end {item.endedAt ? formatTimestamp(item.endedAt) : "..."}</span>
+                                </div>
+
+                                {isCommandExecution ? (
+                                  <p className="chat-message-content chat-message-content-command">
+                                    <code>{bodyText}</code>
+                                  </p>
+                                ) : (
+                                  <div className="chat-message-content chat-message-content-markdown">
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{bodyText}</ReactMarkdown>
+                                  </div>
+                                )}
+
+                                {isCommandExecution ? (
+                                  <div className="task-card-actions">
+                                    <button
+                                      type="button"
+                                      className="secondary-btn"
+                                      onClick={() => setSelectedCommandOutputItem(item)}
+                                    >
+                                      View output
+                                    </button>
+                                  </div>
+                                ) : null}
+
+                                {item.error ? <p className="chat-message-error">{item.error}</p> : null}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+
+                      {turn.reasoningText ? (
+                        <p
+                          className={`chat-turn-reasoning chat-turn-reasoning-${reasoningState}`}
+                          data-state={reasoningState}
+                        >
+                          <span>{turn.reasoningText}</span>
+                        </p>
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : null}
+            {queuedMessages.length > 0 ? (
+              <div className="chat-queued-block">
+                <h3 className="chat-queued-title">Queued messages</h3>
+                <ul className="chat-queued-list">
+                  {queuedMessages.map((queuedMessage) => {
+                    const queuedMessageId = String(queuedMessage?.id || "").trim();
+                    const isSteerMode = Boolean(queuedMessage?.allowSteer);
+                    const isSteeringThisMessage = steeringQueuedMessageId === queuedMessageId;
+
+                    return (
+                      <li key={queuedMessageId} className="chat-queued-item">
+                        <div className="chat-queued-meta">
+                          <span className="chat-message-kind">queued</span>
+                          <span className={`chat-turn-status ${isSteerMode ? "chat-turn-status-running" : "chat-turn-status-idle"}`}>
+                            {isSteerMode ? "steer" : "queue"}
+                          </span>
+                          <code className="runner-id">{queuedMessageId.slice(0, 8)}</code>
+                        </div>
+                        <p className="chat-message-content">{String(queuedMessage?.text || "").trim() || "(no content)"}</p>
+                        {!isSteerMode ? (
+                          <div className="task-card-actions">
+                            <button
+                              type="button"
+                              className="secondary-btn"
+                              disabled={!canChat || isSendingChatMessage || isInterruptingChatTurn || isSteeringThisMessage}
+                              onClick={() => onSteerQueuedMessage(queuedMessageId)}
+                            >
+                              {isSteeringThisMessage ? "Changing..." : "Change to steer"}
+                            </button>
+                          </div>
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </section>
@@ -6720,7 +6723,7 @@ function AgentChatPage({
         </div>
       </CreationModal>
 
-      <section className="panel composer-panel">
+      <section className="panel composer-panel chat-composer-panel">
         <header className="panel-header">
           <h2>Send message</h2>
         </header>
@@ -7423,11 +7426,12 @@ function App() {
   ]);
 
   const isChatsConversationView = activePage === "chats" && Boolean(chatAgentId) && Boolean(resolvedChatSessionId);
+  const isAgentConversationView =
+    activePage === "agents" && agentsRoute.view === "chat" && Boolean(resolvedChatSessionId);
+  const isChatConversationRoute = isChatsConversationView || isAgentConversationView;
   const shouldSubscribeChatSessions =
     activePage === "agents" && (agentsRoute.view === "chats" || agentsRoute.view === "chat");
-  const shouldSubscribeChatTurns = isChatsConversationView || (
-    activePage === "agents" && agentsRoute.view === "chat" && Boolean(resolvedChatSessionId)
-  );
+  const shouldSubscribeChatTurns = isChatConversationRoute;
   const shouldLoadGithubData = activePage === "settings";
   const shouldLoadTaskData = activePage === "dashboard" || activePage === "tasks" || activePage === "profile";
   const shouldLoadSkillData =
@@ -10396,7 +10400,7 @@ function App() {
         </nav>
       </aside>
 
-      <main className="page-shell">
+      <main className={`page-shell${isChatConversationRoute ? " page-shell-chat-layout" : ""}`}>
         <Breadcrumbs items={breadcrumbItems} onNavigate={setBrowserPath} />
 
         {!selectedCompanyId && activePage !== "settings" && activePage !== "profile" ? (

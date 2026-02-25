@@ -267,6 +267,17 @@ h3 {
   align-content: start;
 }
 
+.page-shell-chat-layout {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding: 0.9rem 1.2rem 1rem;
+  height: 100vh;
+  min-height: 100vh;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
 .app-header {
   display: flex;
   align-items: baseline;
@@ -385,6 +396,17 @@ h3 {
 .page-stack {
   display: grid;
   gap: 0.85rem;
+}
+
+.chat-page-stack {
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  overflow: hidden;
+}
+
+.chat-page-stack > * {
+  min-width: 0;
 }
 
 .page-stack > *,
@@ -1211,12 +1233,27 @@ button:disabled {
   gap: 0.64rem;
 }
 
+.chat-page-stack .chat-panel {
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 .chat-transcript-scroll {
   max-height: min(68vh, 880px);
   overflow-y: auto;
   display: grid;
   gap: 0.64rem;
   padding-right: 0.24rem;
+}
+
+.chat-page-stack .chat-transcript-scroll {
+  max-height: none;
+  min-height: 0;
+  flex: 1 1 auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .chat-transcript-hint {
@@ -1574,6 +1611,12 @@ button:disabled {
   margin-left: auto;
 }
 
+.chat-composer-panel {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+}
+
 .chat-stop-btn {
   display: inline-flex;
   align-items: center;
@@ -1817,6 +1860,10 @@ button:disabled {
     max-width: none;
   }
 
+  .page-shell-chat-layout {
+    padding: 0.7rem;
+  }
+
   .app-header {
     flex-direction: column;
     align-items: stretch;
@@ -1849,6 +1896,10 @@ button:disabled {
 
   .page-shell {
     padding: 0.85rem;
+  }
+
+  .page-shell-chat-layout {
+    padding: 0.6rem;
   }
 
   .dashboard-panels {
