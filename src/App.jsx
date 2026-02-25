@@ -871,6 +871,26 @@ const CREATE_AGENT_THREAD_MUTATION = `
   }
 `;
 
+const UPDATE_AGENT_THREAD_MUTATION = `
+  mutation UpdateAgentThread($threadId: String!, $title: String) {
+    updateAgentThread(threadId: $threadId, title: $title) {
+      ok
+      error
+      thread {
+        id
+        threadId
+        companyId
+        agentId
+        runnerId
+        title
+        status
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`;
+
 const DELETE_AGENT_THREAD_MUTATION = `
   mutation DeleteAgentThread($companyId: String!, $agentId: String!, $threadId: String!) {
     deleteAgentThread(companyId: $companyId, agentId: $agentId, threadId: $threadId) {
@@ -987,6 +1007,7 @@ const AGENT_THREADS_SUBSCRIPTION = `
           id
           companyId
           agentId
+          title
           status
           currentModelId
           currentReasoningLevel
@@ -1335,6 +1356,7 @@ const COMPANY_API_LIST_THREADS_CONNECTION_QUERY = `
           id
           companyId
           agentId
+          title
           status
           currentModelId
           currentReasoningLevel
@@ -1353,11 +1375,30 @@ const COMPANY_API_LIST_THREADS_CONNECTION_QUERY = `
 `;
 
 const COMPANY_API_CREATE_THREAD_MUTATION = `
-  mutation CompanyApiCreateThread($companyId: ID!, $agentId: ID!) {
-    createThread(companyId: $companyId, agentId: $agentId) {
+  mutation CompanyApiCreateThread($companyId: ID!, $agentId: ID!, $title: String) {
+    createThread(companyId: $companyId, agentId: $agentId, title: $title) {
       id
       companyId
       agentId
+      title
+      status
+      currentModelId
+      currentReasoningLevel
+      currentModel {
+        id
+        name
+      }
+    }
+  }
+`;
+
+const COMPANY_API_UPDATE_THREAD_TITLE_MUTATION = `
+  mutation CompanyApiUpdateThreadTitle($threadId: ID!, $title: String) {
+    updateThreadTitle(threadId: $threadId, title: $title) {
+      id
+      companyId
+      agentId
+      title
       status
       currentModelId
       currentReasoningLevel
@@ -2546,10 +2587,22 @@ function toLegacyThreadPayload(thread, { metadataOverride } = {}) {
     thread?.currentReasoningLevel,
     currentMetadata.currentReasoningLevel,
   ) || null;
+  const overrideProvidesTitle = Boolean(
+    metadataOverride && Object.prototype.hasOwnProperty.call(metadataOverride, "title"),
+  );
+  const threadProvidesTitle = Boolean(thread && Object.prototype.hasOwnProperty.call(thread, "title"));
+  const explicitTitleValue = overrideProvidesTitle
+    ? metadataOverride.title
+    : threadProvidesTitle
+      ? thread.title
+      : undefined;
+  const normalizedExplicitTitle = typeof explicitTitleValue === "string" ? explicitTitleValue.trim() : "";
+  const fallbackTitle = explicitTitleValue === undefined ? resolveLegacyId(currentMetadata.title) : "";
+  const resolvedTitle = normalizedExplicitTitle || fallbackTitle || `Thread ${threadId.slice(0, 8)}`;
   const nextMetadata = {
     createdAt: currentMetadata.createdAt || nowIso,
     updatedAt: nowIso,
-    title: resolveLegacyId(metadataOverride?.title, currentMetadata.title) || `Thread ${threadId.slice(0, 8)}`,
+    title: resolvedTitle,
     runnerId: resolveLegacyId(metadataOverride?.runnerId, currentMetadata.runnerId) || null,
     currentModelId: resolvedCurrentModelId,
     currentModelName: resolvedCurrentModelName,
@@ -2990,9 +3043,9 @@ async function executeGraphQL(query, variables = {}) {
     const data = await executeRawGraphQL(COMPANY_API_CREATE_THREAD_MUTATION, {
       companyId,
       agentId,
+      title: resolveLegacyId(variables?.title) || null,
     });
     const metadata = {
-      title: resolveLegacyId(variables?.title),
       runnerId: resolveLegacyId(variables?.runnerId) || null,
     };
     const requestedThreadId = resolveLegacyId(data?.createThread?.id);
@@ -3033,6 +3086,25 @@ async function executeGraphQL(query, variables = {}) {
         ok: true,
         error: null,
         thread: legacyThread,
+      },
+    };
+  }
+
+  if (query === UPDATE_AGENT_THREAD_MUTATION) {
+    const threadId = resolveLegacyId(variables?.threadId, variables?.id);
+    const data = await executeRawGraphQL(COMPANY_API_UPDATE_THREAD_TITLE_MUTATION, {
+      threadId,
+      title: resolveLegacyId(variables?.title) || null,
+    });
+    const updatedThread = data?.updateThreadTitle;
+    if (!updatedThread) {
+      throw new Error("Failed to update chat title.");
+    }
+    return {
+      updateAgentThread: {
+        ok: true,
+        error: null,
+        thread: toLegacyThreadPayload(updatedThread),
       },
     };
   }
@@ -6200,6 +6272,7 @@ function AgentChatPage({
   selectedCompanyId,
   agent,
   session,
+  chatSessionRenameDraft,
   chatTurns,
   queuedChatMessages,
   isLoadingChat,
@@ -6208,10 +6281,13 @@ function AgentChatPage({
   chatMessageMode,
   isSendingChatMessage,
   isInterruptingChatTurn,
+  isUpdatingChatTitle,
   steeringQueuedMessageId,
+  onChatSessionRenameDraftChange,
   onChatDraftMessageChange,
   onChatMessageModeChange,
   onBackToChats,
+  onSaveChatSessionTitle,
   onSendChatMessage,
   onInterruptChatTurn,
   onSteerQueuedMessage,
@@ -6294,9 +6370,22 @@ function AgentChatPage({
         </header>
         {session ? (
           <div className="codex-auth-state">
-            <p className="codex-auth-row">
-              <strong>Title:</strong> {session.title || "Untitled chat"}
-            </p>
+            <form
+              className="task-form"
+              onSubmit={onSaveChatSessionTitle}
+            >
+              <label htmlFor="chat-session-rename">Title</label>
+              <input
+                id="chat-session-rename"
+                value={chatSessionRenameDraft}
+                onChange={(event) => onChatSessionRenameDraftChange(event.target.value)}
+                placeholder="e.g. Release planning"
+                disabled={isUpdatingChatTitle}
+              />
+              <button type="submit" disabled={isUpdatingChatTitle}>
+                {isUpdatingChatTitle ? "Saving..." : "Save title"}
+              </button>
+            </form>
             <p className="codex-auth-row">
               <strong>Thread ID:</strong> <code className="runner-id">{session.id}</code>
             </p>
@@ -6943,6 +7032,7 @@ function App() {
   const [chatSessionRunningById, setChatSessionRunningById] = useState({});
   const [chatSessionId, setChatSessionId] = useState("");
   const [chatSessionTitleDraft, setChatSessionTitleDraft] = useState("");
+  const [chatSessionRenameDraft, setChatSessionRenameDraft] = useState("");
   const [chatTurns, setChatTurns] = useState([]);
   const [queuedChatMessages, setQueuedChatMessages] = useState([]);
   const [chatDraftMessage, setChatDraftMessage] = useState("");
@@ -6956,6 +7046,7 @@ function App() {
   const [isLoadingChat, setIsLoadingChat] = useState(false);
   const [isSendingChatMessage, setIsSendingChatMessage] = useState(false);
   const [isInterruptingChatTurn, setIsInterruptingChatTurn] = useState(false);
+  const [isUpdatingChatTitle, setIsUpdatingChatTitle] = useState(false);
   const [steeringQueuedMessageId, setSteeringQueuedMessageId] = useState(null);
   const hasCompanies = companies.length > 0;
 
@@ -7669,12 +7760,14 @@ function App() {
     setChatSessionRunningById({});
     setChatSessionId("");
     setChatSessionTitleDraft("");
+    setChatSessionRenameDraft("");
     setChatTurns([]);
     setQueuedChatMessages([]);
     setChatDraftMessage("");
     setChatError("");
     setChatIndexError("");
     setIsInterruptingChatTurn(false);
+    setIsUpdatingChatTitle(false);
     setIsLoadingChatIndex(false);
     setAgentMcpServerIds([]);
     setRetryingAgentSkillInstallKey("");
@@ -7840,6 +7933,19 @@ function App() {
   useEffect(() => {
     setSteeringQueuedMessageId(null);
   }, [resolvedChatSessionId]);
+
+  useEffect(() => {
+    if (!resolvedChatSessionId) {
+      setChatSessionRenameDraft("");
+      setIsUpdatingChatTitle(false);
+      return;
+    }
+
+    const nextTitle = String(selectedChatSession?.title || "");
+    setChatSessionRenameDraft((currentTitle) =>
+      currentTitle === nextTitle ? currentTitle : nextTitle,
+    );
+  }, [resolvedChatSessionId, selectedChatSession?.title]);
 
   useEffect(() => {
     if (!selectedCompanyId || activePage !== "chats") {
@@ -9518,6 +9624,68 @@ function App() {
     }
   }
 
+  async function handleUpdateChatSessionTitle(event) {
+    if (event?.preventDefault) {
+      event.preventDefault();
+    }
+
+    const targetSessionId = String(resolvedChatSessionId || "").trim();
+    if (!targetSessionId) {
+      setChatError("Select a chat before updating its title.");
+      return;
+    }
+
+    try {
+      setIsUpdatingChatTitle(true);
+      setChatError("");
+      const data = await executeGraphQL(UPDATE_AGENT_THREAD_MUTATION, {
+        threadId: targetSessionId,
+        title: String(chatSessionRenameDraft || "").trim() || null,
+      });
+      const result = data?.updateAgentThread;
+      if (!result?.ok || !result?.thread) {
+        throw new Error(result?.error || "Failed to update chat title.");
+      }
+
+      const updatedSession = result.thread;
+      const upsertSessionList = (sessions) => {
+        let matched = false;
+        const nextSessions = (Array.isArray(sessions) ? sessions : []).map((session) => {
+          const sessionId = String(session?.id || "").trim();
+          if (sessionId !== targetSessionId) {
+            return session;
+          }
+          matched = true;
+          return {
+            ...session,
+            ...updatedSession,
+          };
+        });
+
+        if (!matched) {
+          nextSessions.unshift(updatedSession);
+        }
+        return nextSessions;
+      };
+
+      setChatSessions((currentSessions) => upsertSessionList(currentSessions));
+
+      const targetAgentId = resolveLegacyId(updatedSession?.agentId, chatAgentId);
+      if (targetAgentId) {
+        setChatSessionsByAgent((currentSessionsByAgent) => ({
+          ...currentSessionsByAgent,
+          [targetAgentId]: upsertSessionList(currentSessionsByAgent[targetAgentId]),
+        }));
+      }
+
+      setChatSessionRenameDraft(String(updatedSession?.title || ""));
+    } catch (updateError) {
+      setChatError(updateError.message);
+    } finally {
+      setIsUpdatingChatTitle(false);
+    }
+  }
+
   function handleOpenChatFromList({ agentId, sessionId, sessionsForAgent = [] }) {
     const resolvedAgentId = String(agentId || "").trim();
     const resolvedSessionId = String(sessionId || "").trim();
@@ -10111,6 +10279,7 @@ function App() {
               selectedCompanyId={selectedCompanyId}
               agent={agents.find((agent) => agent.id === chatAgentId) || null}
               session={selectedChatSession}
+              chatSessionRenameDraft={chatSessionRenameDraft}
               chatTurns={chatTurns}
               queuedChatMessages={queuedChatMessages}
               isLoadingChat={isLoadingChat}
@@ -10119,7 +10288,9 @@ function App() {
               chatMessageMode={chatMessageMode}
               isSendingChatMessage={isSendingChatMessage}
               isInterruptingChatTurn={isInterruptingChatTurn}
+              isUpdatingChatTitle={isUpdatingChatTitle}
               steeringQueuedMessageId={steeringQueuedMessageId}
+              onChatSessionRenameDraftChange={setChatSessionRenameDraft}
               onChatDraftMessageChange={setChatDraftMessage}
               onChatMessageModeChange={setChatMessageMode}
               onBackToChats={() => {
@@ -10128,6 +10299,7 @@ function App() {
                 setQueuedChatMessages([]);
                 loadChatSessionIndexByAgent({ silently: true });
               }}
+              onSaveChatSessionTitle={handleUpdateChatSessionTitle}
               onSendChatMessage={handleSendChatMessage}
               onInterruptChatTurn={handleInterruptChatTurn}
               onSteerQueuedMessage={handleSteerQueuedChatMessage}
@@ -10180,6 +10352,7 @@ function App() {
               selectedCompanyId={selectedCompanyId}
               agent={agents.find((agent) => agent.id === chatAgentId) || null}
               session={selectedChatSession}
+              chatSessionRenameDraft={chatSessionRenameDraft}
               chatTurns={chatTurns}
               queuedChatMessages={queuedChatMessages}
               isLoadingChat={isLoadingChat}
@@ -10188,7 +10361,9 @@ function App() {
               chatMessageMode={chatMessageMode}
               isSendingChatMessage={isSendingChatMessage}
               isInterruptingChatTurn={isInterruptingChatTurn}
+              isUpdatingChatTitle={isUpdatingChatTitle}
               steeringQueuedMessageId={steeringQueuedMessageId}
+              onChatSessionRenameDraftChange={setChatSessionRenameDraft}
               onChatDraftMessageChange={setChatDraftMessage}
               onChatMessageModeChange={setChatMessageMode}
               onBackToChats={() => {
@@ -10198,6 +10373,7 @@ function App() {
                 }
                 setBrowserPath(`/agents/${chatAgentId}/chats`);
               }}
+              onSaveChatSessionTitle={handleUpdateChatSessionTitle}
               onSendChatMessage={handleSendChatMessage}
               onInterruptChatTurn={handleInterruptChatTurn}
               onSteerQueuedMessage={handleSteerQueuedChatMessage}
