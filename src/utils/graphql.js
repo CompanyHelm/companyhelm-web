@@ -1,0 +1,1482 @@
+export const LIST_COMPANIES_QUERY = `
+  query ListCompanies {
+    companies {
+      id
+      name
+    }
+  }
+`;
+
+export const CREATE_COMPANY_MUTATION = `
+  mutation CreateCompany($name: String!, $id: String) {
+    createCompany(name: $name, id: $id) {
+      ok
+      error
+      company {
+        id
+        name
+      }
+    }
+  }
+`;
+
+export const DELETE_COMPANY_MUTATION = `
+  mutation DeleteCompany($id: String!) {
+    deleteCompany(id: $id) {
+      ok
+      error
+      companyId
+    }
+  }
+`;
+
+export const LIST_GITHUB_APP_CONFIG_QUERY = `
+  query GithubAppConfig {
+    githubAppConfig {
+      appClientId
+      appLink
+    }
+  }
+`;
+
+export const LIST_GITHUB_INSTALLATIONS_QUERY = `
+  query ListGithubInstallations($companyId: String!) {
+    githubInstallations(companyId: $companyId) {
+      installationId
+      companyId
+      createdAt
+    }
+  }
+`;
+
+export const ADD_GITHUB_INSTALLATION_MUTATION = `
+  mutation AddGithubInstallation(
+    $companyId: String!
+    $installationId: String!
+    $setupAction: String
+  ) {
+    addGithubInstallation(
+      companyId: $companyId
+      installationId: $installationId
+      setupAction: $setupAction
+    ) {
+      ok
+      error
+      githubInstallation {
+        installationId
+        companyId
+        createdAt
+      }
+    }
+  }
+`;
+
+export const DELETE_GITHUB_INSTALLATION_MUTATION = `
+  mutation DeleteGithubInstallation($companyId: String!, $installationId: String!) {
+    deleteGithubInstallation(companyId: $companyId, installationId: $installationId) {
+      ok
+      error
+      deletedInstallationId
+    }
+  }
+`;
+
+export const LIST_REPOSITORIES_QUERY = `
+  query ListRepositories($companyId: String!, $provider: String, $githubInstallationId: String) {
+    repositories(
+      companyId: $companyId
+      provider: $provider
+      githubInstallationId: $githubInstallationId
+    ) {
+      id
+      companyId
+      provider
+      externalId
+      githubInstallationId
+      name
+      fullName
+      htmlUrl
+      isPrivate
+      defaultBranch
+      archived
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const REFRESH_GITHUB_INSTALLATION_REPOSITORIES_MUTATION = `
+  mutation RefreshGithubInstallationRepositories($companyId: String!, $installationId: String!) {
+    refreshGithubInstallationRepositories(companyId: $companyId, installationId: $installationId) {
+      ok
+      error
+      repositories {
+        id
+        companyId
+        provider
+        externalId
+        githubInstallationId
+        name
+        fullName
+        htmlUrl
+        isPrivate
+        defaultBranch
+        archived
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`;
+
+export const LIST_TASKS_QUERY = `
+  query ListTasks($companyId: String!) {
+    tasks(companyId: $companyId) {
+      id
+      companyId
+      name
+      description
+      parentTaskId
+      dependsOnTaskId
+    }
+  }
+`;
+
+export const LIST_AGENT_RUNNERS_QUERY = `
+  query ListAgentRunners($companyId: String!) {
+    agentRunners(companyId: $companyId) {
+      id
+      companyId
+      name
+      callbackUrl
+      hasAuthSecret
+      availableAgentSdks {
+        name
+        availableModels {
+          name
+          reasoningLevels
+        }
+      }
+      status
+      lastHealthCheckAt
+      lastSeenAt
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const CREATE_AGENT_RUNNER_MUTATION = `
+  mutation CreateAgentRunner(
+    $companyId: String!
+    $name: String!
+  ) {
+    createAgentRunner(
+      companyId: $companyId
+      name: $name
+    ) {
+      ok
+      error
+      provisionedAuthSecret
+      runnerLaunchCommand
+      agentRunner {
+        id
+        companyId
+        name
+        callbackUrl
+        hasAuthSecret
+        availableAgentSdks {
+          name
+          availableModels {
+            name
+            reasoningLevels
+          }
+        }
+        status
+        lastHealthCheckAt
+        lastSeenAt
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`;
+
+export const REGENERATE_AGENT_RUNNER_SECRET_MUTATION = `
+  mutation RegenerateAgentRunnerSecret($companyId: String!, $id: String!) {
+    regenerateAgentRunnerSecret(companyId: $companyId, id: $id) {
+      ok
+      error
+      provisionedAuthSecret
+      runnerLaunchCommand
+      agentRunner {
+      id
+      companyId
+      name
+      callbackUrl
+      hasAuthSecret
+      availableAgentSdks {
+        name
+        availableModels {
+          name
+          reasoningLevels
+        }
+      }
+        status
+        lastHealthCheckAt
+        lastSeenAt
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`;
+
+export const LIST_AGENTS_QUERY = `
+  query ListAgents($companyId: String!) {
+    agents(companyId: $companyId) {
+      id
+      companyId
+      agentRunnerId
+      skillIds
+      mcpServerIds
+      defaultAdditionalModelInstructions
+      installedSkills {
+        companyId
+        agentId
+        skillId
+        skillName
+        skillType
+        skillsMpPackageName
+        requestId
+        status
+        message
+        installLogs
+        installedAt
+        createdAt
+        updatedAt
+      }
+      name
+      agentSdk
+      model
+      modelReasoningLevel
+    }
+  }
+`;
+
+export const LIST_SKILLS_QUERY = `
+  query ListSkills($companyId: String!) {
+    skills(companyId: $companyId) {
+      id
+      companyId
+      name
+      skillType
+      skillsMpPackageName
+      description
+      instructions
+    }
+  }
+`;
+
+export const LIST_MCP_SERVERS_QUERY = `
+  query ListMcpServers($companyId: String!) {
+    mcpServers(companyId: $companyId) {
+      id
+      companyId
+      name
+      transportType
+      url
+      command
+      args
+      envVars {
+        key
+        value
+      }
+      authType
+      bearerToken
+      customHeaders {
+        key
+        value
+      }
+      enabled
+    }
+  }
+`;
+
+export const CREATE_TASK_MUTATION = `
+  mutation CreateTask(
+    $companyId: String!
+    $name: String!
+    $description: String
+    $parentTaskId: Int
+    $dependsOnTaskId: Int
+  ) {
+    createTask(
+      companyId: $companyId
+      name: $name
+      description: $description
+      parentTaskId: $parentTaskId
+      dependsOnTaskId: $dependsOnTaskId
+    ) {
+      ok
+      error
+      task {
+        id
+        companyId
+        name
+        description
+        parentTaskId
+        dependsOnTaskId
+      }
+    }
+  }
+`;
+
+export const UPDATE_TASK_MUTATION = `
+  mutation UpdateTask(
+    $companyId: String!
+    $id: Int!
+    $parentTaskId: Int
+    $dependsOnTaskId: Int
+  ) {
+    updateTask(
+      companyId: $companyId
+      id: $id
+      parentTaskId: $parentTaskId
+      dependsOnTaskId: $dependsOnTaskId
+    ) {
+      ok
+      error
+      task {
+        id
+        companyId
+        name
+        description
+        parentTaskId
+        dependsOnTaskId
+      }
+    }
+  }
+`;
+
+export const DELETE_TASK_MUTATION = `
+  mutation DeleteTask($companyId: String!, $id: Int!) {
+    deleteTask(companyId: $companyId, id: $id) {
+      ok
+      error
+      deletedTaskId
+    }
+  }
+`;
+
+export const DELETE_AGENT_RUNNER_MUTATION = `
+  mutation DeleteAgentRunner($companyId: String!, $id: String!) {
+    deleteAgentRunner(companyId: $companyId, id: $id) {
+      ok
+      error
+      deletedAgentRunnerId
+    }
+  }
+`;
+
+export const CREATE_AGENT_MUTATION = `
+  mutation CreateAgent(
+    $companyId: String!
+    $agentRunnerId: String
+    $skillIds: [String!]
+    $mcpServerIds: [String!]
+    $defaultAdditionalModelInstructions: String
+    $name: String!
+    $agentSdk: String!
+    $model: String!
+    $modelReasoningLevel: String!
+  ) {
+    createAgent(
+      companyId: $companyId
+      agentRunnerId: $agentRunnerId
+      skillIds: $skillIds
+      mcpServerIds: $mcpServerIds
+      defaultAdditionalModelInstructions: $defaultAdditionalModelInstructions
+      name: $name
+      agentSdk: $agentSdk
+      model: $model
+      modelReasoningLevel: $modelReasoningLevel
+    ) {
+      ok
+      error
+      agent {
+        id
+        companyId
+        agentRunnerId
+        skillIds
+        mcpServerIds
+        defaultAdditionalModelInstructions
+        name
+        agentSdk
+        model
+        modelReasoningLevel
+      }
+    }
+  }
+`;
+
+export const UPDATE_AGENT_MUTATION = `
+  mutation UpdateAgent(
+    $companyId: String!
+    $id: String!
+    $agentRunnerId: String
+    $skillIds: [String!]
+    $mcpServerIds: [String!]
+    $defaultAdditionalModelInstructions: String
+    $name: String!
+    $agentSdk: String!
+    $model: String!
+    $modelReasoningLevel: String!
+  ) {
+    updateAgent(
+      companyId: $companyId
+      id: $id
+      agentRunnerId: $agentRunnerId
+      skillIds: $skillIds
+      mcpServerIds: $mcpServerIds
+      defaultAdditionalModelInstructions: $defaultAdditionalModelInstructions
+      name: $name
+      agentSdk: $agentSdk
+      model: $model
+      modelReasoningLevel: $modelReasoningLevel
+    ) {
+      ok
+      error
+      agent {
+        id
+        companyId
+        agentRunnerId
+        skillIds
+        mcpServerIds
+        defaultAdditionalModelInstructions
+        name
+        agentSdk
+        model
+        modelReasoningLevel
+      }
+    }
+  }
+`;
+
+export const DELETE_AGENT_MUTATION = `
+  mutation DeleteAgent($companyId: String!, $id: String!) {
+    deleteAgent(companyId: $companyId, id: $id) {
+      ok
+      error
+      deletedAgentId
+    }
+  }
+`;
+
+export const CREATE_SKILL_MUTATION = `
+  mutation CreateSkill(
+    $companyId: String!
+    $name: String!
+    $skillType: String
+    $skillsMpPackageName: String
+    $description: String
+    $instructions: String
+  ) {
+    createSkill(
+      companyId: $companyId
+      name: $name
+      skillType: $skillType
+      skillsMpPackageName: $skillsMpPackageName
+      description: $description
+      instructions: $instructions
+    ) {
+      ok
+      error
+      skill {
+        id
+        companyId
+        name
+        skillType
+        skillsMpPackageName
+        description
+        instructions
+      }
+    }
+  }
+`;
+
+export const UPDATE_SKILL_MUTATION = `
+  mutation UpdateSkill(
+    $companyId: String!
+    $id: String!
+    $name: String!
+    $skillType: String
+    $skillsMpPackageName: String
+    $description: String
+    $instructions: String
+  ) {
+    updateSkill(
+      companyId: $companyId
+      id: $id
+      name: $name
+      skillType: $skillType
+      skillsMpPackageName: $skillsMpPackageName
+      description: $description
+      instructions: $instructions
+    ) {
+      ok
+      error
+      skill {
+        id
+        companyId
+        name
+        skillType
+        skillsMpPackageName
+        description
+        instructions
+      }
+    }
+  }
+`;
+
+export const DELETE_SKILL_MUTATION = `
+  mutation DeleteSkill($companyId: String!, $id: String!) {
+    deleteSkill(companyId: $companyId, id: $id) {
+      ok
+      error
+      deletedSkillId
+    }
+  }
+`;
+
+export const CREATE_MCP_SERVER_MUTATION = `
+  mutation CreateMcpServer(
+    $companyId: String!
+    $name: String!
+    $transportType: String
+    $url: String
+    $command: String
+    $args: [String!]
+    $envVars: [McpEnvVarInput!]
+    $authType: String
+    $bearerToken: String
+    $customHeaders: [McpHeaderInput!]
+    $enabled: Boolean
+  ) {
+    createMcpServer(
+      companyId: $companyId
+      name: $name
+      transportType: $transportType
+      url: $url
+      command: $command
+      args: $args
+      envVars: $envVars
+      authType: $authType
+      bearerToken: $bearerToken
+      customHeaders: $customHeaders
+      enabled: $enabled
+    ) {
+      ok
+      error
+      mcpServer {
+        id
+        companyId
+        name
+        transportType
+        url
+        command
+        args
+        envVars {
+          key
+          value
+        }
+        authType
+        bearerToken
+        customHeaders {
+          key
+          value
+        }
+        enabled
+      }
+    }
+  }
+`;
+
+export const UPDATE_MCP_SERVER_MUTATION = `
+  mutation UpdateMcpServer(
+    $companyId: String!
+    $id: String!
+    $name: String!
+    $transportType: String
+    $url: String
+    $command: String
+    $args: [String!]
+    $envVars: [McpEnvVarInput!]
+    $authType: String
+    $bearerToken: String
+    $customHeaders: [McpHeaderInput!]
+    $enabled: Boolean
+  ) {
+    updateMcpServer(
+      companyId: $companyId
+      id: $id
+      name: $name
+      transportType: $transportType
+      url: $url
+      command: $command
+      args: $args
+      envVars: $envVars
+      authType: $authType
+      bearerToken: $bearerToken
+      customHeaders: $customHeaders
+      enabled: $enabled
+    ) {
+      ok
+      error
+      mcpServer {
+        id
+        companyId
+        name
+        transportType
+        url
+        command
+        args
+        envVars {
+          key
+          value
+        }
+        authType
+        bearerToken
+        customHeaders {
+          key
+          value
+        }
+        enabled
+      }
+    }
+  }
+`;
+
+export const DELETE_MCP_SERVER_MUTATION = `
+  mutation DeleteMcpServer($companyId: String!, $id: String!) {
+    deleteMcpServer(companyId: $companyId, id: $id) {
+      ok
+      error
+      deletedMcpServerId
+    }
+  }
+`;
+
+export const INITIALIZE_AGENT_MUTATION = `
+  mutation InitializeAgentRunner($companyId: String!, $runnerId: String!, $agentId: String!) {
+    initializeAgentRunner(companyId: $companyId, runnerId: $runnerId, agentId: $agentId) {
+      ok
+      error
+      commandId
+      runnerId
+      agentId
+      queuedSkillInstallCount
+    }
+  }
+`;
+
+export const RETRY_AGENT_SKILL_INSTALL_MUTATION = `
+  mutation RetryAgentSkillInstall(
+    $companyId: String!
+    $agentId: String!
+    $skillId: String!
+    $runnerId: String
+  ) {
+    retryAgentSkillInstall(
+      companyId: $companyId
+      agentId: $agentId
+      skillId: $skillId
+      runnerId: $runnerId
+    ) {
+      ok
+      error
+      requestId
+      runnerId
+      agentId
+      skillId
+      installedSkill {
+        companyId
+        agentId
+        skillId
+        skillName
+        skillType
+        skillsMpPackageName
+        requestId
+        status
+        message
+        installLogs
+        installedAt
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`;
+
+export const LIST_AGENT_TURNS_QUERY = `
+  query ListAgentTurns(
+    $companyId: String!
+    $agentId: String!
+    $threadId: String
+    $limit: Int
+  ) {
+    agentTurns(
+      companyId: $companyId
+      agentId: $agentId
+      threadId: $threadId
+      limit: $limit
+    ) {
+      id
+      threadId
+      companyId
+      agentId
+      runnerId
+      status
+      reasoningText
+      startedAt
+      endedAt
+      createdAt
+      updatedAt
+      items {
+        id
+        turnId
+        threadId
+        companyId
+        agentId
+        runnerId
+        providerItemId
+        role
+        itemType
+        text
+        command
+        output
+        status
+        startedAt
+        endedAt
+        error
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`;
+
+export const LIST_AGENT_THREADS_QUERY = `
+  query ListAgentThreads($companyId: String!, $agentId: String!, $limit: Int) {
+    agentThreads(companyId: $companyId, agentId: $agentId, limit: $limit) {
+      id
+      threadId
+      companyId
+      agentId
+      runnerId
+      title
+      additionalModelInstructions
+      status
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const CREATE_AGENT_THREAD_MUTATION = `
+  mutation CreateAgentThread(
+    $companyId: String!
+    $agentId: String!
+    $title: String
+    $additionalModelInstructions: String
+    $runnerId: String
+  ) {
+    createAgentThread(
+      companyId: $companyId
+      agentId: $agentId
+      title: $title
+      additionalModelInstructions: $additionalModelInstructions
+      runnerId: $runnerId
+    ) {
+      ok
+      error
+      thread {
+        id
+        threadId
+        companyId
+        agentId
+        runnerId
+        title
+        additionalModelInstructions
+        status
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`;
+
+export const UPDATE_AGENT_THREAD_MUTATION = `
+  mutation UpdateAgentThread($threadId: String!, $title: String) {
+    updateAgentThread(threadId: $threadId, title: $title) {
+      ok
+      error
+      thread {
+        id
+        threadId
+        companyId
+        agentId
+        runnerId
+        title
+        additionalModelInstructions
+        status
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`;
+
+export const DELETE_AGENT_THREAD_MUTATION = `
+  mutation DeleteAgentThread($companyId: String!, $agentId: String!, $threadId: String!) {
+    deleteAgentThread(companyId: $companyId, agentId: $agentId, threadId: $threadId) {
+      ok
+      error
+      deletedThreadId
+    }
+  }
+`;
+
+export const CREATE_AGENT_TURN_MUTATION = `
+  mutation CreateAgentTurn(
+    $companyId: String!
+    $agentId: String!
+    $threadId: String!
+    $text: String!
+    $runnerId: String
+  ) {
+    createAgentTurn(
+      companyId: $companyId
+      agentId: $agentId
+      threadId: $threadId
+      text: $text
+      runnerId: $runnerId
+    ) {
+      ok
+      error
+      itemId
+      turnId
+      queuedUserMessageId
+      threadId
+      runnerId
+      agentId
+    }
+  }
+`;
+
+export const STEER_AGENT_TURN_MUTATION = `
+  mutation SteerAgentTurn(
+    $companyId: String!
+    $agentId: String!
+    $threadId: String!
+    $turnId: String!
+    $message: String!
+    $runnerId: String
+  ) {
+    steerAgentTurn(
+      companyId: $companyId
+      agentId: $agentId
+      threadId: $threadId
+      turnId: $turnId
+      message: $message
+      runnerId: $runnerId
+    ) {
+      ok
+      error
+      itemId
+      turnId
+      threadId
+      runnerId
+      agentId
+    }
+  }
+`;
+
+export const INTERRUPT_AGENT_TURN_MUTATION = `
+  mutation InterruptAgentTurn(
+    $companyId: String!
+    $agentId: String!
+    $threadId: String!
+    $runnerId: String
+  ) {
+    interruptAgentTurn(
+      companyId: $companyId
+      agentId: $agentId
+      threadId: $threadId
+      runnerId: $runnerId
+    ) {
+      ok
+      error
+      threadId
+      runnerId
+      agentId
+    }
+  }
+`;
+
+export const AGENT_RUNNERS_SUBSCRIPTION = `
+  subscription AgentRunnersUpdated($companyId: ID!, $first: Int = 200) {
+    agentRunnersUpdated(companyId: $companyId, first: $first) {
+      edges {
+        node {
+          id
+          companyId
+          agentSdks {
+            name
+            models {
+              name
+              reasoning
+            }
+          }
+          status
+        }
+      }
+    }
+  }
+`;
+
+export const AGENT_THREADS_SUBSCRIPTION = `
+  subscription AgentThreadsUpdated($companyId: ID!, $agentId: ID!, $first: Int = 500) {
+    agentThreadsUpdated(companyId: $companyId, agentId: $agentId, first: $first) {
+      edges {
+        node {
+          id
+          companyId
+          agentId
+          title
+          additionalModelInstructions
+          status
+          currentModelId
+          currentReasoningLevel
+          currentModel {
+            id
+            name
+          }
+        }
+      }
+    }
+  }
+`;
+
+export const AGENT_TURNS_SUBSCRIPTION = `
+  subscription AgentTurnsUpdated(
+    $companyId: ID!
+    $agentId: ID!
+    $threadId: ID!
+    $first: Int = 100
+  ) {
+    agentTurnsUpdated(companyId: $companyId, agentId: $agentId, threadId: $threadId, first: $first) {
+      edges {
+        node {
+          id
+          sdkTurnId
+          companyId
+          threadId
+          agentId
+          status
+          reasoningText
+          startedAt
+          endedAt
+          items {
+            id
+            sdkItemId
+            companyId
+            turnId
+            type
+            status
+            text
+            commandOutput
+            consoleOutput
+            processId
+            startedAt
+            completedAt
+          }
+        }
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_NOT_IMPLEMENTED_ERROR = "Not implemented in companyhelm-api yet.";
+export const COMPANY_API_PAGE_SIZE = 100;
+
+export const companyApiAgentMetadataById = new Map();
+export const companyApiThreadMetadataById = new Map();
+export const companyApiRunnerMetadataById = new Map();
+
+export const COMPANY_API_LIST_COMPANIES_CONNECTION_QUERY = `
+  query CompanyApiListCompanies($first: Int!, $after: String) {
+    companies(first: $first, after: $after) {
+      edges {
+        node {
+          id
+          name
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_CREATE_COMPANY_MUTATION = `
+  mutation CompanyApiCreateCompany($name: String!) {
+    createCompany(name: $name) {
+      id
+      name
+    }
+  }
+`;
+
+export const COMPANY_API_DELETE_COMPANY_MUTATION = `
+  mutation CompanyApiDeleteCompany($companyId: ID!) {
+    deleteCompany(companyId: $companyId)
+  }
+`;
+
+export const COMPANY_API_GITHUB_APP_CONFIG_QUERY = `
+  query CompanyApiGithubAppConfig {
+    githubAppConfig {
+      appClientId
+      appLink
+    }
+  }
+`;
+
+export const COMPANY_API_LIST_GITHUB_INSTALLATIONS_QUERY = `
+  query CompanyApiListGithubInstallations($companyId: ID!) {
+    githubInstallations(companyId: $companyId) {
+      installationId
+      companyId
+      createdAt
+    }
+  }
+`;
+
+export const COMPANY_API_LIST_REPOSITORIES_CONNECTION_QUERY = `
+  query CompanyApiListRepositories(
+    $companyId: ID!
+    $githubInstallationId: ID
+    $first: Int!
+    $after: String
+  ) {
+    repositories(
+      companyId: $companyId
+      githubInstallationId: $githubInstallationId
+      first: $first
+      after: $after
+    ) {
+      edges {
+        node {
+          id
+          companyId
+          provider
+          externalId
+          githubInstallationId
+          name
+          fullName
+          htmlUrl
+          isPrivate
+          defaultBranch
+          archived
+          createdAt
+          updatedAt
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_ADD_GITHUB_INSTALLATION_MUTATION = `
+  mutation CompanyApiAddGithubInstallation(
+    $companyId: ID!
+    $installationId: ID!
+    $setupAction: String
+  ) {
+    addGithubInstallation(
+      companyId: $companyId
+      installationId: $installationId
+      setupAction: $setupAction
+    ) {
+      ok
+      error
+      githubInstallation {
+        installationId
+        companyId
+        createdAt
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_LIST_AGENT_RUNNERS_CONNECTION_QUERY = `
+  query CompanyApiListAgentRunners($companyId: ID, $first: Int!, $after: String) {
+    agentRunners(companyId: $companyId, first: $first, after: $after) {
+      edges {
+        node {
+          id
+          companyId
+          name
+          agentSdks {
+            id
+            companyId
+            agentRunnerId
+            name
+            models {
+              id
+              companyId
+              agentRunnerSdkId
+              name
+              reasoning
+            }
+          }
+          status
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_CREATE_AGENT_RUNNER_MUTATION = `
+  mutation CompanyApiCreateAgentRunner($companyId: ID!, $name: String!) {
+    createAgentRunner(companyId: $companyId, name: $name) {
+      secret
+      agentRunner {
+        id
+        companyId
+        name
+        agentSdks {
+          id
+          companyId
+          agentRunnerId
+          name
+          models {
+            id
+            companyId
+            agentRunnerSdkId
+            name
+            reasoning
+          }
+        }
+        status
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_REGENERATE_AGENT_RUNNER_SECRET_MUTATION = `
+  mutation CompanyApiRegenerateAgentRunnerSecret($agentRunnerId: ID!) {
+    regenerateAgentRunnerSecret(agentRunnerId: $agentRunnerId) {
+      secret
+      agentRunner {
+        id
+        companyId
+        name
+        agentSdks {
+          id
+          companyId
+          agentRunnerId
+          name
+          models {
+            id
+            companyId
+            agentRunnerSdkId
+            name
+            reasoning
+          }
+        }
+        status
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_DELETE_AGENT_RUNNER_MUTATION = `
+  mutation CompanyApiDeleteAgentRunner($agentRunnerId: ID!) {
+    deleteAgentRunner(agentRunnerId: $agentRunnerId)
+  }
+`;
+
+export const COMPANY_API_LIST_AGENTS_CONNECTION_QUERY = `
+  query CompanyApiListAgents($companyId: ID, $first: Int!, $after: String) {
+    agents(companyId: $companyId, first: $first, after: $after) {
+      edges {
+        node {
+          id
+          name
+          companyId
+          status
+          defaultAdditionalModelInstructions
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_CREATE_AGENT_MUTATION = `
+  mutation CompanyApiCreateAgent(
+    $name: String!
+    $companyId: ID!
+    $agentRunnerId: ID!
+    $agentRunnerSdkId: ID!
+    $defaultModelId: ID!
+    $defaultReasoningLevel: String
+    $defaultAdditionalModelInstructions: String
+  ) {
+    createAgent(
+      name: $name
+      companyId: $companyId
+      agentRunnerId: $agentRunnerId
+      agentRunnerSdkId: $agentRunnerSdkId
+      defaultModelId: $defaultModelId
+      defaultReasoningLevel: $defaultReasoningLevel
+      defaultAdditionalModelInstructions: $defaultAdditionalModelInstructions
+    ) {
+      id
+      name
+      companyId
+      status
+      defaultAdditionalModelInstructions
+    }
+  }
+`;
+
+export const COMPANY_API_UPDATE_AGENT_MUTATION = `
+  mutation CompanyApiUpdateAgent(
+    $agentId: ID!
+    $name: String!
+    $agentRunnerId: ID!
+    $agentRunnerSdkId: ID!
+    $defaultModelId: ID!
+    $defaultReasoningLevel: String
+    $defaultAdditionalModelInstructions: String
+  ) {
+    updateAgent(
+      agentId: $agentId
+      name: $name
+      agentRunnerId: $agentRunnerId
+      agentRunnerSdkId: $agentRunnerSdkId
+      defaultModelId: $defaultModelId
+      defaultReasoningLevel: $defaultReasoningLevel
+      defaultAdditionalModelInstructions: $defaultAdditionalModelInstructions
+    ) {
+      id
+      name
+      companyId
+      status
+      defaultAdditionalModelInstructions
+    }
+  }
+`;
+
+export const COMPANY_API_DELETE_AGENT_MUTATION = `
+  mutation CompanyApiDeleteAgent($input: DeleteAgentInput!) {
+    deleteAgent(input: $input) {
+      ok
+      errors
+    }
+  }
+`;
+
+export const COMPANY_API_LIST_THREADS_CONNECTION_QUERY = `
+  query CompanyApiListThreads($companyId: ID, $agentId: ID, $first: Int!, $after: String) {
+    threads(companyId: $companyId, agentId: $agentId, first: $first, after: $after) {
+      edges {
+        node {
+          id
+          companyId
+          agentId
+          title
+          additionalModelInstructions
+          status
+          currentModelId
+          currentReasoningLevel
+          currentModel {
+            id
+            name
+          }
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_CREATE_THREAD_MUTATION = `
+  mutation CompanyApiCreateThread(
+    $companyId: ID!
+    $agentId: ID!
+    $title: String
+    $additionalModelInstructions: String
+  ) {
+    createThread(
+      companyId: $companyId
+      agentId: $agentId
+      title: $title
+      additionalModelInstructions: $additionalModelInstructions
+    ) {
+      id
+      companyId
+      agentId
+      title
+      additionalModelInstructions
+      status
+      currentModelId
+      currentReasoningLevel
+      currentModel {
+        id
+        name
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_UPDATE_THREAD_TITLE_MUTATION = `
+  mutation CompanyApiUpdateThreadTitle($threadId: ID!, $title: String) {
+    updateThreadTitle(threadId: $threadId, title: $title) {
+      id
+      companyId
+      agentId
+      title
+      additionalModelInstructions
+      status
+      currentModelId
+      currentReasoningLevel
+      currentModel {
+        id
+        name
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_DELETE_THREAD_MUTATION = `
+  mutation CompanyApiDeleteThread($threadId: ID!) {
+    deleteThread(threadId: $threadId)
+  }
+`;
+
+export const COMPANY_API_LIST_THREAD_TURNS_CONNECTION_QUERY = `
+  query CompanyApiListThreadTurns($threadId: ID!, $first: Int!, $after: String) {
+    threadTurns(threadId: $threadId, first: $first, after: $after) {
+      edges {
+        node {
+          id
+          sdkTurnId
+          companyId
+          threadId
+          agentId
+          status
+          reasoningText
+          startedAt
+          endedAt
+          items {
+            id
+            sdkItemId
+            companyId
+            turnId
+            type
+            status
+            text
+            commandOutput
+            consoleOutput
+            processId
+            startedAt
+            completedAt
+          }
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_LIST_QUEUED_USER_MESSAGES_QUERY = `
+  query CompanyApiListQueuedUserMessages($threadId: ID!, $first: Int!) {
+    queuedUserMessages(threadId: $threadId, first: $first) {
+      id
+      companyId
+      threadId
+      allowSteer
+      text
+    }
+  }
+`;
+
+export const COMPANY_API_QUEUE_USER_MESSAGE_MUTATION = `
+  mutation CompanyApiQueueUserMessage(
+    $threadId: ID!
+    $text: String!
+    $allowSteer: Boolean!
+    $modelId: ID
+    $reasoningLevel: String
+  ) {
+    queueUserMessage(
+      threadId: $threadId
+      text: $text
+      allowSteer: $allowSteer
+      modelId: $modelId
+      reasoningLevel: $reasoningLevel
+    ) {
+      id
+      companyId
+      threadId
+      allowSteer
+      text
+    }
+  }
+`;
+
+export const COMPANY_API_STEER_QUEUED_USER_MESSAGE_MUTATION = `
+  mutation CompanyApiSteerQueuedUserMessage($queuedMessageId: ID!) {
+    steerQueuedUserMessage(queuedMessageId: $queuedMessageId) {
+      id
+      companyId
+      threadId
+      allowSteer
+      text
+    }
+  }
+`;
+
+export const COMPANY_API_DELETE_QUEUED_USER_MESSAGE_MUTATION = `
+  mutation CompanyApiDeleteQueuedUserMessage($queuedMessageId: ID!) {
+    deleteQueuedUserMessage(queuedMessageId: $queuedMessageId)
+  }
+`;
+
+export const COMPANY_API_INTERRUPT_TURN_MUTATION = `
+  mutation CompanyApiInterruptTurn($threadId: ID!) {
+    interruptTurn(threadId: $threadId)
+  }
+`;

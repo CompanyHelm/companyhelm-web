@@ -550,6 +550,21 @@ h2 {
   min-height: 0;
 }
 
+.chat-context-panel:not(.chat-context-panel-collapsed),
+.chat-session-panel:not(.chat-session-panel-collapsed) {
+  max-height: min(22vh, 12rem);
+  overflow: auto;
+}
+
+.chat-context-panel-compact {
+  padding: 0.55rem 0.75rem;
+}
+
+.chat-context-compact-title {
+  margin: 0;
+  font-size: 1rem;
+}
+
 .dashboard-grid,
 .runner-summary-grid {
   display: grid;
@@ -1328,6 +1343,115 @@ button:disabled {
   color: var(--ink-1);
 }
 
+/* ---- Flat message list (replaces nested turn/item structure) ---- */
+.chat-message-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 0.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+/* ---- Turn separator ---- */
+.chat-turn-separator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  margin: 0.35rem 0 0.15rem;
+}
+
+.chat-turn-separator::before,
+.chat-turn-separator::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--panel-border);
+}
+
+.chat-turn-separator-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+}
+
+.chat-turn-separator-label {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.66rem;
+  color: var(--ink-2);
+}
+
+/* ---- Chat message bubble ---- */
+.chat-message {
+  display: flex;
+  gap: 0.4rem;
+  max-width: 88%;
+  padding: 0;
+}
+
+.chat-message-human {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
+.chat-message-llm {
+  align-self: flex-start;
+}
+
+.chat-message-body {
+  border-radius: 14px;
+  padding: 0.55rem 0.75rem;
+  min-width: 0;
+}
+
+.chat-message-human .chat-message-body {
+  background: rgba(15, 118, 110, 0.07);
+  border: 1px solid rgba(15, 118, 110, 0.15);
+  border-bottom-right-radius: 4px;
+}
+
+.chat-message-llm .chat-message-body {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(26, 32, 38, 0.1);
+  border-bottom-left-radius: 4px;
+  box-shadow: 0 1px 4px rgba(17, 24, 39, 0.04);
+}
+
+.chat-message-actions {
+  margin-top: 0.35rem;
+}
+
+.chat-message-actions .secondary-btn {
+  font-size: 0.72rem;
+  padding: 0.2rem 0.5rem;
+}
+
+/* ---- Message footer (hover-reveal metadata) ---- */
+.chat-message-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.3rem;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.64rem;
+  color: var(--ink-2);
+  opacity: 0;
+  max-height: 0;
+  overflow: hidden;
+  transition: opacity 180ms ease, max-height 180ms ease;
+}
+
+.chat-message:hover .chat-message-footer,
+.chat-message-footer:focus-within,
+.chat-message-running .chat-message-footer {
+  opacity: 1;
+  max-height: 2rem;
+}
+
+/* Keep old class for non-chat-page usage */
 .chat-turn-list {
   list-style: none;
   margin: 0;
@@ -1721,6 +1845,48 @@ button:disabled {
   position: sticky;
   bottom: 0;
   z-index: 3;
+  border-radius: 14px;
+}
+
+.chat-composer-form {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.chat-composer-input {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(26, 32, 38, 0.18);
+  background: rgba(255, 255, 255, 0.95);
+  padding: 0.6rem 0.75rem;
+  font-size: 0.93rem;
+  font-family: inherit;
+  resize: none;
+  min-height: 2.6rem;
+  max-height: 8rem;
+}
+
+.chat-composer-input:focus {
+  outline: none;
+  border-color: var(--action);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+.chat-composer-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.chat-composer-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  color: var(--action);
+  font-weight: 600;
+  margin-right: auto;
 }
 
 .chat-stop-btn {
@@ -1909,7 +2075,7 @@ button:disabled {
 
   .chat-context-panel:not(.chat-context-panel-collapsed),
   .chat-session-panel:not(.chat-session-panel-collapsed) {
-    max-height: min(28vh, 12rem);
+    max-height: min(18vh, 9rem);
     overflow: auto;
   }
 }
@@ -2006,8 +2172,16 @@ button:disabled {
 
   .chat-context-panel:not(.chat-context-panel-collapsed),
   .chat-session-panel:not(.chat-session-panel-collapsed) {
-    max-height: min(30vh, 14rem);
+    max-height: min(20vh, 10rem);
     overflow: auto;
+  }
+
+  .runner-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  h1 {
+    font-size: clamp(1.3rem, 2.4vw, 1.9rem);
   }
 
   .chat-panel-header {
@@ -2151,7 +2325,11 @@ button:disabled {
 
   .chat-context-panel:not(.chat-context-panel-collapsed),
   .chat-session-panel:not(.chat-session-panel-collapsed) {
-    max-height: min(36vh, 15rem);
+    max-height: min(22vh, 9rem);
+  }
+
+  .chat-message {
+    max-width: 95%;
   }
 
   button,
@@ -2242,6 +2420,18 @@ button:disabled {
   .skill-edit-grid,
   .mcp-edit-grid {
     grid-template-columns: 1fr;
+  }
+
+  .compact-item {
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .task-card-top,
+  .runner-card-top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.3rem;
   }
 
   .modal-overlay {
