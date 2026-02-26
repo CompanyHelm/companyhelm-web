@@ -3142,16 +3142,21 @@ async function executeGraphQL(query, variables = {}) {
     });
     const previousThreadIds = new Set(previousThreads.map((thread) => resolveLegacyId(thread?.id)));
 
-    const data = await executeRawGraphQL(COMPANY_API_CREATE_THREAD_MUTATION, {
+    const createThreadVariables = {
       companyId,
       agentId,
       title: resolveLegacyId(variables?.title) || null,
-      additionalModelInstructions,
-    });
+    };
+    if (additionalModelInstructions !== null) {
+      createThreadVariables.additionalModelInstructions = additionalModelInstructions;
+    }
+    const data = await executeRawGraphQL(COMPANY_API_CREATE_THREAD_MUTATION, createThreadVariables);
     const metadata = {
       runnerId: resolveLegacyId(variables?.runnerId) || null,
-      additionalModelInstructions,
     };
+    if (additionalModelInstructions !== null) {
+      metadata.additionalModelInstructions = additionalModelInstructions;
+    }
     const requestedThreadId = resolveLegacyId(data?.createThread?.id);
 
     const pickCanonicalThread = (threadsSnapshot) => {
