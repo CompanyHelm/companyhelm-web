@@ -1303,6 +1303,13 @@ button:disabled {
   gap: 0.34rem;
 }
 
+.chat-queued-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
 .chat-queued-meta {
   display: inline-flex;
   flex-wrap: wrap;
@@ -1310,6 +1317,22 @@ button:disabled {
   gap: 0.42rem;
   font-family: "IBM Plex Mono", monospace;
   font-size: 0.73rem;
+}
+
+.chat-queued-delete-btn {
+  width: 1.6rem;
+  height: 1.6rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 999px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.8rem;
+  line-height: 1;
+  background: rgba(158, 29, 36, 0.12);
+  border: 1px solid rgba(158, 29, 36, 0.28);
+  color: var(--danger);
 }
 
 .chat-turn-item {

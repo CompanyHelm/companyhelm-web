@@ -1504,6 +1504,12 @@ const COMPANY_API_STEER_QUEUED_USER_MESSAGE_MUTATION = `
   }
 `;
 
+const COMPANY_API_DELETE_QUEUED_USER_MESSAGE_MUTATION = `
+  mutation CompanyApiDeleteQueuedUserMessage($queuedMessageId: ID!) {
+    deleteQueuedUserMessage(queuedMessageId: $queuedMessageId)
+  }
+`;
+
 const COMPANY_API_INTERRUPT_TURN_MUTATION = `
   mutation CompanyApiInterruptTurn($threadId: ID!) {
     interruptTurn(threadId: $threadId)
@@ -6289,6 +6295,7 @@ function AgentChatPage({
   isUpdatingChatTitle,
   deletingChatSessionKey,
   steeringQueuedMessageId,
+  deletingQueuedMessageId,
   onChatSessionRenameDraftChange,
   onChatDraftMessageChange,
   onBackToChats,
@@ -6297,6 +6304,7 @@ function AgentChatPage({
   onSendChatMessage,
   onInterruptChatTurn,
   onSteerQueuedMessage,
+  onDeleteQueuedMessage,
 }) {
   const canChat = Boolean(agent && session);
   const currentChatSessionKey = canChat ? `${agent.id}:${session.id}` : "";
@@ -6669,15 +6677,34 @@ function AgentChatPage({
                 const queuedMessageId = String(queuedMessage?.id || "").trim();
                 const isSteerMode = Boolean(queuedMessage?.allowSteer);
                 const isSteeringThisMessage = steeringQueuedMessageId === queuedMessageId;
+                const isDeletingThisMessage = deletingQueuedMessageId === queuedMessageId;
 
                 return (
                   <li key={queuedMessageId} className="chat-queued-item">
-                    <div className="chat-queued-meta">
-                      <span className="chat-message-kind">queued</span>
-                      <span className={`chat-turn-status ${isSteerMode ? "chat-turn-status-running" : "chat-turn-status-idle"}`}>
-                        {isSteerMode ? "steer" : "queue"}
-                      </span>
-                      <code className="runner-id">{queuedMessageId.slice(0, 8)}</code>
+                    <div className="chat-queued-header">
+                      <div className="chat-queued-meta">
+                        <span className="chat-message-kind">queued</span>
+                        <span className={`chat-turn-status ${isSteerMode ? "chat-turn-status-running" : "chat-turn-status-idle"}`}>
+                          {isSteerMode ? "steer" : "queue"}
+                        </span>
+                        <code className="runner-id">{queuedMessageId.slice(0, 8)}</code>
+                      </div>
+                      <button
+                        type="button"
+                        className="chat-queued-delete-btn"
+                        disabled={
+                          !canChat
+                          || isSendingChatMessage
+                          || isInterruptingChatTurn
+                          || isSteeringThisMessage
+                          || isDeletingThisMessage
+                        }
+                        onClick={() => onDeleteQueuedMessage(queuedMessageId)}
+                        aria-label="Delete queued message"
+                        title="Delete queued message"
+                      >
+                        {isDeletingThisMessage ? "..." : "x"}
+                      </button>
                     </div>
                     <p className="chat-message-content">{String(queuedMessage?.text || "").trim() || "(no content)"}</p>
                     {!isSteerMode ? (
@@ -6685,7 +6712,13 @@ function AgentChatPage({
                         <button
                           type="button"
                           className="secondary-btn"
-                          disabled={!canChat || isSendingChatMessage || isInterruptingChatTurn || isSteeringThisMessage}
+                          disabled={
+                            !canChat
+                            || isSendingChatMessage
+                            || isInterruptingChatTurn
+                            || isSteeringThisMessage
+                            || isDeletingThisMessage
+                          }
                           onClick={() => onSteerQueuedMessage(queuedMessageId)}
                         >
                           {isSteeringThisMessage ? "Changing..." : "Change to steer"}
@@ -7211,6 +7244,7 @@ function App() {
   const [isInterruptingChatTurn, setIsInterruptingChatTurn] = useState(false);
   const [isUpdatingChatTitle, setIsUpdatingChatTitle] = useState(false);
   const [steeringQueuedMessageId, setSteeringQueuedMessageId] = useState(null);
+  const [deletingQueuedMessageId, setDeletingQueuedMessageId] = useState(null);
   const hasCompanies = companies.length > 0;
 
   const selectedCompany = useMemo(() => {
@@ -9709,6 +9743,44 @@ function App() {
     }
   }
 
+  async function handleDeleteQueuedChatMessage(queuedMessageId) {
+    const resolvedQueuedMessageId = String(queuedMessageId || "").trim();
+    if (!resolvedQueuedMessageId) {
+      return;
+    }
+    if (!selectedCompanyId) {
+      setChatError("Select a company before deleting queued messages.");
+      return;
+    }
+    if (!chatAgentId) {
+      setChatError("Select an agent before deleting queued messages.");
+      return;
+    }
+    if (!resolvedChatSessionId) {
+      setChatError("Select a chat before deleting queued messages.");
+      return;
+    }
+
+    try {
+      setDeletingQueuedMessageId(resolvedQueuedMessageId);
+      setChatError("");
+      const data = await executeRawGraphQL(COMPANY_API_DELETE_QUEUED_USER_MESSAGE_MUTATION, {
+        queuedMessageId: resolvedQueuedMessageId,
+      });
+      if (!data?.deleteQueuedUserMessage) {
+        throw new Error("Queued message not found or already processing.");
+      }
+      await loadAgentChatTurns({
+        agentIdOverride: chatAgentId,
+        sessionIdOverride: resolvedChatSessionId,
+      });
+    } catch (deleteError) {
+      setChatError(deleteError.message);
+    } finally {
+      setDeletingQueuedMessageId(null);
+    }
+  }
+
   async function handleSendChatMessage(event, modeOverride = "queue") {
     if (event?.preventDefault) {
       event.preventDefault();
@@ -10558,6 +10630,7 @@ function App() {
               isUpdatingChatTitle={isUpdatingChatTitle}
               deletingChatSessionKey={deletingChatSessionKey}
               steeringQueuedMessageId={steeringQueuedMessageId}
+              deletingQueuedMessageId={deletingQueuedMessageId}
               onChatSessionRenameDraftChange={setChatSessionRenameDraft}
               onChatDraftMessageChange={setChatDraftMessage}
               onBackToChats={() => {
@@ -10571,6 +10644,7 @@ function App() {
               onSendChatMessage={handleSendChatMessage}
               onInterruptChatTurn={handleInterruptChatTurn}
               onSteerQueuedMessage={handleSteerQueuedChatMessage}
+              onDeleteQueuedMessage={handleDeleteQueuedChatMessage}
             />
           ) : (
             <ChatsOverviewPage
@@ -10631,6 +10705,7 @@ function App() {
               isUpdatingChatTitle={isUpdatingChatTitle}
               deletingChatSessionKey={deletingChatSessionKey}
               steeringQueuedMessageId={steeringQueuedMessageId}
+              deletingQueuedMessageId={deletingQueuedMessageId}
               onChatSessionRenameDraftChange={setChatSessionRenameDraft}
               onChatDraftMessageChange={setChatDraftMessage}
               onBackToChats={() => {
@@ -10645,6 +10720,7 @@ function App() {
               onSendChatMessage={handleSendChatMessage}
               onInterruptChatTurn={handleInterruptChatTurn}
               onSteerQueuedMessage={handleSteerQueuedChatMessage}
+              onDeleteQueuedMessage={handleDeleteQueuedChatMessage}
             />
           ) : (
             <AgentsPage
