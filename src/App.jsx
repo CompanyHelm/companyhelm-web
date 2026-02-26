@@ -6676,7 +6676,7 @@ function AgentChatPage({
             <p className="codex-auth-row">
               <strong>Reasoning:</strong> {session.currentReasoningLevel || "n/a"}
             </p>
-            <p className="codex-auth-row">
+            <p className="codex-auth-row codex-auth-row-additional-instructions">
               <strong>Additional instructions:</strong>{" "}
               {session.additionalModelInstructions || "none"}
             </p>
