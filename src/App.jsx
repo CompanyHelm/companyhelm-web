@@ -34,6 +34,15 @@ const MCP_AUTH_TYPE_OPTIONS = [
 const CHAT_MESSAGE_BATCH_SIZE = 20;
 const TRANSCRIPT_TOP_LOAD_THRESHOLD_PX = 12;
 const TRANSCRIPT_BOTTOM_STICKY_THRESHOLD_PX = 12;
+const SIDEBAR_COLLAPSE_MEDIA_QUERY = "(max-width: 1080px)";
+const COMPACT_CHAT_MEDIA_QUERY = "(max-width: 1180px), (max-height: 900px)";
+
+function matchesMediaQuery(query) {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    return false;
+  }
+  return window.matchMedia(query).matches;
+}
 
 function resolveGraphQLWebSocketUrl(rawUrl) {
   const cleanUrl = String(rawUrl || "").trim();
@@ -6463,6 +6472,15 @@ function AgentChatPage({
     currentChatSessionKey && deletingChatSessionKey === currentChatSessionKey,
   );
   const [isEditingChatTitle, setIsEditingChatTitle] = useState(false);
+  const [isContextPanelCollapsed, setIsContextPanelCollapsed] = useState(() =>
+    matchesMediaQuery(COMPACT_CHAT_MEDIA_QUERY),
+  );
+  const [isSessionPanelCollapsed, setIsSessionPanelCollapsed] = useState(() =>
+    matchesMediaQuery(COMPACT_CHAT_MEDIA_QUERY),
+  );
+  const [isCompactChatViewport, setIsCompactChatViewport] = useState(() =>
+    matchesMediaQuery(COMPACT_CHAT_MEDIA_QUERY),
+  );
   const [selectedCommandOutputItem, setSelectedCommandOutputItem] = useState(null);
   const [visibleMessageCount, setVisibleMessageCount] = useState(CHAT_MESSAGE_BATCH_SIZE);
   const chatTitleInputRef = useRef(null);
@@ -6496,6 +6514,33 @@ function AgentChatPage({
   useEffect(() => {
     setIsEditingChatTitle(false);
   }, [session?.id]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return undefined;
+    }
+    const mediaQueryList = window.matchMedia(COMPACT_CHAT_MEDIA_QUERY);
+    const handleMediaQueryChange = (event) => {
+      setIsCompactChatViewport(Boolean(event.matches));
+    };
+    setIsCompactChatViewport(mediaQueryList.matches);
+    if (typeof mediaQueryList.addEventListener === "function") {
+      mediaQueryList.addEventListener("change", handleMediaQueryChange);
+      return () => mediaQueryList.removeEventListener("change", handleMediaQueryChange);
+    }
+    mediaQueryList.addListener(handleMediaQueryChange);
+    return () => mediaQueryList.removeListener(handleMediaQueryChange);
+  }, []);
+
+  useEffect(() => {
+    if (isCompactChatViewport) {
+      setIsContextPanelCollapsed(true);
+      setIsSessionPanelCollapsed(true);
+      return;
+    }
+    setIsContextPanelCollapsed(false);
+    setIsSessionPanelCollapsed(false);
+  }, [isCompactChatViewport]);
 
   useEffect(() => {
     if (!isEditingChatTitle || !chatTitleInputRef.current) {
@@ -6572,6 +6617,7 @@ function AgentChatPage({
       return;
     }
     onChatSessionRenameDraftChange(String(session.title || ""));
+    setIsSessionPanelCollapsed(false);
     setIsEditingChatTitle(true);
   }
 
@@ -6595,95 +6641,141 @@ function AgentChatPage({
     }
   }
 
+  function toggleContextPanelVisibility() {
+    setIsContextPanelCollapsed((currentValue) => !currentValue);
+  }
+
+  function toggleSessionPanelVisibility() {
+    setIsSessionPanelCollapsed((currentValue) => !currentValue);
+  }
+
   return (
     <div className="page-stack chat-page-stack">
-      <section className="panel hero-panel">
-        <p className="eyebrow">Agent Runtime</p>
-        <h1>Agent chat</h1>
-        <p className="subcopy">Send new messages to the selected agent chat.</p>
-        <p className="context-pill">Company: {selectedCompanyId}</p>
-        <p className="context-pill">
-          Agent: {agent ? `${agent.name} (${agent.id.slice(0, 8)})` : "Unknown agent"}
-        </p>
-        <div className="hero-actions">
-          <button type="button" className="secondary-btn" onClick={onBackToChats}>
-            Back to chats
-          </button>
-          <button
-            type="button"
-            className="danger-btn"
-            onClick={handleDeleteCurrentChat}
-            disabled={!canChat || isDeletingCurrentChat}
-          >
-            {isDeletingCurrentChat ? "Deleting..." : "Delete chat"}
-          </button>
+      <section
+        className={`panel hero-panel chat-context-panel${
+          isContextPanelCollapsed ? " chat-context-panel-collapsed" : ""
+        }`}
+      >
+        <div className="chat-context-header">
+          <div>
+            <p className="eyebrow">Agent Runtime</p>
+            <h1>Agent chat</h1>
+          </div>
+          <div className="hero-actions chat-context-actions">
+            <button type="button" className="secondary-btn" onClick={onBackToChats}>
+              Back to chats
+            </button>
+            <button
+              type="button"
+              className="danger-btn"
+              onClick={handleDeleteCurrentChat}
+              disabled={!canChat || isDeletingCurrentChat}
+            >
+              {isDeletingCurrentChat ? "Deleting..." : "Delete chat"}
+            </button>
+            <button
+              type="button"
+              className="secondary-btn chat-collapse-toggle-btn"
+              onClick={toggleContextPanelVisibility}
+              aria-expanded={!isContextPanelCollapsed}
+            >
+              {isContextPanelCollapsed ? "Show context" : "Hide context"}
+            </button>
+          </div>
         </div>
+        {!isContextPanelCollapsed ? (
+          <>
+            <p className="subcopy">Send new messages to the selected agent chat.</p>
+            <div className="chat-context-pills">
+              <p className="context-pill">Company: {selectedCompanyId}</p>
+              <p className="context-pill">
+                Agent: {agent ? `${agent.name} (${agent.id.slice(0, 8)})` : "Unknown agent"}
+              </p>
+            </div>
+          </>
+        ) : null}
       </section>
 
-      <section className="panel composer-panel">
+      <section
+        className={`panel composer-panel chat-session-panel${
+          isSessionPanelCollapsed ? " chat-session-panel-collapsed" : ""
+        }`}
+      >
         <header className="panel-header panel-header-row chat-panel-header">
           <h2>Chat</h2>
-          {session ? (
-            isEditingChatTitle ? (
-              <form className="task-form chat-title-inline-form" onSubmit={handleSubmitChatTitle}>
-                <input
-                  id="chat-session-rename"
-                  ref={chatTitleInputRef}
-                  value={chatSessionRenameDraft}
-                  onChange={(event) => onChatSessionRenameDraftChange(event.target.value)}
-                  onKeyDown={handleChatTitleInputKeyDown}
-                  placeholder="e.g. Release planning"
-                  disabled={isUpdatingChatTitle}
-                  aria-label="Chat title"
-                />
-                <p className="chat-title-inline-hint">
-                  {isUpdatingChatTitle ? "Saving..." : "Press Enter to save, Esc to cancel"}
-                </p>
-              </form>
-            ) : (
-              <p className="chat-session-title-row chat-title-inline-display">
-                <strong>{session.title || "Untitled chat"}</strong>
-                <button
-                  type="button"
-                  className="chat-title-edit-btn"
-                  onClick={handleStartChatTitleEdit}
-                  disabled={isUpdatingChatTitle}
-                  aria-label="Edit chat title"
-                  title="Edit chat title"
-                >
-                  <svg
-                    className="chat-title-edit-icon"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                    focusable="false"
+          <div className="chat-panel-header-controls">
+            {session ? (
+              isEditingChatTitle ? (
+                <form className="task-form chat-title-inline-form" onSubmit={handleSubmitChatTitle}>
+                  <input
+                    id="chat-session-rename"
+                    ref={chatTitleInputRef}
+                    value={chatSessionRenameDraft}
+                    onChange={(event) => onChatSessionRenameDraftChange(event.target.value)}
+                    onKeyDown={handleChatTitleInputKeyDown}
+                    placeholder="e.g. Release planning"
+                    disabled={isUpdatingChatTitle}
+                    aria-label="Chat title"
+                  />
+                  <p className="chat-title-inline-hint">
+                    {isUpdatingChatTitle ? "Saving..." : "Press Enter to save, Esc to cancel"}
+                  </p>
+                </form>
+              ) : (
+                <p className="chat-session-title-row chat-title-inline-display">
+                  <strong>{session.title || "Untitled chat"}</strong>
+                  <button
+                    type="button"
+                    className="chat-title-edit-btn"
+                    onClick={handleStartChatTitleEdit}
+                    disabled={isUpdatingChatTitle}
+                    aria-label="Edit chat title"
+                    title="Edit chat title"
                   >
-                    <path d="M4 20h4l10-10-4-4L4 16v4z" />
-                    <path d="m13 7 4 4" />
-                  </svg>
-                </button>
-              </p>
-            )
-          ) : null}
-        </header>
-        {session ? (
-          <div className="codex-auth-state">
-            <p className="codex-auth-row">
-              <strong>Thread ID:</strong> <code className="runner-id">{session.id}</code>
-            </p>
-            <p className="codex-auth-row">
-              <strong>Model:</strong> {session.currentModelName || session.currentModelId || "n/a"}
-            </p>
-            <p className="codex-auth-row">
-              <strong>Reasoning:</strong> {session.currentReasoningLevel || "n/a"}
-            </p>
-            <p className="codex-auth-row codex-auth-row-additional-instructions">
-              <strong>Additional instructions:</strong>{" "}
-              {session.additionalModelInstructions || "none"}
-            </p>
+                    <svg
+                      className="chat-title-edit-icon"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <path d="M4 20h4l10-10-4-4L4 16v4z" />
+                      <path d="m13 7 4 4" />
+                    </svg>
+                  </button>
+                </p>
+              )
+            ) : null}
+            <button
+              type="button"
+              className="secondary-btn chat-collapse-toggle-btn"
+              onClick={toggleSessionPanelVisibility}
+              aria-expanded={!isSessionPanelCollapsed}
+            >
+              {isSessionPanelCollapsed ? "Show settings" : "Hide settings"}
+            </button>
           </div>
-        ) : (
-          <p className="empty-hint">Chat not found.</p>
-        )}
+        </header>
+        {!isSessionPanelCollapsed || !session ? (
+          session ? (
+            <div className="codex-auth-state">
+              <p className="codex-auth-row">
+                <strong>Thread ID:</strong> <code className="runner-id">{session.id}</code>
+              </p>
+              <p className="codex-auth-row">
+                <strong>Model:</strong> {session.currentModelName || session.currentModelId || "n/a"}
+              </p>
+              <p className="codex-auth-row">
+                <strong>Reasoning:</strong> {session.currentReasoningLevel || "n/a"}
+              </p>
+              <p className="codex-auth-row codex-auth-row-additional-instructions">
+                <strong>Additional instructions:</strong>{" "}
+                {session.additionalModelInstructions || "none"}
+              </p>
+            </div>
+          ) : (
+            <p className="empty-hint">Chat not found.</p>
+          )
+        ) : null}
       </section>
 
       <section className="panel chat-panel">
@@ -7402,6 +7494,9 @@ function App() {
   const [isUpdatingChatTitle, setIsUpdatingChatTitle] = useState(false);
   const [steeringQueuedMessageId, setSteeringQueuedMessageId] = useState(null);
   const [deletingQueuedMessageId, setDeletingQueuedMessageId] = useState(null);
+  const [isSideMenuCollapsed, setIsSideMenuCollapsed] = useState(() =>
+    matchesMediaQuery(SIDEBAR_COLLAPSE_MEDIA_QUERY),
+  );
   const hasCompanies = companies.length > 0;
 
   const selectedCompany = useMemo(() => {
@@ -8498,6 +8593,27 @@ function App() {
     handlePopState();
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return undefined;
+    }
+    const mediaQueryList = window.matchMedia(SIDEBAR_COLLAPSE_MEDIA_QUERY);
+    const handleMediaQueryChange = (event) => {
+      if (event.matches) {
+        setIsSideMenuCollapsed(true);
+      }
+    };
+    if (mediaQueryList.matches) {
+      setIsSideMenuCollapsed(true);
+    }
+    if (typeof mediaQueryList.addEventListener === "function") {
+      mediaQueryList.addEventListener("change", handleMediaQueryChange);
+      return () => mediaQueryList.removeEventListener("change", handleMediaQueryChange);
+    }
+    mediaQueryList.addListener(handleMediaQueryChange);
+    return () => mediaQueryList.removeListener(handleMediaQueryChange);
   }, []);
 
   useEffect(() => {
@@ -10485,6 +10601,12 @@ function App() {
     });
   }
 
+  const collapseSideMenuOnCompactViewport = useCallback(() => {
+    if (matchesMediaQuery(SIDEBAR_COLLAPSE_MEDIA_QUERY)) {
+      setIsSideMenuCollapsed(true);
+    }
+  }, []);
+
   function navigateTo(pageId) {
     if (String(pageId || "").trim().toLowerCase() === "chats") {
       setChatSessionId("");
@@ -10583,12 +10705,20 @@ function App() {
   );
 
   return (
-    <div className="layout-shell">
+    <div className={`layout-shell${isSideMenuCollapsed ? " layout-shell-menu-collapsed" : ""}`}>
       <aside className="side-menu">
         <div className="side-brand">
           <p className="side-overline">Control Plane</p>
           <h2>CompanyHelm</h2>
         </div>
+        <button
+          type="button"
+          className="secondary-btn side-menu-toggle-btn"
+          onClick={() => setIsSideMenuCollapsed(true)}
+          aria-label="Collapse left menu"
+        >
+          Collapse menu
+        </button>
 
         <div className="side-company-scope">
           <select
@@ -10624,9 +10754,11 @@ function App() {
                       event.preventDefault();
                       if (isDisabled) {
                         navigateTo("settings");
+                        collapseSideMenuOnCompactViewport();
                         return;
                       }
                       navigateTo(item.id);
+                      collapseSideMenuOnCompactViewport();
                     }}
                     className={`nav-link ${
                       activePage === item.id ? "nav-link-active" : ""
@@ -10648,6 +10780,7 @@ function App() {
               onClick={(event) => {
                 event.preventDefault();
                 navigateTo(item.id);
+                collapseSideMenuOnCompactViewport();
               }}
               className={`nav-link ${
                 activePage === item.id ? "nav-link-active" : ""
@@ -10660,6 +10793,18 @@ function App() {
       </aside>
 
       <main className={`page-shell${isChatConversationRoute ? " page-shell-chat-layout" : ""}`}>
+        {isSideMenuCollapsed ? (
+          <button
+            type="button"
+            className={`secondary-btn side-menu-open-btn${
+              isChatConversationRoute ? " side-menu-open-btn-chat" : ""
+            }`}
+            onClick={() => setIsSideMenuCollapsed(false)}
+            aria-label="Open left menu"
+          >
+            Menu
+          </button>
+        ) : null}
         <Breadcrumbs items={breadcrumbItems} onNavigate={setBrowserPath} />
 
         {!selectedCompanyId && activePage !== "settings" && activePage !== "profile" ? (
