@@ -3636,7 +3636,7 @@ function App() {
   async function handleSaveAgent(agentId) {
     if (!selectedCompanyId) {
       setAgentError("Select a company before updating agents.");
-      return;
+      return false;
     }
     const draft = agentDrafts[agentId] || {
       agentRunnerId: "",
@@ -3650,23 +3650,23 @@ function App() {
     };
     if (!draft.name.trim()) {
       setAgentError("Agent name is required to save.");
-      return;
+      return false;
     }
     if (!draft.agentRunnerId) {
       setAgentError("Assigned runner is required to save an agent.");
-      return;
+      return false;
     }
 
     const assignedRunner = agentRunnerLookup.get(draft.agentRunnerId);
     if (!assignedRunner) {
       setAgentError(`Assigned runner ${draft.agentRunnerId} was not found for this company.`);
-      return;
+      return false;
     }
 
     const normalizedSdk = normalizeAgentSdkValue(draft.agentSdk);
     if (!isAvailableAgentSdk(normalizedSdk)) {
       setAgentError(`agentSdk must be one of: ${AVAILABLE_AGENT_SDKS.join(", ")}.`);
-      return;
+      return false;
     }
 
     const selectedRunnerCodexModels = getRunnerCodexModelEntriesForRunner(
@@ -3675,31 +3675,31 @@ function App() {
     );
     if (selectedRunnerCodexModels.length === 0) {
       setAgentError(`Runner ${draft.agentRunnerId} has not reported any available models yet.`);
-      return;
+      return false;
     }
 
     const normalizedModel = String(draft.model || "").trim();
     if (!normalizedModel) {
       setAgentError("Model is required to save.");
-      return;
+      return false;
     }
     if (!getRunnerModelNames(selectedRunnerCodexModels).includes(normalizedModel)) {
       setAgentError(
         `Model "${normalizedModel}" is not available on runner ${draft.agentRunnerId}.`,
       );
-      return;
+      return false;
     }
 
     const normalizedReasoning = String(draft.modelReasoningLevel || "").trim();
     if (!normalizedReasoning) {
       setAgentError("Model reasoning level is required to save.");
-      return;
+      return false;
     }
     if (!getRunnerReasoningLevels(selectedRunnerCodexModels, normalizedModel).includes(normalizedReasoning)) {
       setAgentError(
         `Reasoning "${normalizedReasoning}" is not available for model "${normalizedModel}" on runner ${draft.agentRunnerId}.`,
       );
-      return;
+      return false;
     }
     const { agentRunnerSdkId, defaultModelId } = resolveRunnerSdkAndModelIds({
       runner: assignedRunner,
@@ -3710,13 +3710,13 @@ function App() {
       setAgentError(
         `Runner ${draft.agentRunnerId} did not provide SDK metadata for "${normalizedSdk}". Refresh runners and try again.`,
       );
-      return;
+      return false;
     }
     if (!defaultModelId) {
       setAgentError(
         `Runner ${draft.agentRunnerId} did not provide model metadata for "${normalizedModel}". Refresh runners and try again.`,
       );
-      return;
+      return false;
     }
 
     try {
@@ -3746,8 +3746,10 @@ function App() {
         throw new Error(result.error || "Agent update failed.");
       }
       await loadAgents();
+      return true;
     } catch (updateError) {
       setAgentError(updateError.message);
+      return false;
     } finally {
       setSavingAgentId(null);
     }
