@@ -308,6 +308,7 @@ const LIST_AGENTS_QUERY = `
       agentRunnerId
       skillIds
       mcpServerIds
+      defaultAdditionalModelInstructions
       installedSkills {
         companyId
         agentId
@@ -452,6 +453,7 @@ const CREATE_AGENT_MUTATION = `
     $agentRunnerId: String
     $skillIds: [String!]
     $mcpServerIds: [String!]
+    $defaultAdditionalModelInstructions: String
     $name: String!
     $agentSdk: String!
     $model: String!
@@ -462,6 +464,7 @@ const CREATE_AGENT_MUTATION = `
       agentRunnerId: $agentRunnerId
       skillIds: $skillIds
       mcpServerIds: $mcpServerIds
+      defaultAdditionalModelInstructions: $defaultAdditionalModelInstructions
       name: $name
       agentSdk: $agentSdk
       model: $model
@@ -475,6 +478,7 @@ const CREATE_AGENT_MUTATION = `
         agentRunnerId
         skillIds
         mcpServerIds
+        defaultAdditionalModelInstructions
         name
         agentSdk
         model
@@ -491,6 +495,7 @@ const UPDATE_AGENT_MUTATION = `
     $agentRunnerId: String
     $skillIds: [String!]
     $mcpServerIds: [String!]
+    $defaultAdditionalModelInstructions: String
     $name: String!
     $agentSdk: String!
     $model: String!
@@ -502,6 +507,7 @@ const UPDATE_AGENT_MUTATION = `
       agentRunnerId: $agentRunnerId
       skillIds: $skillIds
       mcpServerIds: $mcpServerIds
+      defaultAdditionalModelInstructions: $defaultAdditionalModelInstructions
       name: $name
       agentSdk: $agentSdk
       model: $model
@@ -515,6 +521,7 @@ const UPDATE_AGENT_MUTATION = `
         agentRunnerId
         skillIds
         mcpServerIds
+        defaultAdditionalModelInstructions
         name
         agentSdk
         model
@@ -836,6 +843,7 @@ const LIST_AGENT_THREADS_QUERY = `
       agentId
       runnerId
       title
+      additionalModelInstructions
       status
       createdAt
       updatedAt
@@ -848,12 +856,14 @@ const CREATE_AGENT_THREAD_MUTATION = `
     $companyId: String!
     $agentId: String!
     $title: String
+    $additionalModelInstructions: String
     $runnerId: String
   ) {
     createAgentThread(
       companyId: $companyId
       agentId: $agentId
       title: $title
+      additionalModelInstructions: $additionalModelInstructions
       runnerId: $runnerId
     ) {
       ok
@@ -865,6 +875,7 @@ const CREATE_AGENT_THREAD_MUTATION = `
         agentId
         runnerId
         title
+        additionalModelInstructions
         status
         createdAt
         updatedAt
@@ -885,6 +896,7 @@ const UPDATE_AGENT_THREAD_MUTATION = `
         agentId
         runnerId
         title
+        additionalModelInstructions
         status
         createdAt
         updatedAt
@@ -1010,6 +1022,7 @@ const AGENT_THREADS_SUBSCRIPTION = `
           companyId
           agentId
           title
+          additionalModelInstructions
           status
           currentModelId
           currentReasoningLevel
@@ -1281,6 +1294,7 @@ const COMPANY_API_LIST_AGENTS_CONNECTION_QUERY = `
           name
           companyId
           status
+          defaultAdditionalModelInstructions
         }
       }
       pageInfo {
@@ -1299,6 +1313,7 @@ const COMPANY_API_CREATE_AGENT_MUTATION = `
     $agentRunnerSdkId: ID!
     $defaultModelId: ID!
     $defaultReasoningLevel: String
+    $defaultAdditionalModelInstructions: String
   ) {
     createAgent(
       name: $name
@@ -1307,11 +1322,13 @@ const COMPANY_API_CREATE_AGENT_MUTATION = `
       agentRunnerSdkId: $agentRunnerSdkId
       defaultModelId: $defaultModelId
       defaultReasoningLevel: $defaultReasoningLevel
+      defaultAdditionalModelInstructions: $defaultAdditionalModelInstructions
     ) {
       id
       name
       companyId
       status
+      defaultAdditionalModelInstructions
     }
   }
 `;
@@ -1324,6 +1341,7 @@ const COMPANY_API_UPDATE_AGENT_MUTATION = `
     $agentRunnerSdkId: ID!
     $defaultModelId: ID!
     $defaultReasoningLevel: String
+    $defaultAdditionalModelInstructions: String
   ) {
     updateAgent(
       agentId: $agentId
@@ -1332,11 +1350,13 @@ const COMPANY_API_UPDATE_AGENT_MUTATION = `
       agentRunnerSdkId: $agentRunnerSdkId
       defaultModelId: $defaultModelId
       defaultReasoningLevel: $defaultReasoningLevel
+      defaultAdditionalModelInstructions: $defaultAdditionalModelInstructions
     ) {
       id
       name
       companyId
       status
+      defaultAdditionalModelInstructions
     }
   }
 `;
@@ -1359,6 +1379,7 @@ const COMPANY_API_LIST_THREADS_CONNECTION_QUERY = `
           companyId
           agentId
           title
+          additionalModelInstructions
           status
           currentModelId
           currentReasoningLevel
@@ -1377,12 +1398,23 @@ const COMPANY_API_LIST_THREADS_CONNECTION_QUERY = `
 `;
 
 const COMPANY_API_CREATE_THREAD_MUTATION = `
-  mutation CompanyApiCreateThread($companyId: ID!, $agentId: ID!, $title: String) {
-    createThread(companyId: $companyId, agentId: $agentId, title: $title) {
+  mutation CompanyApiCreateThread(
+    $companyId: ID!
+    $agentId: ID!
+    $title: String
+    $additionalModelInstructions: String
+  ) {
+    createThread(
+      companyId: $companyId
+      agentId: $agentId
+      title: $title
+      additionalModelInstructions: $additionalModelInstructions
+    ) {
       id
       companyId
       agentId
       title
+      additionalModelInstructions
       status
       currentModelId
       currentReasoningLevel
@@ -1401,6 +1433,7 @@ const COMPANY_API_UPDATE_THREAD_TITLE_MUTATION = `
       companyId
       agentId
       title
+      additionalModelInstructions
       status
       currentModelId
       currentReasoningLevel
@@ -1587,6 +1620,14 @@ function normalizeUniqueStringList(values) {
     normalizedValues.push(cleanValue);
   }
   return normalizedValues;
+}
+
+function normalizeOptionalInstructions(value) {
+  if (value === undefined || value === null) {
+    return null;
+  }
+  const normalizedValue = String(value).trim();
+  return normalizedValue || null;
 }
 
 function normalizeSkillType(value) {
@@ -2086,6 +2127,7 @@ function createAgentDrafts(agents) {
       agentSdk: agent.agentSdk || DEFAULT_AGENT_SDK,
       model: agent.model || "",
       modelReasoningLevel: agent.modelReasoningLevel || "",
+      defaultAdditionalModelInstructions: agent.defaultAdditionalModelInstructions || "",
     };
     return drafts;
   }, {});
@@ -2544,9 +2586,26 @@ function toLegacyRunnerPayload(agentRunner) {
 function toLegacyAgentPayload(agent, { metadataOverride } = {}) {
   const agentId = resolveLegacyId(agent?.id);
   const currentMetadata = companyApiAgentMetadataById.get(agentId) || {};
+  const overrideProvidesDefaultAdditionalModelInstructions = Boolean(
+    metadataOverride
+      && Object.prototype.hasOwnProperty.call(metadataOverride, "defaultAdditionalModelInstructions"),
+  );
+  const agentProvidesDefaultAdditionalModelInstructions = Boolean(
+    agent && Object.prototype.hasOwnProperty.call(agent, "defaultAdditionalModelInstructions"),
+  );
+  const explicitDefaultAdditionalModelInstructions = overrideProvidesDefaultAdditionalModelInstructions
+    ? metadataOverride.defaultAdditionalModelInstructions
+    : agentProvidesDefaultAdditionalModelInstructions
+      ? agent.defaultAdditionalModelInstructions
+      : undefined;
+  const resolvedDefaultAdditionalModelInstructions =
+    explicitDefaultAdditionalModelInstructions === undefined
+      ? normalizeOptionalInstructions(currentMetadata.defaultAdditionalModelInstructions)
+      : normalizeOptionalInstructions(explicitDefaultAdditionalModelInstructions);
   const nextMetadata = {
     ...currentMetadata,
     ...(metadataOverride || {}),
+    defaultAdditionalModelInstructions: resolvedDefaultAdditionalModelInstructions,
   };
   if (agentId) {
     companyApiAgentMetadataById.set(agentId, nextMetadata);
@@ -2573,6 +2632,7 @@ function toLegacyAgentPayload(agent, { metadataOverride } = {}) {
     agentSdk: resolvedSdk,
     model: resolvedModel,
     modelReasoningLevel: resolvedReasoning,
+    defaultAdditionalModelInstructions: resolvedDefaultAdditionalModelInstructions,
   };
 }
 
@@ -2611,6 +2671,21 @@ function toLegacyThreadPayload(thread, { metadataOverride } = {}) {
   const normalizedExplicitTitle = typeof explicitTitleValue === "string" ? explicitTitleValue.trim() : "";
   const fallbackTitle = explicitTitleValue === undefined ? resolveLegacyId(currentMetadata.title) : "";
   const resolvedTitle = normalizedExplicitTitle || fallbackTitle || `Thread ${threadId.slice(0, 8)}`;
+  const overrideProvidesAdditionalModelInstructions = Boolean(
+    metadataOverride && Object.prototype.hasOwnProperty.call(metadataOverride, "additionalModelInstructions"),
+  );
+  const threadProvidesAdditionalModelInstructions = Boolean(
+    thread && Object.prototype.hasOwnProperty.call(thread, "additionalModelInstructions"),
+  );
+  const explicitAdditionalModelInstructions = overrideProvidesAdditionalModelInstructions
+    ? metadataOverride.additionalModelInstructions
+    : threadProvidesAdditionalModelInstructions
+      ? thread.additionalModelInstructions
+      : undefined;
+  const resolvedAdditionalModelInstructions =
+    explicitAdditionalModelInstructions === undefined
+      ? normalizeOptionalInstructions(currentMetadata.additionalModelInstructions)
+      : normalizeOptionalInstructions(explicitAdditionalModelInstructions);
   const nextMetadata = {
     createdAt: currentMetadata.createdAt || nowIso,
     updatedAt: nowIso,
@@ -2619,6 +2694,7 @@ function toLegacyThreadPayload(thread, { metadataOverride } = {}) {
     currentModelId: resolvedCurrentModelId,
     currentModelName: resolvedCurrentModelName,
     currentReasoningLevel: resolvedCurrentReasoningLevel,
+    additionalModelInstructions: resolvedAdditionalModelInstructions,
   };
   if (threadId) {
     companyApiThreadMetadataById.set(threadId, nextMetadata);
@@ -2635,6 +2711,7 @@ function toLegacyThreadPayload(thread, { metadataOverride } = {}) {
     currentModelId: nextMetadata.currentModelId,
     currentModelName: nextMetadata.currentModelName,
     currentReasoningLevel: nextMetadata.currentReasoningLevel,
+    additionalModelInstructions: nextMetadata.additionalModelInstructions,
     createdAt: nextMetadata.createdAt,
     updatedAt: nextMetadata.updatedAt,
   };
@@ -2912,6 +2989,9 @@ async function executeGraphQL(query, variables = {}) {
     const defaultModelId = resolveLegacyId(variables?.defaultModelId);
     const defaultReasoningLevel =
       resolveLegacyId(variables?.defaultReasoningLevel, variables?.modelReasoningLevel) || null;
+    const defaultAdditionalModelInstructions = normalizeOptionalInstructions(
+      variables?.defaultAdditionalModelInstructions,
+    );
     if (!companyId || !name || !agentRunnerId || !agentRunnerSdkId || !defaultModelId) {
       throw new Error("Agent creation requires company, runner, SDK, and model selections.");
     }
@@ -2924,6 +3004,7 @@ async function executeGraphQL(query, variables = {}) {
       agentSdk: isAvailableAgentSdk(variables?.agentSdk) ? normalizeAgentSdkValue(variables?.agentSdk) : DEFAULT_AGENT_SDK,
       model: resolveLegacyId(variables?.model),
       modelReasoningLevel: defaultReasoningLevel || "",
+      defaultAdditionalModelInstructions,
       installedSkills: [],
     };
     const data = await executeRawGraphQL(COMPANY_API_CREATE_AGENT_MUTATION, {
@@ -2933,6 +3014,7 @@ async function executeGraphQL(query, variables = {}) {
       agentRunnerSdkId,
       defaultModelId,
       defaultReasoningLevel,
+      defaultAdditionalModelInstructions,
     });
     return {
       createAgent: {
@@ -2951,6 +3033,9 @@ async function executeGraphQL(query, variables = {}) {
     const defaultModelId = resolveLegacyId(variables?.defaultModelId);
     const defaultReasoningLevel =
       resolveLegacyId(variables?.defaultReasoningLevel, variables?.modelReasoningLevel) || null;
+    const defaultAdditionalModelInstructions = normalizeOptionalInstructions(
+      variables?.defaultAdditionalModelInstructions,
+    );
     if (!agentId || !name || !agentRunnerId || !agentRunnerSdkId || !defaultModelId) {
       throw new Error("Agent update requires id, runner, SDK, and model selections.");
     }
@@ -2965,6 +3050,7 @@ async function executeGraphQL(query, variables = {}) {
       agentSdk: isAvailableAgentSdk(variables?.agentSdk) ? normalizeAgentSdkValue(variables?.agentSdk) : DEFAULT_AGENT_SDK,
       model: resolveLegacyId(variables?.model),
       modelReasoningLevel: defaultReasoningLevel || "",
+      defaultAdditionalModelInstructions,
     };
 
     const data = await executeRawGraphQL(COMPANY_API_UPDATE_AGENT_MUTATION, {
@@ -2974,6 +3060,7 @@ async function executeGraphQL(query, variables = {}) {
       agentRunnerSdkId,
       defaultModelId,
       defaultReasoningLevel,
+      defaultAdditionalModelInstructions,
     });
 
     return {
@@ -3030,6 +3117,9 @@ async function executeGraphQL(query, variables = {}) {
   if (query === CREATE_AGENT_THREAD_MUTATION) {
     const companyId = resolveLegacyId(variables?.companyId);
     const agentId = resolveLegacyId(variables?.agentId);
+    const additionalModelInstructions = normalizeOptionalInstructions(
+      variables?.additionalModelInstructions,
+    );
     const loadThreadsForAgent = async () =>
       fetchCompanyApiConnectionNodes({
         query: COMPANY_API_LIST_THREADS_CONNECTION_QUERY,
@@ -3052,14 +3142,21 @@ async function executeGraphQL(query, variables = {}) {
     });
     const previousThreadIds = new Set(previousThreads.map((thread) => resolveLegacyId(thread?.id)));
 
-    const data = await executeRawGraphQL(COMPANY_API_CREATE_THREAD_MUTATION, {
+    const createThreadVariables = {
       companyId,
       agentId,
       title: resolveLegacyId(variables?.title) || null,
-    });
+    };
+    if (additionalModelInstructions !== null) {
+      createThreadVariables.additionalModelInstructions = additionalModelInstructions;
+    }
+    const data = await executeRawGraphQL(COMPANY_API_CREATE_THREAD_MUTATION, createThreadVariables);
     const metadata = {
       runnerId: resolveLegacyId(variables?.runnerId) || null,
     };
+    if (additionalModelInstructions !== null) {
+      metadata.additionalModelInstructions = additionalModelInstructions;
+    }
     const requestedThreadId = resolveLegacyId(data?.createThread?.id);
 
     const pickCanonicalThread = (threadsSnapshot) => {
@@ -4434,6 +4531,7 @@ function AgentsPage({
   agentSdk,
   agentModel,
   agentModelReasoningLevel,
+  agentDefaultAdditionalModelInstructions,
   agentDrafts,
   agentCountLabel,
   onAgentRunnerChange,
@@ -4443,6 +4541,7 @@ function AgentsPage({
   onAgentSdkChange,
   onAgentModelChange,
   onAgentModelReasoningLevelChange,
+  onAgentDefaultAdditionalModelInstructionsChange,
   onCreateAgent,
   onAgentDraftChange,
   onSaveAgent,
@@ -4620,6 +4719,7 @@ function AgentsPage({
                 agentSdk: DEFAULT_AGENT_SDK,
                 model: "",
                 modelReasoningLevel: "",
+                defaultAdditionalModelInstructions: "",
               };
               const draftSkillIds = normalizeUniqueStringList(draft.skillIds);
               const draftAvailableSkills = skills.filter(
@@ -4813,6 +4913,27 @@ function AgentsPage({
                           </>
                         )}
                       </select>
+
+                      <label
+                        className="relationship-field"
+                        htmlFor={`agent-default-additional-model-instructions-${agent.id}`}
+                      >
+                        Default additional model instructions
+                      </label>
+                      <textarea
+                        id={`agent-default-additional-model-instructions-${agent.id}`}
+                        value={draft.defaultAdditionalModelInstructions || ""}
+                        onChange={(event) =>
+                          onAgentDraftChange(
+                            agent.id,
+                            "defaultAdditionalModelInstructions",
+                            event.target.value,
+                          )
+                        }
+                        rows={4}
+                        placeholder="Optional. Applied to new chats unless thread-specific instructions are provided."
+                        disabled={isSavingOrDeleting}
+                      />
 
                       <label className="relationship-field" htmlFor={`agent-skills-assigned-${agent.id}`}>
                         Assigned skills
@@ -5194,6 +5315,20 @@ function AgentsPage({
               </>
             )}
           </select>
+
+          <label htmlFor="agent-default-additional-model-instructions">
+            Default additional model instructions (optional)
+          </label>
+          <textarea
+            id="agent-default-additional-model-instructions"
+            name="defaultAdditionalModelInstructions"
+            value={agentDefaultAdditionalModelInstructions}
+            onChange={(event) =>
+              onAgentDefaultAdditionalModelInstructionsChange(event.target.value)
+            }
+            rows={4}
+            placeholder="Optional. Used for new chats when no thread-specific instructions are provided."
+          />
 
           <button type="submit" disabled={isCreatingAgent || !hasRegisteredRunners}>
             {isCreatingAgent ? "Creating..." : "Create agent"}
@@ -6160,7 +6295,9 @@ function AgentChatsPage({
   deletingChatSessionKey,
   chatError,
   chatSessionTitleDraft,
+  chatSessionAdditionalModelInstructionsDraft,
   onChatSessionTitleDraftChange,
+  onChatSessionAdditionalModelInstructionsDraftChange,
   onCreateChatSession,
   onOpenChat,
   onDeleteChat,
@@ -6257,6 +6394,7 @@ function AgentChatsPage({
             event.preventDefault();
             const createdSessionId = await onCreateChatSession({
               title: chatSessionTitleDraft,
+              additionalModelInstructions: chatSessionAdditionalModelInstructionsDraft,
             });
             if (createdSessionId) {
               onOpenChat(createdSessionId);
@@ -6269,6 +6407,19 @@ function AgentChatsPage({
             value={chatSessionTitleDraft}
             onChange={(event) => onChatSessionTitleDraftChange(event.target.value)}
             placeholder="e.g. Release planning"
+            disabled={!agent || isCreatingChatSession}
+          />
+          <label htmlFor="chat-session-additional-model-instructions">
+            Additional model instructions (optional)
+          </label>
+          <textarea
+            id="chat-session-additional-model-instructions"
+            value={chatSessionAdditionalModelInstructionsDraft}
+            onChange={(event) =>
+              onChatSessionAdditionalModelInstructionsDraftChange(event.target.value)
+            }
+            placeholder="Optional. Leave blank to use this agent's default instructions."
+            rows={4}
             disabled={!agent || isCreatingChatSession}
           />
           <button type="submit" disabled={!agent || isCreatingChatSession}>
@@ -6524,6 +6675,10 @@ function AgentChatPage({
             </p>
             <p className="codex-auth-row">
               <strong>Reasoning:</strong> {session.currentReasoningLevel || "n/a"}
+            </p>
+            <p className="codex-auth-row">
+              <strong>Additional instructions:</strong>{" "}
+              {session.additionalModelInstructions || "none"}
             </p>
           </div>
         ) : (
@@ -7222,6 +7377,7 @@ function App() {
   const [agentSdk, setAgentSdk] = useState(DEFAULT_AGENT_SDK);
   const [agentModel, setAgentModel] = useState("");
   const [agentModelReasoningLevel, setAgentModelReasoningLevel] = useState("");
+  const [agentDefaultAdditionalModelInstructions, setAgentDefaultAdditionalModelInstructions] = useState("");
   const [agentDrafts, setAgentDrafts] = useState({});
   const [chatAgentId, setChatAgentId] = useState("");
   const [chatSessions, setChatSessions] = useState([]);
@@ -7229,6 +7385,7 @@ function App() {
   const [chatSessionRunningById, setChatSessionRunningById] = useState({});
   const [chatSessionId, setChatSessionId] = useState("");
   const [chatSessionTitleDraft, setChatSessionTitleDraft] = useState("");
+  const [chatSessionAdditionalModelInstructionsDraft, setChatSessionAdditionalModelInstructionsDraft] = useState("");
   const [chatSessionRenameDraft, setChatSessionRenameDraft] = useState("");
   const [chatTurns, setChatTurns] = useState([]);
   const [queuedChatMessages, setQueuedChatMessages] = useState([]);
@@ -7301,6 +7458,8 @@ function App() {
       currentModelId: resolveLegacyId(metadata.currentModelId) || null,
       currentModelName: resolveLegacyId(metadata.currentModelName) || null,
       currentReasoningLevel: resolveLegacyId(metadata.currentReasoningLevel) || null,
+      additionalModelInstructions:
+        normalizeOptionalInstructions(metadata.additionalModelInstructions) || null,
       createdAt: resolveLegacyId(metadata.createdAt) || nowIso,
       updatedAt: resolveLegacyId(metadata.updatedAt) || nowIso,
     };
@@ -7689,6 +7848,7 @@ function App() {
       setAgentSdk(DEFAULT_AGENT_SDK);
       setAgentModel("");
       setAgentModelReasoningLevel("");
+      setAgentDefaultAdditionalModelInstructions("");
       setIsLoadingAgents(false);
       return;
     }
@@ -8024,6 +8184,7 @@ function App() {
     setAgentSdk(DEFAULT_AGENT_SDK);
     setAgentModel("");
     setAgentModelReasoningLevel("");
+    setAgentDefaultAdditionalModelInstructions("");
     setRunnerNameDraft("");
     setRunnerSecretsById({});
     setHasLoadedAgentRunners(false);
@@ -8058,6 +8219,7 @@ function App() {
     setChatSessionRunningById({});
     setChatSessionId("");
     setChatSessionTitleDraft("");
+    setChatSessionAdditionalModelInstructionsDraft("");
     setChatSessionRenameDraft("");
     setChatTurns([]);
     setQueuedChatMessages([]);
@@ -9387,11 +9549,15 @@ function App() {
       setIsCreatingAgent(true);
       setAgentError("");
       const cleanAgentMcpServerIds = normalizeUniqueStringList(agentMcpServerIds);
+      const normalizedDefaultAdditionalModelInstructions = normalizeOptionalInstructions(
+        agentDefaultAdditionalModelInstructions,
+      );
       const data = await executeGraphQL(CREATE_AGENT_MUTATION, {
         companyId: selectedCompanyId,
         agentRunnerId: agentRunnerId || null,
         skillIds: agentSkillIds,
         mcpServerIds: cleanAgentMcpServerIds,
+        defaultAdditionalModelInstructions: normalizedDefaultAdditionalModelInstructions,
         name: agentName.trim(),
         agentSdk: normalizedSdk,
         model: normalizedModel,
@@ -9411,6 +9577,7 @@ function App() {
       setAgentSdk(DEFAULT_AGENT_SDK);
       setAgentModel("");
       setAgentModelReasoningLevel("");
+      setAgentDefaultAdditionalModelInstructions("");
       await loadAgents();
       return true;
     } catch (createError) {
@@ -9434,6 +9601,7 @@ function App() {
       agentSdk: DEFAULT_AGENT_SDK,
       model: "",
       modelReasoningLevel: "",
+      defaultAdditionalModelInstructions: "",
     };
     if (!draft.name.trim()) {
       setAgentError("Agent name is required to save.");
@@ -9510,12 +9678,16 @@ function App() {
       setSavingAgentId(agentId);
       setAgentError("");
       const cleanDraftMcpServerIds = normalizeUniqueStringList(draft.mcpServerIds);
+      const normalizedDefaultAdditionalModelInstructions = normalizeOptionalInstructions(
+        draft.defaultAdditionalModelInstructions,
+      );
       const data = await executeGraphQL(UPDATE_AGENT_MUTATION, {
         companyId: selectedCompanyId,
         id: agentId,
         agentRunnerId: draft.agentRunnerId || null,
         skillIds: draft.skillIds || [],
         mcpServerIds: cleanDraftMcpServerIds,
+        defaultAdditionalModelInstructions: normalizedDefaultAdditionalModelInstructions,
         name: draft.name.trim(),
         agentSdk: normalizedSdk,
         model: normalizedModel,
@@ -9808,6 +9980,7 @@ function App() {
     if (!targetSessionId) {
       targetSessionId = await handleCreateChatSession({
         title: chatSessionTitleDraft || null,
+        additionalModelInstructions: chatSessionAdditionalModelInstructionsDraft || null,
         preferredRunnerId: selectedAgentForChat?.agentRunnerId || null,
       });
       if (!targetSessionId) {
@@ -9866,6 +10039,7 @@ function App() {
   async function handleCreateChatSession({
     agentId = null,
     title = null,
+    additionalModelInstructions = null,
     preferredRunnerId = null,
   } = {}) {
     const targetAgentId = String(agentId || chatAgentId || "").trim();
@@ -9879,6 +10053,9 @@ function App() {
     }
 
     const selectedAgentForChat = agents.find((agent) => agent.id === targetAgentId) || null;
+    const normalizedAdditionalModelInstructions = normalizeOptionalInstructions(
+      additionalModelInstructions,
+    );
     const knownThreadIds = new Set(
       (Array.isArray(chatSessionsByAgent[targetAgentId]) ? chatSessionsByAgent[targetAgentId] : []).map(
         (session) => String(session?.id || "").trim(),
@@ -9892,6 +10069,7 @@ function App() {
         companyId: selectedCompanyId,
         agentId: targetAgentId,
         title: title ? title.trim() : null,
+        additionalModelInstructions: normalizedAdditionalModelInstructions,
         runnerId: preferredRunnerId || selectedAgentForChat?.agentRunnerId || null,
       });
       const result = data.createAgentThread;
@@ -9913,6 +10091,10 @@ function App() {
             ...canonicalThread,
             ...resolvedThread,
             title: canonicalThread.title || resolvedThread.title,
+            additionalModelInstructions:
+              canonicalThread.additionalModelInstructions
+                || resolvedThread.additionalModelInstructions
+                || normalizedAdditionalModelInstructions,
             runnerId: canonicalThread.runnerId || resolvedThread.runnerId || null,
           };
         }
@@ -9952,6 +10134,7 @@ function App() {
         [targetAgentId]: nextSessionsForAgent,
       }));
       setChatSessionTitleDraft("");
+      setChatSessionAdditionalModelInstructionsDraft("");
       setChatSessionId(resolvedThreadId);
       return resolvedThreadId;
     } catch (createError) {
@@ -10250,6 +10433,7 @@ function App() {
         agentSdk: DEFAULT_AGENT_SDK,
         model: "",
         modelReasoningLevel: "",
+        defaultAdditionalModelInstructions: "",
       };
 
       const nextDraft = {
@@ -10275,6 +10459,9 @@ function App() {
       }
       if (field === "modelReasoningLevel") {
         nextDraft.modelReasoningLevel = String(value || "").trim();
+      }
+      if (field === "defaultAdditionalModelInstructions") {
+        nextDraft.defaultAdditionalModelInstructions = String(value || "");
       }
 
       if (field === "agentRunnerId" || field === "model" || field === "modelReasoningLevel") {
@@ -10676,7 +10863,11 @@ function App() {
               deletingChatSessionKey={deletingChatSessionKey}
               chatError={chatError}
               chatSessionTitleDraft={chatSessionTitleDraft}
+              chatSessionAdditionalModelInstructionsDraft={chatSessionAdditionalModelInstructionsDraft}
               onChatSessionTitleDraftChange={setChatSessionTitleDraft}
+              onChatSessionAdditionalModelInstructionsDraftChange={
+                setChatSessionAdditionalModelInstructionsDraft
+              }
               onCreateChatSession={handleCreateChatSession}
               onOpenChat={(sessionId) => {
                 if (!chatAgentId || !sessionId) {
@@ -10746,6 +10937,7 @@ function App() {
               agentSdk={agentSdk}
               agentModel={agentModel}
               agentModelReasoningLevel={agentModelReasoningLevel}
+              agentDefaultAdditionalModelInstructions={agentDefaultAdditionalModelInstructions}
               agentDrafts={agentDrafts}
               agentCountLabel={agentCountLabel}
               onAgentRunnerChange={handleCreateAgentRunnerChange}
@@ -10755,6 +10947,9 @@ function App() {
               onAgentSdkChange={handleCreateAgentSdkChange}
               onAgentModelChange={handleCreateAgentModelChange}
               onAgentModelReasoningLevelChange={handleCreateAgentReasoningLevelChange}
+              onAgentDefaultAdditionalModelInstructionsChange={
+                setAgentDefaultAdditionalModelInstructions
+              }
               onCreateAgent={handleCreateAgent}
               onAgentDraftChange={handleAgentDraftChange}
               onSaveAgent={handleSaveAgent}
