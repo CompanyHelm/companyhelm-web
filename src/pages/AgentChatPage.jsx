@@ -67,6 +67,26 @@ export function AgentChatPage({
     [chatTurns],
   );
   const hasRunningTurn = useMemo(() => Boolean(getLatestRunningChatTurn(orderedTurns)), [orderedTurns]);
+  const latestReasoning = useMemo(() => {
+    for (let turnIndex = orderedTurns.length - 1; turnIndex >= 0; turnIndex -= 1) {
+      const turn = orderedTurns[turnIndex];
+      const reasoningText = String(turn?.reasoningText || "").trim();
+      if (!reasoningText) {
+        continue;
+      }
+      const normalizedTurnStatus = String(turn?.status || "").trim().toLowerCase();
+      const status = normalizedTurnStatus === "running"
+        ? "running"
+        : normalizedTurnStatus === "pending"
+          ? "pending"
+          : "completed";
+      return {
+        text: reasoningText,
+        status,
+      };
+    }
+    return null;
+  }, [orderedTurns]);
   const { visibleTurns, totalMessageCount } = useMemo(
     () => selectVisibleTurnsByMessageCount(orderedTurns, visibleMessageCount),
     [orderedTurns, visibleMessageCount],
@@ -412,11 +432,6 @@ export function AgentChatPage({
                         ) : null}
                         <span>{formatTimestamp(turn.createdAt)}</span>
                       </div>
-                      {turn.reasoningText ? (
-                        <p className={`chat-turn-reasoning chat-turn-reasoning-${turnStatus}`}>
-                          {turn.reasoningText}
-                        </p>
-                      ) : null}
                     </li>,
                   );
 
@@ -584,88 +599,95 @@ export function AgentChatPage({
       </CreationModal>
 
       <section className="panel composer-panel chat-composer-panel">
+        {latestReasoning ? (
+          <p className={`chat-turn-reasoning chat-turn-reasoning-${latestReasoning.status} chat-composer-reasoning`}>
+            {latestReasoning.text}
+          </p>
+        ) : null}
         <form className="chat-composer-form" onSubmit={onSendChatMessage}>
-          <textarea
-            id="chat-message-input"
-            className="chat-composer-input"
-            rows={2}
-            placeholder="Ask the agent to plan, debug, or implement something..."
-            value={chatDraftMessage}
-            onChange={(event) => onChatDraftMessageChange(event.target.value)}
-            onKeyDown={handleChatMessageKeyDown}
-            disabled={!canChat || isSendingChatMessage || isInterruptingChatTurn}
-          />
-          <div className="chat-composer-toolbar">
-            {hasRunningTurn ? (
-              <span className="chat-composer-status">
-                <span className="chat-turn-spinner chat-item-spinner" aria-hidden="true" />
-                Turn running
-              </span>
-            ) : null}
-            <div className={`chat-composer-actions${hasRunningTurn ? " chat-composer-actions-running" : ""}`}>
+          <div className="chat-composer-input-row">
+            <textarea
+              id="chat-message-input"
+              className="chat-composer-input"
+              rows={2}
+              placeholder="Ask the agent to plan, debug, or implement something..."
+              value={chatDraftMessage}
+              onChange={(event) => onChatDraftMessageChange(event.target.value)}
+              onKeyDown={handleChatMessageKeyDown}
+              disabled={!canChat || isSendingChatMessage || isInterruptingChatTurn}
+            />
+            <div className="chat-composer-toolbar">
               {hasRunningTurn ? (
-                <>
+                <span className="chat-composer-status">
+                  <span className="chat-turn-spinner chat-item-spinner" aria-hidden="true" />
+                  Turn running
+                </span>
+              ) : null}
+              <div className={`chat-composer-actions${hasRunningTurn ? " chat-composer-actions-running" : ""}`}>
+                {hasRunningTurn ? (
+                  <>
+                    <button
+                      type="button"
+                      className="secondary-btn chat-action-btn"
+                      disabled={!canChat || !chatDraftMessage.trim() || isSendingChatMessage || isInterruptingChatTurn}
+                      onClick={(event) => onSendChatMessage(event, "queue")}
+                    >
+                      <span className="chat-action-btn-content">
+                        <svg
+                          className="chat-action-icon"
+                          viewBox="0 0 24 24"
+                          aria-hidden="true"
+                          focusable="false"
+                        >
+                          <path d="M3 11 21 3 13 21 11 13 3 11z" />
+                          <path d="m11 13 10-10" />
+                        </svg>
+                        <span>{isSendingChatMessage ? "queueing..." : "queue"}</span>
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary-btn chat-action-btn"
+                      disabled={!canChat || !chatDraftMessage.trim() || isSendingChatMessage || isInterruptingChatTurn}
+                      onClick={(event) => onSendChatMessage(event, "steer")}
+                      title="Steer the active turn"
+                    >
+                      <span className="chat-action-btn-content">
+                        <svg
+                          className="chat-action-icon"
+                          viewBox="0 0 24 24"
+                          aria-hidden="true"
+                          focusable="false"
+                        >
+                          <circle cx="6" cy="5" r="2" />
+                          <circle cx="6" cy="19" r="2" />
+                          <circle cx="18" cy="12" r="2" />
+                          <path d="M8 6v4a2 2 0 0 0 2 2h6" />
+                          <path d="M8 18v-4a2 2 0 0 1 2-2h6" />
+                        </svg>
+                        <span>{isSendingChatMessage ? "steering..." : "steer"}</span>
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className="chat-stop-btn"
+                      disabled={!canChat || isSendingChatMessage || isInterruptingChatTurn}
+                      onClick={onInterruptChatTurn}
+                      aria-label={isInterruptingChatTurn ? "Stopping turn..." : "Stop running turn"}
+                      title={isInterruptingChatTurn ? "Stopping turn..." : "Stop running turn"}
+                    >
+                      <span className="chat-stop-icon" aria-hidden="true" />
+                    </button>
+                  </>
+                ) : (
                   <button
-                    type="button"
-                    className="secondary-btn chat-action-btn"
+                    type="submit"
                     disabled={!canChat || !chatDraftMessage.trim() || isSendingChatMessage || isInterruptingChatTurn}
-                    onClick={(event) => onSendChatMessage(event, "queue")}
                   >
-                    <span className="chat-action-btn-content">
-                      <svg
-                        className="chat-action-icon"
-                        viewBox="0 0 24 24"
-                        aria-hidden="true"
-                        focusable="false"
-                      >
-                        <path d="M3 11 21 3 13 21 11 13 3 11z" />
-                        <path d="m11 13 10-10" />
-                      </svg>
-                      <span>{isSendingChatMessage ? "queueing..." : "queue"}</span>
-                    </span>
+                    {isSendingChatMessage ? "Sending..." : "Send message"}
                   </button>
-                  <button
-                    type="button"
-                    className="secondary-btn chat-action-btn"
-                    disabled={!canChat || !chatDraftMessage.trim() || isSendingChatMessage || isInterruptingChatTurn}
-                    onClick={(event) => onSendChatMessage(event, "steer")}
-                    title="Steer the active turn"
-                  >
-                    <span className="chat-action-btn-content">
-                      <svg
-                        className="chat-action-icon"
-                        viewBox="0 0 24 24"
-                        aria-hidden="true"
-                        focusable="false"
-                      >
-                        <circle cx="6" cy="5" r="2" />
-                        <circle cx="6" cy="19" r="2" />
-                        <circle cx="18" cy="12" r="2" />
-                        <path d="M8 6v4a2 2 0 0 0 2 2h6" />
-                        <path d="M8 18v-4a2 2 0 0 1 2-2h6" />
-                      </svg>
-                      <span>{isSendingChatMessage ? "steering..." : "steer"}</span>
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    className="chat-stop-btn"
-                    disabled={!canChat || isSendingChatMessage || isInterruptingChatTurn}
-                    onClick={onInterruptChatTurn}
-                    aria-label={isInterruptingChatTurn ? "Stopping turn..." : "Stop running turn"}
-                    title={isInterruptingChatTurn ? "Stopping turn..." : "Stop running turn"}
-                  >
-                    <span className="chat-stop-icon" aria-hidden="true" />
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="submit"
-                  disabled={!canChat || !chatDraftMessage.trim() || isSendingChatMessage || isInterruptingChatTurn}
-                >
-                  {isSendingChatMessage ? "Sending..." : "Send message"}
-                </button>
-              )}
+                )}
+              </div>
             </div>
           </div>
         </form>
