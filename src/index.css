@@ -1355,15 +1355,20 @@ button:disabled {
 
 /* ---- Turn separator ---- */
 .chat-turn-separator {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  display: grid;
+  gap: 0.4rem;
   padding: 0.4rem 0;
   margin: 0.35rem 0 0.15rem;
 }
 
-.chat-turn-separator::before,
-.chat-turn-separator::after {
+.chat-turn-separator-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.chat-turn-separator-row::before,
+.chat-turn-separator-row::after {
   content: "";
   flex: 1;
   height: 1px;
@@ -1912,6 +1917,7 @@ button:disabled {
 .chat-turn-reasoning {
   margin: 0;
   padding: 0.44rem 0.56rem;
+  width: 100%;
   border-radius: 8px;
   font-style: italic;
   color: #7c4d11;

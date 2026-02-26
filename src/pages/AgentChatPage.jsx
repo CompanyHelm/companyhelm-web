@@ -51,9 +51,7 @@ export function AgentChatPage({
   const [isContextPanelCollapsed, setIsContextPanelCollapsed] = useState(() =>
     matchesMediaQuery(COMPACT_CHAT_MEDIA_QUERY),
   );
-  const [isSessionPanelCollapsed, setIsSessionPanelCollapsed] = useState(() =>
-    matchesMediaQuery(COMPACT_CHAT_MEDIA_QUERY),
-  );
+  const [isSessionPanelCollapsed, setIsSessionPanelCollapsed] = useState(true);
   const [isCompactChatViewport, setIsCompactChatViewport] = useState(() =>
     matchesMediaQuery(COMPACT_CHAT_MEDIA_QUERY),
   );
@@ -115,7 +113,6 @@ export function AgentChatPage({
       return;
     }
     setIsContextPanelCollapsed(false);
-    setIsSessionPanelCollapsed(false);
   }, [isCompactChatViewport]);
 
   useEffect(() => {
@@ -403,20 +400,22 @@ export function AgentChatPage({
 
                   elements.push(
                     <li key={`sep-${turn.id}`} className="chat-turn-separator">
-                      <code className="runner-id">{String(turn.id || "").slice(0, 8)}</code>
-                      <span className={`chat-turn-status chat-turn-status-${turnStatus}`}>{turnStatus}</span>
-                      {turnStatus === "running" ? (
-                        <span
-                          className="chat-turn-spinner"
-                          aria-label="Turn is running"
-                          title="Turn in progress"
-                        />
-                      ) : null}
-                      <span>{formatTimestamp(turn.createdAt)}</span>
+                      <div className="chat-turn-separator-row">
+                        <code className="runner-id">{String(turn.id || "").slice(0, 8)}</code>
+                        <span className={`chat-turn-status chat-turn-status-${turnStatus}`}>{turnStatus}</span>
+                        {turnStatus === "running" ? (
+                          <span
+                            className="chat-turn-spinner"
+                            aria-label="Turn is running"
+                            title="Turn in progress"
+                          />
+                        ) : null}
+                        <span>{formatTimestamp(turn.createdAt)}</span>
+                      </div>
                       {turn.reasoningText ? (
-                        <span className={`chat-turn-reasoning chat-turn-reasoning-${turnStatus}`}>
+                        <p className={`chat-turn-reasoning chat-turn-reasoning-${turnStatus}`}>
                           {turn.reasoningText}
-                        </span>
+                        </p>
                       ) : null}
                     </li>,
                   );
