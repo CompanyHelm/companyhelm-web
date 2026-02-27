@@ -14,6 +14,7 @@ export function ChatsOverviewPage({
   deletingChatSessionKey,
   onRefreshChatLists,
   onCreateChatForAgent,
+  getCreateChatDisabledReason,
   onOpenChat,
   onDeleteChat,
 }) {
@@ -50,6 +51,8 @@ export function ChatsOverviewPage({
               const agentChats = Array.isArray(chatSessionsByAgent?.[agent.id])
                 ? chatSessionsByAgent[agent.id]
                 : [];
+              const createChatDisabledReason = String(getCreateChatDisabledReason?.(agent.id) || "").trim();
+              const isCreateChatDisabled = isCreatingChatSession || Boolean(createChatDisabledReason);
               const sortedChats = [...agentChats].sort((leftChat, rightChat) =>
                 compareTurnsByTimestamp(
                   { createdAt: leftChat?.updatedAt, id: leftChat?.id },
@@ -71,11 +74,13 @@ export function ChatsOverviewPage({
                       type="button"
                       className="secondary-btn"
                       onClick={() => onCreateChatForAgent(agent.id)}
-                      disabled={isCreatingChatSession}
+                      disabled={isCreateChatDisabled}
+                      title={createChatDisabledReason || undefined}
                     >
                       {isCreatingChatSession ? "Creating..." : "New chat"}
                     </button>
                   </div>
+                  {createChatDisabledReason ? <p className="empty-hint">{createChatDisabledReason}</p> : null}
                   {!hasChats ? <p className="empty-hint">No chats yet for this agent.</p> : null}
                   {hasChats ? (
                     <ul className="chat-session-list">
