@@ -51,6 +51,7 @@ export function AgentsPage({
   onDeleteAgent,
 }) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingAgentId, setEditingAgentId] = useState("");
   const [pendingDeleteAgent, setPendingDeleteAgent] = useState(null);
   const [forceDeleteAgent, setForceDeleteAgent] = useState(false);
   const skillLookup = useMemo(() => {
@@ -88,11 +89,66 @@ export function AgentsPage({
     [createAssignedMcpServerIds, mcpServers],
   );
   const hasRegisteredRunners = agentRunners.length > 0;
+  const editingAgent = agents.find((agent) => agent.id === editingAgentId) || null;
+  const isEditModalOpen = Boolean(editingAgent);
+
+  function getAgentDraft(agentId) {
+    return (
+      agentDrafts[agentId] || {
+        agentRunnerId: "",
+        skillIds: [],
+        mcpServerIds: [],
+        name: "",
+        agentSdk: DEFAULT_AGENT_SDK,
+        model: "",
+        modelReasoningLevel: "",
+        defaultAdditionalModelInstructions: "",
+      }
+    );
+  }
+
+  const editingDraft = editingAgent ? getAgentDraft(editingAgentId) : null;
+  const editingSkillIds = editingDraft ? normalizeUniqueStringList(editingDraft.skillIds) : [];
+  const editingAvailableSkills = editingDraft
+    ? skills.filter((skill) => !editingSkillIds.includes(skill.id))
+    : [];
+  const editingMcpServerIds = editingDraft ? normalizeUniqueStringList(editingDraft.mcpServerIds) : [];
+  const editingAvailableMcpServers = editingDraft
+    ? mcpServers.filter((mcpServer) => !editingMcpServerIds.includes(mcpServer.id))
+    : [];
+  const editingRunnerCodexModelEntries = editingDraft
+    ? getRunnerCodexModelEntriesForRunner(
+        runnerCodexModelEntriesById,
+        editingDraft.agentRunnerId,
+      )
+    : [];
+  const editingRunnerModelNames = editingDraft
+    ? getRunnerModelNames(editingRunnerCodexModelEntries)
+    : [];
+  const editingRunnerReasoningLevels = editingDraft
+    ? getRunnerReasoningLevels(editingRunnerCodexModelEntries, editingDraft.model)
+    : [];
+  const isEditingAgentSaving = editingAgent ? savingAgentId === editingAgent.id : false;
+  const isEditingAgentDeleting = editingAgent ? deletingAgentId === editingAgent.id : false;
+  const isEditingAgentInitializing = editingAgent ? initializingAgentId === editingAgent.id : false;
+  const isEditingDisabled = isEditingAgentSaving || isEditingAgentDeleting || isEditingAgentInitializing;
 
   async function handleCreateAgentSubmit(event) {
     const didCreate = await onCreateAgent(event);
     if (didCreate) {
       setIsCreateModalOpen(false);
+    }
+  }
+
+  async function handleEditAgentSubmit(event) {
+    event.preventDefault();
+    if (!editingAgent) {
+      return;
+    }
+
+    const didSave = await onSaveAgent(editingAgent.id);
+    if (didSave) {
+      setEditingAgentId("");
     }
   }
 
@@ -212,41 +268,50 @@ export function AgentsPage({
                       normalizeSkillType(installedSkill?.skillType) === SKILL_TYPE_SKILLSMP,
                   )
                 : [];
-              const draft = agentDrafts[agent.id] || {
-                agentRunnerId: "",
-                skillIds: [],
-                mcpServerIds: [],
-                name: "",
-                agentSdk: DEFAULT_AGENT_SDK,
-                model: "",
-                modelReasoningLevel: "",
-                defaultAdditionalModelInstructions: "",
-              };
-              const draftSkillIds = normalizeUniqueStringList(draft.skillIds);
-              const draftAvailableSkills = skills.filter(
-                (skill) => !draftSkillIds.includes(skill.id),
-              );
-              const draftMcpServerIds = normalizeUniqueStringList(draft.mcpServerIds);
-              const draftAvailableMcpServers = mcpServers.filter(
-                (mcpServer) => !draftMcpServerIds.includes(mcpServer.id),
-              );
-              const draftRunnerCodexModelEntries = getRunnerCodexModelEntriesForRunner(
-                runnerCodexModelEntriesById,
-                draft.agentRunnerId,
-              );
-              const draftRunnerModelNames = getRunnerModelNames(draftRunnerCodexModelEntries);
-              const draftRunnerReasoningLevels = getRunnerReasoningLevels(
-                draftRunnerCodexModelEntries,
-                draft.model,
-              );
               const isSavingOrDeleting =
                 savingAgentId === agent.id || deletingAgentId === agent.id;
+              const isInitializing = initializingAgentId === agent.id;
+              const isBusy = isSavingOrDeleting || isInitializing;
 
               return (
                 <li key={agent.id} className="task-card">
                   <div className="task-card-top">
-                    <strong>{agent.name}</strong>
-                    <code className="runner-id">{agent.id}</code>
+                    <div className="task-card-title-group">
+                      <strong>{agent.name}</strong>
+                      <code className="runner-id">{agent.id}</code>
+                    </div>
+                    <div className="task-card-top-actions">
+                      <button
+                        type="button"
+                        className="icon-edit-btn"
+                        aria-label={`Edit ${agent.name}`}
+                        title="Edit agent"
+                        onClick={() => setEditingAgentId(agent.id)}
+                        disabled={isBusy}
+                      >
+                        <svg
+                          aria-hidden="true"
+                          viewBox="0 0 20 20"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            d="M4 13.5 3 17l3.5-1 9-9a1.8 1.8 0 0 0 0-2.5l-1-1a1.8 1.8 0 0 0-2.5 0l-9 9Z"
+                            stroke="currentColor"
+                            strokeWidth="1.4"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                          <path
+                            d="M11.5 4.5 15.5 8.5"
+                            stroke="currentColor"
+                            strokeWidth="1.4"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                   <p className="agent-subcopy">
                     SDK: <strong>{agent.agentSdk}</strong> • model: <strong>{agent.model}</strong>{" "}
@@ -297,305 +362,31 @@ export function AgentsPage({
                               <details className="agent-install-logs">
                                 <summary>View install logs</summary>
                                 <pre>{installLogs}</pre>
-                              </details>
-                            ) : null}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : null}
-
-                  <div className="relationship-editor">
-                    <div className="agent-edit-grid">
-                      <label className="relationship-field" htmlFor={`agent-runner-${agent.id}`}>
-                        Runner
-                      </label>
-                      <select
-                        id={`agent-runner-${agent.id}`}
-                        value={draft.agentRunnerId}
-                        onChange={(event) =>
-                          onAgentDraftChange(agent.id, "agentRunnerId", event.target.value)
-                        }
-                        disabled={isSavingOrDeleting}
-                      >
-                        <option value="">Unassigned</option>
-                        {agentRunners.map((runner) => (
-                          <option key={runner.id} value={runner.id}>
-                            {formatRunnerLabel(runner)}
-                          </option>
-                        ))}
-                      </select>
-
-                      <label className="relationship-field" htmlFor={`agent-name-${agent.id}`}>
-                        Name
-                      </label>
-                      <input
-                        id={`agent-name-${agent.id}`}
-                        value={draft.name}
-                        onChange={(event) =>
-                          onAgentDraftChange(agent.id, "name", event.target.value)
-                        }
-                        disabled={isSavingOrDeleting}
-                      />
-
-                      <label className="relationship-field" htmlFor={`agent-sdk-${agent.id}`}>
-                        SDK
-                      </label>
-                      <select
-                        id={`agent-sdk-${agent.id}`}
-                        value={draft.agentSdk}
-                        onChange={(event) =>
-                          onAgentDraftChange(agent.id, "agentSdk", event.target.value)
-                        }
-                        disabled={isSavingOrDeleting}
-                      >
-                        {AVAILABLE_AGENT_SDKS.map((sdkName) => (
-                          <option key={`${agent.id}-sdk-${sdkName}`} value={sdkName}>
-                            {sdkName}
-                          </option>
-                        ))}
-                      </select>
-
-                      <label className="relationship-field" htmlFor={`agent-model-${agent.id}`}>
-                        Model
-                      </label>
-                      <select
-                        id={`agent-model-${agent.id}`}
-                        value={draft.model}
-                        onChange={(event) =>
-                          onAgentDraftChange(agent.id, "model", event.target.value)
-                        }
-                        disabled={isSavingOrDeleting || !draft.agentRunnerId}
-                      >
-                        {!draft.agentRunnerId ? (
-                          <option value="">Select a runner first</option>
-                        ) : draftRunnerModelNames.length === 0 ? (
-                          <option value="">No models reported by selected runner</option>
-                        ) : (
-                          <>
-                            <option value="">Select model</option>
-                            {draftRunnerModelNames.map((modelName) => (
-                              <option key={`${agent.id}-model-${modelName}`} value={modelName}>
-                                {modelName}
-                              </option>
-                            ))}
-                          </>
-                        )}
-                      </select>
-
-                      <label className="relationship-field" htmlFor={`agent-reasoning-${agent.id}`}>
-                        Reasoning
-                      </label>
-                      <select
-                        id={`agent-reasoning-${agent.id}`}
-                        value={draft.modelReasoningLevel}
-                        onChange={(event) =>
-                          onAgentDraftChange(agent.id, "modelReasoningLevel", event.target.value)
-                        }
-                        disabled={isSavingOrDeleting || !draft.agentRunnerId || !draft.model}
-                      >
-                        {!draft.agentRunnerId ? (
-                          <option value="">Select a runner first</option>
-                        ) : !draft.model ? (
-                          <option value="">Select a model first</option>
-                        ) : draftRunnerReasoningLevels.length === 0 ? (
-                          <option value="">No reasoning levels reported for this model</option>
-                        ) : (
-                          <>
-                            <option value="">Select reasoning</option>
-                            {draftRunnerReasoningLevels.map((reasoningLevel) => (
-                              <option
-                                key={`${agent.id}-reasoning-${reasoningLevel}`}
-                                value={reasoningLevel}
-                              >
-                                {reasoningLevel}
-                              </option>
-                            ))}
-                          </>
-                        )}
-                      </select>
-
-                      <label
-                        className="relationship-field"
-                        htmlFor={`agent-default-additional-model-instructions-${agent.id}`}
-                      >
-                        Default additional model instructions
-                      </label>
-                      <textarea
-                        id={`agent-default-additional-model-instructions-${agent.id}`}
-                        value={draft.defaultAdditionalModelInstructions || ""}
-                        onChange={(event) =>
-                          onAgentDraftChange(
-                            agent.id,
-                            "defaultAdditionalModelInstructions",
-                            event.target.value,
-                          )
-                        }
-                        rows={4}
-                        placeholder="Optional. Applied to new chats unless thread-specific instructions are provided."
-                        disabled={isSavingOrDeleting}
-                      />
-
-                      <label className="relationship-field" htmlFor={`agent-skills-assigned-${agent.id}`}>
-                        Assigned skills
-                      </label>
-                      <div id={`agent-skills-assigned-${agent.id}`} className="inline-selection-list">
-                        {draftSkillIds.length === 0 ? (
-                          <span className="empty-hint">No skills assigned.</span>
-                        ) : (
-                          draftSkillIds.map((skillId) => {
-                            const skill = skillLookup.get(skillId);
-                            const skillLabel = skill ? formatSkillLabel(skill) : skillId;
-                            return (
-                              <button
-                                key={`agent-remove-skill-${agent.id}-${skillId}`}
-                                type="button"
-                                className="tag-remove-btn"
-                                onClick={() =>
-                                  onAgentDraftChange(
-                                    agent.id,
-                                    "skillIds",
-                                    draftSkillIds.filter((candidateId) => candidateId !== skillId),
-                                  )
-                                }
-                                disabled={isSavingOrDeleting}
-                                title={`Remove ${skillLabel}`}
-                              >
-                                {skillLabel} ×
-                              </button>
-                            );
-                          })
-                        )}
+                          </details>
+                        ) : null}
                       </div>
+                    );
+                  })}
+                </div>
+              ) : null}
 
-                      <label className="relationship-field" htmlFor={`agent-skills-add-${agent.id}`}>
-                        Add skill
-                      </label>
-                      <select
-                        id={`agent-skills-add-${agent.id}`}
-                        value=""
-                        onChange={(event) => {
-                          const nextSkillId = String(event.target.value || "").trim();
-                          if (!nextSkillId) {
-                            return;
-                          }
-                          onAgentDraftChange(agent.id, "skillIds", [...draftSkillIds, nextSkillId]);
-                        }}
-                        disabled={isSavingOrDeleting || draftAvailableSkills.length === 0}
-                      >
-                        <option value="">
-                          {draftAvailableSkills.length === 0
-                            ? "All company skills already assigned"
-                            : "Select skill to assign"}
-                        </option>
-                        {draftAvailableSkills.map((skill) => (
-                          <option key={`agent-skill-option-${agent.id}-${skill.id}`} value={skill.id}>
-                            {formatSkillLabel(skill)}
-                          </option>
-                        ))}
-                      </select>
-
-                      <label className="relationship-field" htmlFor={`agent-mcp-assigned-${agent.id}`}>
-                        Assigned MCP servers
-                      </label>
-                      <div id={`agent-mcp-assigned-${agent.id}`} className="inline-selection-list">
-                        {draftMcpServerIds.length === 0 ? (
-                          <span className="empty-hint">No MCP servers assigned.</span>
-                        ) : (
-                          draftMcpServerIds.map((mcpServerId) => {
-                            const mcpServer = mcpServerLookup.get(mcpServerId);
-                            const mcpServerLabel = mcpServer ? mcpServer.name : mcpServerId;
-                            return (
-                              <button
-                                key={`agent-remove-mcp-${agent.id}-${mcpServerId}`}
-                                type="button"
-                                className="tag-remove-btn"
-                                onClick={() =>
-                                  onAgentDraftChange(
-                                    agent.id,
-                                    "mcpServerIds",
-                                    draftMcpServerIds.filter((candidateId) => candidateId !== mcpServerId),
-                                  )
-                                }
-                                disabled={isSavingOrDeleting}
-                                title={`Remove ${mcpServerLabel}`}
-                              >
-                                {mcpServerLabel} ×
-                              </button>
-                            );
-                          })
-                        )}
-                      </div>
-
-                      <label className="relationship-field" htmlFor={`agent-mcp-add-${agent.id}`}>
-                        Add MCP server
-                      </label>
-                      <select
-                        id={`agent-mcp-add-${agent.id}`}
-                        value=""
-                        onChange={(event) => {
-                          const nextMcpServerId = String(event.target.value || "").trim();
-                          if (!nextMcpServerId) {
-                            return;
-                          }
-                          onAgentDraftChange(
-                            agent.id,
-                            "mcpServerIds",
-                            [...draftMcpServerIds, nextMcpServerId],
-                          );
-                        }}
-                        disabled={isSavingOrDeleting || draftAvailableMcpServers.length === 0}
-                      >
-                        <option value="">
-                          {draftAvailableMcpServers.length === 0
-                            ? "All company MCP servers already assigned"
-                            : "Select MCP server to assign"}
-                        </option>
-                        {draftAvailableMcpServers.map((mcpServer) => (
-                          <option key={`agent-mcp-option-${agent.id}-${mcpServer.id}`} value={mcpServer.id}>
-                            {mcpServer.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="task-card-actions">
-                      <button
-                        type="button"
-                        className="secondary-btn"
-                        onClick={() => onOpenAgentSessions(agent.id)}
-                        disabled={
-                          savingAgentId === agent.id ||
-                          deletingAgentId === agent.id ||
-                          initializingAgentId === agent.id
-                        }
-                      >
-                        Chats
-                      </button>
-                      <button
-                        type="button"
-                        className="secondary-btn relationship-save-btn"
-                        onClick={() => onSaveAgent(agent.id)}
-                        disabled={
-                          savingAgentId === agent.id ||
-                          deletingAgentId === agent.id ||
-                          initializingAgentId === agent.id
-                        }
-                      >
-                        {savingAgentId === agent.id ? "Saving..." : "Save"}
-                      </button>
-                      <button
-                        type="button"
-                        className="danger-btn"
-                        onClick={() => openDeleteAgentModal(agent.id, agent.name)}
-                        disabled={
-                          savingAgentId === agent.id ||
-                          deletingAgentId === agent.id ||
-                          initializingAgentId === agent.id
-                        }
-                      >
-                        {deletingAgentId === agent.id ? "Deleting..." : "Delete"}
-                      </button>
-                    </div>
+                  <div className="task-card-actions">
+                    <button
+                      type="button"
+                      className="secondary-btn"
+                      onClick={() => onOpenAgentSessions(agent.id)}
+                      disabled={isBusy}
+                    >
+                      Chats
+                    </button>
+                    <button
+                      type="button"
+                      className="danger-btn"
+                      onClick={() => openDeleteAgentModal(agent.id, agent.name)}
+                      disabled={isBusy}
+                    >
+                      {deletingAgentId === agent.id ? "Deleting..." : "Delete"}
+                    </button>
                   </div>
                 </li>
               );
@@ -835,6 +626,302 @@ export function AgentsPage({
             {isCreatingAgent ? "Creating..." : "Create agent"}
           </button>
         </form>
+      </CreationModal>
+
+      <CreationModal
+        modalId="edit-agent-modal"
+        title={editingAgent ? `Edit agent "${editingAgent.name}"` : "Edit agent"}
+        description={
+          editingAgent ? "Update runner, model, skills, and MCP servers for this agent." : ""
+        }
+        isOpen={isEditModalOpen}
+        onClose={() => setEditingAgentId("")}
+      >
+        {editingDraft ? (
+          <form className="task-form" onSubmit={handleEditAgentSubmit}>
+            <div className="agent-edit-grid">
+              <label className="relationship-field" htmlFor={`edit-agent-runner-${editingAgent.id}`}>
+                Runner
+              </label>
+              <select
+                id={`edit-agent-runner-${editingAgent.id}`}
+                value={editingDraft.agentRunnerId}
+                onChange={(event) =>
+                  onAgentDraftChange(editingAgent.id, "agentRunnerId", event.target.value)
+                }
+                disabled={isEditingDisabled}
+              >
+                <option value="">Unassigned</option>
+                {agentRunners.map((runner) => (
+                  <option key={runner.id} value={runner.id}>
+                    {formatRunnerLabel(runner)}
+                  </option>
+                ))}
+              </select>
+
+              <label className="relationship-field" htmlFor={`edit-agent-name-${editingAgent.id}`}>
+                Name
+              </label>
+              <input
+                id={`edit-agent-name-${editingAgent.id}`}
+                value={editingDraft.name}
+                onChange={(event) =>
+                  onAgentDraftChange(editingAgent.id, "name", event.target.value)
+                }
+                disabled={isEditingDisabled}
+              />
+
+              <label className="relationship-field" htmlFor={`edit-agent-sdk-${editingAgent.id}`}>
+                SDK
+              </label>
+              <select
+                id={`edit-agent-sdk-${editingAgent.id}`}
+                value={editingDraft.agentSdk}
+                onChange={(event) =>
+                  onAgentDraftChange(editingAgent.id, "agentSdk", event.target.value)
+                }
+                disabled={isEditingDisabled}
+              >
+                {AVAILABLE_AGENT_SDKS.map((sdkName) => (
+                  <option key={`${editingAgent.id}-sdk-${sdkName}`} value={sdkName}>
+                    {sdkName}
+                  </option>
+                ))}
+              </select>
+
+              <label className="relationship-field" htmlFor={`edit-agent-model-${editingAgent.id}`}>
+                Model
+              </label>
+              <select
+                id={`edit-agent-model-${editingAgent.id}`}
+                value={editingDraft.model}
+                onChange={(event) =>
+                  onAgentDraftChange(editingAgent.id, "model", event.target.value)
+                }
+                disabled={isEditingDisabled || !editingDraft.agentRunnerId}
+              >
+                {!editingDraft.agentRunnerId ? (
+                  <option value="">Select a runner first</option>
+                ) : editingRunnerModelNames.length === 0 ? (
+                  <option value="">No models reported by selected runner</option>
+                ) : (
+                  <>
+                    <option value="">Select model</option>
+                    {editingRunnerModelNames.map((modelName) => (
+                      <option key={`${editingAgent.id}-model-${modelName}`} value={modelName}>
+                        {modelName}
+                      </option>
+                    ))}
+                  </>
+                )}
+              </select>
+
+              <label
+                className="relationship-field"
+                htmlFor={`edit-agent-reasoning-${editingAgent.id}`}
+              >
+                Reasoning
+              </label>
+              <select
+                id={`edit-agent-reasoning-${editingAgent.id}`}
+                value={editingDraft.modelReasoningLevel}
+                onChange={(event) =>
+                  onAgentDraftChange(editingAgent.id, "modelReasoningLevel", event.target.value)
+                }
+                disabled={isEditingDisabled || !editingDraft.agentRunnerId || !editingDraft.model}
+              >
+                {!editingDraft.agentRunnerId ? (
+                  <option value="">Select a runner first</option>
+                ) : !editingDraft.model ? (
+                  <option value="">Select a model first</option>
+                ) : editingRunnerReasoningLevels.length === 0 ? (
+                  <option value="">No reasoning levels reported for this model</option>
+                ) : (
+                  <>
+                    <option value="">Select reasoning</option>
+                    {editingRunnerReasoningLevels.map((reasoningLevel) => (
+                      <option
+                        key={`${editingAgent.id}-reasoning-${reasoningLevel}`}
+                        value={reasoningLevel}
+                      >
+                        {reasoningLevel}
+                      </option>
+                    ))}
+                  </>
+                )}
+              </select>
+
+              <label
+                className="relationship-field"
+                htmlFor={`edit-agent-default-additional-model-instructions-${editingAgent.id}`}
+              >
+                Default additional model instructions
+              </label>
+              <textarea
+                id={`edit-agent-default-additional-model-instructions-${editingAgent.id}`}
+                value={editingDraft.defaultAdditionalModelInstructions || ""}
+                onChange={(event) =>
+                  onAgentDraftChange(
+                    editingAgent.id,
+                    "defaultAdditionalModelInstructions",
+                    event.target.value,
+                  )
+                }
+                rows={4}
+                placeholder="Optional. Applied to new chats unless thread-specific instructions are provided."
+                disabled={isEditingDisabled}
+              />
+
+              <label
+                className="relationship-field"
+                htmlFor={`edit-agent-skills-assigned-${editingAgent.id}`}
+              >
+                Assigned skills
+              </label>
+              <div
+                id={`edit-agent-skills-assigned-${editingAgent.id}`}
+                className="inline-selection-list"
+              >
+                {editingSkillIds.length === 0 ? (
+                  <span className="empty-hint">No skills assigned.</span>
+                ) : (
+                  editingSkillIds.map((skillId) => {
+                    const skill = skillLookup.get(skillId);
+                    const skillLabel = skill ? formatSkillLabel(skill) : skillId;
+                    return (
+                      <button
+                        key={`edit-agent-remove-skill-${editingAgent.id}-${skillId}`}
+                        type="button"
+                        className="tag-remove-btn"
+                        onClick={() =>
+                          onAgentDraftChange(
+                            editingAgent.id,
+                            "skillIds",
+                            editingSkillIds.filter((candidateId) => candidateId !== skillId),
+                          )
+                        }
+                        disabled={isEditingDisabled}
+                        title={`Remove ${skillLabel}`}
+                      >
+                        {skillLabel} ×
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+
+              <label className="relationship-field" htmlFor={`edit-agent-skills-add-${editingAgent.id}`}>
+                Add skill
+              </label>
+              <select
+                id={`edit-agent-skills-add-${editingAgent.id}`}
+                value=""
+                onChange={(event) => {
+                  const nextSkillId = String(event.target.value || "").trim();
+                  if (!nextSkillId) {
+                    return;
+                  }
+                  onAgentDraftChange(editingAgent.id, "skillIds", [...editingSkillIds, nextSkillId]);
+                }}
+                disabled={isEditingDisabled || editingAvailableSkills.length === 0}
+              >
+                <option value="">
+                  {editingAvailableSkills.length === 0
+                    ? "All company skills already assigned"
+                    : "Select skill to assign"}
+                </option>
+                {editingAvailableSkills.map((skill) => (
+                  <option key={`edit-agent-skill-option-${editingAgent.id}-${skill.id}`} value={skill.id}>
+                    {formatSkillLabel(skill)}
+                  </option>
+                ))}
+              </select>
+
+              <label
+                className="relationship-field"
+                htmlFor={`edit-agent-mcp-assigned-${editingAgent.id}`}
+              >
+                Assigned MCP servers
+              </label>
+              <div
+                id={`edit-agent-mcp-assigned-${editingAgent.id}`}
+                className="inline-selection-list"
+              >
+                {editingMcpServerIds.length === 0 ? (
+                  <span className="empty-hint">No MCP servers assigned.</span>
+                ) : (
+                  editingMcpServerIds.map((mcpServerId) => {
+                    const mcpServer = mcpServerLookup.get(mcpServerId);
+                    const mcpServerLabel = mcpServer ? mcpServer.name : mcpServerId;
+                    return (
+                      <button
+                        key={`edit-agent-remove-mcp-${editingAgent.id}-${mcpServerId}`}
+                        type="button"
+                        className="tag-remove-btn"
+                        onClick={() =>
+                          onAgentDraftChange(
+                            editingAgent.id,
+                            "mcpServerIds",
+                            editingMcpServerIds.filter((candidateId) => candidateId !== mcpServerId),
+                          )
+                        }
+                        disabled={isEditingDisabled}
+                        title={`Remove ${mcpServerLabel}`}
+                      >
+                        {mcpServerLabel} ×
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+
+              <label className="relationship-field" htmlFor={`edit-agent-mcp-add-${editingAgent.id}`}>
+                Add MCP server
+              </label>
+              <select
+                id={`edit-agent-mcp-add-${editingAgent.id}`}
+                value=""
+                onChange={(event) => {
+                  const nextMcpServerId = String(event.target.value || "").trim();
+                  if (!nextMcpServerId) {
+                    return;
+                  }
+                  onAgentDraftChange(
+                    editingAgent.id,
+                    "mcpServerIds",
+                    [...editingMcpServerIds, nextMcpServerId],
+                  );
+                }}
+                disabled={isEditingDisabled || editingAvailableMcpServers.length === 0}
+              >
+                <option value="">
+                  {editingAvailableMcpServers.length === 0
+                    ? "All company MCP servers already assigned"
+                    : "Select MCP server to assign"}
+                </option>
+                {editingAvailableMcpServers.map((mcpServer) => (
+                  <option key={`edit-agent-mcp-option-${editingAgent.id}-${mcpServer.id}`} value={mcpServer.id}>
+                    {mcpServer.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="task-card-actions modal-actions">
+              <button type="submit" disabled={isEditingDisabled}>
+                {isEditingAgentSaving ? "Saving..." : "Save changes"}
+              </button>
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={() => setEditingAgentId("")}
+                disabled={isEditingAgentSaving}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : null}
       </CreationModal>
 
       <CreationModal

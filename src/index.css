@@ -652,6 +652,29 @@ h2 {
   line-height: 1;
 }
 
+.icon-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border-radius: 999px;
+  background: rgba(26, 32, 38, 0.06);
+  color: var(--ink-0);
+  border: 1px solid rgba(26, 32, 38, 0.12);
+}
+
+.icon-edit-btn:hover {
+  background: rgba(15, 118, 110, 0.12);
+  color: var(--action);
+}
+
+.icon-edit-btn svg {
+  width: 1rem;
+  height: 1rem;
+}
+
 .task-form {
   display: grid;
   gap: 0.55rem;
@@ -848,6 +871,18 @@ button:disabled {
   justify-content: space-between;
   align-items: baseline;
   gap: 0.6rem;
+}
+
+.task-card-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+}
+
+.task-card-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 .runner-section-title {
@@ -1178,6 +1213,10 @@ button:disabled {
 
 .runner-card-actions {
   margin-top: 0.72rem;
+}
+
+.modal-actions {
+  margin-top: 0.6rem;
 }
 
 .runner-status {
