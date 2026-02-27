@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { CreationModal } from "../components/CreationModal.jsx";
 import { AVAILABLE_AGENT_SDKS, DEFAULT_AGENT_SDK, SKILL_TYPE_SKILLSMP } from "../utils/constants.js";
 import {
@@ -52,6 +52,7 @@ export function AgentsPage({
 }) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingAgentId, setEditingAgentId] = useState("");
+  const [isEditInstructionsFullscreen, setIsEditInstructionsFullscreen] = useState(false);
   const [pendingDeleteAgent, setPendingDeleteAgent] = useState(null);
   const [forceDeleteAgent, setForceDeleteAgent] = useState(false);
   const skillLookup = useMemo(() => {
@@ -133,6 +134,22 @@ export function AgentsPage({
   const isEditingAgentInitializing = editingAgent ? initializingAgentId === editingAgent.id : false;
   const isEditingDisabled = isEditingAgentSaving || isEditingAgentDeleting || isEditingAgentInitializing;
 
+  useEffect(() => {
+    if (!isEditModalOpen) {
+      setIsEditInstructionsFullscreen(false);
+    }
+  }, [isEditModalOpen]);
+
+  function openEditAgentModal(agentId) {
+    setEditingAgentId(agentId);
+    setIsEditInstructionsFullscreen(false);
+  }
+
+  function closeEditAgentModal() {
+    setEditingAgentId("");
+    setIsEditInstructionsFullscreen(false);
+  }
+
   async function handleCreateAgentSubmit(event) {
     const didCreate = await onCreateAgent(event);
     if (didCreate) {
@@ -148,8 +165,15 @@ export function AgentsPage({
 
     const didSave = await onSaveAgent(editingAgent.id);
     if (didSave) {
-      setEditingAgentId("");
+      closeEditAgentModal();
     }
+  }
+
+  function handleEditInstructionsChange(value) {
+    if (!editingAgent) {
+      return;
+    }
+    onAgentDraftChange(editingAgent.id, "defaultAdditionalModelInstructions", value);
   }
 
   function openDeleteAgentModal(agentId, agentName) {
@@ -286,7 +310,7 @@ export function AgentsPage({
                         className="icon-edit-btn"
                         aria-label={`Edit ${agent.name}`}
                         title="Edit agent"
-                        onClick={() => setEditingAgentId(agent.id)}
+                        onClick={() => openEditAgentModal(agent.id)}
                         disabled={isBusy}
                       >
                         <svg
@@ -635,7 +659,8 @@ export function AgentsPage({
           editingAgent ? "Update runner, model, skills, and MCP servers for this agent." : ""
         }
         isOpen={isEditModalOpen}
-        onClose={() => setEditingAgentId("")}
+        onClose={closeEditAgentModal}
+        cardClassName="modal-card-wide"
       >
         {editingDraft ? (
           <form className="task-form" onSubmit={handleEditAgentSubmit}>
@@ -757,20 +782,27 @@ export function AgentsPage({
               >
                 Default additional model instructions
               </label>
-              <textarea
-                id={`edit-agent-default-additional-model-instructions-${editingAgent.id}`}
-                value={editingDraft.defaultAdditionalModelInstructions || ""}
-                onChange={(event) =>
-                  onAgentDraftChange(
-                    editingAgent.id,
-                    "defaultAdditionalModelInstructions",
-                    event.target.value,
-                  )
-                }
-                rows={4}
-                placeholder="Optional. Applied to new chats unless thread-specific instructions are provided."
-                disabled={isEditingDisabled}
-              />
+              <div className="edit-agent-instructions-field">
+                <div className="edit-agent-instructions-toolbar">
+                  <button
+                    type="button"
+                    className="secondary-btn"
+                    onClick={() => setIsEditInstructionsFullscreen(true)}
+                    disabled={isEditingDisabled}
+                  >
+                    Full screen
+                  </button>
+                </div>
+                <textarea
+                  id={`edit-agent-default-additional-model-instructions-${editingAgent.id}`}
+                  className="edit-agent-instructions-textarea"
+                  value={editingDraft.defaultAdditionalModelInstructions || ""}
+                  onChange={(event) => handleEditInstructionsChange(event.target.value)}
+                  rows={8}
+                  placeholder="Optional. Applied to new chats unless thread-specific instructions are provided."
+                  disabled={isEditingDisabled}
+                />
+              </div>
 
               <label
                 className="relationship-field"
@@ -914,12 +946,55 @@ export function AgentsPage({
               <button
                 type="button"
                 className="secondary-btn"
-                onClick={() => setEditingAgentId("")}
+                onClick={closeEditAgentModal}
                 disabled={isEditingAgentSaving}
               >
                 Cancel
               </button>
             </div>
+
+            {isEditInstructionsFullscreen ? (
+              <div
+                className="edit-agent-instructions-fullscreen-overlay"
+                role="presentation"
+                onClick={() => setIsEditInstructionsFullscreen(false)}
+              >
+                <section
+                  className="panel edit-agent-instructions-fullscreen-card"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby={`edit-agent-instructions-fullscreen-title-${editingAgent.id}`}
+                  onClick={(event) => event.stopPropagation()}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") {
+                      event.stopPropagation();
+                      setIsEditInstructionsFullscreen(false);
+                    }
+                  }}
+                >
+                  <header className="edit-agent-instructions-fullscreen-header">
+                    <h3 id={`edit-agent-instructions-fullscreen-title-${editingAgent.id}`}>
+                      Default additional model instructions
+                    </h3>
+                    <button
+                      type="button"
+                      className="secondary-btn"
+                      onClick={() => setIsEditInstructionsFullscreen(false)}
+                    >
+                      Done
+                    </button>
+                  </header>
+                  <textarea
+                    className="edit-agent-instructions-textarea edit-agent-instructions-textarea-fullscreen"
+                    value={editingDraft.defaultAdditionalModelInstructions || ""}
+                    onChange={(event) => handleEditInstructionsChange(event.target.value)}
+                    placeholder="Optional. Applied to new chats unless thread-specific instructions are provided."
+                    disabled={isEditingDisabled}
+                    autoFocus
+                  />
+                </section>
+              </div>
+            ) : null}
           </form>
         ) : null}
       </CreationModal>

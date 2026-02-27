@@ -1,6 +1,14 @@
 import { useEffect } from "react";
 
-export function CreationModal({ modalId, title, description, isOpen, onClose, children }) {
+export function CreationModal({
+  modalId,
+  title,
+  description,
+  isOpen,
+  onClose,
+  children,
+  cardClassName = "",
+}) {
   useEffect(() => {
     if (!isOpen) {
       return undefined;
@@ -23,7 +31,7 @@ export function CreationModal({ modalId, title, description, isOpen, onClose, ch
   return (
     <div className="modal-overlay" role="presentation" onClick={onClose}>
       <section
-        className="panel modal-card"
+        className={["panel", "modal-card", cardClassName].filter(Boolean).join(" ")}
         role="dialog"
         aria-modal="true"
         aria-labelledby={`${modalId}-title`}
