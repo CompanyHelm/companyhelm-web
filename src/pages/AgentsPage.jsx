@@ -25,6 +25,7 @@ export function AgentsPage({
   deletingAgentId,
   initializingAgentId,
   retryingAgentSkillInstallKey,
+  hasLoadedAgentRunners,
   agentRunnerId,
   agentSkillIds,
   agentMcpServerIds,
@@ -45,6 +46,7 @@ export function AgentsPage({
   onAgentDefaultAdditionalModelInstructionsChange,
   onCreateAgent,
   onAgentDraftChange,
+  onEnsureAgentEditorData,
   onSaveAgent,
   onRetryAgentSkillInstall,
   onOpenAgentSessions,
@@ -90,6 +92,10 @@ export function AgentsPage({
     [createAssignedMcpServerIds, mcpServers],
   );
   const hasRegisteredRunners = agentRunners.length > 0;
+  const isCreateBlockedByRunners = hasLoadedAgentRunners && !hasRegisteredRunners;
+  const createAgentButtonTitle = isCreateBlockedByRunners
+    ? "Register at least one runner before creating an agent"
+    : "Create agent";
   const editingAgent = agents.find((agent) => agent.id === editingAgentId) || null;
   const isEditModalOpen = Boolean(editingAgent);
 
@@ -141,8 +147,18 @@ export function AgentsPage({
   }, [isEditModalOpen]);
 
   function openEditAgentModal(agentId) {
+    if (typeof onEnsureAgentEditorData === "function") {
+      void onEnsureAgentEditorData();
+    }
     setEditingAgentId(agentId);
     setIsEditInstructionsFullscreen(false);
+  }
+
+  function openCreateAgentModal() {
+    if (typeof onEnsureAgentEditorData === "function") {
+      void onEnsureAgentEditorData();
+    }
+    setIsCreateModalOpen(true);
   }
 
   function closeEditAgentModal() {
@@ -225,13 +241,9 @@ export function AgentsPage({
               type="button"
               className="icon-create-btn"
               aria-label="Create agent"
-              title={
-                hasRegisteredRunners
-                  ? "Create agent"
-                  : "Register at least one runner before creating an agent"
-              }
-              onClick={() => setIsCreateModalOpen(true)}
-              disabled={!hasRegisteredRunners}
+              title={createAgentButtonTitle}
+              onClick={openCreateAgentModal}
+              disabled={isCreateBlockedByRunners}
             >
               +
             </button>
@@ -243,7 +255,7 @@ export function AgentsPage({
         {!isLoadingAgents && agents.length === 0 ? (
           <div className="empty-state">
             <p className="empty-hint">No agents created for this company yet.</p>
-            {!hasRegisteredRunners ? (
+            {isCreateBlockedByRunners ? (
               <p className="empty-hint">
                 Register at least one runner before creating an agent.
               </p>
@@ -251,8 +263,8 @@ export function AgentsPage({
             <button
               type="button"
               className="secondary-btn empty-create-btn"
-              onClick={() => setIsCreateModalOpen(true)}
-              disabled={!hasRegisteredRunners}
+              onClick={openCreateAgentModal}
+              disabled={isCreateBlockedByRunners}
             >
               + Create agent
             </button>
@@ -434,9 +446,11 @@ export function AgentsPage({
             value={agentRunnerId}
             onChange={(event) => onAgentRunnerChange(event.target.value)}
             required
-            disabled={!hasRegisteredRunners}
+            disabled={!hasLoadedAgentRunners || !hasRegisteredRunners}
           >
-            {!hasRegisteredRunners ? (
+            {!hasLoadedAgentRunners ? (
+              <option value="">Loading runners...</option>
+            ) : !hasRegisteredRunners ? (
               <option value="">No registered runners available</option>
             ) : (
               <>
