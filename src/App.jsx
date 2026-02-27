@@ -160,7 +160,6 @@ import { SettingsPage } from "./pages/SettingsPage.jsx";
 import { ProfilePage } from "./pages/ProfilePage.jsx";
 
 // --- Module-level mutable state (shared by adapter functions and executeGraphQL) ---
-const companyApiAgentMetadataById = new Map();
 const companyApiThreadMetadataById = new Map();
 const companyApiRunnerMetadataById = new Map();
 
@@ -330,59 +329,26 @@ function toLegacyRunnerPayload(agentRunner) {
   };
 }
 
-function toLegacyAgentPayload(agent, { metadataOverride } = {}) {
-  const agentId = resolveLegacyId(agent?.id);
-  const currentMetadata = companyApiAgentMetadataById.get(agentId) || {};
-  const overrideProvidesDefaultAdditionalModelInstructions = Boolean(
-    metadataOverride
-      && Object.prototype.hasOwnProperty.call(metadataOverride, "defaultAdditionalModelInstructions"),
-  );
-  const agentProvidesDefaultAdditionalModelInstructions = Boolean(
-    agent && Object.prototype.hasOwnProperty.call(agent, "defaultAdditionalModelInstructions"),
-  );
-  const explicitDefaultAdditionalModelInstructions = overrideProvidesDefaultAdditionalModelInstructions
-    ? metadataOverride.defaultAdditionalModelInstructions
-    : agentProvidesDefaultAdditionalModelInstructions
-      ? agent.defaultAdditionalModelInstructions
-      : undefined;
-  const resolvedDefaultAdditionalModelInstructions =
-    explicitDefaultAdditionalModelInstructions === undefined
-      ? normalizeOptionalInstructions(currentMetadata.defaultAdditionalModelInstructions)
-      : normalizeOptionalInstructions(explicitDefaultAdditionalModelInstructions);
-  const nextMetadata = {
-    ...currentMetadata,
-    ...(metadataOverride || {}),
-    defaultAdditionalModelInstructions: resolvedDefaultAdditionalModelInstructions,
-  };
-  if (agentId) {
-    companyApiAgentMetadataById.set(agentId, nextMetadata);
-  }
-
-  const resolvedSdk = isAvailableAgentSdk(nextMetadata.agentSdk)
-    ? normalizeAgentSdkValue(nextMetadata.agentSdk)
+function toAgentPayload(agent) {
+  const resolvedSdk = isAvailableAgentSdk(agent?.agentSdk)
+    ? normalizeAgentSdkValue(agent?.agentSdk)
     : DEFAULT_AGENT_SDK;
-  const resolvedModel = resolveLegacyId(nextMetadata.model, agent?.model);
-  const resolvedReasoning = resolveLegacyId(
-    nextMetadata.modelReasoningLevel,
-    agent?.modelReasoningLevel,
-  );
 
   return {
-    id: agentId,
+    id: resolveLegacyId(agent?.id),
     companyId: resolveLegacyId(agent?.company?.id),
-    name: resolveLegacyId(nextMetadata.name, agent?.name),
+    name: resolveLegacyId(agent?.name),
     status: resolveLegacyId(agent?.status) || "pending",
-    agentRunnerId: resolveLegacyId(
-      nextMetadata.agentRunnerId,
-      agent?.runner?.id,
-    ),
-    skillIds: normalizeUniqueStringList(nextMetadata.skillIds || []),
-    mcpServerIds: normalizeUniqueStringList(nextMetadata.mcpServerIds || []),
-    installedSkills: Array.isArray(nextMetadata.installedSkills) ? nextMetadata.installedSkills : [],
+    agentRunnerId: resolveLegacyId(agent?.runner?.id),
+    skillIds: [],
+    mcpServerIds: [],
+    installedSkills: [],
     agentSdk: resolvedSdk,
-    model: resolvedModel,
-    modelReasoningLevel: resolvedReasoning,
-    defaultAdditionalModelInstructions: resolvedDefaultAdditionalModelInstructions,
+    model: resolveLegacyId(agent?.model),
+    modelReasoningLevel: resolveLegacyId(agent?.modelReasoningLevel),
+    defaultAdditionalModelInstructions: normalizeOptionalInstructions(
+      agent?.defaultAdditionalModelInstructions,
+    ),
   };
 }
 
@@ -726,7 +692,7 @@ async function executeGraphQL(query, variables = {}) {
       variables: { companyId },
     });
     return {
-      agents: agents.map((agent) => toLegacyAgentPayload(agent)),
+      agents: agents.map((agent) => toAgentPayload(agent)),
     };
   }
 
@@ -745,17 +711,6 @@ async function executeGraphQL(query, variables = {}) {
       throw new Error("Agent creation requires company, runner, SDK, and model selections.");
     }
 
-    const metadata = {
-      agentRunnerId,
-      skillIds: normalizeUniqueStringList(variables?.skillIds || []),
-      mcpServerIds: normalizeUniqueStringList(variables?.mcpServerIds || []),
-      name,
-      agentSdk: isAvailableAgentSdk(variables?.agentSdk) ? normalizeAgentSdkValue(variables?.agentSdk) : DEFAULT_AGENT_SDK,
-      model: resolveLegacyId(variables?.model),
-      modelReasoningLevel: defaultReasoningLevel || "",
-      defaultAdditionalModelInstructions,
-      installedSkills: [],
-    };
     const data = await executeRawGraphQL(COMPANY_API_CREATE_AGENT_MUTATION, {
       companyId,
       name,
@@ -769,7 +724,7 @@ async function executeGraphQL(query, variables = {}) {
       createAgent: {
         ok: true,
         error: null,
-        agent: toLegacyAgentPayload(data?.createAgent, { metadataOverride: metadata }),
+        agent: toAgentPayload(data?.createAgent),
       },
     };
   }
@@ -789,19 +744,6 @@ async function executeGraphQL(query, variables = {}) {
       throw new Error("Agent update requires id, runner, SDK, and model selections.");
     }
 
-    const currentMetadata = companyApiAgentMetadataById.get(agentId) || {};
-    const nextMetadata = {
-      ...currentMetadata,
-      agentRunnerId,
-      skillIds: normalizeUniqueStringList(variables?.skillIds || []),
-      mcpServerIds: normalizeUniqueStringList(variables?.mcpServerIds || []),
-      name,
-      agentSdk: isAvailableAgentSdk(variables?.agentSdk) ? normalizeAgentSdkValue(variables?.agentSdk) : DEFAULT_AGENT_SDK,
-      model: resolveLegacyId(variables?.model),
-      modelReasoningLevel: defaultReasoningLevel || "",
-      defaultAdditionalModelInstructions,
-    };
-
     const data = await executeRawGraphQL(COMPANY_API_UPDATE_AGENT_MUTATION, {
       agentId,
       name,
@@ -816,7 +758,7 @@ async function executeGraphQL(query, variables = {}) {
       updateAgent: {
         ok: true,
         error: null,
-        agent: toLegacyAgentPayload(data?.updateAgent, { metadataOverride: nextMetadata }),
+        agent: toAgentPayload(data?.updateAgent),
       },
     };
   }
@@ -837,9 +779,6 @@ async function executeGraphQL(query, variables = {}) {
           .filter(Boolean)
       : [];
     const ok = Boolean(payload?.ok);
-    if (ok) {
-      companyApiAgentMetadataById.delete(agentId);
-    }
     return {
       deleteAgent: {
         ok,

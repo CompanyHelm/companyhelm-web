@@ -236,30 +236,17 @@ export const LIST_AGENTS_QUERY = `
   query ListAgents($companyId: String!) {
     agents(companyId: $companyId) {
       id
-      companyId
-      agentRunnerId
-      skillIds
-      mcpServerIds
-      defaultAdditionalModelInstructions
-      installedSkills {
-        companyId
-        agentId
-        skillId
-        skillName
-        skillType
-        skillsMpPackageName
-        requestId
-        status
-        message
-        installLogs
-        installedAt
-        createdAt
-        updatedAt
-      }
       name
-      agentSdk
-      model
-      modelReasoningLevel
+      status
+      defaultAdditionalModelInstructions
+      company {
+        id
+      }
+      runner {
+        id
+        name
+        status
+      }
     }
   }
 `;

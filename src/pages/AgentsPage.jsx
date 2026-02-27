@@ -308,6 +308,8 @@ export function AgentsPage({
                 savingAgentId === agent.id || deletingAgentId === agent.id;
               const isInitializing = initializingAgentId === agent.id;
               const isBusy = isSavingOrDeleting || isInitializing;
+              const modelLabel = String(agent.model || "").trim() || "n/a";
+              const reasoningLabel = String(agent.modelReasoningLevel || "").trim() || "n/a";
 
               return (
                 <li key={agent.id} className="task-card">
@@ -350,8 +352,8 @@ export function AgentsPage({
                     </div>
                   </div>
                   <p className="agent-subcopy">
-                    SDK: <strong>{agent.agentSdk}</strong> • model: <strong>{agent.model}</strong>{" "}
-                    • reasoning: <strong>{agent.modelReasoningLevel}</strong>
+                    SDK: <strong>{agent.agentSdk}</strong> • model: <strong>{modelLabel}</strong>{" "}
+                    • reasoning: <strong>{reasoningLabel}</strong>
                   </p>
                   <p className="agent-subcopy">
                     Runner: <strong>{assignedRunnerLabel}</strong>

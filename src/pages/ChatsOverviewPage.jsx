@@ -60,6 +60,7 @@ export function ChatsOverviewPage({
                 ),
               );
               const hasChats = sortedChats.length > 0;
+              const modelLabel = String(agent.model || "").trim() || "n/a";
               return (
                 <li key={`chat-agent-${agent.id}`} className="task-card">
                   <div className="task-card-top">
@@ -67,7 +68,7 @@ export function ChatsOverviewPage({
                     <code className="runner-id">{agent.id}</code>
                   </div>
                   <p className="agent-subcopy">
-                    SDK: <strong>{agent.agentSdk}</strong> • model: <strong>{agent.model}</strong>
+                    SDK: <strong>{agent.agentSdk}</strong> • model: <strong>{modelLabel}</strong>
                   </p>
                   <div className="task-card-actions">
                     <button
