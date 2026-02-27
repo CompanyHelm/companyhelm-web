@@ -1568,6 +1568,60 @@ button:disabled {
   color: var(--danger);
 }
 
+.chat-queued-message-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.52rem;
+}
+
+.chat-queued-message-preview {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-queued-show-all-btn {
+  flex: 0 0 auto;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--action);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.chat-queued-show-all-btn:hover {
+  filter: none;
+  transform: none;
+}
+
+.chat-queued-message-modal {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.chat-queued-message-modal p {
+  margin: 0;
+}
+
+.chat-queued-message-pre {
+  margin: 0;
+  padding: 0.68rem;
+  border-radius: 10px;
+  background: rgba(17, 24, 39, 0.93);
+  color: #f8fafc;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow: auto;
+  max-height: 44vh;
+}
+
 .chat-turn-item {
   border: 1px solid rgba(26, 32, 38, 0.12);
   border-radius: 12px;

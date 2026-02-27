@@ -16,6 +16,25 @@ import {
   TRANSCRIPT_BOTTOM_STICKY_THRESHOLD_PX,
 } from "../utils/constants.js";
 
+function getQueuedMessagePreview(rawText) {
+  const normalizedText = String(rawText || "").trim();
+  if (!normalizedText) {
+    return {
+      fullText: "(no content)",
+      firstLine: "(no content)",
+      hasAdditionalContent: false,
+      hasOriginalContent: false,
+    };
+  }
+  const firstLine = normalizedText.split(/\r?\n/, 1)[0] || normalizedText;
+  return {
+    fullText: normalizedText,
+    firstLine,
+    hasAdditionalContent: normalizedText.length > firstLine.length,
+    hasOriginalContent: true,
+  };
+}
+
 export function AgentChatPage({
   selectedCompanyId,
   agent,
@@ -56,6 +75,7 @@ export function AgentChatPage({
     matchesMediaQuery(COMPACT_CHAT_MEDIA_QUERY),
   );
   const [selectedCommandOutputItem, setSelectedCommandOutputItem] = useState(null);
+  const [selectedQueuedMessage, setSelectedQueuedMessage] = useState(null);
   const [visibleMessageCount, setVisibleMessageCount] = useState(CHAT_MESSAGE_BATCH_SIZE);
   const chatTitleInputRef = useRef(null);
   const transcriptScrollRef = useRef(null);
@@ -107,6 +127,7 @@ export function AgentChatPage({
 
   useEffect(() => {
     setIsEditingChatTitle(false);
+    setSelectedQueuedMessage(null);
   }, [session?.id]);
 
   useEffect(() => {
@@ -520,6 +541,7 @@ export function AgentChatPage({
                 const isSteerMode = Boolean(queuedMessage?.allowSteer);
                 const isSteeringThisMessage = steeringQueuedMessageId === queuedMessageId;
                 const isDeletingThisMessage = deletingQueuedMessageId === queuedMessageId;
+                const queuedMessagePreview = getQueuedMessagePreview(queuedMessage?.text);
 
                 return (
                   <li key={queuedMessageId} className="chat-queued-item">
@@ -548,7 +570,29 @@ export function AgentChatPage({
                         {isDeletingThisMessage ? "..." : "x"}
                       </button>
                     </div>
-                    <p className="chat-message-content">{String(queuedMessage?.text || "").trim() || "(no content)"}</p>
+                    <div className="chat-queued-message-row">
+                      <p
+                        className="chat-message-content chat-queued-message-preview"
+                        title={queuedMessagePreview.fullText}
+                      >
+                        {queuedMessagePreview.firstLine}
+                        {queuedMessagePreview.hasAdditionalContent ? "..." : null}
+                      </p>
+                      {queuedMessagePreview.hasOriginalContent ? (
+                        <button
+                          type="button"
+                          className="chat-queued-show-all-btn"
+                          onClick={() =>
+                            setSelectedQueuedMessage({
+                              id: queuedMessageId,
+                              text: queuedMessagePreview.fullText,
+                            })
+                          }
+                        >
+                          Show all
+                        </button>
+                      ) : null}
+                    </div>
                     {!isSteerMode ? (
                       <div className="task-card-actions">
                         <button
@@ -594,6 +638,23 @@ export function AgentChatPage({
           </p>
           <pre className="chat-command-output-pre">
             <code>{selectedCommandOutputItem?.output || "(no output captured)"}</code>
+          </pre>
+        </div>
+      </CreationModal>
+
+      <CreationModal
+        modalId="chat-queued-message-modal"
+        title="Queued Message"
+        description="Full text for the selected queued message."
+        isOpen={Boolean(selectedQueuedMessage)}
+        onClose={() => setSelectedQueuedMessage(null)}
+      >
+        <div className="chat-queued-message-modal">
+          <p>
+            <strong>Message</strong>
+          </p>
+          <pre className="chat-queued-message-pre">
+            <code>{selectedQueuedMessage?.text || "(no content)"}</code>
           </pre>
         </div>
       </CreationModal>
