@@ -1,0 +1,283 @@
+type AddGithubInstallationPayload {
+  error: String
+  githubInstallation: GithubInstallation
+  ok: Boolean!
+}
+
+type Agent {
+  company: Company!
+  defaultAdditionalModelInstructions: String
+  id: ID!
+  name: String!
+  runner: AgentRunner!
+  status: AgentStatus!
+}
+
+type AgentConnection {
+  edges: [AgentEdge!]!
+  pageInfo: PageInfo!
+}
+
+type AgentEdge {
+  cursor: String!
+  node: Agent!
+}
+
+type AgentRunner {
+  agentSdks: [AgentRunnerSdk!]!
+  company: Company!
+  id: ID!
+  name: String!
+  status: AgentRunnerStatus!
+}
+
+type AgentRunnerConnection {
+  edges: [AgentRunnerEdge!]!
+  pageInfo: PageInfo!
+}
+
+type AgentRunnerEdge {
+  cursor: String!
+  node: AgentRunner!
+}
+
+type AgentRunnerSdk {
+  company: Company!
+  id: ID!
+  models: [AgentRunnerSdkModel!]!
+  name: String!
+  runner: AgentRunner!
+}
+
+type AgentRunnerSdkModel {
+  company: Company!
+  id: ID!
+  name: String!
+  reasoning: [String!]!
+  sdk: AgentRunnerSdk!
+}
+
+type AgentRunnerSecretPayload {
+  agentRunner: AgentRunner!
+  secret: String!
+}
+
+enum AgentRunnerStatus {
+  connected
+  disconnected
+}
+
+enum AgentStatus {
+  deleting
+  pending
+  ready
+}
+
+type Company {
+  id: ID!
+  name: String!
+}
+
+type CompanyConnection {
+  edges: [CompanyEdge!]!
+  pageInfo: PageInfo!
+}
+
+type CompanyEdge {
+  cursor: String!
+  node: Company!
+}
+
+input DeleteAgentInput {
+  agentId: ID!
+  force: Boolean = false
+}
+
+type DeleteAgentPayload {
+  errors: [String!]!
+  ok: Boolean!
+}
+
+type GithubAppConfig {
+  appClientId: String!
+  appLink: String!
+}
+
+type GithubInstallation {
+  company: Company!
+  createdAt: String!
+  installationId: ID!
+}
+
+type Mutation {
+  addGithubInstallation(companyId: ID!, installationId: ID!, setupAction: String): AddGithubInstallationPayload!
+  createAgent(agentRunnerId: ID!, agentRunnerSdkId: ID!, companyId: ID!, defaultAdditionalModelInstructions: String, defaultModelId: ID!, defaultReasoningLevel: String, name: String!): Agent!
+  createAgentRunner(companyId: ID!, name: String!): AgentRunnerSecretPayload!
+  createCompany(name: String!): Company!
+  createThread(additionalModelInstructions: String, agentId: ID!, companyId: ID!, title: String): Thread!
+  deleteAgent(input: DeleteAgentInput!): DeleteAgentPayload!
+  deleteAgentRunner(agentRunnerId: ID!): Boolean!
+  deleteCompany(companyId: ID!): Boolean!
+  deleteQueuedUserMessage(queuedMessageId: ID!): Boolean!
+  deleteThread(threadId: ID!): Boolean!
+  interruptTurn(threadId: ID!): Boolean!
+  queueUserMessage(allowSteer: Boolean!, modelId: ID, reasoningLevel: String, text: String!, threadId: ID!): QueuedUserMessage!
+  regenerateAgentRunnerSecret(agentRunnerId: ID!): AgentRunnerSecretPayload!
+  steerQueuedUserMessage(queuedMessageId: ID!): QueuedUserMessage!
+  updateAgent(agentId: ID!, agentRunnerId: ID!, agentRunnerSdkId: ID!, defaultAdditionalModelInstructions: String, defaultModelId: ID!, defaultReasoningLevel: String, name: String!): Agent!
+  updateThreadTitle(threadId: ID!, title: String): Thread!
+}
+
+type PageInfo {
+  endCursor: String
+  hasNextPage: Boolean!
+}
+
+type Query {
+  agent(id: ID!): Agent
+  agentRunner(id: ID!): AgentRunner
+  agentRunners(after: String, companyId: ID, first: Int = 20): AgentRunnerConnection!
+  agents(after: String, companyId: ID, first: Int = 20): AgentConnection!
+  companies(after: String, first: Int = 20): CompanyConnection!
+  company(id: ID!): Company
+  githubAppConfig: GithubAppConfig!
+  githubInstallations(companyId: ID!): [GithubInstallation!]!
+  queuedUserMessages(first: Int = 20, threadId: ID!): [QueuedUserMessage!]!
+  repositories(after: String, companyId: ID!, first: Int = 20, githubInstallationId: ID): RepositoryConnection!
+  thread(id: ID!): Thread
+  threadTurns(after: String, first: Int = 20, threadId: ID!): ThreadTurnConnection!
+  threads(after: String, agentId: ID, companyId: ID, first: Int = 20): ThreadConnection!
+}
+
+type QueuedUserMessage {
+  allowSteer: Boolean!
+  company: Company!
+  id: ID!
+  text: String!
+  thread: Thread!
+}
+
+type Repository {
+  archived: Boolean!
+  company: Company!
+  createdAt: String!
+  defaultBranch: String
+  externalId: String!
+  fullName: String!
+  githubInstallation: GithubInstallation!
+  htmlUrl: String
+  id: ID!
+  isPrivate: Boolean!
+  name: String!
+  provider: String!
+  updatedAt: String!
+}
+
+type RepositoryConnection {
+  edges: [RepositoryEdge!]!
+  pageInfo: PageInfo!
+}
+
+type RepositoryEdge {
+  cursor: String!
+  node: Repository!
+}
+
+type Subscription {
+  agentRunnersUpdated(after: String, companyId: ID!, first: Int = 20): AgentRunnerConnection!
+  agentThreadsUpdated(after: String, agentId: ID!, companyId: ID!, first: Int = 20): ThreadConnection!
+  agentTurnsUpdated(after: String, agentId: ID!, companyId: ID!, first: Int = 20, threadId: ID!): ThreadTurnConnection!
+}
+
+type Thread {
+  additionalModelInstructions: String
+  agent: Agent!
+  company: Company!
+  currentModel: AgentRunnerSdkModel!
+  currentReasoningLevel: String
+  id: ID!
+  status: ThreadStatus!
+  title: String
+}
+
+type ThreadConnection {
+  edges: [ThreadEdge!]!
+  pageInfo: PageInfo!
+}
+
+type ThreadEdge {
+  cursor: String!
+  node: Thread!
+}
+
+enum ThreadStatus {
+  deleting
+  pending
+  ready
+  running
+}
+
+type ThreadTurn {
+  agent: Agent!
+  company: Company!
+  endedAt: String
+  id: ID!
+  items: [TurnItem!]!
+  reasoningText: String
+  sdkTurnId: String!
+  startedAt: String
+  status: ThreadTurnStatus!
+  thread: Thread!
+}
+
+type ThreadTurnConnection {
+  edges: [ThreadTurnEdge!]!
+  pageInfo: PageInfo!
+}
+
+type ThreadTurnEdge {
+  cursor: String!
+  node: ThreadTurn!
+}
+
+enum ThreadTurnStatus {
+  completed
+  running
+}
+
+type TurnItem {
+  commandOutput: String
+  company: Company!
+  completedAt: String
+  consoleOutput: String
+  id: ID!
+  processId: String
+  sdkItemId: String!
+  startedAt: String
+  status: TurnItemStatus!
+  text: String
+  turn: ThreadTurn!
+  type: TurnItemType!
+}
+
+enum TurnItemStatus {
+  completed
+  running
+}
+
+enum TurnItemType {
+  agent_message
+  collab_agent_tool_call
+  command_execution
+  context_compaction
+  entered_review_mode
+  exited_review_mode
+  file_change
+  image_view
+  mcp_tool_call
+  plan
+  reasoning
+  unknown
+  user_message
+  web_search
+}
