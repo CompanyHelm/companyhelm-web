@@ -16,6 +16,55 @@ import {
   TRANSCRIPT_BOTTOM_STICKY_THRESHOLD_PX,
 } from "../utils/constants.js";
 
+function toItemTypePlaceholder(itemType) {
+  switch (itemType) {
+    case "plan":
+      return "(plan update)";
+    case "file_change":
+      return "(file change)";
+    case "mcp_tool_call":
+      return "(MCP tool call)";
+    case "collab_agent_tool_call":
+      return "(collaboration update)";
+    case "web_search":
+      return "(web search)";
+    case "image_view":
+      return "(image view)";
+    case "entered_review_mode":
+      return "(entered review mode)";
+    case "exited_review_mode":
+      return "(exited review mode)";
+    case "context_compaction":
+      return "(context compaction)";
+    case "user_message":
+      return "(user message)";
+    case "agent_message":
+      return "(agent message)";
+    case "reasoning":
+      return "(reasoning update)";
+    default:
+      return "(item update)";
+  }
+}
+
+function resolveChatItemBodyText(item, itemType) {
+  const text = String(item?.text || "").trim();
+  if (text) {
+    return text;
+  }
+
+  const command = String(item?.command || "").trim();
+  if (itemType === "command_execution") {
+    return command || "(command unavailable)";
+  }
+
+  if (command) {
+    return command;
+  }
+
+  return toItemTypePlaceholder(itemType);
+}
+
 function getQueuedMessagePreview(rawText) {
   const normalizedText = String(rawText || "").trim();
   if (!normalizedText) {
@@ -469,7 +518,7 @@ export function AgentChatPage({
                   for (const item of turnItems) {
                     const itemRole = String(item?.role || "").toLowerCase();
                     const roleLabel = itemRole === "user" || itemRole === "human" ? "human" : "llm";
-                    const itemType = String(item?.itemType || "").trim().toLowerCase() || "agent_message";
+                    const itemType = String(item?.itemType || item?.type || "").trim().toLowerCase() || "unknown";
                     const normalizedItemStatus = String(item?.status || "").trim().toLowerCase();
                     const itemStatus = normalizedItemStatus === "running"
                       ? "running"
@@ -477,9 +526,7 @@ export function AgentChatPage({
                         ? "pending"
                         : "completed";
                     const isCommandExecution = itemType === "command_execution";
-                    const bodyText = isCommandExecution
-                      ? String(item?.command || "").trim() || "(command unavailable)"
-                      : String(item?.text || "").trim() || "(no content)";
+                    const bodyText = resolveChatItemBodyText(item, itemType);
 
                     elements.push(
                       <li
