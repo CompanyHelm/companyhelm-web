@@ -1358,6 +1358,8 @@ function App() {
   const [mcpServers, setMcpServers] = useState([]);
   const [agentRunners, setAgentRunners] = useState([]);
   const [hasLoadedAgentRunners, setHasLoadedAgentRunners] = useState(false);
+  const [hasLoadedSkills, setHasLoadedSkills] = useState(false);
+  const [hasLoadedMcpServers, setHasLoadedMcpServers] = useState(false);
   const [agents, setAgents] = useState([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
   const [isLoadingSkills, setIsLoadingSkills] = useState(false);
@@ -1692,25 +1694,17 @@ function App() {
   const shouldSubscribeChatTurns = isChatConversationRoute;
   const shouldLoadGithubData = activePage === "settings";
   const shouldLoadTaskData = activePage === "dashboard" || activePage === "tasks" || activePage === "profile";
-  const shouldLoadSkillData =
-    activePage === "skills" ||
-    (activePage === "agents" && agentsRoute.view === "list") ||
-    activePage === "profile";
-  const shouldLoadMcpServerData =
-    activePage === "mcp-servers" || (activePage === "agents" && agentsRoute.view === "list");
+  const shouldLoadSkillData = activePage === "skills" || activePage === "profile";
+  const shouldLoadMcpServerData = activePage === "mcp-servers";
   const shouldLoadRunnerData =
     activePage === "dashboard" ||
     activePage === "agent-runner" ||
-    activePage === "agents" ||
     activePage === "profile";
   const shouldLoadAgentData =
-    activePage === "dashboard" ||
-    activePage === "agent-runner" ||
     activePage === "agents" ||
     activePage === "chats" ||
     activePage === "profile";
-  const shouldSubscribeAgentRunners =
-    activePage === "dashboard" || activePage === "agent-runner" || activePage === "agents";
+  const shouldSubscribeAgentRunners = activePage === "dashboard" || activePage === "agent-runner";
 
   const loadCompanies = useCallback(async () => {
     try {
@@ -1827,6 +1821,7 @@ function App() {
       setSkillError("");
       setSkills([]);
       setSkillDrafts({});
+      setHasLoadedSkills(false);
       setIsLoadingSkills(false);
       return;
     }
@@ -1838,7 +1833,9 @@ function App() {
       const nextSkills = data.skills || [];
       setSkills(nextSkills);
       setSkillDrafts(createSkillDrafts(nextSkills));
+      setHasLoadedSkills(true);
     } catch (loadError) {
+      setHasLoadedSkills(false);
       setSkillError(loadError.message);
     } finally {
       setIsLoadingSkills(false);
@@ -1850,6 +1847,7 @@ function App() {
       setMcpServerError("");
       setMcpServers([]);
       setMcpServerDrafts({});
+      setHasLoadedMcpServers(false);
       setIsLoadingMcpServers(false);
       return;
     }
@@ -1861,7 +1859,9 @@ function App() {
       const nextMcpServers = data.mcpServers || [];
       setMcpServers(nextMcpServers);
       setMcpServerDrafts(createMcpServerDrafts(nextMcpServers));
+      setHasLoadedMcpServers(true);
     } catch (loadError) {
+      setHasLoadedMcpServers(false);
       setMcpServerError(loadError.message);
     } finally {
       setIsLoadingMcpServers(false);
@@ -1931,6 +1931,39 @@ function App() {
       setIsLoadingAgents(false);
     }
   }, [selectedCompanyId]);
+
+  const ensureAgentEditorData = useCallback(async () => {
+    if (!selectedCompanyId) {
+      return;
+    }
+
+    const pendingLoads = [];
+    if (!hasLoadedAgentRunners && !isLoadingRunners) {
+      pendingLoads.push(loadAgentRunners({ silently: true }));
+    }
+    if (!hasLoadedSkills && !isLoadingSkills) {
+      pendingLoads.push(loadSkills());
+    }
+    if (!hasLoadedMcpServers && !isLoadingMcpServers) {
+      pendingLoads.push(loadMcpServers());
+    }
+    if (pendingLoads.length === 0) {
+      return;
+    }
+
+    await Promise.allSettled(pendingLoads);
+  }, [
+    hasLoadedAgentRunners,
+    hasLoadedMcpServers,
+    hasLoadedSkills,
+    isLoadingMcpServers,
+    isLoadingRunners,
+    isLoadingSkills,
+    loadAgentRunners,
+    loadMcpServers,
+    loadSkills,
+    selectedCompanyId,
+  ]);
 
   const loadAgentChatSessions = useCallback(
     async ({ silently = false, agentIdOverride = null } = {}) => {
@@ -2265,8 +2298,10 @@ function App() {
     setSkillSkillsMpPackageName("");
     setSkillDescription("");
     setSkillInstructions("");
+    setHasLoadedSkills(false);
     setMcpServers([]);
     setMcpServerDrafts({});
+    setHasLoadedMcpServers(false);
     setMcpServerName("");
     setMcpServerTransportType(MCP_TRANSPORT_TYPE_STREAMABLE_HTTP);
     setMcpServerUrl("");
@@ -4667,10 +4702,6 @@ function App() {
     return `${agents.length} agents`;
   }, [agents.length]);
 
-  const hasReadyRunner = useMemo(() => {
-    return agentRunners.some((runner) => normalizeRunnerStatus(runner.status) === "ready");
-  }, [agentRunners]);
-
   const renderTaskLink = useCallback(
     (taskId) => {
       if (taskId == null) {
@@ -5057,7 +5088,7 @@ function App() {
               deletingAgentId={deletingAgentId}
               initializingAgentId={initializingAgentId}
               retryingAgentSkillInstallKey={retryingAgentSkillInstallKey}
-              canInitializeAgents={hasReadyRunner}
+              hasLoadedAgentRunners={hasLoadedAgentRunners}
               agentRunnerId={agentRunnerId}
               agentSkillIds={agentSkillIds}
               agentMcpServerIds={agentMcpServerIds}
@@ -5080,6 +5111,7 @@ function App() {
               }
               onCreateAgent={handleCreateAgent}
               onAgentDraftChange={handleAgentDraftChange}
+              onEnsureAgentEditorData={ensureAgentEditorData}
               onSaveAgent={handleSaveAgent}
               onInitializeAgent={handleInitializeAgent}
               onRetryAgentSkillInstall={handleRetryAgentSkillInstall}
