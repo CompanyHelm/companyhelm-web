@@ -1059,7 +1059,9 @@ export const COMPANY_API_LIST_GITHUB_INSTALLATIONS_QUERY = `
   query CompanyApiListGithubInstallations($companyId: ID!) {
     githubInstallations(companyId: $companyId) {
       installationId
-      companyId
+      company {
+        id
+      }
       createdAt
     }
   }
@@ -1081,10 +1083,8 @@ export const COMPANY_API_LIST_REPOSITORIES_CONNECTION_QUERY = `
       edges {
         node {
           id
-          companyId
           provider
           externalId
-          githubInstallationId
           name
           fullName
           htmlUrl
@@ -1093,6 +1093,12 @@ export const COMPANY_API_LIST_REPOSITORIES_CONNECTION_QUERY = `
           archived
           createdAt
           updatedAt
+          company {
+            id
+          }
+          githubInstallation {
+            installationId
+          }
         }
       }
       pageInfo {
@@ -1118,8 +1124,10 @@ export const COMPANY_API_ADD_GITHUB_INSTALLATION_MUTATION = `
       error
       githubInstallation {
         installationId
-        companyId
         createdAt
+        company {
+          id
+        }
       }
     }
   }
@@ -1131,22 +1139,32 @@ export const COMPANY_API_LIST_AGENT_RUNNERS_CONNECTION_QUERY = `
       edges {
         node {
           id
-          companyId
           name
           agentSdks {
             id
-            companyId
-            agentRunnerId
             name
+            company {
+              id
+            }
+            runner {
+              id
+            }
             models {
               id
-              companyId
-              agentRunnerSdkId
               name
               reasoning
+              company {
+                id
+              }
+              sdk {
+                id
+              }
             }
           }
           status
+          company {
+            id
+          }
         }
       }
       pageInfo {
@@ -1163,22 +1181,32 @@ export const COMPANY_API_CREATE_AGENT_RUNNER_MUTATION = `
       secret
       agentRunner {
         id
-        companyId
         name
         agentSdks {
           id
-          companyId
-          agentRunnerId
           name
+          company {
+            id
+          }
+          runner {
+            id
+          }
           models {
             id
-            companyId
-            agentRunnerSdkId
             name
             reasoning
+            company {
+              id
+            }
+            sdk {
+              id
+            }
           }
         }
         status
+        company {
+          id
+        }
       }
     }
   }
@@ -1190,22 +1218,32 @@ export const COMPANY_API_REGENERATE_AGENT_RUNNER_SECRET_MUTATION = `
       secret
       agentRunner {
         id
-        companyId
         name
         agentSdks {
           id
-          companyId
-          agentRunnerId
           name
+          company {
+            id
+          }
+          runner {
+            id
+          }
           models {
             id
-            companyId
-            agentRunnerSdkId
             name
             reasoning
+            company {
+              id
+            }
+            sdk {
+              id
+            }
           }
         }
         status
+        company {
+          id
+        }
       }
     }
   }
@@ -1224,9 +1262,11 @@ export const COMPANY_API_LIST_AGENTS_CONNECTION_QUERY = `
         node {
           id
           name
-          companyId
           status
           defaultAdditionalModelInstructions
+          company {
+            id
+          }
           runner {
             id
             name
@@ -1263,9 +1303,16 @@ export const COMPANY_API_CREATE_AGENT_MUTATION = `
     ) {
       id
       name
-      companyId
       status
       defaultAdditionalModelInstructions
+      company {
+        id
+      }
+      runner {
+        id
+        name
+        status
+      }
     }
   }
 `;
@@ -1291,9 +1338,16 @@ export const COMPANY_API_UPDATE_AGENT_MUTATION = `
     ) {
       id
       name
-      companyId
       status
       defaultAdditionalModelInstructions
+      company {
+        id
+      }
+      runner {
+        id
+        name
+        status
+      }
     }
   }
 `;
@@ -1313,13 +1367,16 @@ export const COMPANY_API_LIST_THREADS_CONNECTION_QUERY = `
       edges {
         node {
           id
-          companyId
-          agentId
           title
           additionalModelInstructions
           status
-          currentModelId
           currentReasoningLevel
+          company {
+            id
+          }
+          agent {
+            id
+          }
           currentModel {
             id
             name
@@ -1348,13 +1405,16 @@ export const COMPANY_API_CREATE_THREAD_MUTATION = `
       additionalModelInstructions: $additionalModelInstructions
     ) {
       id
-      companyId
-      agentId
       title
       additionalModelInstructions
       status
-      currentModelId
       currentReasoningLevel
+      company {
+        id
+      }
+      agent {
+        id
+      }
       currentModel {
         id
         name
@@ -1367,13 +1427,16 @@ export const COMPANY_API_UPDATE_THREAD_TITLE_MUTATION = `
   mutation CompanyApiUpdateThreadTitle($threadId: ID!, $title: String) {
     updateThreadTitle(threadId: $threadId, title: $title) {
       id
-      companyId
-      agentId
       title
       additionalModelInstructions
       status
-      currentModelId
       currentReasoningLevel
+      company {
+        id
+      }
+      agent {
+        id
+      }
       currentModel {
         id
         name
@@ -1395,18 +1458,22 @@ export const COMPANY_API_LIST_THREAD_TURNS_CONNECTION_QUERY = `
         node {
           id
           sdkTurnId
-          companyId
-          threadId
-          agentId
           status
           reasoningText
           startedAt
           endedAt
+          company {
+            id
+          }
+          thread {
+            id
+          }
+          agent {
+            id
+          }
           items {
             id
             sdkItemId
-            companyId
-            turnId
             type
             status
             text
@@ -1415,6 +1482,12 @@ export const COMPANY_API_LIST_THREAD_TURNS_CONNECTION_QUERY = `
             processId
             startedAt
             completedAt
+            company {
+              id
+            }
+            turn {
+              id
+            }
           }
         }
       }
@@ -1430,10 +1503,14 @@ export const COMPANY_API_LIST_QUEUED_USER_MESSAGES_QUERY = `
   query CompanyApiListQueuedUserMessages($threadId: ID!, $first: Int!) {
     queuedUserMessages(threadId: $threadId, first: $first) {
       id
-      companyId
-      threadId
       allowSteer
       text
+      company {
+        id
+      }
+      thread {
+        id
+      }
     }
   }
 `;
@@ -1454,10 +1531,14 @@ export const COMPANY_API_QUEUE_USER_MESSAGE_MUTATION = `
       reasoningLevel: $reasoningLevel
     ) {
       id
-      companyId
-      threadId
       allowSteer
       text
+      company {
+        id
+      }
+      thread {
+        id
+      }
     }
   }
 `;
@@ -1466,10 +1547,14 @@ export const COMPANY_API_STEER_QUEUED_USER_MESSAGE_MUTATION = `
   mutation CompanyApiSteerQueuedUserMessage($queuedMessageId: ID!) {
     steerQueuedUserMessage(queuedMessageId: $queuedMessageId) {
       id
-      companyId
-      threadId
       allowSteer
       text
+      company {
+        id
+      }
+      thread {
+        id
+      }
     }
   }
 `;
