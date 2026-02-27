@@ -199,12 +199,15 @@ function resolveLegacyId(...values) {
 function getChatCreateBlockedReason(agent, agentRunnerLookup) {
   const assignedRunnerId = resolveLegacyId(agent?.agentRunnerId);
   if (!assignedRunnerId) {
-    return "Assign a runner to this agent before creating chats.";
+    // Company API agent payloads currently omit runner linkage fields.
+    // In that case we cannot reliably determine runner assignment client-side, so
+    // we allow chat creation and defer validation to the API mutation path.
+    return "";
   }
 
   const assignedRunner = agentRunnerLookup.get(assignedRunnerId);
   if (!assignedRunner) {
-    return `Assigned runner ${assignedRunnerId} was not found for this company.`;
+    return "";
   }
 
   if (normalizeRunnerStatus(assignedRunner.status) !== "ready") {
