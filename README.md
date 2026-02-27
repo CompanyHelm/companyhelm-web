@@ -21,3 +21,8 @@ Override with `VITE_GRAPHQL_PROXY_TARGET` when needed.
 npm run build
 npm run preview
 ```
+
+## GraphQL schema artifacts
+
+GraphQL schema snapshots are committed in `schema/schema.graphql` and `schema/schema.json`.
+These files are synced from `companyhelm-api` whenever the API schema changes.
