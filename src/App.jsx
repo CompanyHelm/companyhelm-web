@@ -199,7 +199,9 @@ function resolveLegacyId(...values) {
 function getChatCreateBlockedReason(agent, agentRunnerLookup) {
   const assignedRunnerId = resolveLegacyId(agent?.agentRunnerId);
   if (!assignedRunnerId) {
-    return "Assign a runner to this agent before creating chats.";
+    // Company API agent payloads currently omit runner linkage metadata.
+    // Allow chat creation to proceed so the backend can resolve assignment server-side.
+    return "";
   }
 
   const assignedRunner = agentRunnerLookup.get(assignedRunnerId);
