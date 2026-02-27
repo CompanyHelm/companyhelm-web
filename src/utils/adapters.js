@@ -126,7 +126,7 @@ export function toLegacyRunnerPayload(agentRunner) {
 
   return {
     id: runnerId,
-    companyId: resolveLegacyId(agentRunner?.companyId),
+    companyId: resolveLegacyId(agentRunner?.company?.id),
     name: nextMetadata.name,
     callbackUrl: null,
     hasAuthSecret: true,
@@ -178,13 +178,12 @@ export function toLegacyAgentPayload(agent, { metadataOverride } = {}) {
 
   return {
     id: agentId,
-    companyId: resolveLegacyId(agent?.companyId),
+    companyId: resolveLegacyId(agent?.company?.id),
     name: resolveLegacyId(nextMetadata.name, agent?.name),
     status: resolveLegacyId(agent?.status) || "pending",
     agentRunnerId: resolveLegacyId(
       nextMetadata.agentRunnerId,
       agent?.runner?.id,
-      agent?.agentRunner?.id,
     ),
     skillIds: normalizeUniqueStringList(nextMetadata.skillIds || []),
     mcpServerIds: normalizeUniqueStringList(nextMetadata.mcpServerIds || []),
@@ -203,7 +202,6 @@ export function toLegacyThreadPayload(thread, { metadataOverride } = {}) {
   const resolvedCurrentModelId = resolveLegacyId(
     metadataOverride?.currentModelId,
     metadataOverride?.currentModel?.id,
-    thread?.currentModelId,
     thread?.currentModel?.id,
     currentMetadata.currentModelId,
   ) || null;
@@ -263,8 +261,8 @@ export function toLegacyThreadPayload(thread, { metadataOverride } = {}) {
   return {
     id: threadId,
     threadId,
-    companyId: resolveLegacyId(thread?.companyId),
-    agentId: resolveLegacyId(thread?.agentId),
+    companyId: resolveLegacyId(thread?.company?.id),
+    agentId: resolveLegacyId(thread?.agent?.id),
     runnerId: nextMetadata.runnerId,
     title: nextMetadata.title,
     status: resolveLegacyId(thread?.status) || "pending",
@@ -290,9 +288,9 @@ export function toLegacyTurnItemRole(itemType) {
 
 export function toLegacyTurnPayload(turn, { runnerId } = {}) {
   const resolvedTurnId = resolveLegacyId(turn?.id);
-  const resolvedThreadId = resolveLegacyId(turn?.threadId);
-  const resolvedCompanyId = resolveLegacyId(turn?.companyId);
-  const resolvedAgentId = resolveLegacyId(turn?.agentId);
+  const resolvedThreadId = resolveLegacyId(turn?.thread?.id);
+  const resolvedCompanyId = resolveLegacyId(turn?.company?.id);
+  const resolvedAgentId = resolveLegacyId(turn?.agent?.id);
   const resolvedRunnerId = resolveLegacyId(runnerId) || null;
   const resolvedStartedAt = resolveLegacyId(turn?.startedAt) || null;
   const resolvedEndedAt = resolveLegacyId(turn?.endedAt) || null;
@@ -306,9 +304,9 @@ export function toLegacyTurnPayload(turn, { runnerId } = {}) {
 
     return {
       id: resolveLegacyId(item?.id),
-      turnId: resolvedTurnId,
-      threadId: resolvedThreadId,
-      companyId: resolvedCompanyId,
+      turnId: resolveLegacyId(item?.turn?.id, resolvedTurnId),
+      threadId: resolveLegacyId(item?.turn?.thread?.id, resolvedThreadId),
+      companyId: resolveLegacyId(item?.company?.id, resolvedCompanyId),
       agentId: resolvedAgentId,
       runnerId: resolvedRunnerId,
       providerItemId: resolveLegacyId(item?.sdkItemId),
@@ -345,8 +343,8 @@ export function toLegacyTurnPayload(turn, { runnerId } = {}) {
 export function toLegacyQueuedUserMessagePayload(queuedMessage) {
   return {
     id: resolveLegacyId(queuedMessage?.id),
-    companyId: resolveLegacyId(queuedMessage?.companyId),
-    threadId: resolveLegacyId(queuedMessage?.threadId),
+    companyId: resolveLegacyId(queuedMessage?.company?.id),
+    threadId: resolveLegacyId(queuedMessage?.thread?.id),
     allowSteer: Boolean(queuedMessage?.allowSteer),
     text: resolveLegacyId(queuedMessage?.text),
   };
