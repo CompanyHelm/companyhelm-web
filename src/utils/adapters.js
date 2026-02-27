@@ -181,7 +181,11 @@ export function toLegacyAgentPayload(agent, { metadataOverride } = {}) {
     companyId: resolveLegacyId(agent?.companyId),
     name: resolveLegacyId(nextMetadata.name, agent?.name),
     status: resolveLegacyId(agent?.status) || "pending",
-    agentRunnerId: resolveLegacyId(nextMetadata.agentRunnerId),
+    agentRunnerId: resolveLegacyId(
+      nextMetadata.agentRunnerId,
+      agent?.runner?.id,
+      agent?.agentRunner?.id,
+    ),
     skillIds: normalizeUniqueStringList(nextMetadata.skillIds || []),
     mcpServerIds: normalizeUniqueStringList(nextMetadata.mcpServerIds || []),
     installedSkills: Array.isArray(nextMetadata.installedSkills) ? nextMetadata.installedSkills : [],

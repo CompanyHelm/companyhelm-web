@@ -1227,6 +1227,11 @@ export const COMPANY_API_LIST_AGENTS_CONNECTION_QUERY = `
           companyId
           status
           defaultAdditionalModelInstructions
+          runner {
+            id
+            name
+            status
+          }
         }
       }
       pageInfo {

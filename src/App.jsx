@@ -199,9 +199,9 @@ function resolveLegacyId(...values) {
 function getChatCreateBlockedReason(agent, agentRunnerLookup) {
   const assignedRunnerId = resolveLegacyId(agent?.agentRunnerId);
   if (!assignedRunnerId) {
-    // Company API agent payloads currently omit runner linkage fields.
+    // Some API payloads can still omit runner linkage fields.
     // In that case we cannot reliably determine runner assignment client-side, so
-    // we allow chat creation and defer validation to the API mutation path.
+    // allow chat creation and defer validation to the API mutation path.
     return "";
   }
 
@@ -380,7 +380,11 @@ function toLegacyAgentPayload(agent, { metadataOverride } = {}) {
     companyId: resolveLegacyId(agent?.companyId),
     name: resolveLegacyId(nextMetadata.name, agent?.name),
     status: resolveLegacyId(agent?.status) || "pending",
-    agentRunnerId: resolveLegacyId(nextMetadata.agentRunnerId),
+    agentRunnerId: resolveLegacyId(
+      nextMetadata.agentRunnerId,
+      agent?.runner?.id,
+      agent?.agentRunner?.id,
+    ),
     skillIds: normalizeUniqueStringList(nextMetadata.skillIds || []),
     mcpServerIds: normalizeUniqueStringList(nextMetadata.mcpServerIds || []),
     installedSkills: Array.isArray(nextMetadata.installedSkills) ? nextMetadata.installedSkills : [],
