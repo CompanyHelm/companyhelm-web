@@ -11,6 +11,7 @@ export function AgentChatsPage({
   isCreatingChatSession,
   deletingChatSessionKey,
   chatError,
+  createChatDisabledReason,
   chatSessionTitleDraft,
   chatSessionAdditionalModelInstructionsDraft,
   onChatSessionTitleDraftChange,
@@ -20,6 +21,9 @@ export function AgentChatsPage({
   onDeleteChat,
   onBackToAgents,
 }) {
+  const resolvedCreateChatDisabledReason = String(createChatDisabledReason || "").trim();
+  const isCreateChatDisabled = !agent || isCreatingChatSession || Boolean(resolvedCreateChatDisabledReason);
+
   return (
     <div className="page-stack">
       <section className="panel hero-panel">
@@ -105,6 +109,9 @@ export function AgentChatsPage({
         <header className="panel-header">
           <h2>Create chat</h2>
         </header>
+        {resolvedCreateChatDisabledReason ? (
+          <p className="empty-hint">{resolvedCreateChatDisabledReason}</p>
+        ) : null}
         <form
           className="task-form"
           onSubmit={async (event) => {
@@ -124,7 +131,7 @@ export function AgentChatsPage({
             value={chatSessionTitleDraft}
             onChange={(event) => onChatSessionTitleDraftChange(event.target.value)}
             placeholder="e.g. Release planning"
-            disabled={!agent || isCreatingChatSession}
+            disabled={isCreateChatDisabled}
           />
           <label htmlFor="chat-session-additional-model-instructions">
             Additional model instructions (optional)
@@ -137,9 +144,9 @@ export function AgentChatsPage({
             }
             placeholder="Optional. Leave blank to use this agent's default instructions."
             rows={4}
-            disabled={!agent || isCreatingChatSession}
+            disabled={isCreateChatDisabled}
           />
-          <button type="submit" disabled={!agent || isCreatingChatSession}>
+          <button type="submit" disabled={isCreateChatDisabled}>
             {isCreatingChatSession ? "Creating..." : "Create chat"}
           </button>
         </form>

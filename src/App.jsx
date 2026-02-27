@@ -196,6 +196,24 @@ function resolveLegacyId(...values) {
   return "";
 }
 
+function getChatCreateBlockedReason(agent, agentRunnerLookup) {
+  const assignedRunnerId = resolveLegacyId(agent?.agentRunnerId);
+  if (!assignedRunnerId) {
+    return "Assign a runner to this agent before creating chats.";
+  }
+
+  const assignedRunner = agentRunnerLookup.get(assignedRunnerId);
+  if (!assignedRunner) {
+    return `Assigned runner ${assignedRunnerId} was not found for this company.`;
+  }
+
+  if (normalizeRunnerStatus(assignedRunner.status) !== "ready") {
+    return `Assigned runner ${assignedRunnerId} is not connected. Start or reconnect the runner before creating chats.`;
+  }
+
+  return "";
+}
+
 function toConnectionNodes(connection) {
   if (!connection || !Array.isArray(connection.edges)) {
     return [];
@@ -1452,6 +1470,26 @@ function App() {
       return map;
     }, new Map());
   }, [agentRunners]);
+
+  const getChatCreateBlockedReasonForAgent = useCallback(
+    (agent) => getChatCreateBlockedReason(agent, agentRunnerLookup),
+    [agentRunnerLookup],
+  );
+
+  const getChatCreateBlockedReasonByAgentId = useCallback(
+    (agentId) => {
+      const resolvedAgentId = String(agentId || "").trim();
+      if (!resolvedAgentId) {
+        return "Select an agent before creating a chat.";
+      }
+      const selectedAgent = agents.find((agent) => agent.id === resolvedAgentId) || null;
+      if (!selectedAgent) {
+        return `Agent ${resolvedAgentId} was not found for this company.`;
+      }
+      return getChatCreateBlockedReasonForAgent(selectedAgent);
+    },
+    [agents, getChatCreateBlockedReasonForAgent],
+  );
 
   const resolvedChatSessionId = useMemo(
     () => resolveLegacyId(chatSessionId, agentsRoute.sessionId),
@@ -4100,6 +4138,15 @@ function App() {
     }
 
     const selectedAgentForChat = agents.find((agent) => agent.id === targetAgentId) || null;
+    if (!selectedAgentForChat) {
+      setChatError(`Agent ${targetAgentId} was not found for this company.`);
+      return null;
+    }
+    const createChatBlockedReason = getChatCreateBlockedReasonForAgent(selectedAgentForChat);
+    if (createChatBlockedReason) {
+      setChatError(createChatBlockedReason);
+      return null;
+    }
     const normalizedAdditionalModelInstructions = normalizeOptionalInstructions(
       additionalModelInstructions,
     );
@@ -4921,6 +4968,7 @@ function App() {
               deletingChatSessionKey={deletingChatSessionKey}
               onRefreshChatLists={() => loadChatSessionIndexByAgent()}
               onCreateChatForAgent={handleCreateChatForAgent}
+              getCreateChatDisabledReason={getChatCreateBlockedReasonByAgentId}
               onOpenChat={handleOpenChatFromList}
               onDeleteChat={handleDeleteChatSession}
             />
@@ -4938,6 +4986,7 @@ function App() {
               isCreatingChatSession={isCreatingChatSession}
               deletingChatSessionKey={deletingChatSessionKey}
               chatError={chatError}
+              createChatDisabledReason={getChatCreateBlockedReasonByAgentId(chatAgentId)}
               chatSessionTitleDraft={chatSessionTitleDraft}
               chatSessionAdditionalModelInstructionsDraft={chatSessionAdditionalModelInstructionsDraft}
               onChatSessionTitleDraftChange={setChatSessionTitleDraft}
