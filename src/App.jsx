@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
-  GRAPHQL_URL,
   DEFAULT_RUNNER_GRPC_TARGET,
   DEFAULT_GITHUB_APP_INSTALL_URL,
   AVAILABLE_AGENT_SDKS,
@@ -143,6 +142,7 @@ import {
 } from "./utils/drafts.js";
 
 import { subscribeGraphQL, useGraphQLSubscription } from "./hooks/useGraphQLSubscription.js";
+import { executeRelayGraphQL } from "./relay/client.js";
 
 import { Breadcrumbs } from "./components/Breadcrumbs.jsx";
 import { CompanyRequiredPanel } from "./components/CompanyRequiredPanel.jsx";
@@ -165,21 +165,13 @@ const companyApiThreadMetadataById = new Map();
 const companyApiRunnerMetadataById = new Map();
 
 
-async function executeRawGraphQL(query, variables) {
-  const response = await fetch(GRAPHQL_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ query, variables }),
+async function executeRawGraphQL(query, variables, options = {}) {
+  return executeRelayGraphQL({
+    query,
+    variables,
+    operationKind: options.operationKind,
+    force: options.force,
   });
-
-  const payload = await response.json();
-  if (!response.ok || payload.errors) {
-    const message = payload?.errors?.[0]?.message || `GraphQL request failed (${response.status})`;
-    throw new Error(message);
-  }
-  return payload.data;
 }
 
 function normalizeCompanyApiRunnerStatus(value) {
