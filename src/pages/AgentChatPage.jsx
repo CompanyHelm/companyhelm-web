@@ -599,18 +599,24 @@ export function AgentChatPage({
           </div>
           <div className="chat-settings-field">
             <label className="chat-settings-label">Additional instructions</label>
-            <p className="chat-settings-readonly chat-settings-readonly-clamped">
-              {session?.additionalModelInstructions || "none"}
-            </p>
             {session?.additionalModelInstructions ? (
-              <button
-                type="button"
-                className="chat-settings-show-all-btn"
-                onClick={() => setIsInstructionsExpanded(true)}
-              >
-                Show all
-              </button>
-            ) : null}
+              <>
+                <div className="chat-settings-readonly chat-settings-readonly-clamped chat-message-content chat-message-content-markdown">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {session.additionalModelInstructions}
+                  </ReactMarkdown>
+                </div>
+                <button
+                  type="button"
+                  className="chat-settings-show-all-btn"
+                  onClick={() => setIsInstructionsExpanded(true)}
+                >
+                  Show all
+                </button>
+              </>
+            ) : (
+              <p className="chat-settings-readonly">none</p>
+            )}
           </div>
           <div className="chat-settings-info">
             <p className="chat-settings-info-row">
@@ -641,10 +647,10 @@ export function AgentChatPage({
         onClose={() => setIsInstructionsExpanded(false)}
         cardClassName="modal-card-fullscreen"
       >
-        <div className="chat-instructions-modal-body">
-          <pre className="chat-instructions-modal-pre">
-            <code>{session?.additionalModelInstructions || "(none)"}</code>
-          </pre>
+        <div className="chat-instructions-modal-body chat-message-content chat-message-content-markdown">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {session?.additionalModelInstructions || ""}
+          </ReactMarkdown>
         </div>
       </CreationModal>
 

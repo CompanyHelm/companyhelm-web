@@ -1965,21 +1965,11 @@ button:disabled {
 .chat-session-running-badge {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  padding: 0.1rem 0.46rem;
-  border-radius: 999px;
-  border: 1px solid rgba(15, 118, 110, 0.3);
-  background: rgba(15, 118, 110, 0.12);
-  color: #0f766e;
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  text-transform: lowercase;
 }
 
 .chat-session-spinner {
-  width: 0.56rem;
-  height: 0.56rem;
+  width: 0.72rem;
+  height: 0.72rem;
 }
 
 .chat-session-row {
@@ -2018,6 +2008,14 @@ button:disabled {
 .chat-card:hover {
   background: rgba(255, 255, 255, 0.8);
   border-color: rgba(26, 32, 38, 0.16);
+}
+
+.chat-card-status {
+  width: 0.72rem;
+  flex: 0 0 0.72rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .chat-card-main {
@@ -2097,6 +2095,69 @@ button:disabled {
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.skill-detail-info {
+  padding: 0.3rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.skill-detail-section {
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid rgba(26, 32, 38, 0.08);
+}
+
+.skill-detail-section h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.skill-detail-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.skill-detail-section-header h3 {
+  margin: 0;
+}
+
+.skill-content-raw {
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  background: rgba(26, 32, 38, 0.04);
+  border: 1px solid rgba(26, 32, 38, 0.08);
+  border-radius: 6px;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.skill-file-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+}
+
+.skill-file-list li {
+  padding: 0.18rem 0;
+}
+
+.skill-file-list code {
+  font-size: 0.78rem;
+  color: var(--ink-1);
 }
 
 .create-chat-composer-panel {

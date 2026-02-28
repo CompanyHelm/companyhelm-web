@@ -1,9 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
 import { CreationModal } from "../components/CreationModal.jsx";
-import { AVAILABLE_AGENT_SDKS, DEFAULT_AGENT_SDK, SKILL_TYPE_SKILLSMP } from "../utils/constants.js";
+import { AVAILABLE_AGENT_SDKS, DEFAULT_AGENT_SDK } from "../utils/constants.js";
 import {
   normalizeUniqueStringList,
-  normalizeSkillType,
   getRunnerCodexModelEntriesForRunner,
   getRunnerModelNames,
   getRunnerReasoningLevels,
@@ -25,7 +24,6 @@ export function AgentsPage({
   savingAgentId,
   deletingAgentId,
   initializingAgentId,
-  retryingAgentSkillInstallKey,
   hasLoadedAgentRunners,
   agentRunnerId,
   agentSkillGroupIds,
@@ -49,7 +47,6 @@ export function AgentsPage({
   onAgentDraftChange,
   onEnsureAgentEditorData,
   onSaveAgent,
-  onRetryAgentSkillInstall,
   onOpenAgentSessions,
   onDeleteAgent,
 }) {
@@ -230,32 +227,29 @@ export function AgentsPage({
 
   return (
     <div className="page-stack">
-      <section className="panel hero-panel">
-        <p className="eyebrow">Agent Registry</p>
-        <h1>Agents page</h1>
-        <p className="subcopy">
-          Register AI agents by SDK, model, and reasoning profile for the active company.
-        </p>
-        <p className="context-pill">Company: {selectedCompanyId}</p>
-      </section>
+      <header className="chat-minimal-header">
+        <div className="chat-minimal-header-info">
+          <p className="chat-minimal-header-agent">{selectedCompanyId}</p>
+          <h1 className="chat-minimal-header-title">Agents</h1>
+        </div>
+        <div className="chat-minimal-header-actions">
+          <button
+            type="button"
+            className="chat-minimal-header-icon-btn"
+            aria-label="Create agent"
+            title={createAgentButtonTitle}
+            onClick={openCreateAgentModal}
+            disabled={isCreateBlockedByRunners}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
+        </div>
+      </header>
 
       <section className="panel list-panel">
-        <header className="panel-header panel-header-row">
-          <h2>Agents</h2>
-          <div className="task-meta">
-            <span>{agentCountLabel}</span>
-            <button
-              type="button"
-              className="icon-create-btn"
-              aria-label="Create agent"
-              title={createAgentButtonTitle}
-              onClick={openCreateAgentModal}
-              disabled={isCreateBlockedByRunners}
-            >
-              +
-            </button>
-          </div>
-        </header>
 
         {agentError ? <p className="error-banner">{agentError}</p> : null}
         {isLoadingAgents ? <p className="empty-hint">Loading agents...</p> : null}
@@ -279,7 +273,7 @@ export function AgentsPage({
         ) : null}
 
         {agents.length > 0 ? (
-          <ul className="task-list">
+          <ul className="chat-card-list">
             {agents.map((agent) => {
               const assignedRunner = agent.agentRunnerId
                 ? agentRunnerLookup.get(agent.agentRunnerId) || {
@@ -290,161 +284,67 @@ export function AgentsPage({
               const assignedRunnerLabel = assignedRunner
                 ? formatRunnerLabel(assignedRunner)
                 : "Unassigned";
-              const assignedSkillGroupLabels = (agent.skillGroupIds || []).map((skillGroupId) => {
-                const skillGroup = skillGroupLookup.get(skillGroupId);
-                return skillGroup ? skillGroup.name : skillGroupId;
-              });
-              const assignedSkillGroupSummary =
-                assignedSkillGroupLabels.length > 0 ? assignedSkillGroupLabels.join(", ") : "none";
-              const availableSkillLabels = [
-                ...new Set(
-                  (agent.skillGroupIds || []).flatMap((skillGroupId) => {
-                    const skillGroup = skillGroupLookup.get(skillGroupId);
-                    return Array.isArray(skillGroup?.skills)
-                      ? skillGroup.skills
-                          .map((skill) => String(skill?.name || "").trim())
-                          .filter(Boolean)
-                      : [];
-                  }),
-                ),
-              ];
-              const availableSkillSummary =
-                availableSkillLabels.length > 0 ? availableSkillLabels.join(", ") : "none";
-              const assignedMcpServerLabels = (agent.mcpServerIds || []).map((mcpServerId) => {
-                const mcpServer = mcpServerLookup.get(mcpServerId);
-                return mcpServer ? mcpServer.name : mcpServerId;
-              });
-              const assignedMcpServerSummary =
-                assignedMcpServerLabels.length > 0 ? assignedMcpServerLabels.join(", ") : "none";
-              const installedSkillRows = Array.isArray(agent.installedSkills)
-                ? agent.installedSkills.filter(
-                    (installedSkill) =>
-                      normalizeSkillType(installedSkill?.skillType) === SKILL_TYPE_SKILLSMP,
-                  )
-                : [];
               const isSavingOrDeleting =
                 savingAgentId === agent.id || deletingAgentId === agent.id;
               const isInitializing = initializingAgentId === agent.id;
               const isBusy = isSavingOrDeleting || isInitializing;
               const modelLabel = String(agent.model || "").trim() || "n/a";
-              const reasoningLabel = String(agent.modelReasoningLevel || "").trim() || "n/a";
 
               return (
-                <li key={agent.id} className="task-card">
-                  <div className="task-card-top">
-                    <div className="task-card-title-group">
+                <li
+                  key={agent.id}
+                  className="chat-card"
+                  onClick={() => !isBusy && openEditAgentModal(agent.id)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !isBusy) {
+                      openEditAgentModal(agent.id);
+                    }
+                  }}
+                >
+                  <div className="chat-card-main">
+                    <p className="chat-card-title">
                       <strong>{agent.name}</strong>
-                      <code className="runner-id">{agent.id}</code>
-                    </div>
-                    <div className="task-card-top-actions">
-                      <button
-                        type="button"
-                        className="icon-edit-btn"
-                        aria-label={`Edit ${agent.name}`}
-                        title="Edit agent"
-                        onClick={() => openEditAgentModal(agent.id)}
-                        disabled={isBusy}
-                      >
-                        <svg
-                          aria-hidden="true"
-                          viewBox="0 0 20 20"
-                          fill="none"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <path
-                            d="M4 13.5 3 17l3.5-1 9-9a1.8 1.8 0 0 0 0-2.5l-1-1a1.8 1.8 0 0 0-2.5 0l-9 9Z"
-                            stroke="currentColor"
-                            strokeWidth="1.4"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                          <path
-                            d="M11.5 4.5 15.5 8.5"
-                            stroke="currentColor"
-                            strokeWidth="1.4"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      </button>
-                    </div>
+                    </p>
+                    <p className="chat-card-meta">
+                      {agent.agentSdk} · {modelLabel} · {assignedRunnerLabel}
+                    </p>
                   </div>
-                  <p className="agent-subcopy">
-                    SDK: <strong>{agent.agentSdk}</strong> • model: <strong>{modelLabel}</strong>{" "}
-                    • reasoning: <strong>{reasoningLabel}</strong>
-                  </p>
-                  <p className="agent-subcopy">
-                    Runner: <strong>{assignedRunnerLabel}</strong>
-                  </p>
-                  <p className="agent-subcopy">
-                    Skill groups: <strong>{assignedSkillGroupSummary}</strong>
-                  </p>
-                  <p className="agent-subcopy">
-                    Skills available: <strong>{availableSkillSummary}</strong>
-                  </p>
-                  <p className="agent-subcopy">
-                    MCP servers: <strong>{assignedMcpServerSummary}</strong>
-                  </p>
-                  {installedSkillRows.length > 0 ? (
-                    <div className="agent-installed-skills">
-                      <p className="agent-subcopy">
-                        SkillsMP install status:
-                      </p>
-                      {installedSkillRows.map((installedSkill) => {
-                        const installKey = `${agent.id}:${installedSkill.skillId}`;
-                        const retryingThisInstall = retryingAgentSkillInstallKey === installKey;
-                        const installStatus = String(installedSkill.status || "").trim() || "unknown";
-                        const installMessage = String(installedSkill.message || "").trim();
-                        const installLogs = String(installedSkill.installLogs || "").trim();
-                        return (
-                          <div key={`installed-skill-${installKey}`} className="agent-installed-skill-row">
-                            <p className="agent-subcopy">
-                              <strong>{installedSkill.skillName || installedSkill.skillId}</strong>:{" "}
-                              <span className={`agent-install-status agent-install-status-${installStatus}`}>
-                                {installStatus}
-                              </span>
-                              {installMessage ? ` (${installMessage})` : ""}
-                            </p>
-                            <div className="task-card-actions">
-                              <button
-                                type="button"
-                                className="secondary-btn"
-                                onClick={() =>
-                                  onRetryAgentSkillInstall(agent.id, installedSkill.skillId)
-                                }
-                                disabled={retryingThisInstall || isSavingOrDeleting}
-                              >
-                                {retryingThisInstall ? "Retrying..." : "Retry install"}
-                              </button>
-                            </div>
-                            {installLogs ? (
-                              <details className="agent-install-logs">
-                                <summary>View install logs</summary>
-                                <pre>{installLogs}</pre>
-                          </details>
-                        ) : null}
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : null}
-
-                  <div className="task-card-actions">
+                  <div className="chat-card-actions">
                     <button
                       type="button"
-                      className="secondary-btn"
-                      onClick={() => onOpenAgentSessions(agent.id)}
+                      className="chat-card-icon-btn"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onOpenAgentSessions(agent.id);
+                      }}
                       disabled={isBusy}
+                      aria-label="Agent chats"
+                      title="Agent chats"
                     >
-                      Chats
+                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                      </svg>
                     </button>
                     <button
                       type="button"
-                      className="danger-btn"
-                      onClick={() => openDeleteAgentModal(agent.id, agent.name)}
+                      className="chat-card-icon-btn chat-card-icon-btn-danger"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        openDeleteAgentModal(agent.id, agent.name);
+                      }}
                       disabled={isBusy}
+                      aria-label={deletingAgentId === agent.id ? "Deleting..." : "Delete agent"}
+                      title={deletingAgentId === agent.id ? "Deleting..." : "Delete agent"}
                     >
-                      {deletingAgentId === agent.id ? "Deleting..." : "Delete"}
+                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path d="M3 6h18" />
+                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                        <line x1="10" y1="11" x2="10" y2="17" />
+                        <line x1="14" y1="11" x2="14" y2="17" />
+                      </svg>
                     </button>
                   </div>
                 </li>

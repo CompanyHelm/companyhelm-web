@@ -115,10 +115,12 @@ export function ChatsOverviewPage({
                               }
                             }}
                           >
+                            <div className="chat-card-status">
+                              {isRunning ? <ChatSessionRunningBadge /> : null}
+                            </div>
                             <div className="chat-card-main">
                               <p className="chat-card-title">
                                 <strong>{chatSession.title || "Untitled chat"}</strong>
-                                {isRunning ? <ChatSessionRunningBadge /> : null}
                               </p>
                               <p className="chat-card-meta">
                                 {formatTimestamp(chatSession.updatedAt)} · {sessionModelLabel} · {reasoningLabel}

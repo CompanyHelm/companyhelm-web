@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { CreationModal } from "../components/CreationModal.jsx";
 
 export function SkillsPage({
   selectedCompanyId,
@@ -26,6 +27,8 @@ export function SkillsPage({
   const [groupDrafts, setGroupDrafts] = useState({});
   const [localError, setLocalError] = useState("");
   const [showRawMarkdown, setShowRawMarkdown] = useState(false);
+  const [editingGroupId, setEditingGroupId] = useState("");
+  const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false);
 
   const groupedSkillIds = useMemo(() => {
     const ids = new Set();
@@ -43,6 +46,8 @@ export function SkillsPage({
     return skills.filter((skill) => !groupedSkillIds.has(skill.id));
   }, [groupedSkillIds, skills]);
 
+  const editingGroup = skillGroups.find((group) => group.id === editingGroupId) || null;
+
   async function handleCreateGroup(event) {
     event.preventDefault();
     try {
@@ -54,6 +59,7 @@ export function SkillsPage({
       });
       setNewGroupName("");
       setNewGroupParentId("");
+      setIsCreateGroupModalOpen(false);
     } catch (error) {
       setLocalError(error.message);
     } finally {
@@ -113,6 +119,7 @@ export function SkillsPage({
         name: draft.name,
         parentSkillGroupId: draft.parentSkillGroupId || null,
       });
+      setEditingGroupId("");
     } catch (error) {
       setLocalError(error.message);
     } finally {
@@ -120,45 +127,53 @@ export function SkillsPage({
     }
   }
 
+  function openEditGroupModal(group) {
+    setGroupDrafts((current) => ({
+      ...current,
+      [group.id]: {
+        name: group.name || "",
+        parentSkillGroupId: group.parentSkillGroup?.id || "",
+      },
+    }));
+    setEditingGroupId(group.id);
+  }
+
   if (activeSkill) {
     const gitSkillPackage = activeSkill.gitSkillPackage || null;
 
     return (
       <div className="page-stack">
-        <section className="panel hero-panel">
-          <p className="eyebrow">Skill</p>
-          <h1>{activeSkill.name}</h1>
-          <p className="subcopy">{activeSkill.description || "No description provided."}</p>
-          <p className="context-pill">Company: {selectedCompanyId}</p>
-        </section>
+        <header className="chat-minimal-header">
+          <div className="chat-minimal-header-info">
+            <p className="chat-minimal-header-agent">Skill</p>
+            <h1 className="chat-minimal-header-title">{activeSkill.name}</h1>
+          </div>
+          <div className="chat-minimal-header-actions">
+            <button type="button" className="secondary-btn" onClick={onBackToSkills}>
+              Back
+            </button>
+          </div>
+        </header>
 
         <section className="panel list-panel">
-          <header className="panel-header panel-header-row">
-            <h2>Skill details</h2>
-            <div className="task-meta">
-              <button type="button" className="secondary-btn" onClick={onBackToSkills}>
-                Back to skills
-              </button>
-            </div>
-          </header>
-
           {skillError || localError ? <p className="error-banner">{skillError || localError}</p> : null}
 
-          <p className="agent-subcopy">
-            Groups: <strong>{(activeSkill.groups || []).map((group) => group.name).join(", ") || "none"}</strong>
-          </p>
-          <p className="agent-subcopy">
-            Files: <strong>{activeSkill.fileList?.length || 0}</strong>
+          <p className="chat-card-meta" style={{ padding: "0.2rem 0" }}>
+            {activeSkill.description || "No description provided."}
           </p>
 
+          <div className="skill-detail-info">
+            <p className="chat-card-meta">
+              Groups: {(activeSkill.groups || []).map((group) => group.name).join(", ") || "none"}
+              {" · "}Files: {activeSkill.fileList?.length || 0}
+            </p>
+          </div>
+
           {gitSkillPackage ? (
-            <section className="subpanel">
-              <h3>Git skill package</h3>
-              <p className="agent-subcopy">
-                Package: <strong>{gitSkillPackage.packageName}</strong>
-              </p>
-              <p className="agent-subcopy">
-                Skill path: <strong>{activeSkill.gitSkillPackagePath || "-"}</strong>
+            <div className="skill-detail-info">
+              <p className="chat-card-meta">
+                Package: {gitSkillPackage.packageName}
+                {" · "}Path: {activeSkill.gitSkillPackagePath || "-"}
               </p>
               <button
                 type="button"
@@ -167,22 +182,22 @@ export function SkillsPage({
               >
                 Open package
               </button>
-            </section>
+            </div>
           ) : null}
 
-          <section className="subpanel">
-            <h3>Content</h3>
-            <div className="task-card-actions">
+          <section className="skill-detail-section">
+            <div className="skill-detail-section-header">
+              <h3>Content</h3>
               <button
                 type="button"
                 className="secondary-btn"
                 onClick={() => setShowRawMarkdown((current) => !current)}
               >
-                {showRawMarkdown ? "Show rendered" : "Show raw"}
+                {showRawMarkdown ? "Rendered" : "Raw"}
               </button>
             </div>
             {showRawMarkdown ? (
-              <pre className="agent-install-logs">{activeSkill.content || ""}</pre>
+              <pre className="skill-content-raw">{activeSkill.content || ""}</pre>
             ) : (
               <div className="chat-message-content chat-message-content-markdown">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{activeSkill.content || ""}</ReactMarkdown>
@@ -190,20 +205,18 @@ export function SkillsPage({
             )}
           </section>
 
-          <section className="subpanel">
-            <h3>File list</h3>
-            {Array.isArray(activeSkill.fileList) && activeSkill.fileList.length > 0 ? (
-              <ul className="task-list">
+          {Array.isArray(activeSkill.fileList) && activeSkill.fileList.length > 0 ? (
+            <section className="skill-detail-section">
+              <h3>Files</h3>
+              <ul className="skill-file-list">
                 {activeSkill.fileList.map((filePath) => (
-                  <li key={filePath} className="task-card">
+                  <li key={filePath}>
                     <code>{filePath}</code>
                   </li>
                 ))}
               </ul>
-            ) : (
-              <p className="empty-hint">No files found.</p>
-            )}
-          </section>
+            </section>
+          ) : null}
         </section>
       </div>
     );
@@ -211,186 +224,301 @@ export function SkillsPage({
 
   return (
     <div className="page-stack">
-      <section className="panel hero-panel">
-        <p className="eyebrow">Skill Library</p>
-        <h1>Skills</h1>
-        <p className="subcopy">Browse skills grouped by skill groups and manage group memberships.</p>
-        <p className="context-pill">Company: {selectedCompanyId}</p>
-      </section>
-
-      <section className="panel list-panel">
-        <header className="panel-header panel-header-row">
-          <h2>Skill groups</h2>
-          <div className="task-meta">
-            <span>{skillGroups.length} groups</span>
-          </div>
-        </header>
-
-        {skillError || localError ? <p className="error-banner">{skillError || localError}</p> : null}
-        {isLoadingSkills || isLoadingSkillGroups ? <p className="empty-hint">Loading skills...</p> : null}
-
-        <form className="task-form" onSubmit={handleCreateGroup}>
-          <label htmlFor="new-skill-group-name">New group name</label>
-          <input
-            id="new-skill-group-name"
-            value={newGroupName}
-            onChange={(event) => setNewGroupName(event.target.value)}
-            placeholder="e.g. obra/superpowers"
-            required
-          />
-
-          <label htmlFor="new-skill-group-parent">Parent group (optional)</label>
-          <select
-            id="new-skill-group-parent"
-            value={newGroupParentId}
-            onChange={(event) => setNewGroupParentId(event.target.value)}
+      <header className="chat-minimal-header">
+        <div className="chat-minimal-header-info">
+          <p className="chat-minimal-header-agent">{selectedCompanyId}</p>
+          <h1 className="chat-minimal-header-title">Skills</h1>
+        </div>
+        <div className="chat-minimal-header-actions">
+          <button
+            type="button"
+            className="chat-minimal-header-icon-btn"
+            aria-label="Create skill group"
+            title="Create skill group"
+            onClick={() => setIsCreateGroupModalOpen(true)}
           >
-            <option value="">None</option>
-            {skillGroups.map((group) => (
-              <option key={`parent-group-${group.id}`} value={group.id}>
-                {group.name}
-              </option>
-            ))}
-          </select>
-
-          <button type="submit" disabled={isCreatingGroup}>
-            {isCreatingGroup ? "Creating..." : "Create group"}
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
           </button>
+        </div>
+      </header>
+
+      {skillError || localError ? <p className="error-banner">{skillError || localError}</p> : null}
+      {isLoadingSkills || isLoadingSkillGroups ? <p className="empty-hint">Loading skills...</p> : null}
+
+      {skillGroups.length > 0 ? (
+        <section className="panel list-panel">
+          <header className="panel-header panel-header-row">
+            <h2>Skill groups</h2>
+            <span className="chat-card-meta">{skillGroups.length} groups</span>
+          </header>
+
+          <ul className="chat-card-list">
+            {skillGroups.map((group) => {
+              const skillCount = (group.skills || []).length;
+              const parentLabel = group.parentSkillGroup?.name || null;
+              return (
+                <li
+                  key={group.id}
+                  className="chat-card"
+                  onClick={() => openEditGroupModal(group)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      openEditGroupModal(group);
+                    }
+                  }}
+                >
+                  <div className="chat-card-main">
+                    <p className="chat-card-title">
+                      <strong>{group.name}</strong>
+                    </p>
+                    <p className="chat-card-meta">
+                      {skillCount} {skillCount === 1 ? "skill" : "skills"}
+                      {parentLabel ? ` · parent: ${parentLabel}` : ""}
+                    </p>
+                  </div>
+                  <div className="chat-card-actions">
+                    <button
+                      type="button"
+                      className="chat-card-icon-btn chat-card-icon-btn-danger"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onDeleteSkillGroup(group.id, group.name);
+                      }}
+                      aria-label="Delete group"
+                      title="Delete group"
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path d="M3 6h18" />
+                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                        <line x1="10" y1="11" x2="10" y2="17" />
+                        <line x1="14" y1="11" x2="14" y2="17" />
+                      </svg>
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : !isLoadingSkillGroups ? (
+        <section className="panel list-panel">
+          <p className="empty-hint">No skill groups yet.</p>
+        </section>
+      ) : null}
+
+      {ungroupedSkills.length > 0 ? (
+        <section className="panel list-panel">
+          <header className="panel-header panel-header-row">
+            <h2>Ungrouped skills</h2>
+            <span className="chat-card-meta">{ungroupedSkills.length} skills</span>
+          </header>
+          <ul className="chat-card-list">
+            {ungroupedSkills.map((skill) => (
+              <li
+                key={`ungrouped-skill-${skill.id}`}
+                className="chat-card"
+                onClick={() => onOpenSkill(skill.id)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    onOpenSkill(skill.id);
+                  }
+                }}
+              >
+                <div className="chat-card-main">
+                  <p className="chat-card-title">
+                    <strong>{skill.name}</strong>
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      <CreationModal
+        modalId="create-skill-group-modal"
+        title="Create skill group"
+        description="Add a new group to organize skills."
+        isOpen={isCreateGroupModalOpen}
+        onClose={() => setIsCreateGroupModalOpen(false)}
+      >
+        <form className="chat-settings-modal-form" onSubmit={handleCreateGroup}>
+          <div className="chat-settings-field">
+            <label htmlFor="new-skill-group-name" className="chat-settings-label">Group name</label>
+            <input
+              id="new-skill-group-name"
+              className="chat-settings-input"
+              value={newGroupName}
+              onChange={(event) => setNewGroupName(event.target.value)}
+              placeholder="e.g. obra/superpowers"
+              required
+              autoFocus
+            />
+          </div>
+          <div className="chat-settings-field">
+            <label htmlFor="new-skill-group-parent" className="chat-settings-label">Parent group (optional)</label>
+            <select
+              id="new-skill-group-parent"
+              className="chat-settings-input"
+              value={newGroupParentId}
+              onChange={(event) => setNewGroupParentId(event.target.value)}
+            >
+              <option value="">None</option>
+              {skillGroups.map((group) => (
+                <option key={`parent-group-${group.id}`} value={group.id}>
+                  {group.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="chat-settings-actions">
+            <button type="submit" disabled={isCreatingGroup}>
+              {isCreatingGroup ? "Creating..." : "Create group"}
+            </button>
+          </div>
         </form>
+      </CreationModal>
 
-        {skillGroups.length === 0 ? <p className="empty-hint">No skill groups yet.</p> : null}
-
-        {skillGroups.map((group) => {
-          const groupDraft = getGroupDraft(group);
-          const parentOptions = skillGroups.filter((entry) => entry.id !== group.id);
-          const groupSkillIds = new Set((group.skills || []).map((skill) => skill.id));
+      <CreationModal
+        modalId="edit-skill-group-modal"
+        title={editingGroup ? `Edit "${editingGroup.name}"` : "Edit group"}
+        description="Update group settings and manage skills."
+        isOpen={Boolean(editingGroup)}
+        onClose={() => setEditingGroupId("")}
+        cardClassName="modal-card-wide"
+      >
+        {editingGroup ? (() => {
+          const groupDraft = getGroupDraft(editingGroup);
+          const parentOptions = skillGroups.filter((entry) => entry.id !== editingGroup.id);
+          const groupSkillIds = new Set((editingGroup.skills || []).map((skill) => skill.id));
           const availableSkills = skills.filter((skill) => !groupSkillIds.has(skill.id));
 
           return (
-            <article key={group.id} className="task-card">
-              <div className="task-card-top">
-                <strong>{group.name}</strong>
-                <div className="task-card-actions">
-                  <button
-                    type="button"
-                    className="danger-btn"
-                    onClick={() => onDeleteSkillGroup(group.id, group.name)}
-                  >
-                    Delete
-                  </button>
-                </div>
+            <div className="chat-settings-modal-form">
+              <div className="chat-settings-field">
+                <label htmlFor={`group-name-${editingGroup.id}`} className="chat-settings-label">Name</label>
+                <input
+                  id={`group-name-${editingGroup.id}`}
+                  className="chat-settings-input"
+                  value={groupDraft.name}
+                  onChange={(event) =>
+                    updateGroupDraft(editingGroup.id, { name: event.target.value })
+                  }
+                />
               </div>
-              <p className="agent-subcopy">
-                Parent: <strong>{group.parentSkillGroup?.name || "none"}</strong>
-              </p>
-
-              <label htmlFor={`group-name-${group.id}`}>Group name</label>
-              <input
-                id={`group-name-${group.id}`}
-                value={groupDraft.name}
-                onChange={(event) =>
-                  updateGroupDraft(group.id, {
-                    name: event.target.value,
-                  })}
-              />
-
-              <label htmlFor={`group-parent-${group.id}`}>Parent group</label>
-              <select
-                id={`group-parent-${group.id}`}
-                value={groupDraft.parentSkillGroupId || ""}
-                onChange={(event) =>
-                  updateGroupDraft(group.id, {
-                    parentSkillGroupId: event.target.value,
-                  })}
-              >
-                <option value="">None</option>
-                {parentOptions.map((parentGroup) => (
-                  <option key={`group-parent-option-${group.id}-${parentGroup.id}`} value={parentGroup.id}>
-                    {parentGroup.name}
-                  </option>
-                ))}
-              </select>
-              <div className="task-card-actions">
+              <div className="chat-settings-field">
+                <label htmlFor={`group-parent-${editingGroup.id}`} className="chat-settings-label">Parent group</label>
+                <select
+                  id={`group-parent-${editingGroup.id}`}
+                  className="chat-settings-input"
+                  value={groupDraft.parentSkillGroupId || ""}
+                  onChange={(event) =>
+                    updateGroupDraft(editingGroup.id, { parentSkillGroupId: event.target.value })
+                  }
+                >
+                  <option value="">None</option>
+                  {parentOptions.map((parentGroup) => (
+                    <option key={`group-parent-option-${editingGroup.id}-${parentGroup.id}`} value={parentGroup.id}>
+                      {parentGroup.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="chat-settings-actions">
                 <button
                   type="button"
-                  className="secondary-btn"
-                  onClick={() => void handleUpdateGroup(group.id)}
-                  disabled={savingGroupId === group.id}
+                  onClick={() => void handleUpdateGroup(editingGroup.id)}
+                  disabled={savingGroupId === editingGroup.id}
                 >
-                  {savingGroupId === group.id ? "Saving..." : "Save group"}
+                  {savingGroupId === editingGroup.id ? "Saving..." : "Save"}
                 </button>
               </div>
 
-              <label htmlFor={`group-add-skill-${group.id}`}>Add skill to group</label>
-              <select
-                id={`group-add-skill-${group.id}`}
-                value=""
-                onChange={(event) => {
-                  const nextSkillId = String(event.target.value || "").trim();
-                  if (!nextSkillId) {
-                    return;
-                  }
-                  void handleAddSkillToGroup(group.id, nextSkillId);
-                }}
-                disabled={availableSkills.length === 0}
-              >
-                <option value="">
-                  {availableSkills.length === 0 ? "All skills assigned" : "Select skill"}
-                </option>
-                {availableSkills.map((skill) => (
-                  <option key={`group-skill-option-${group.id}-${skill.id}`} value={skill.id}>
-                    {skill.name}
-                  </option>
-                ))}
-              </select>
+              <div className="chat-settings-field">
+                <label className="chat-settings-label">Skills in group</label>
+                {(editingGroup.skills || []).length === 0 ? (
+                  <p className="empty-hint">No skills in this group.</p>
+                ) : (
+                  <ul className="chat-card-list">
+                    {editingGroup.skills.map((skill) => (
+                      <li key={`${editingGroup.id}-${skill.id}`} className="chat-card">
+                        <div className="chat-card-main">
+                          <p className="chat-card-title">
+                            <strong>{skill.name}</strong>
+                          </p>
+                        </div>
+                        <div className="chat-card-actions">
+                          <button
+                            type="button"
+                            className="chat-card-icon-btn"
+                            onClick={() => {
+                              setEditingGroupId("");
+                              onOpenSkill(skill.id);
+                            }}
+                            aria-label="View skill"
+                            title="View skill"
+                          >
+                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                              <circle cx="12" cy="12" r="3" />
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            className="chat-card-icon-btn chat-card-icon-btn-danger"
+                            onClick={() => void handleRemoveSkillFromGroup(editingGroup.id, skill.id)}
+                            aria-label="Remove from group"
+                            title="Remove from group"
+                          >
+                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                              <line x1="5" y1="12" x2="19" y2="12" />
+                            </svg>
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
 
-              {(group.skills || []).length === 0 ? (
-                <p className="empty-hint">No skills in this group.</p>
-              ) : (
-                <ul className="task-list">
-                  {group.skills.map((skill) => (
-                    <li key={`${group.id}-${skill.id}`} className="task-card">
-                      <div className="task-card-top">
-                        <button
-                          type="button"
-                          className="secondary-btn"
-                          onClick={() => onOpenSkill(skill.id)}
-                        >
-                          {skill.name}
-                        </button>
-                        <button
-                          type="button"
-                          className="secondary-btn"
-                          onClick={() => void handleRemoveSkillFromGroup(group.id, skill.id)}
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </article>
+              {availableSkills.length > 0 ? (
+                <div className="chat-settings-field">
+                  <label htmlFor={`group-add-skill-${editingGroup.id}`} className="chat-settings-label">
+                    Add skill
+                  </label>
+                  <select
+                    id={`group-add-skill-${editingGroup.id}`}
+                    className="chat-settings-input"
+                    value=""
+                    onChange={(event) => {
+                      const nextSkillId = String(event.target.value || "").trim();
+                      if (!nextSkillId) {
+                        return;
+                      }
+                      void handleAddSkillToGroup(editingGroup.id, nextSkillId);
+                    }}
+                  >
+                    <option value="">Select skill to add</option>
+                    {availableSkills.map((skill) => (
+                      <option key={`group-skill-option-${editingGroup.id}-${skill.id}`} value={skill.id}>
+                        {skill.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
+            </div>
           );
-        })}
-
-        <section className="subpanel">
-          <h3>Ungrouped skills</h3>
-          {ungroupedSkills.length === 0 ? (
-            <p className="empty-hint">All skills are assigned to at least one group.</p>
-          ) : (
-            <ul className="task-list">
-              {ungroupedSkills.map((skill) => (
-                <li key={`ungrouped-skill-${skill.id}`} className="task-card">
-                  <button type="button" className="secondary-btn" onClick={() => onOpenSkill(skill.id)}>
-                    {skill.name}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      </section>
+        })() : null}
+      </CreationModal>
     </div>
   );
 }

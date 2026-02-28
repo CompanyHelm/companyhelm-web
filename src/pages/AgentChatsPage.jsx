@@ -102,10 +102,12 @@ export function AgentChatsPage({
                     }
                   }}
                 >
+                  <div className="chat-card-status">
+                    {isRunning ? <ChatSessionRunningBadge /> : null}
+                  </div>
                   <div className="chat-card-main">
                     <p className="chat-card-title">
                       <strong>{session.title || "Untitled chat"}</strong>
-                      {isRunning ? <ChatSessionRunningBadge /> : null}
                     </p>
                     <p className="chat-card-meta">
                       {formatTimestamp(session.updatedAt)} · {modelLabel} · {reasoningLabel}
