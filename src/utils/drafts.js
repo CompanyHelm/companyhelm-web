@@ -23,7 +23,7 @@ export function createAgentDrafts(agents) {
   return agents.reduce((drafts, agent) => {
     drafts[agent.id] = {
       agentRunnerId: agent.agentRunnerId || "",
-      skillIds: [...(agent.skillIds || [])],
+      skillGroupIds: [...(agent.skillGroupIds || [])],
       mcpServerIds: [...(agent.mcpServerIds || [])],
       name: agent.name || "",
       agentSdk: agent.agentSdk || DEFAULT_AGENT_SDK,

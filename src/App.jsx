@@ -37,6 +37,8 @@ import {
   REGENERATE_AGENT_RUNNER_SECRET_MUTATION,
   LIST_AGENTS_QUERY,
   LIST_SKILLS_QUERY,
+  LIST_SKILL_GROUPS_QUERY,
+  LIST_GIT_SKILL_PACKAGES_QUERY,
   LIST_MCP_SERVERS_QUERY,
   CREATE_TASK_MUTATION,
   UPDATE_TASK_MUTATION,
@@ -48,6 +50,14 @@ import {
   CREATE_SKILL_MUTATION,
   UPDATE_SKILL_MUTATION,
   DELETE_SKILL_MUTATION,
+  PREVIEW_GIT_SKILL_PACKAGE_MUTATION,
+  CREATE_GIT_SKILL_PACKAGE_MUTATION,
+  DELETE_GIT_SKILL_PACKAGE_MUTATION,
+  CREATE_SKILL_GROUP_MUTATION,
+  UPDATE_SKILL_GROUP_MUTATION,
+  DELETE_SKILL_GROUP_MUTATION,
+  ADD_SKILL_TO_GROUP_MUTATION,
+  REMOVE_SKILL_FROM_GROUP_MUTATION,
   CREATE_MCP_SERVER_MUTATION,
   UPDATE_MCP_SERVER_MUTATION,
   DELETE_MCP_SERVER_MUTATION,
@@ -73,6 +83,17 @@ import {
   COMPANY_API_LIST_GITHUB_INSTALLATIONS_QUERY,
   COMPANY_API_LIST_REPOSITORIES_CONNECTION_QUERY,
   COMPANY_API_ADD_GITHUB_INSTALLATION_MUTATION,
+  COMPANY_API_LIST_SKILLS_QUERY,
+  COMPANY_API_LIST_SKILL_GROUPS_QUERY,
+  COMPANY_API_LIST_GIT_SKILL_PACKAGES_QUERY,
+  COMPANY_API_PREVIEW_GIT_SKILL_PACKAGE_MUTATION,
+  COMPANY_API_CREATE_GIT_SKILL_PACKAGE_MUTATION,
+  COMPANY_API_DELETE_GIT_SKILL_PACKAGE_MUTATION,
+  COMPANY_API_CREATE_SKILL_GROUP_MUTATION,
+  COMPANY_API_UPDATE_SKILL_GROUP_MUTATION,
+  COMPANY_API_DELETE_SKILL_GROUP_MUTATION,
+  COMPANY_API_ADD_SKILL_TO_GROUP_MUTATION,
+  COMPANY_API_REMOVE_SKILL_FROM_GROUP_MUTATION,
   COMPANY_API_LIST_AGENT_RUNNERS_CONNECTION_QUERY,
   COMPANY_API_CREATE_AGENT_RUNNER_MUTATION,
   COMPANY_API_REGENERATE_AGENT_RUNNER_SECRET_MUTATION,
@@ -124,6 +145,8 @@ import {
   normalizePathname,
   getPageFromPathname,
   getAgentsRouteFromPathname,
+  getSkillsRouteFromPathname,
+  getGitSkillPackagesRouteFromPathname,
   setBrowserPath,
   getPathForPage,
   parseGithubInstallCallbackFromLocation,
@@ -153,6 +176,7 @@ import { TasksPage } from "./pages/TasksPage.jsx";
 import { AgentRunnerPage } from "./pages/AgentRunnerPage.jsx";
 import { AgentsPage } from "./pages/AgentsPage.jsx";
 import { SkillsPage } from "./pages/SkillsPage.jsx";
+import { GitSkillPackagesPage } from "./pages/GitSkillPackagesPage.jsx";
 import { McpServersPage } from "./pages/McpServersPage.jsx";
 import { ChatsOverviewPage } from "./pages/ChatsOverviewPage.jsx";
 import { AgentChatsPage } from "./pages/AgentChatsPage.jsx";
@@ -342,7 +366,15 @@ function toAgentPayload(agent) {
     name: resolveLegacyId(agent?.name),
     status: resolveLegacyId(agent?.status) || "pending",
     agentRunnerId: resolveLegacyId(agent?.runner?.id, agent?.agentRunnerId),
-    skillIds: [],
+    skillGroupIds: normalizeUniqueStringList(agent?.skillGroupIds || []),
+    skillGroups: Array.isArray(agent?.skillGroups)
+      ? agent.skillGroups
+          .map((skillGroup) => ({
+            id: resolveLegacyId(skillGroup?.id),
+            name: resolveLegacyId(skillGroup?.name),
+          }))
+          .filter((skillGroup) => skillGroup.id)
+      : [],
     mcpServerIds: [],
     installedSkills: [],
     agentSdk: resolvedSdk,
@@ -351,6 +383,77 @@ function toAgentPayload(agent) {
     defaultAdditionalModelInstructions: normalizeOptionalInstructions(
       agent?.defaultAdditionalModelInstructions,
     ),
+  };
+}
+
+function toSkillGroupPayload(skillGroup) {
+  const skillGroupId = resolveLegacyId(skillGroup?.id);
+  return {
+    id: skillGroupId,
+    companyId: resolveLegacyId(skillGroup?.company?.id, skillGroup?.companyId),
+    name: resolveLegacyId(skillGroup?.name),
+    parentSkillGroup: skillGroup?.parentSkillGroup
+      ? {
+          id: resolveLegacyId(skillGroup.parentSkillGroup.id),
+          name: resolveLegacyId(skillGroup.parentSkillGroup.name),
+        }
+      : null,
+    skills: Array.isArray(skillGroup?.skills)
+      ? skillGroup.skills
+          .map((skill) => ({
+            id: resolveLegacyId(skill?.id),
+            name: resolveLegacyId(skill?.name),
+          }))
+          .filter((skill) => skill.id)
+      : [],
+  };
+}
+
+function toGitSkillPackagePayload(gitSkillPackage) {
+  const packageId = resolveLegacyId(gitSkillPackage?.id);
+  return {
+    id: packageId,
+    companyId: resolveLegacyId(gitSkillPackage?.company?.id, gitSkillPackage?.companyId),
+    packageName: resolveLegacyId(gitSkillPackage?.packageName),
+    gitRepositoryUrl: resolveLegacyId(gitSkillPackage?.gitRepositoryUrl),
+    hostingProvider: resolveLegacyId(gitSkillPackage?.hostingProvider),
+    currentCommitHash: resolveLegacyId(gitSkillPackage?.currentCommitHash),
+    currentReference: resolveLegacyId(gitSkillPackage?.currentReference),
+    skills: Array.isArray(gitSkillPackage?.skills)
+      ? gitSkillPackage.skills
+          .map((skill) => ({
+            id: resolveLegacyId(skill?.id),
+            name: resolveLegacyId(skill?.name),
+          }))
+          .filter((skill) => skill.id)
+      : [],
+  };
+}
+
+function toSkillPayload(skill) {
+  const skillId = resolveLegacyId(skill?.id);
+  const content = String(skill?.content || "");
+  const description = String(skill?.description || "");
+  return {
+    id: skillId,
+    companyId: resolveLegacyId(skill?.company?.id, skill?.companyId),
+    name: resolveLegacyId(skill?.name),
+    description: description,
+    content,
+    instructions: content,
+    fileList: Array.isArray(skill?.fileList)
+      ? skill.fileList.map((filePath) => String(filePath || "").trim()).filter(Boolean)
+      : [],
+    gitSkillPackagePath: resolveLegacyId(skill?.gitSkillPackagePath) || null,
+    groups: Array.isArray(skill?.groups)
+      ? skill.groups
+          .map((group) => ({
+            id: resolveLegacyId(group?.id),
+            name: resolveLegacyId(group?.name),
+          }))
+          .filter((group) => group.id)
+      : [],
+    gitSkillPackage: skill?.gitSkillPackage ? toGitSkillPackagePayload(skill.gitSkillPackage) : null,
   };
 }
 
@@ -717,6 +820,7 @@ async function executeGraphQL(query, variables = {}) {
     const defaultModelId = resolveLegacyId(variables?.defaultModelId);
     const defaultReasoningLevel =
       resolveLegacyId(variables?.defaultReasoningLevel, variables?.modelReasoningLevel) || null;
+    const skillGroupIds = normalizeUniqueStringList(variables?.skillGroupIds || []);
     const defaultAdditionalModelInstructions = normalizeOptionalInstructions(
       variables?.defaultAdditionalModelInstructions,
     );
@@ -730,6 +834,7 @@ async function executeGraphQL(query, variables = {}) {
       agentRunnerId,
       agentRunnerSdkId,
       defaultModelId,
+      skillGroupIds,
       defaultReasoningLevel,
       defaultAdditionalModelInstructions,
     });
@@ -750,6 +855,7 @@ async function executeGraphQL(query, variables = {}) {
     const defaultModelId = resolveLegacyId(variables?.defaultModelId);
     const defaultReasoningLevel =
       resolveLegacyId(variables?.defaultReasoningLevel, variables?.modelReasoningLevel) || null;
+    const skillGroupIds = normalizeUniqueStringList(variables?.skillGroupIds || []);
     const defaultAdditionalModelInstructions = normalizeOptionalInstructions(
       variables?.defaultAdditionalModelInstructions,
     );
@@ -763,6 +869,7 @@ async function executeGraphQL(query, variables = {}) {
       agentRunnerId,
       agentRunnerSdkId,
       defaultModelId,
+      skillGroupIds,
       defaultReasoningLevel,
       defaultAdditionalModelInstructions,
     });
@@ -1056,12 +1163,187 @@ async function executeGraphQL(query, variables = {}) {
     };
   }
 
-  if (query === LIST_TASKS_QUERY) {
-    return { tasks: [] };
+  if (query === LIST_SKILLS_QUERY) {
+    const data = await executeRawGraphQL(COMPANY_API_LIST_SKILLS_QUERY, {
+      companyId: resolveLegacyId(variables?.companyId),
+    });
+    const skills = Array.isArray(data?.skills) ? data.skills : [];
+    return {
+      skills: skills.map((skill) => toSkillPayload(skill)),
+    };
   }
 
-  if (query === LIST_SKILLS_QUERY) {
-    return { skills: [] };
+  if (query === LIST_SKILL_GROUPS_QUERY) {
+    const data = await executeRawGraphQL(COMPANY_API_LIST_SKILL_GROUPS_QUERY, {
+      companyId: resolveLegacyId(variables?.companyId),
+    });
+    const skillGroups = Array.isArray(data?.skillGroups) ? data.skillGroups : [];
+    return {
+      skillGroups: skillGroups.map((skillGroup) => toSkillGroupPayload(skillGroup)),
+    };
+  }
+
+  if (query === LIST_GIT_SKILL_PACKAGES_QUERY) {
+    const data = await executeRawGraphQL(COMPANY_API_LIST_GIT_SKILL_PACKAGES_QUERY, {
+      companyId: resolveLegacyId(variables?.companyId),
+    });
+    const gitSkillPackages = Array.isArray(data?.gitSkillPackages) ? data.gitSkillPackages : [];
+    return {
+      gitSkillPackages: gitSkillPackages.map((gitSkillPackage) =>
+        toGitSkillPackagePayload(gitSkillPackage),
+      ),
+    };
+  }
+
+  if (query === PREVIEW_GIT_SKILL_PACKAGE_MUTATION) {
+    const data = await executeRawGraphQL(COMPANY_API_PREVIEW_GIT_SKILL_PACKAGE_MUTATION, {
+      gitRepositoryUrl: resolveLegacyId(variables?.gitRepositoryUrl),
+    });
+    const payload = data?.previewGitSkillPackage;
+    return {
+      previewGitSkillPackage: {
+        ok: Boolean(payload?.ok),
+        error: payload?.error ? String(payload.error) : null,
+        normalizedRepositoryUrl: resolveLegacyId(payload?.normalizedRepositoryUrl) || null,
+        packageName: resolveLegacyId(payload?.packageName) || null,
+        branches: Array.isArray(payload?.branches)
+          ? payload.branches.map((reference) => ({
+              kind: resolveLegacyId(reference?.kind) || "branch",
+              name: resolveLegacyId(reference?.name),
+              fullRef: resolveLegacyId(reference?.fullRef),
+            }))
+          : [],
+        tags: Array.isArray(payload?.tags)
+          ? payload.tags.map((reference) => ({
+              kind: resolveLegacyId(reference?.kind) || "tag",
+              name: resolveLegacyId(reference?.name),
+              fullRef: resolveLegacyId(reference?.fullRef),
+            }))
+          : [],
+      },
+    };
+  }
+
+  if (query === CREATE_GIT_SKILL_PACKAGE_MUTATION) {
+    const data = await executeRawGraphQL(COMPANY_API_CREATE_GIT_SKILL_PACKAGE_MUTATION, {
+      companyId: resolveLegacyId(variables?.companyId),
+      gitRepositoryUrl: resolveLegacyId(variables?.gitRepositoryUrl),
+      gitReference: resolveLegacyId(variables?.gitReference),
+    });
+    const payload = data?.createGitSkillPackage;
+    return {
+      createGitSkillPackage: {
+        ok: Boolean(payload?.ok),
+        error: payload?.error ? String(payload.error) : null,
+        warnings: Array.isArray(payload?.warnings)
+          ? payload.warnings.map((warning) => String(warning || "")).filter(Boolean)
+          : [],
+        packageId: resolveLegacyId(payload?.packageId) || null,
+        gitSkillPackage: payload?.gitSkillPackage
+          ? toGitSkillPackagePayload(payload.gitSkillPackage)
+          : null,
+        skills: Array.isArray(payload?.skills)
+          ? payload.skills.map((skill) => toSkillPayload(skill))
+          : [],
+      },
+    };
+  }
+
+  if (query === DELETE_GIT_SKILL_PACKAGE_MUTATION) {
+    const data = await executeRawGraphQL(COMPANY_API_DELETE_GIT_SKILL_PACKAGE_MUTATION, {
+      companyId: resolveLegacyId(variables?.companyId),
+      id: resolveLegacyId(variables?.id),
+    });
+    const payload = data?.deleteGitSkillPackage;
+    return {
+      deleteGitSkillPackage: {
+        ok: Boolean(payload?.ok),
+        error: payload?.error ? String(payload.error) : null,
+        deletedGitSkillPackageId: resolveLegacyId(payload?.deletedGitSkillPackageId) || null,
+      },
+    };
+  }
+
+  if (query === CREATE_SKILL_GROUP_MUTATION) {
+    const data = await executeRawGraphQL(COMPANY_API_CREATE_SKILL_GROUP_MUTATION, {
+      companyId: resolveLegacyId(variables?.companyId),
+      name: resolveLegacyId(variables?.name),
+      parentSkillGroupId: resolveLegacyId(variables?.parentSkillGroupId) || null,
+    });
+    const payload = data?.createSkillGroup;
+    return {
+      createSkillGroup: {
+        ok: Boolean(payload?.ok),
+        error: payload?.error ? String(payload.error) : null,
+        skillGroup: payload?.skillGroup ? toSkillGroupPayload(payload.skillGroup) : null,
+      },
+    };
+  }
+
+  if (query === UPDATE_SKILL_GROUP_MUTATION) {
+    const data = await executeRawGraphQL(COMPANY_API_UPDATE_SKILL_GROUP_MUTATION, {
+      companyId: resolveLegacyId(variables?.companyId),
+      id: resolveLegacyId(variables?.id),
+      name: resolveLegacyId(variables?.name),
+      parentSkillGroupId: resolveLegacyId(variables?.parentSkillGroupId) || null,
+    });
+    const payload = data?.updateSkillGroup;
+    return {
+      updateSkillGroup: {
+        ok: Boolean(payload?.ok),
+        error: payload?.error ? String(payload.error) : null,
+        skillGroup: payload?.skillGroup ? toSkillGroupPayload(payload.skillGroup) : null,
+      },
+    };
+  }
+
+  if (query === DELETE_SKILL_GROUP_MUTATION) {
+    const data = await executeRawGraphQL(COMPANY_API_DELETE_SKILL_GROUP_MUTATION, {
+      companyId: resolveLegacyId(variables?.companyId),
+      id: resolveLegacyId(variables?.id),
+    });
+    const payload = data?.deleteSkillGroup;
+    return {
+      deleteSkillGroup: {
+        ok: Boolean(payload?.ok),
+        error: payload?.error ? String(payload.error) : null,
+        deletedSkillGroupId: resolveLegacyId(payload?.deletedSkillGroupId) || null,
+      },
+    };
+  }
+
+  if (query === ADD_SKILL_TO_GROUP_MUTATION) {
+    const data = await executeRawGraphQL(COMPANY_API_ADD_SKILL_TO_GROUP_MUTATION, {
+      companyId: resolveLegacyId(variables?.companyId),
+      skillGroupId: resolveLegacyId(variables?.skillGroupId),
+      skillId: resolveLegacyId(variables?.skillId),
+    });
+    const payload = data?.addSkillToSkillGroup;
+    return {
+      addSkillToGroup: {
+        ok: Boolean(payload?.ok),
+        error: payload?.error ? String(payload.error) : null,
+      },
+    };
+  }
+
+  if (query === REMOVE_SKILL_FROM_GROUP_MUTATION) {
+    const data = await executeRawGraphQL(COMPANY_API_REMOVE_SKILL_FROM_GROUP_MUTATION, {
+      companyId: resolveLegacyId(variables?.companyId),
+      skillGroupId: resolveLegacyId(variables?.skillGroupId),
+      skillId: resolveLegacyId(variables?.skillId),
+    });
+    const payload = data?.removeSkillFromSkillGroup;
+    return {
+      removeSkillFromGroup: {
+        ok: Boolean(payload?.ok),
+        error: payload?.error ? String(payload.error) : null,
+      },
+    };
+  }
+
+  if (query === LIST_TASKS_QUERY) {
+    return { tasks: [] };
   }
 
   if (query === LIST_MCP_SERVERS_QUERY) {
@@ -1274,6 +1556,10 @@ function waitForCanonicalThreadViaSubscription({
 function App() {
   const [activePage, setActivePage] = useState(() => getPageFromPathname());
   const [agentsRoute, setAgentsRoute] = useState(() => getAgentsRouteFromPathname());
+  const [skillsRoute, setSkillsRoute] = useState(() => getSkillsRouteFromPathname());
+  const [gitSkillPackagesRoute, setGitSkillPackagesRoute] = useState(
+    () => getGitSkillPackagesRouteFromPathname(),
+  );
   const [companies, setCompanies] = useState([]);
   const [isLoadingCompanies, setIsLoadingCompanies] = useState(true);
   const [companyError, setCompanyError] = useState("");
@@ -1301,14 +1587,19 @@ function App() {
   );
   const [tasks, setTasks] = useState([]);
   const [skills, setSkills] = useState([]);
+  const [skillGroups, setSkillGroups] = useState([]);
+  const [gitSkillPackages, setGitSkillPackages] = useState([]);
   const [mcpServers, setMcpServers] = useState([]);
   const [agentRunners, setAgentRunners] = useState([]);
   const [hasLoadedAgentRunners, setHasLoadedAgentRunners] = useState(false);
   const [hasLoadedSkills, setHasLoadedSkills] = useState(false);
+  const [hasLoadedSkillGroups, setHasLoadedSkillGroups] = useState(false);
   const [hasLoadedMcpServers, setHasLoadedMcpServers] = useState(false);
   const [agents, setAgents] = useState([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
   const [isLoadingSkills, setIsLoadingSkills] = useState(false);
+  const [isLoadingSkillGroups, setIsLoadingSkillGroups] = useState(false);
+  const [isLoadingGitSkillPackages, setIsLoadingGitSkillPackages] = useState(false);
   const [isLoadingMcpServers, setIsLoadingMcpServers] = useState(false);
   const [isLoadingRunners, setIsLoadingRunners] = useState(false);
   const [isLoadingAgents, setIsLoadingAgents] = useState(false);
@@ -1362,7 +1653,7 @@ function App() {
   const [mcpServerDrafts, setMcpServerDrafts] = useState({});
   const [agentName, setAgentName] = useState("");
   const [agentRunnerId, setAgentRunnerId] = useState("");
-  const [agentSkillIds, setAgentSkillIds] = useState([]);
+  const [agentSkillGroupIds, setAgentSkillGroupIds] = useState([]);
   const [agentMcpServerIds, setAgentMcpServerIds] = useState([]);
   const [agentSdk, setAgentSdk] = useState(DEFAULT_AGENT_SDK);
   const [agentModel, setAgentModel] = useState("");
@@ -1400,6 +1691,22 @@ function App() {
   const selectedCompany = useMemo(() => {
     return companies.find((company) => company.id === selectedCompanyId) || null;
   }, [companies, selectedCompanyId]);
+
+  const activeSkill = useMemo(() => {
+    const skillId = String(skillsRoute.skillId || "").trim();
+    if (!skillId) {
+      return null;
+    }
+    return skills.find((skill) => skill.id === skillId) || null;
+  }, [skills, skillsRoute.skillId]);
+
+  const activeGitSkillPackage = useMemo(() => {
+    const packageId = String(gitSkillPackagesRoute.packageId || "").trim();
+    if (!packageId) {
+      return null;
+    }
+    return gitSkillPackages.find((gitSkillPackage) => gitSkillPackage.id === packageId) || null;
+  }, [gitSkillPackages, gitSkillPackagesRoute.packageId]);
 
   const githubAppInstallUrl = useMemo(() => {
     return buildGithubAppInstallUrl({
@@ -1581,6 +1888,24 @@ function App() {
       return chatTitle || `Chat ${resolvedSessionId.slice(0, 8)}`;
     };
 
+    const getSkillLabel = (skillId) => {
+      const resolvedSkillId = String(skillId || "").trim();
+      if (!resolvedSkillId) {
+        return "Skill";
+      }
+      const matchingSkill = skills.find((skill) => skill.id === resolvedSkillId);
+      return matchingSkill?.name || `Skill ${resolvedSkillId.slice(0, 8)}`;
+    };
+
+    const getGitSkillPackageLabel = (packageId) => {
+      const resolvedPackageId = String(packageId || "").trim();
+      if (!resolvedPackageId) {
+        return "Git Skill Package";
+      }
+      const matchingPackage = gitSkillPackages.find((pkg) => pkg.id === resolvedPackageId);
+      return matchingPackage?.packageName || `Package ${resolvedPackageId.slice(0, 8)}`;
+    };
+
     if (activePage === "agents") {
       if (agentsRoute.view === "list" || !agentsRoute.agentId) {
         return [{ label: "Agents", href: "#agents" }];
@@ -1619,6 +1944,27 @@ function App() {
       return items;
     }
 
+    if (activePage === "skills" && skillsRoute.view === "detail" && skillsRoute.skillId) {
+      return [
+        { label: "Skills", href: "/skills" },
+        { label: getSkillLabel(skillsRoute.skillId), href: `/skills/${skillsRoute.skillId}` },
+      ];
+    }
+
+    if (
+      activePage === "gitskillpackages"
+      && gitSkillPackagesRoute.view === "detail"
+      && gitSkillPackagesRoute.packageId
+    ) {
+      return [
+        { label: "Git Skill Packages", href: "/gitSkillPackages" },
+        {
+          label: getGitSkillPackageLabel(gitSkillPackagesRoute.packageId),
+          href: `/gitSkillPackages/${gitSkillPackagesRoute.packageId}`,
+        },
+      ];
+    }
+
     return [{ label: currentPageLabel, href: getPathForPage(activePage) }];
   }, [
     activePage,
@@ -1627,7 +1973,13 @@ function App() {
     agentsRoute.sessionId,
     agentsRoute.view,
     chatAgentId,
+    gitSkillPackages,
+    gitSkillPackagesRoute.packageId,
+    gitSkillPackagesRoute.view,
     resolvedChatSessionId,
+    skills,
+    skillsRoute.skillId,
+    skillsRoute.view,
     selectedChatSession?.title,
   ]);
 
@@ -1640,7 +1992,17 @@ function App() {
   const shouldSubscribeChatTurns = isChatConversationRoute;
   const shouldLoadGithubData = activePage === "settings";
   const shouldLoadTaskData = activePage === "dashboard" || activePage === "tasks" || activePage === "profile";
-  const shouldLoadSkillData = activePage === "skills" || activePage === "profile";
+  const shouldLoadSkillData =
+    activePage === "skills"
+    || activePage === "gitskillpackages"
+    || activePage === "agents"
+    || activePage === "profile";
+  const shouldLoadSkillGroupData =
+    activePage === "skills"
+    || activePage === "gitskillpackages"
+    || activePage === "agents"
+    || activePage === "profile";
+  const shouldLoadGitSkillPackageData = activePage === "skills" || activePage === "gitskillpackages";
   const shouldLoadMcpServerData = activePage === "mcp-servers";
   const shouldLoadRunnerData =
     activePage === "dashboard" ||
@@ -1788,6 +2150,47 @@ function App() {
     }
   }, [selectedCompanyId]);
 
+  const loadSkillGroups = useCallback(async () => {
+    if (!selectedCompanyId) {
+      setSkillGroups([]);
+      setHasLoadedSkillGroups(false);
+      setIsLoadingSkillGroups(false);
+      return;
+    }
+
+    try {
+      setIsLoadingSkillGroups(true);
+      const data = await executeGraphQL(LIST_SKILL_GROUPS_QUERY, { companyId: selectedCompanyId });
+      setSkillGroups(data.skillGroups || []);
+      setHasLoadedSkillGroups(true);
+    } catch (loadError) {
+      setHasLoadedSkillGroups(false);
+      setSkillError(loadError.message);
+    } finally {
+      setIsLoadingSkillGroups(false);
+    }
+  }, [selectedCompanyId]);
+
+  const loadGitSkillPackages = useCallback(async () => {
+    if (!selectedCompanyId) {
+      setGitSkillPackages([]);
+      setIsLoadingGitSkillPackages(false);
+      return;
+    }
+
+    try {
+      setIsLoadingGitSkillPackages(true);
+      const data = await executeGraphQL(LIST_GIT_SKILL_PACKAGES_QUERY, {
+        companyId: selectedCompanyId,
+      });
+      setGitSkillPackages(data.gitSkillPackages || []);
+    } catch (loadError) {
+      setSkillError(loadError.message);
+    } finally {
+      setIsLoadingGitSkillPackages(false);
+    }
+  }, [selectedCompanyId]);
+
   const loadMcpServers = useCallback(async () => {
     if (!selectedCompanyId) {
       setMcpServerError("");
@@ -1856,7 +2259,7 @@ function App() {
       setAgentRunners([]);
       setHasLoadedAgentRunners(false);
       setAgentRunnerId("");
-      setAgentSkillIds([]);
+      setAgentSkillGroupIds([]);
       setAgentMcpServerIds([]);
       setAgentSdk(DEFAULT_AGENT_SDK);
       setAgentModel("");
@@ -1898,6 +2301,9 @@ function App() {
     if (!hasLoadedSkills && !isLoadingSkills) {
       pendingLoads.push(loadSkills());
     }
+    if (!hasLoadedSkillGroups && !isLoadingSkillGroups) {
+      pendingLoads.push(loadSkillGroups());
+    }
     if (!hasLoadedMcpServers && !isLoadingMcpServers) {
       pendingLoads.push(loadMcpServers());
     }
@@ -1909,12 +2315,15 @@ function App() {
   }, [
     hasLoadedAgentRunners,
     hasLoadedMcpServers,
+    hasLoadedSkillGroups,
     hasLoadedSkills,
     isLoadingMcpServers,
     isLoadingRunners,
+    isLoadingSkillGroups,
     isLoadingSkills,
     loadAgentRunners,
     loadMcpServers,
+    loadSkillGroups,
     loadSkills,
     selectedCompanyId,
   ]);
@@ -2240,7 +2649,7 @@ function App() {
   useEffect(() => {
     setAgentRunners([]);
     setAgentRunnerId("");
-    setAgentSkillIds([]);
+    setAgentSkillGroupIds([]);
     setAgentSdk(DEFAULT_AGENT_SDK);
     setAgentModel("");
     setAgentModelReasoningLevel("");
@@ -2261,6 +2670,9 @@ function App() {
     setSkillDescription("");
     setSkillInstructions("");
     setHasLoadedSkills(false);
+    setSkillGroups([]);
+    setHasLoadedSkillGroups(false);
+    setGitSkillPackages([]);
     setMcpServers([]);
     setMcpServerDrafts({});
     setHasLoadedMcpServers(false);
@@ -2372,6 +2784,57 @@ function App() {
   }, [mcpServers]);
 
   useEffect(() => {
+    const validSkillGroupIds = new Set(skillGroups.map((skillGroup) => skillGroup.id));
+
+    setAgentSkillGroupIds((currentIds) => {
+      const normalizedIds = normalizeUniqueStringList(currentIds).filter((id) =>
+        validSkillGroupIds.has(id),
+      );
+      if (
+        normalizedIds.length === currentIds.length
+        && normalizedIds.every((id, index) => id === currentIds[index])
+      ) {
+        return currentIds;
+      }
+      return normalizedIds;
+    });
+
+    setAgentDrafts((currentDrafts) => {
+      let changed = false;
+      const nextDrafts = {};
+      for (const [agentId, draft] of Object.entries(currentDrafts)) {
+        if (!draft || typeof draft !== "object") {
+          nextDrafts[agentId] = draft;
+          continue;
+        }
+
+        const currentSkillGroupIds = Array.isArray(draft.skillGroupIds)
+          ? draft.skillGroupIds
+          : [];
+        const normalizedSkillGroupIds = normalizeUniqueStringList(currentSkillGroupIds).filter((id) =>
+          validSkillGroupIds.has(id),
+        );
+
+        if (
+          normalizedSkillGroupIds.length === currentSkillGroupIds.length
+          && normalizedSkillGroupIds.every((id, index) => id === currentSkillGroupIds[index])
+        ) {
+          nextDrafts[agentId] = draft;
+          continue;
+        }
+
+        changed = true;
+        nextDrafts[agentId] = {
+          ...draft,
+          skillGroupIds: normalizedSkillGroupIds,
+        };
+      }
+
+      return changed ? nextDrafts : currentDrafts;
+    });
+  }, [skillGroups]);
+
+  useEffect(() => {
     if (!shouldLoadGithubData) {
       return;
     }
@@ -2404,6 +2867,20 @@ function App() {
     }
     loadSkills();
   }, [loadSkills, selectedCompanyId, shouldLoadSkillData]);
+
+  useEffect(() => {
+    if (!selectedCompanyId || !shouldLoadSkillGroupData) {
+      return;
+    }
+    loadSkillGroups();
+  }, [loadSkillGroups, selectedCompanyId, shouldLoadSkillGroupData]);
+
+  useEffect(() => {
+    if (!selectedCompanyId || !shouldLoadGitSkillPackageData) {
+      return;
+    }
+    loadGitSkillPackages();
+  }, [loadGitSkillPackages, selectedCompanyId, shouldLoadGitSkillPackageData]);
 
   useEffect(() => {
     if (!selectedCompanyId || !shouldLoadMcpServerData) {
@@ -2561,6 +3038,8 @@ function App() {
     const handlePopState = () => {
       setActivePage(getPageFromPathname());
       setAgentsRoute(getAgentsRouteFromPathname());
+      setSkillsRoute(getSkillsRouteFromPathname());
+      setGitSkillPackagesRoute(getGitSkillPackagesRouteFromPathname());
     };
 
     handlePopState();
@@ -2793,6 +3272,8 @@ function App() {
       setRelationshipDrafts({});
       setSkills([]);
       setSkillDrafts({});
+      setSkillGroups([]);
+      setGitSkillPackages([]);
       setMcpServers([]);
       setMcpServerDrafts({});
       setAgents([]);
@@ -3161,6 +3642,223 @@ function App() {
     } finally {
       setDeletingSkillId(null);
     }
+  }
+
+  async function handlePreviewGitSkillPackage(gitRepositoryUrl) {
+    const repositoryUrl = String(gitRepositoryUrl || "").trim();
+    if (!repositoryUrl) {
+      throw new Error("Git repository URL is required.");
+    }
+
+    const data = await executeGraphQL(PREVIEW_GIT_SKILL_PACKAGE_MUTATION, {
+      gitRepositoryUrl: repositoryUrl,
+    });
+    const payload = data.previewGitSkillPackage;
+    if (!payload?.ok) {
+      throw new Error(payload?.error || "Failed to preview git skill package.");
+    }
+    return payload;
+  }
+
+  async function handleCreateGitSkillPackage({ gitRepositoryUrl, gitReference }) {
+    if (!selectedCompanyId) {
+      throw new Error("Select a company before importing git skill packages.");
+    }
+
+    const repositoryUrl = String(gitRepositoryUrl || "").trim();
+    const reference = String(gitReference || "").trim();
+    if (!repositoryUrl) {
+      throw new Error("Git repository URL is required.");
+    }
+    if (!reference) {
+      throw new Error("Select a branch or tag before importing.");
+    }
+
+    const data = await executeGraphQL(CREATE_GIT_SKILL_PACKAGE_MUTATION, {
+      companyId: selectedCompanyId,
+      gitRepositoryUrl: repositoryUrl,
+      gitReference: reference,
+    });
+    const payload = data.createGitSkillPackage;
+    if (!payload?.ok) {
+      throw new Error(payload?.error || "Failed to create git skill package.");
+    }
+
+    await Promise.all([loadSkills(), loadSkillGroups(), loadGitSkillPackages()]);
+    return payload;
+  }
+
+  async function handleDeleteGitSkillPackage(gitSkillPackageId, packageName) {
+    if (!selectedCompanyId) {
+      setSkillError("Select a company before deleting git skill packages.");
+      return false;
+    }
+
+    const resolvedPackageId = String(gitSkillPackageId || "").trim();
+    if (!resolvedPackageId) {
+      setSkillError("Package id is required.");
+      return false;
+    }
+
+    const confirmed = window.confirm(`Delete git skill package "${packageName}"?`);
+    if (!confirmed) {
+      return false;
+    }
+
+    try {
+      setSkillError("");
+      const data = await executeGraphQL(DELETE_GIT_SKILL_PACKAGE_MUTATION, {
+        companyId: selectedCompanyId,
+        id: resolvedPackageId,
+      });
+      const payload = data.deleteGitSkillPackage;
+      if (!payload?.ok) {
+        throw new Error(payload?.error || "Failed to delete git skill package.");
+      }
+
+      await Promise.all([loadSkills(), loadSkillGroups(), loadGitSkillPackages()]);
+      return true;
+    } catch (deleteError) {
+      setSkillError(deleteError.message);
+      return false;
+    }
+  }
+
+  async function handleCreateSkillGroup({ name, parentSkillGroupId }) {
+    if (!selectedCompanyId) {
+      throw new Error("Select a company before creating skill groups.");
+    }
+
+    const normalizedName = String(name || "").trim();
+    if (!normalizedName) {
+      throw new Error("Skill group name is required.");
+    }
+
+    const data = await executeGraphQL(CREATE_SKILL_GROUP_MUTATION, {
+      companyId: selectedCompanyId,
+      name: normalizedName,
+      parentSkillGroupId: resolveLegacyId(parentSkillGroupId) || null,
+    });
+    const payload = data.createSkillGroup;
+    if (!payload?.ok) {
+      throw new Error(payload?.error || "Failed to create skill group.");
+    }
+
+    await loadSkillGroups();
+    return payload.skillGroup;
+  }
+
+  async function handleDeleteSkillGroup(skillGroupId, skillGroupName) {
+    if (!selectedCompanyId) {
+      setSkillError("Select a company before deleting skill groups.");
+      return false;
+    }
+
+    const resolvedSkillGroupId = String(skillGroupId || "").trim();
+    if (!resolvedSkillGroupId) {
+      setSkillError("Skill group id is required.");
+      return false;
+    }
+
+    const confirmed = window.confirm(`Delete skill group "${skillGroupName}"?`);
+    if (!confirmed) {
+      return false;
+    }
+
+    try {
+      setSkillError("");
+      const data = await executeGraphQL(DELETE_SKILL_GROUP_MUTATION, {
+        companyId: selectedCompanyId,
+        id: resolvedSkillGroupId,
+      });
+      const payload = data.deleteSkillGroup;
+      if (!payload?.ok) {
+        throw new Error(payload?.error || "Failed to delete skill group.");
+      }
+
+      await Promise.all([loadSkillGroups(), loadAgents()]);
+      return true;
+    } catch (deleteError) {
+      setSkillError(deleteError.message);
+      return false;
+    }
+  }
+
+  async function handleUpdateSkillGroup({ id, name, parentSkillGroupId }) {
+    if (!selectedCompanyId) {
+      throw new Error("Select a company before updating skill groups.");
+    }
+
+    const resolvedSkillGroupId = String(id || "").trim();
+    const normalizedName = String(name || "").trim();
+    if (!resolvedSkillGroupId) {
+      throw new Error("Skill group id is required.");
+    }
+    if (!normalizedName) {
+      throw new Error("Skill group name is required.");
+    }
+
+    const data = await executeGraphQL(UPDATE_SKILL_GROUP_MUTATION, {
+      companyId: selectedCompanyId,
+      id: resolvedSkillGroupId,
+      name: normalizedName,
+      parentSkillGroupId: resolveLegacyId(parentSkillGroupId) || null,
+    });
+    const payload = data.updateSkillGroup;
+    if (!payload?.ok) {
+      throw new Error(payload?.error || "Failed to update skill group.");
+    }
+
+    await Promise.all([loadSkillGroups(), loadAgents()]);
+    return payload.skillGroup;
+  }
+
+  async function handleAddSkillToGroup(skillGroupId, skillId) {
+    if (!selectedCompanyId) {
+      throw new Error("Select a company before updating skill groups.");
+    }
+
+    const resolvedSkillGroupId = String(skillGroupId || "").trim();
+    const resolvedSkillId = String(skillId || "").trim();
+    if (!resolvedSkillGroupId || !resolvedSkillId) {
+      throw new Error("Skill group and skill ids are required.");
+    }
+
+    const data = await executeGraphQL(ADD_SKILL_TO_GROUP_MUTATION, {
+      companyId: selectedCompanyId,
+      skillGroupId: resolvedSkillGroupId,
+      skillId: resolvedSkillId,
+    });
+    const payload = data.addSkillToGroup;
+    if (!payload?.ok) {
+      throw new Error(payload?.error || "Failed to add skill to group.");
+    }
+
+    await Promise.all([loadSkillGroups(), loadSkills()]);
+  }
+
+  async function handleRemoveSkillFromGroup(skillGroupId, skillId) {
+    if (!selectedCompanyId) {
+      throw new Error("Select a company before updating skill groups.");
+    }
+
+    const resolvedSkillGroupId = String(skillGroupId || "").trim();
+    const resolvedSkillId = String(skillId || "").trim();
+    if (!resolvedSkillGroupId || !resolvedSkillId) {
+      throw new Error("Skill group and skill ids are required.");
+    }
+
+    const data = await executeGraphQL(REMOVE_SKILL_FROM_GROUP_MUTATION, {
+      companyId: selectedCompanyId,
+      skillGroupId: resolvedSkillGroupId,
+      skillId: resolvedSkillId,
+    });
+    const payload = data.removeSkillFromGroup;
+    if (!payload?.ok) {
+      throw new Error(payload?.error || "Failed to remove skill from group.");
+    }
+
+    await Promise.all([loadSkillGroups(), loadSkills()]);
   }
 
   function resolveMcpServerMutationPayload({
@@ -3644,7 +4342,7 @@ function App() {
       const data = await executeGraphQL(CREATE_AGENT_MUTATION, {
         companyId: selectedCompanyId,
         agentRunnerId: agentRunnerId || null,
-        skillIds: agentSkillIds,
+        skillGroupIds: agentSkillGroupIds,
         mcpServerIds: cleanAgentMcpServerIds,
         defaultAdditionalModelInstructions: normalizedDefaultAdditionalModelInstructions,
         name: agentName.trim(),
@@ -3661,7 +4359,7 @@ function App() {
       }
       setAgentName("");
       setAgentRunnerId("");
-      setAgentSkillIds([]);
+      setAgentSkillGroupIds([]);
       setAgentMcpServerIds([]);
       setAgentSdk(DEFAULT_AGENT_SDK);
       setAgentModel("");
@@ -3684,7 +4382,7 @@ function App() {
     }
     const draft = agentDrafts[agentId] || {
       agentRunnerId: "",
-      skillIds: [],
+      skillGroupIds: [],
       mcpServerIds: [],
       name: "",
       agentSdk: DEFAULT_AGENT_SDK,
@@ -3774,7 +4472,7 @@ function App() {
         companyId: selectedCompanyId,
         id: agentId,
         agentRunnerId: draft.agentRunnerId || null,
-        skillIds: draft.skillIds || [],
+        skillGroupIds: draft.skillGroupIds || [],
         mcpServerIds: cleanDraftMcpServerIds,
         defaultAdditionalModelInstructions: normalizedDefaultAdditionalModelInstructions,
         name: draft.name.trim(),
@@ -4519,15 +5217,15 @@ function App() {
     setAgentModelReasoningLevel(String(nextReasoningLevel || "").trim());
   }
 
-  function handleCreateAgentSkillIdsChange(nextSkillIds) {
-    setAgentSkillIds(normalizeUniqueStringList(nextSkillIds));
+  function handleCreateAgentSkillGroupIdsChange(nextSkillGroupIds) {
+    setAgentSkillGroupIds(normalizeUniqueStringList(nextSkillGroupIds));
   }
 
   function handleAgentDraftChange(agentId, field, value) {
     setAgentDrafts((currentDrafts) => {
       const currentDraft = currentDrafts[agentId] || {
         agentRunnerId: "",
-        skillIds: [],
+        skillGroupIds: [],
         mcpServerIds: [],
         name: "",
         agentSdk: DEFAULT_AGENT_SDK,
@@ -4548,8 +5246,8 @@ function App() {
       if (field === "agentRunnerId") {
         nextDraft.agentRunnerId = String(value || "").trim();
       }
-      if (field === "skillIds") {
-        nextDraft.skillIds = normalizeUniqueStringList(value);
+      if (field === "skillGroupIds") {
+        nextDraft.skillGroupIds = normalizeUniqueStringList(value);
       }
       if (field === "mcpServerIds") {
         nextDraft.mcpServerIds = normalizeUniqueStringList(value);
@@ -4835,27 +5533,35 @@ function App() {
           <SkillsPage
             selectedCompanyId={selectedCompanyId}
             skills={skills}
+            skillGroups={skillGroups}
+            activeSkill={activeSkill}
             isLoadingSkills={isLoadingSkills}
+            isLoadingSkillGroups={isLoadingSkillGroups}
             skillError={skillError}
-            isCreatingSkill={isCreatingSkill}
-            savingSkillId={savingSkillId}
-            deletingSkillId={deletingSkillId}
-            skillName={skillName}
-            skillType={skillType}
-            skillSkillsMpPackageName={skillSkillsMpPackageName}
-            skillDescription={skillDescription}
-            skillInstructions={skillInstructions}
-            skillDrafts={skillDrafts}
-            skillCountLabel={skillCountLabel}
-            onSkillNameChange={setSkillName}
-            onSkillTypeChange={(value) => setSkillType(normalizeSkillType(value))}
-            onSkillSkillsMpPackageNameChange={setSkillSkillsMpPackageName}
-            onSkillDescriptionChange={setSkillDescription}
-            onSkillInstructionsChange={setSkillInstructions}
-            onCreateSkill={handleCreateSkill}
-            onSkillDraftChange={handleSkillDraftChange}
-            onSaveSkill={handleSaveSkill}
-            onDeleteSkill={handleDeleteSkill}
+            onOpenSkill={(skillId) => setBrowserPath(`/skills/${skillId}`)}
+            onBackToSkills={() => setBrowserPath("/skills")}
+            onCreateSkillGroup={handleCreateSkillGroup}
+            onUpdateSkillGroup={handleUpdateSkillGroup}
+            onDeleteSkillGroup={handleDeleteSkillGroup}
+            onAddSkillToGroup={handleAddSkillToGroup}
+            onRemoveSkillFromGroup={handleRemoveSkillFromGroup}
+            onOpenGitSkillPackage={(packageId) => setBrowserPath(`/gitSkillPackages/${packageId}`)}
+          />
+        ) : null}
+
+        {selectedCompanyId && activePage === "gitskillpackages" ? (
+          <GitSkillPackagesPage
+            selectedCompanyId={selectedCompanyId}
+            gitSkillPackages={gitSkillPackages}
+            activeGitSkillPackage={activeGitSkillPackage}
+            isLoadingGitSkillPackages={isLoadingGitSkillPackages}
+            skillError={skillError}
+            onOpenGitSkillPackage={(packageId) => setBrowserPath(`/gitSkillPackages/${packageId}`)}
+            onBackToGitSkillPackages={() => setBrowserPath("/gitSkillPackages")}
+            onPreviewGitSkillPackage={handlePreviewGitSkillPackage}
+            onCreateGitSkillPackage={handleCreateGitSkillPackage}
+            onDeleteGitSkillPackage={handleDeleteGitSkillPackage}
+            onOpenSkill={(skillId) => setBrowserPath(`/skills/${skillId}`)}
           />
         ) : null}
 
@@ -5045,6 +5751,7 @@ function App() {
               selectedCompanyId={selectedCompanyId}
               agents={agents}
               skills={skills}
+              skillGroups={skillGroups}
               mcpServers={mcpServers}
               agentRunners={agentRunners}
               agentRunnerLookup={agentRunnerLookup}
@@ -5058,7 +5765,7 @@ function App() {
               retryingAgentSkillInstallKey={retryingAgentSkillInstallKey}
               hasLoadedAgentRunners={hasLoadedAgentRunners}
               agentRunnerId={agentRunnerId}
-              agentSkillIds={agentSkillIds}
+              agentSkillGroupIds={agentSkillGroupIds}
               agentMcpServerIds={agentMcpServerIds}
               agentName={agentName}
               agentSdk={agentSdk}
@@ -5068,7 +5775,7 @@ function App() {
               agentDrafts={agentDrafts}
               agentCountLabel={agentCountLabel}
               onAgentRunnerChange={handleCreateAgentRunnerChange}
-              onAgentSkillIdsChange={handleCreateAgentSkillIdsChange}
+              onAgentSkillGroupIdsChange={handleCreateAgentSkillGroupIdsChange}
               onAgentMcpServerIdsChange={setAgentMcpServerIds}
               onAgentNameChange={setAgentName}
               onAgentSdkChange={handleCreateAgentSdkChange}

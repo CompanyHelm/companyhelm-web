@@ -8,12 +8,13 @@ import {
   getRunnerModelNames,
   getRunnerReasoningLevels,
 } from "../utils/normalization.js";
-import { formatRunnerLabel, formatSkillLabel } from "../utils/formatting.js";
+import { formatRunnerLabel } from "../utils/formatting.js";
 
 export function AgentsPage({
   selectedCompanyId,
   agents,
   skills,
+  skillGroups,
   mcpServers,
   agentRunners,
   agentRunnerLookup,
@@ -27,7 +28,7 @@ export function AgentsPage({
   retryingAgentSkillInstallKey,
   hasLoadedAgentRunners,
   agentRunnerId,
-  agentSkillIds,
+  agentSkillGroupIds,
   agentMcpServerIds,
   agentName,
   agentSdk,
@@ -37,7 +38,7 @@ export function AgentsPage({
   agentDrafts,
   agentCountLabel,
   onAgentRunnerChange,
-  onAgentSkillIdsChange,
+  onAgentSkillGroupIdsChange,
   onAgentMcpServerIdsChange,
   onAgentNameChange,
   onAgentSdkChange,
@@ -57,12 +58,12 @@ export function AgentsPage({
   const [isEditInstructionsFullscreen, setIsEditInstructionsFullscreen] = useState(false);
   const [pendingDeleteAgent, setPendingDeleteAgent] = useState(null);
   const [forceDeleteAgent, setForceDeleteAgent] = useState(false);
-  const skillLookup = useMemo(() => {
-    return skills.reduce((map, skill) => {
-      map.set(skill.id, skill);
+  const skillGroupLookup = useMemo(() => {
+    return skillGroups.reduce((map, skillGroup) => {
+      map.set(skillGroup.id, skillGroup);
       return map;
     }, new Map());
-  }, [skills]);
+  }, [skillGroups]);
   const mcpServerLookup = useMemo(() => {
     return mcpServers.reduce((map, mcpServer) => {
       map.set(mcpServer.id, mcpServer);
@@ -82,10 +83,14 @@ export function AgentsPage({
     () => normalizeUniqueStringList(agentMcpServerIds),
     [agentMcpServerIds],
   );
-  const createAssignedSkillIds = useMemo(() => normalizeUniqueStringList(agentSkillIds), [agentSkillIds]);
-  const createAvailableSkills = useMemo(
-    () => skills.filter((skill) => !createAssignedSkillIds.includes(skill.id)),
-    [createAssignedSkillIds, skills],
+  const createAssignedSkillGroupIds = useMemo(
+    () => normalizeUniqueStringList(agentSkillGroupIds),
+    [agentSkillGroupIds],
+  );
+  const createAvailableSkillGroups = useMemo(
+    () =>
+      skillGroups.filter((skillGroup) => !createAssignedSkillGroupIds.includes(skillGroup.id)),
+    [createAssignedSkillGroupIds, skillGroups],
   );
   const createAvailableMcpServers = useMemo(
     () => mcpServers.filter((mcpServer) => !createAssignedMcpServerIds.includes(mcpServer.id)),
@@ -102,9 +107,9 @@ export function AgentsPage({
   function getAgentDraft(agentId) {
     return (
       agentDrafts[agentId] || {
-        agentRunnerId: "",
-        skillIds: [],
-        mcpServerIds: [],
+      agentRunnerId: "",
+      skillGroupIds: [],
+      mcpServerIds: [],
         name: "",
         agentSdk: DEFAULT_AGENT_SDK,
         model: "",
@@ -115,9 +120,11 @@ export function AgentsPage({
   }
 
   const editingDraft = editingAgent ? getAgentDraft(editingAgentId) : null;
-  const editingSkillIds = editingDraft ? normalizeUniqueStringList(editingDraft.skillIds) : [];
-  const editingAvailableSkills = editingDraft
-    ? skills.filter((skill) => !editingSkillIds.includes(skill.id))
+  const editingSkillGroupIds = editingDraft
+    ? normalizeUniqueStringList(editingDraft.skillGroupIds)
+    : [];
+  const editingAvailableSkillGroups = editingDraft
+    ? skillGroups.filter((skillGroup) => !editingSkillGroupIds.includes(skillGroup.id))
     : [];
   const editingMcpServerIds = editingDraft ? normalizeUniqueStringList(editingDraft.mcpServerIds) : [];
   const editingAvailableMcpServers = editingDraft
@@ -283,15 +290,26 @@ export function AgentsPage({
               const assignedRunnerLabel = assignedRunner
                 ? formatRunnerLabel(assignedRunner)
                 : "Unassigned";
-              const assignedSkillLabels = (agent.skillIds || []).map((skillId) => {
-                const skill = skillLookup.get(skillId);
-                if (!skill) {
-                  return skillId;
-                }
-                return formatSkillLabel(skill);
+              const assignedSkillGroupLabels = (agent.skillGroupIds || []).map((skillGroupId) => {
+                const skillGroup = skillGroupLookup.get(skillGroupId);
+                return skillGroup ? skillGroup.name : skillGroupId;
               });
-              const assignedSkillSummary =
-                assignedSkillLabels.length > 0 ? assignedSkillLabels.join(", ") : "none";
+              const assignedSkillGroupSummary =
+                assignedSkillGroupLabels.length > 0 ? assignedSkillGroupLabels.join(", ") : "none";
+              const availableSkillLabels = [
+                ...new Set(
+                  (agent.skillGroupIds || []).flatMap((skillGroupId) => {
+                    const skillGroup = skillGroupLookup.get(skillGroupId);
+                    return Array.isArray(skillGroup?.skills)
+                      ? skillGroup.skills
+                          .map((skill) => String(skill?.name || "").trim())
+                          .filter(Boolean)
+                      : [];
+                  }),
+                ),
+              ];
+              const availableSkillSummary =
+                availableSkillLabels.length > 0 ? availableSkillLabels.join(", ") : "none";
               const assignedMcpServerLabels = (agent.mcpServerIds || []).map((mcpServerId) => {
                 const mcpServer = mcpServerLookup.get(mcpServerId);
                 return mcpServer ? mcpServer.name : mcpServerId;
@@ -359,7 +377,10 @@ export function AgentsPage({
                     Runner: <strong>{assignedRunnerLabel}</strong>
                   </p>
                   <p className="agent-subcopy">
-                    Skills: <strong>{assignedSkillSummary}</strong>
+                    Skill groups: <strong>{assignedSkillGroupSummary}</strong>
+                  </p>
+                  <p className="agent-subcopy">
+                    Skills available: <strong>{availableSkillSummary}</strong>
                   </p>
                   <p className="agent-subcopy">
                     MCP servers: <strong>{assignedMcpServerSummary}</strong>
@@ -466,54 +487,56 @@ export function AgentsPage({
             )}
           </select>
 
-          <label htmlFor="create-agent-skills-assigned">Assigned skills (optional)</label>
+          <label htmlFor="create-agent-skills-assigned">Assigned skill groups (optional)</label>
           <div id="create-agent-skills-assigned" className="inline-selection-list">
-            {createAssignedSkillIds.length === 0 ? (
-              <span className="empty-hint">No skills assigned.</span>
+            {createAssignedSkillGroupIds.length === 0 ? (
+              <span className="empty-hint">No skill groups assigned.</span>
             ) : (
-              createAssignedSkillIds.map((skillId) => {
-                const skill = skillLookup.get(skillId);
-                const skillLabel = skill ? formatSkillLabel(skill) : skillId;
+              createAssignedSkillGroupIds.map((skillGroupId) => {
+                const skillGroup = skillGroupLookup.get(skillGroupId);
+                const skillGroupLabel = skillGroup ? skillGroup.name : skillGroupId;
                 return (
                   <button
-                    key={`create-agent-remove-skill-${skillId}`}
+                    key={`create-agent-remove-skill-${skillGroupId}`}
                     type="button"
                     className="tag-remove-btn"
                     onClick={() =>
-                      onAgentSkillIdsChange(
-                        createAssignedSkillIds.filter((candidateId) => candidateId !== skillId),
+                      onAgentSkillGroupIdsChange(
+                        createAssignedSkillGroupIds.filter(
+                          (candidateId) => candidateId !== skillGroupId,
+                        ),
                       )
                     }
-                    title={`Remove ${skillLabel}`}
+                    title={`Remove ${skillGroupLabel}`}
                   >
-                    {skillLabel} ×
+                    {skillGroupLabel} ×
                   </button>
                 );
               })
             )}
           </div>
 
-          <label htmlFor="create-agent-skill-add">Add skill</label>
+          <label htmlFor="create-agent-skill-add">Add skill group</label>
           <select
             id="create-agent-skill-add"
             value=""
             onChange={(event) => {
-              const nextSkillId = String(event.target.value || "").trim();
-              if (!nextSkillId) {
+              const nextSkillGroupId = String(event.target.value || "").trim();
+              if (!nextSkillGroupId) {
                 return;
               }
-              onAgentSkillIdsChange([...createAssignedSkillIds, nextSkillId]);
+              onAgentSkillGroupIdsChange([...createAssignedSkillGroupIds, nextSkillGroupId]);
             }}
-            disabled={createAvailableSkills.length === 0}
+            disabled={createAvailableSkillGroups.length === 0}
           >
             <option value="">
-              {createAvailableSkills.length === 0
-                ? "All company skills already assigned"
-                : "Select skill to assign"}
+              {createAvailableSkillGroups.length === 0
+                ? "All skill groups already assigned"
+                : "Select skill group to assign"}
             </option>
-            {createAvailableSkills.map((skill) => (
-              <option key={`create-agent-skill-${skill.id}`} value={skill.id}>
-                {formatSkillLabel(skill)}
+            {createAvailableSkillGroups.map((skillGroup) => (
+              <option key={`create-agent-skill-${skillGroup.id}`} value={skillGroup.id}>
+                {skillGroup.name}
               </option>
             ))}
           </select>
@@ -672,7 +695,7 @@ export function AgentsPage({
         modalId="edit-agent-modal"
         title={editingAgent ? `Edit agent "${editingAgent.name}"` : "Edit agent"}
         description={
-          editingAgent ? "Update runner, model, skills, and MCP servers for this agent." : ""
+          editingAgent ? "Update runner, model, skill groups, and MCP servers for this agent." : ""
         }
         isOpen={isEditModalOpen}
         onClose={closeEditAgentModal}
@@ -824,34 +847,36 @@ export function AgentsPage({
                 className="relationship-field"
                 htmlFor={`edit-agent-skills-assigned-${editingAgent.id}`}
               >
-                Assigned skills
+                Assigned skill groups
               </label>
               <div
                 id={`edit-agent-skills-assigned-${editingAgent.id}`}
                 className="inline-selection-list"
               >
-                {editingSkillIds.length === 0 ? (
-                  <span className="empty-hint">No skills assigned.</span>
+                {editingSkillGroupIds.length === 0 ? (
+                  <span className="empty-hint">No skill groups assigned.</span>
                 ) : (
-                  editingSkillIds.map((skillId) => {
-                    const skill = skillLookup.get(skillId);
-                    const skillLabel = skill ? formatSkillLabel(skill) : skillId;
+                  editingSkillGroupIds.map((skillGroupId) => {
+                    const skillGroup = skillGroupLookup.get(skillGroupId);
+                    const skillGroupLabel = skillGroup ? skillGroup.name : skillGroupId;
                     return (
                       <button
-                        key={`edit-agent-remove-skill-${editingAgent.id}-${skillId}`}
+                        key={`edit-agent-remove-skill-${editingAgent.id}-${skillGroupId}`}
                         type="button"
                         className="tag-remove-btn"
                         onClick={() =>
                           onAgentDraftChange(
                             editingAgent.id,
-                            "skillIds",
-                            editingSkillIds.filter((candidateId) => candidateId !== skillId),
+                            "skillGroupIds",
+                            editingSkillGroupIds.filter(
+                              (candidateId) => candidateId !== skillGroupId,
+                            ),
                           )
                         }
                         disabled={isEditingDisabled}
-                        title={`Remove ${skillLabel}`}
+                        title={`Remove ${skillGroupLabel}`}
                       >
-                        {skillLabel} ×
+                        {skillGroupLabel} ×
                       </button>
                     );
                   })
@@ -859,28 +884,34 @@ export function AgentsPage({
               </div>
 
               <label className="relationship-field" htmlFor={`edit-agent-skills-add-${editingAgent.id}`}>
-                Add skill
+                Add skill group
               </label>
               <select
                 id={`edit-agent-skills-add-${editingAgent.id}`}
                 value=""
                 onChange={(event) => {
-                  const nextSkillId = String(event.target.value || "").trim();
-                  if (!nextSkillId) {
+                  const nextSkillGroupId = String(event.target.value || "").trim();
+                  if (!nextSkillGroupId) {
                     return;
                   }
-                  onAgentDraftChange(editingAgent.id, "skillIds", [...editingSkillIds, nextSkillId]);
+                  onAgentDraftChange(editingAgent.id, "skillGroupIds", [
+                    ...editingSkillGroupIds,
+                    nextSkillGroupId,
+                  ]);
                 }}
-                disabled={isEditingDisabled || editingAvailableSkills.length === 0}
+                disabled={isEditingDisabled || editingAvailableSkillGroups.length === 0}
               >
                 <option value="">
-                  {editingAvailableSkills.length === 0
-                    ? "All company skills already assigned"
-                    : "Select skill to assign"}
+                  {editingAvailableSkillGroups.length === 0
+                    ? "All skill groups already assigned"
+                    : "Select skill group to assign"}
                 </option>
-                {editingAvailableSkills.map((skill) => (
-                  <option key={`edit-agent-skill-option-${editingAgent.id}-${skill.id}`} value={skill.id}>
-                    {formatSkillLabel(skill)}
+                {editingAvailableSkillGroups.map((skillGroup) => (
+                  <option
+                    key={`edit-agent-skill-option-${editingAgent.id}-${skillGroup.id}`}
+                    value={skillGroup.id}
+                  >
+                    {skillGroup.name}
                   </option>
                 ))}
               </select>

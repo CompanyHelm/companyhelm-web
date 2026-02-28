@@ -21,6 +21,9 @@ export function getPageFromPathname(pathname = window.location.pathname) {
   if (pageId && PAGE_IDS.has(pageId)) {
     return pageId;
   }
+  if (pageId === "gitskillpackages") {
+    return "gitskillpackages";
+  }
   if (pageId === "agents") {
     return "agents";
   }
@@ -84,6 +87,32 @@ export function getAgentsRouteFromPathname(pathname = window.location.pathname) 
   return { view: "chats", agentId, sessionId: "" };
 }
 
+export function getSkillsRouteFromPathname(pathname = window.location.pathname) {
+  const segments = normalizePathname(pathname).split("/").filter(Boolean);
+  if (segments[0] !== "skills") {
+    return { view: "list", skillId: "" };
+  }
+
+  const skillId = String(segments[1] || "").trim();
+  if (!skillId) {
+    return { view: "list", skillId: "" };
+  }
+  return { view: "detail", skillId };
+}
+
+export function getGitSkillPackagesRouteFromPathname(pathname = window.location.pathname) {
+  const segments = normalizePathname(pathname).split("/").filter(Boolean);
+  if (String(segments[0] || "").toLowerCase() !== "gitskillpackages") {
+    return { view: "list", packageId: "" };
+  }
+
+  const packageId = String(segments[1] || "").trim();
+  if (!packageId) {
+    return { view: "list", packageId: "" };
+  }
+  return { view: "detail", packageId };
+}
+
 export function setBrowserPath(pathname, { replace = false } = {}) {
   const nextPath = normalizePathname(pathname);
   const currentPath = normalizePathname(window.location.pathname);
@@ -102,6 +131,9 @@ export function getPathForPage(pageId) {
   const normalizedPageId = String(pageId || "").trim().toLowerCase();
   if (normalizedPageId === "chat") {
     return "/chats";
+  }
+  if (normalizedPageId === "gitskillpackages") {
+    return "/gitSkillPackages";
   }
   if (!PAGE_IDS.has(normalizedPageId)) {
     return `/${NAV_ITEMS[0].id}`;
