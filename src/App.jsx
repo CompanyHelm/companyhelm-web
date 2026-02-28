@@ -416,6 +416,69 @@ function toSkillGroupPayload(skillGroup) {
   };
 }
 
+function collectRoleAndSubroleIds(roleIds, skillGroups) {
+  const normalizedRoleIds = normalizeUniqueStringList(roleIds || []);
+  if (normalizedRoleIds.length === 0) {
+    return [];
+  }
+
+  const childRoleIdsByParentId = new Map();
+  for (const role of skillGroups) {
+    const roleId = resolveLegacyId(role?.id);
+    const parentRoleId = resolveLegacyId(role?.parentSkillGroup?.id);
+    if (!roleId || !parentRoleId) {
+      continue;
+    }
+    const existingChildIds = childRoleIdsByParentId.get(parentRoleId);
+    if (existingChildIds) {
+      existingChildIds.push(roleId);
+    } else {
+      childRoleIdsByParentId.set(parentRoleId, [roleId]);
+    }
+  }
+
+  const visitedRoleIds = new Set();
+  const expandedRoleIds = [];
+  const queue = [...normalizedRoleIds];
+
+  while (queue.length > 0) {
+    const nextRoleId = String(queue.shift() || "").trim();
+    if (!nextRoleId || visitedRoleIds.has(nextRoleId)) {
+      continue;
+    }
+    visitedRoleIds.add(nextRoleId);
+    expandedRoleIds.push(nextRoleId);
+
+    const childRoleIds = childRoleIdsByParentId.get(nextRoleId) || [];
+    for (const childRoleId of childRoleIds) {
+      if (!visitedRoleIds.has(childRoleId)) {
+        queue.push(childRoleId);
+      }
+    }
+  }
+
+  return expandedRoleIds;
+}
+
+function resolveEffectiveRoleMcpServerIds(roleIds, skillGroups, roleMcpServerIdsByRoleId) {
+  const expandedRoleIds = collectRoleAndSubroleIds(roleIds, skillGroups);
+  const mcpServerIds = [];
+  const seenMcpServerIds = new Set();
+
+  for (const roleId of expandedRoleIds) {
+    const assignedMcpServerIds = normalizeUniqueStringList(roleMcpServerIdsByRoleId?.[roleId] || []);
+    for (const mcpServerId of assignedMcpServerIds) {
+      if (seenMcpServerIds.has(mcpServerId)) {
+        continue;
+      }
+      seenMcpServerIds.add(mcpServerId);
+      mcpServerIds.push(mcpServerId);
+    }
+  }
+
+  return mcpServerIds;
+}
+
 function toGitSkillPackagePayload(gitSkillPackage) {
   const packageId = resolveLegacyId(gitSkillPackage?.id);
   return {
@@ -1773,6 +1836,7 @@ function App() {
   const [agentRunnerId, setAgentRunnerId] = useState("");
   const [agentSkillGroupIds, setAgentSkillGroupIds] = useState([]);
   const [agentMcpServerIds, setAgentMcpServerIds] = useState([]);
+  const [roleMcpServerIdsByRoleId, setRoleMcpServerIdsByRoleId] = useState({});
   const [agentSdk, setAgentSdk] = useState(DEFAULT_AGENT_SDK);
   const [agentModel, setAgentModel] = useState("");
   const [agentModelReasoningLevel, setAgentModelReasoningLevel] = useState("");
@@ -2145,7 +2209,11 @@ function App() {
     || activePage === "agents"
     || activePage === "profile";
   const shouldLoadGitSkillPackageData = activePage === "skills" || activePage === "gitskillpackages";
-  const shouldLoadMcpServerData = activePage === "mcp-servers";
+  const shouldLoadMcpServerData =
+    activePage === "mcp-servers"
+    || activePage === "skills"
+    || activePage === "agents"
+    || activePage === "profile";
   const shouldLoadRunnerData =
     activePage === "dashboard" ||
     activePage === "agent-runner" ||
@@ -2155,6 +2223,89 @@ function App() {
     activePage === "chats" ||
     activePage === "profile";
   const shouldSubscribeAgentRunners = activePage === "dashboard" || activePage === "agent-runner";
+  const roleMcpAssignmentsStorageKey = useMemo(() => {
+    const companyId = String(selectedCompanyId || "").trim();
+    return companyId ? `companyhelm.role-mcp-assignments.${companyId}` : "";
+  }, [selectedCompanyId]);
+
+  useEffect(() => {
+    if (!roleMcpAssignmentsStorageKey) {
+      setRoleMcpServerIdsByRoleId({});
+      return;
+    }
+
+    try {
+      const rawValue = window.localStorage.getItem(roleMcpAssignmentsStorageKey);
+      if (!rawValue) {
+        setRoleMcpServerIdsByRoleId({});
+        return;
+      }
+      const parsedValue = JSON.parse(rawValue);
+      if (!parsedValue || typeof parsedValue !== "object" || Array.isArray(parsedValue)) {
+        setRoleMcpServerIdsByRoleId({});
+        return;
+      }
+
+      const normalized = {};
+      for (const [roleId, mcpServerIds] of Object.entries(parsedValue)) {
+        const normalizedRoleId = String(roleId || "").trim();
+        if (!normalizedRoleId) {
+          continue;
+        }
+        normalized[normalizedRoleId] = normalizeUniqueStringList(mcpServerIds || []);
+      }
+      setRoleMcpServerIdsByRoleId(normalized);
+    } catch {
+      setRoleMcpServerIdsByRoleId({});
+    }
+  }, [roleMcpAssignmentsStorageKey]);
+
+  useEffect(() => {
+    if (!roleMcpAssignmentsStorageKey) {
+      return;
+    }
+
+    try {
+      window.localStorage.setItem(
+        roleMcpAssignmentsStorageKey,
+        JSON.stringify(roleMcpServerIdsByRoleId),
+      );
+    } catch {
+      // ignore local storage write failures
+    }
+  }, [roleMcpAssignmentsStorageKey, roleMcpServerIdsByRoleId]);
+
+  useEffect(() => {
+    const validRoleIds = new Set(skillGroups.map((group) => group.id));
+    const validMcpServerIds = new Set(mcpServers.map((mcpServer) => mcpServer.id));
+
+    setRoleMcpServerIdsByRoleId((current) => {
+      const next = {};
+      let changed = false;
+
+      for (const [roleId, mcpServerIds] of Object.entries(current)) {
+        if (!validRoleIds.has(roleId)) {
+          changed = true;
+          continue;
+        }
+
+        const normalizedMcpServerIds = normalizeUniqueStringList(mcpServerIds || []).filter((mcpServerId) =>
+          validMcpServerIds.has(mcpServerId),
+        );
+
+        next[roleId] = normalizedMcpServerIds;
+        if (normalizedMcpServerIds.length !== normalizeUniqueStringList(mcpServerIds || []).length) {
+          changed = true;
+        }
+      }
+
+      if (!changed && Object.keys(current).length === Object.keys(next).length) {
+        return current;
+      }
+
+      return next;
+    });
+  }, [mcpServers, skillGroups]);
 
   const loadCompanies = useCallback(async () => {
     try {
@@ -4005,6 +4156,18 @@ function App() {
     await Promise.all([loadSkillGroups(), loadSkills()]);
   }
 
+  function handleRoleMcpServerIdsChange(roleId, nextMcpServerIds) {
+    const normalizedRoleId = String(roleId || "").trim();
+    if (!normalizedRoleId) {
+      return;
+    }
+
+    setRoleMcpServerIdsByRoleId((current) => ({
+      ...current,
+      [normalizedRoleId]: normalizeUniqueStringList(nextMcpServerIds || []),
+    }));
+  }
+
   function resolveMcpServerMutationPayload({
     name: rawName,
     transportType: rawTransportType,
@@ -4479,7 +4642,11 @@ function App() {
     try {
       setIsCreatingAgent(true);
       setAgentError("");
-      const cleanAgentMcpServerIds = normalizeUniqueStringList(agentMcpServerIds);
+      const cleanAgentMcpServerIds = resolveEffectiveRoleMcpServerIds(
+        agentSkillGroupIds,
+        skillGroups,
+        roleMcpServerIdsByRoleId,
+      );
       const normalizedDefaultAdditionalModelInstructions = normalizeOptionalInstructions(
         agentDefaultAdditionalModelInstructions,
       );
@@ -4608,7 +4775,11 @@ function App() {
     try {
       setSavingAgentId(agentId);
       setAgentError("");
-      const cleanDraftMcpServerIds = normalizeUniqueStringList(draft.mcpServerIds);
+      const cleanDraftMcpServerIds = resolveEffectiveRoleMcpServerIds(
+        draft.skillGroupIds || [],
+        skillGroups,
+        roleMcpServerIdsByRoleId,
+      );
       const normalizedDefaultAdditionalModelInstructions = normalizeOptionalInstructions(
         draft.defaultAdditionalModelInstructions,
       );
@@ -5686,6 +5857,8 @@ function App() {
             selectedCompanyId={selectedCompanyId}
             skills={skills}
             skillGroups={skillGroups}
+            mcpServers={mcpServers}
+            roleMcpServerIdsByRoleId={roleMcpServerIdsByRoleId}
             activeSkill={activeSkill}
             isLoadingSkills={isLoadingSkills}
             isLoadingSkillGroups={isLoadingSkillGroups}
@@ -5697,6 +5870,7 @@ function App() {
             onDeleteSkillGroup={handleDeleteSkillGroup}
             onAddSkillToGroup={handleAddSkillToGroup}
             onRemoveSkillFromGroup={handleRemoveSkillFromGroup}
+            onRoleMcpServerIdsChange={handleRoleMcpServerIdsChange}
             onOpenGitSkillPackage={(packageId) => setBrowserPath(`/gitSkillPackages/${packageId}`)}
           />
         ) : null}
@@ -5942,7 +6116,7 @@ function App() {
               hasLoadedAgentRunners={hasLoadedAgentRunners}
               agentRunnerId={agentRunnerId}
               agentSkillGroupIds={agentSkillGroupIds}
-              agentMcpServerIds={agentMcpServerIds}
+              roleMcpServerIdsByRoleId={roleMcpServerIdsByRoleId}
               agentName={agentName}
               agentSdk={agentSdk}
               agentModel={agentModel}
@@ -5952,7 +6126,6 @@ function App() {
               agentCountLabel={agentCountLabel}
               onAgentRunnerChange={handleCreateAgentRunnerChange}
               onAgentSkillGroupIdsChange={handleCreateAgentSkillGroupIdsChange}
-              onAgentMcpServerIdsChange={setAgentMcpServerIds}
               onAgentNameChange={setAgentName}
               onAgentSdkChange={handleCreateAgentSdkChange}
               onAgentModelChange={handleCreateAgentModelChange}

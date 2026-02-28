@@ -2,11 +2,14 @@ import { useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CreationModal } from "../components/CreationModal.jsx";
+import { normalizeUniqueStringList } from "../utils/normalization.js";
 
 export function SkillsPage({
   selectedCompanyId,
   skills,
   skillGroups,
+  mcpServers,
+  roleMcpServerIdsByRoleId,
   activeSkill,
   isLoadingSkills,
   isLoadingSkillGroups,
@@ -18,6 +21,7 @@ export function SkillsPage({
   onDeleteSkillGroup,
   onAddSkillToGroup,
   onRemoveSkillFromGroup,
+  onRoleMcpServerIdsChange,
   onOpenGitSkillPackage,
 }) {
   const [newGroupName, setNewGroupName] = useState("");
@@ -164,7 +168,7 @@ export function SkillsPage({
 
           <div className="skill-detail-info">
             <p className="chat-card-meta">
-              Groups: {(activeSkill.groups || []).map((group) => group.name).join(", ") || "none"}
+              Roles: {(activeSkill.groups || []).map((group) => group.name).join(", ") || "none"}
               {" · "}Files: {activeSkill.fileList?.length || 0}
             </p>
           </div>
@@ -233,8 +237,8 @@ export function SkillsPage({
           <button
             type="button"
             className="chat-minimal-header-icon-btn"
-            aria-label="Create skill group"
-            title="Create skill group"
+            aria-label="Create role"
+            title="Create role"
             onClick={() => setIsCreateGroupModalOpen(true)}
           >
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -251,8 +255,8 @@ export function SkillsPage({
       {skillGroups.length > 0 ? (
         <section className="panel list-panel">
           <header className="panel-header panel-header-row">
-            <h2>Skill groups</h2>
-            <span className="chat-card-meta">{skillGroups.length} groups</span>
+            <h2>Roles</h2>
+            <span className="chat-card-meta">{skillGroups.length} roles</span>
           </header>
 
           <ul className="chat-card-list">
@@ -278,7 +282,7 @@ export function SkillsPage({
                     </p>
                     <p className="chat-card-meta">
                       {skillCount} {skillCount === 1 ? "skill" : "skills"}
-                      {parentLabel ? ` · parent: ${parentLabel}` : ""}
+                      {parentLabel ? ` · parent role: ${parentLabel}` : ""}
                     </p>
                   </div>
                   <div className="chat-card-actions">
@@ -308,14 +312,14 @@ export function SkillsPage({
         </section>
       ) : !isLoadingSkillGroups ? (
         <section className="panel list-panel">
-          <p className="empty-hint">No skill groups yet.</p>
+          <p className="empty-hint">No roles yet.</p>
         </section>
       ) : null}
 
       {ungroupedSkills.length > 0 ? (
         <section className="panel list-panel">
           <header className="panel-header panel-header-row">
-            <h2>Ungrouped skills</h2>
+            <h2>Skills without roles</h2>
             <span className="chat-card-meta">{ungroupedSkills.length} skills</span>
           </header>
           <ul className="chat-card-list">
@@ -345,14 +349,14 @@ export function SkillsPage({
 
       <CreationModal
         modalId="create-skill-group-modal"
-        title="Create skill group"
-        description="Add a new group to organize skills."
+        title="Create role"
+        description="Add a new role to organize skills and assigned MCP servers."
         isOpen={isCreateGroupModalOpen}
         onClose={() => setIsCreateGroupModalOpen(false)}
       >
         <form className="chat-settings-modal-form" onSubmit={handleCreateGroup}>
           <div className="chat-settings-field">
-            <label htmlFor="new-skill-group-name" className="chat-settings-label">Group name</label>
+            <label htmlFor="new-skill-group-name" className="chat-settings-label">Role name</label>
             <input
               id="new-skill-group-name"
               className="chat-settings-input"
@@ -364,7 +368,7 @@ export function SkillsPage({
             />
           </div>
           <div className="chat-settings-field">
-            <label htmlFor="new-skill-group-parent" className="chat-settings-label">Parent group (optional)</label>
+            <label htmlFor="new-skill-group-parent" className="chat-settings-label">Parent role (optional)</label>
             <select
               id="new-skill-group-parent"
               className="chat-settings-input"
@@ -381,7 +385,7 @@ export function SkillsPage({
           </div>
           <div className="chat-settings-actions">
             <button type="submit" disabled={isCreatingGroup}>
-              {isCreatingGroup ? "Creating..." : "Create group"}
+              {isCreatingGroup ? "Creating..." : "Create role"}
             </button>
           </div>
         </form>
@@ -389,8 +393,8 @@ export function SkillsPage({
 
       <CreationModal
         modalId="edit-skill-group-modal"
-        title={editingGroup ? `Edit "${editingGroup.name}"` : "Edit group"}
-        description="Update group settings and manage skills."
+        title={editingGroup ? `Edit role "${editingGroup.name}"` : "Edit role"}
+        description="Update role settings, skills, and role MCP assignments."
         isOpen={Boolean(editingGroup)}
         onClose={() => setEditingGroupId("")}
         cardClassName="modal-card-wide"
@@ -400,11 +404,17 @@ export function SkillsPage({
           const parentOptions = skillGroups.filter((entry) => entry.id !== editingGroup.id);
           const groupSkillIds = new Set((editingGroup.skills || []).map((skill) => skill.id));
           const availableSkills = skills.filter((skill) => !groupSkillIds.has(skill.id));
+          const assignedRoleMcpServerIds = normalizeUniqueStringList(
+            roleMcpServerIdsByRoleId?.[editingGroup.id] || [],
+          );
+          const availableRoleMcpServers = mcpServers.filter(
+            (mcpServer) => !assignedRoleMcpServerIds.includes(mcpServer.id),
+          );
 
           return (
             <div className="chat-settings-modal-form">
               <div className="chat-settings-field">
-                <label htmlFor={`group-name-${editingGroup.id}`} className="chat-settings-label">Name</label>
+                <label htmlFor={`group-name-${editingGroup.id}`} className="chat-settings-label">Role name</label>
                 <input
                   id={`group-name-${editingGroup.id}`}
                   className="chat-settings-input"
@@ -415,7 +425,7 @@ export function SkillsPage({
                 />
               </div>
               <div className="chat-settings-field">
-                <label htmlFor={`group-parent-${editingGroup.id}`} className="chat-settings-label">Parent group</label>
+                <label htmlFor={`group-parent-${editingGroup.id}`} className="chat-settings-label">Parent role</label>
                 <select
                   id={`group-parent-${editingGroup.id}`}
                   className="chat-settings-input"
@@ -438,14 +448,84 @@ export function SkillsPage({
                   onClick={() => void handleUpdateGroup(editingGroup.id)}
                   disabled={savingGroupId === editingGroup.id}
                 >
-                  {savingGroupId === editingGroup.id ? "Saving..." : "Save"}
+                  {savingGroupId === editingGroup.id ? "Saving..." : "Save role"}
                 </button>
               </div>
 
               <div className="chat-settings-field">
-                <label className="chat-settings-label">Skills in group</label>
+                <label htmlFor={`group-mcp-assigned-${editingGroup.id}`} className="chat-settings-label">
+                  Assigned MCP servers
+                </label>
+                <div id={`group-mcp-assigned-${editingGroup.id}`} className="inline-selection-list">
+                  {assignedRoleMcpServerIds.length === 0 ? (
+                    <span className="empty-hint">No MCP servers assigned to this role.</span>
+                  ) : (
+                    assignedRoleMcpServerIds.map((mcpServerId) => {
+                      const mcpServer = mcpServers.find((server) => server.id === mcpServerId);
+                      const mcpServerLabel = mcpServer ? mcpServer.name : mcpServerId;
+                      return (
+                        <button
+                          key={`group-remove-mcp-${editingGroup.id}-${mcpServerId}`}
+                          type="button"
+                          className="tag-remove-btn"
+                          onClick={() =>
+                            onRoleMcpServerIdsChange(
+                              editingGroup.id,
+                              assignedRoleMcpServerIds.filter(
+                                (candidateId) => candidateId !== mcpServerId,
+                              ),
+                            )
+                          }
+                          title={`Remove ${mcpServerLabel}`}
+                        >
+                          {mcpServerLabel} ×
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              <div className="chat-settings-field">
+                <label htmlFor={`group-add-mcp-${editingGroup.id}`} className="chat-settings-label">
+                  Add MCP server
+                </label>
+                <select
+                  id={`group-add-mcp-${editingGroup.id}`}
+                  className="chat-settings-input"
+                  value=""
+                  onChange={(event) => {
+                    const nextMcpServerId = String(event.target.value || "").trim();
+                    if (!nextMcpServerId) {
+                      return;
+                    }
+                    onRoleMcpServerIdsChange(editingGroup.id, [
+                      ...assignedRoleMcpServerIds,
+                      nextMcpServerId,
+                    ]);
+                  }}
+                  disabled={availableRoleMcpServers.length === 0}
+                >
+                  <option value="">
+                    {availableRoleMcpServers.length === 0
+                      ? "All MCP servers already assigned"
+                      : "Select MCP server to add"}
+                  </option>
+                  {availableRoleMcpServers.map((mcpServer) => (
+                    <option
+                      key={`group-mcp-option-${editingGroup.id}-${mcpServer.id}`}
+                      value={mcpServer.id}
+                    >
+                      {mcpServer.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="chat-settings-field">
+                <label className="chat-settings-label">Skills in role</label>
                 {(editingGroup.skills || []).length === 0 ? (
-                  <p className="empty-hint">No skills in this group.</p>
+                  <p className="empty-hint">No skills in this role.</p>
                 ) : (
                   <ul className="chat-card-list">
                     {editingGroup.skills.map((skill) => (
@@ -475,8 +555,8 @@ export function SkillsPage({
                             type="button"
                             className="chat-card-icon-btn chat-card-icon-btn-danger"
                             onClick={() => void handleRemoveSkillFromGroup(editingGroup.id, skill.id)}
-                            aria-label="Remove from group"
-                            title="Remove from group"
+                            aria-label="Remove from role"
+                            title="Remove from role"
                           >
                             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                               <line x1="5" y1="12" x2="19" y2="12" />
@@ -492,7 +572,7 @@ export function SkillsPage({
               {availableSkills.length > 0 ? (
                 <div className="chat-settings-field">
                   <label htmlFor={`group-add-skill-${editingGroup.id}`} className="chat-settings-label">
-                    Add skill
+                    Add skill to role
                   </label>
                   <select
                     id={`group-add-skill-${editingGroup.id}`}
@@ -506,7 +586,7 @@ export function SkillsPage({
                       void handleAddSkillToGroup(editingGroup.id, nextSkillId);
                     }}
                   >
-                    <option value="">Select skill to add</option>
+                    <option value="">Select skill</option>
                     {availableSkills.map((skill) => (
                       <option key={`group-skill-option-${editingGroup.id}-${skill.id}`} value={skill.id}>
                         {skill.name}
