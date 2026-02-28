@@ -77,17 +77,42 @@ h3 {
   gap: 0;
 }
 
-.side-menu-toggle-btn {
+.side-menu-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
   align-self: flex-start;
   margin: 0 0.35rem 0.85rem;
-  font-size: 0.78rem;
-  padding: 0.36rem 0.55rem;
+}
+
+.side-menu-icon-btn:hover {
+  background: rgba(26, 32, 38, 0.07);
+  color: var(--ink-0);
+}
+
+.side-menu-icon-btn svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .side-menu-open-btn {
   justify-self: start;
   margin: 0;
-  min-height: 2rem;
 }
 
 .side-menu-open-btn-chat {
@@ -546,6 +571,14 @@ h2 {
 
 .panel-header {
   margin-bottom: 0.85rem;
+}
+
+.panel-section-title {
+  font-family: "Syne", sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink-1);
+  margin: 0 0 0.6rem 0;
 }
 
 .panel-header-row {
@@ -1849,6 +1882,31 @@ button:disabled {
   flex-shrink: 0;
 }
 
+.chat-card-new {
+  border-style: dashed;
+  border-color: rgba(26, 32, 38, 0.18);
+  background: transparent;
+}
+
+.chat-card-new:hover {
+  border-color: var(--action);
+  background: rgba(15, 118, 110, 0.03);
+}
+
+.chat-card-new-icon {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  vertical-align: -0.12em;
+  margin-right: 0.35rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  color: var(--action);
+}
+
 .chat-card-icon-btn {
   display: inline-flex;
   align-items: center;
@@ -2413,7 +2471,7 @@ button:disabled {
     padding: 0 0.35rem 0;
   }
 
-  .side-menu-toggle-btn {
+  .side-menu-icon-btn {
     margin: 0;
     align-self: center;
   }
@@ -2528,10 +2586,9 @@ button:disabled {
     font-size: 1.04rem;
   }
 
-  .side-menu-toggle-btn {
+  .side-menu-icon-btn {
     flex: 0 0 auto;
-    min-height: 2.15rem;
-    font-size: 0.76rem;
+    margin: 0;
   }
 
   .side-company-scope {
@@ -2569,9 +2626,7 @@ button:disabled {
   }
 
   .side-menu-open-btn {
-    min-height: 2.2rem;
-    font-size: 0.84rem;
-    padding: 0.42rem 0.6rem;
+    margin: 0;
   }
 
   .side-menu-open-btn-chat {

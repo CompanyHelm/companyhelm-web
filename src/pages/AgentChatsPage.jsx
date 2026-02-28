@@ -23,39 +23,20 @@ export function AgentChatsPage({
   onDeleteChat,
   onBackToAgents,
   onSetChatDraftMessage,
+  onOpenEditModal,
 }) {
   const resolvedCreateChatDisabledReason = String(createChatDisabledReason || "").trim();
   const isCreateChatDisabled = !agent || isCreatingChatSession || Boolean(resolvedCreateChatDisabledReason);
-  const [firstMessageDraft, setFirstMessageDraft] = useState("");
   const [isCreateSettingsOpen, setIsCreateSettingsOpen] = useState(false);
 
-  async function handleCreateAndOpen(event) {
-    if (event?.preventDefault) {
-      event.preventDefault();
-    }
-    const messageText = firstMessageDraft.trim();
+  async function handleNewChat() {
     const createdSessionId = await onCreateChatSession({
       title: chatSessionTitleDraft || null,
       additionalModelInstructions: chatSessionAdditionalModelInstructionsDraft || null,
     });
     if (createdSessionId) {
-      if (messageText && typeof onSetChatDraftMessage === "function") {
-        onSetChatDraftMessage(messageText);
-      }
-      setFirstMessageDraft("");
       onOpenChat(createdSessionId);
     }
-  }
-
-  function handleFirstMessageKeyDown(event) {
-    if (event.key !== "Enter" || event.shiftKey || event.isComposing) {
-      return;
-    }
-    if (isCreateChatDisabled || !firstMessageDraft.trim()) {
-      return;
-    }
-    event.preventDefault();
-    handleCreateAndOpen(event);
   }
 
   return (
@@ -68,8 +49,17 @@ export function AgentChatsPage({
           <h1 className="chat-minimal-header-title">Agent Chats</h1>
         </div>
         <div className="chat-minimal-header-actions">
-          <button type="button" className="secondary-btn" onClick={onBackToAgents}>
-            Back to agents
+          <button
+            type="button"
+            className="chat-minimal-header-icon-btn"
+            onClick={onOpenEditModal}
+            aria-label="Edit agent settings"
+            title="Edit agent settings"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
           </button>
         </div>
       </header>
@@ -79,10 +69,49 @@ export function AgentChatsPage({
         {!agent ? <p className="empty-hint">Agent not found.</p> : null}
         {agent && isLoadingChatSessions ? <p className="empty-hint">Loading chats...</p> : null}
         {agent && !isLoadingChatSessions && chatSessions.length === 0 ? (
-          <p className="empty-hint">No chats yet. Start one below.</p>
+          <p className="empty-hint">No chats yet. Use the "New chat" card to start one.</p>
         ) : null}
-        {agent && chatSessions.length > 0 ? (
+        {agent ? (
           <ul className="chat-card-list">
+            <li
+              className="chat-card chat-card-new"
+              onClick={() => !isCreateChatDisabled && handleNewChat()}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !isCreateChatDisabled) {
+                  handleNewChat();
+                }
+              }}
+            >
+              <div className="chat-card-main">
+                <p className="chat-card-title">
+                  <svg viewBox="0 0 24 24" className="chat-card-new-icon" aria-hidden="true" focusable="false">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                  <strong>New chat</strong>
+                </p>
+              </div>
+              <div className="chat-card-actions">
+                <button
+                  type="button"
+                  className="chat-card-icon-btn"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setIsCreateSettingsOpen(true);
+                  }}
+                  disabled={isCreateChatDisabled}
+                  aria-label="Chat settings"
+                  title="Chat settings"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                  </svg>
+                </button>
+              </div>
+            </li>
             {chatSessions.map((session) => {
               const isRunning = isChatSessionRunning(session, chatSessionRunningById);
               const chatSessionKey = `${agent.id}:${session.id}`;
@@ -143,47 +172,6 @@ export function AgentChatsPage({
             })}
           </ul>
         ) : null}
-      </section>
-
-      <section className="panel create-chat-composer-panel">
-        {resolvedCreateChatDisabledReason ? (
-          <p className="empty-hint">{resolvedCreateChatDisabledReason}</p>
-        ) : null}
-        <form className="create-chat-composer" onSubmit={handleCreateAndOpen}>
-          <input
-            className="create-chat-composer-input"
-            value={firstMessageDraft}
-            onChange={(event) => setFirstMessageDraft(event.target.value)}
-            onKeyDown={handleFirstMessageKeyDown}
-            placeholder="Send first message to start a chat..."
-            disabled={isCreateChatDisabled}
-          />
-          <button
-            type="button"
-            className="create-chat-composer-icon-btn"
-            onClick={() => setIsCreateSettingsOpen(true)}
-            disabled={isCreateChatDisabled}
-            aria-label="Chat settings"
-            title="Chat settings"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-            </svg>
-          </button>
-          <button
-            type="submit"
-            className="create-chat-composer-send-btn"
-            disabled={isCreateChatDisabled || !firstMessageDraft.trim()}
-            aria-label={isCreatingChatSession ? "Creating..." : "Create and send"}
-            title={isCreatingChatSession ? "Creating..." : "Create and send"}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path d="M3 11 21 3 13 21 11 13 3 11z" />
-              <path d="m11 13 10-10" />
-            </svg>
-          </button>
-        </form>
       </section>
 
       <CreationModal

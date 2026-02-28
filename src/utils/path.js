@@ -76,6 +76,10 @@ export function getAgentsRouteFromPathname(pathname = window.location.pathname) 
     return { view: "list", agentId: "", sessionId: "" };
   }
 
+  if (!segments[2]) {
+    return { view: "agent", agentId, sessionId: "" };
+  }
+
   if (segments[2] !== "chats") {
     return { view: "list", agentId: "", sessionId: "" };
   }
@@ -98,6 +102,19 @@ export function getSkillsRouteFromPathname(pathname = window.location.pathname) 
     return { view: "list", skillId: "" };
   }
   return { view: "detail", skillId };
+}
+
+export function getRunnersRouteFromPathname(pathname = window.location.pathname) {
+  const segments = normalizePathname(pathname).split("/").filter(Boolean);
+  if (String(segments[0] || "").toLowerCase() !== "agent-runner") {
+    return { view: "list", runnerId: "" };
+  }
+
+  const runnerId = String(segments[1] || "").trim();
+  if (!runnerId) {
+    return { view: "list", runnerId: "" };
+  }
+  return { view: "detail", runnerId };
 }
 
 export function getGitSkillPackagesRouteFromPathname(pathname = window.location.pathname) {

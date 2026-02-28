@@ -1,29 +1,7 @@
 import { useMemo, useState } from "react";
 import { CreationModal } from "../components/CreationModal.jsx";
 import { formatTimestamp, normalizeRunnerStatus, toSortableTimestamp } from "../utils/formatting.js";
-import { normalizeRunnerAvailableAgentSdks, normalizeRunnerCodexAvailableModels } from "../utils/normalization.js";
-import { DEFAULT_AGENT_SDK } from "../utils/constants.js";
-
-function quoteShellArg(value) {
-  const normalizedValue = String(value ?? "");
-  if (/^[A-Za-z0-9_./:-]+$/.test(normalizedValue)) {
-    return normalizedValue;
-  }
-  return `'${normalizedValue.replace(/'/g, `'\"'\"'`)}'`;
-}
-
-function buildRunnerStartCommand({
-  backendGrpcTarget,
-  runnerSecret,
-}) {
-  return [
-    "companyhelm",
-    "--server-url",
-    quoteShellArg(backendGrpcTarget),
-    "--secret",
-    quoteShellArg(runnerSecret),
-  ].join(" ");
-}
+import { setBrowserPath } from "../utils/path.js";
 
 export function AgentRunnerPage({
   selectedCompanyId,
@@ -32,21 +10,14 @@ export function AgentRunnerPage({
   runnerError,
   isCreatingRunner,
   runnerNameDraft,
-  runnerGrpcTarget,
-  runnerSecretsById,
   regeneratingRunnerId,
   deletingRunnerId,
   runnerCountLabel,
   onRunnerNameChange,
-  onRunnerCommandSecretChange,
   onCreateRunner,
-  onRegenerateRunnerSecret,
   onDeleteRunner,
 }) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [detailsRunnerId, setDetailsRunnerId] = useState("");
-
-  const detailsRunner = agentRunners.find((r) => r.id === detailsRunnerId) || null;
 
   const readyRunnerCount = useMemo(() => {
     return agentRunners.filter((runner) => normalizeRunnerStatus(runner.status) === "ready")
@@ -136,12 +107,12 @@ export function AgentRunnerPage({
                   <li
                     key={runner.id}
                     className="chat-card"
-                    onClick={() => !isBusy && setDetailsRunnerId(runner.id)}
+                    onClick={() => !isBusy && setBrowserPath(`/agent-runner/${runner.id}`)}
                     role="button"
                     tabIndex={0}
                     onKeyDown={(event) => {
                       if (event.key === "Enter" && !isBusy) {
-                        setDetailsRunnerId(runner.id);
+                        setBrowserPath(`/agent-runner/${runner.id}`);
                       }
                     }}
                   >
@@ -210,158 +181,6 @@ export function AgentRunnerPage({
         </form>
       </CreationModal>
 
-      <CreationModal
-        modalId="runner-details-modal"
-        title={detailsRunner ? (detailsRunner.name || "Unnamed runner") : "Runner details"}
-        description=""
-        isOpen={Boolean(detailsRunnerId)}
-        onClose={() => setDetailsRunnerId("")}
-        cardClassName="modal-card-wide"
-      >
-        {detailsRunner ? (() => {
-          const runnerStatus = normalizeRunnerStatus(detailsRunner.status);
-          const runnerSecret = runnerSecretsById[detailsRunner.id] || "";
-          const availableAgentSdks = normalizeRunnerAvailableAgentSdks(detailsRunner);
-          const availableSdkNames = availableAgentSdks.map((entry) => entry.name);
-          const codexAvailableModels = normalizeRunnerCodexAvailableModels(detailsRunner);
-          const isBusy =
-            deletingRunnerId === detailsRunner.id || regeneratingRunnerId === detailsRunner.id;
-          const runnerCommand = buildRunnerStartCommand({
-            backendGrpcTarget: runnerGrpcTarget,
-            runnerSecret: runnerSecret || "<RUNNER_SECRET>",
-          });
-
-          const renderModelPill = (entry, index) => {
-            const reasoningLabel = entry.reasoning.join(", ");
-            return (
-              <span
-                key={`${entry.name}-${index}`}
-                className="runner-model-pill"
-                title={reasoningLabel ? `${entry.name} (${reasoningLabel})` : entry.name}
-              >
-                <span className="runner-model-name">{entry.name}</span>
-                {entry.reasoning.length > 0 ? (
-                  <span className="runner-model-reasons">
-                    {entry.reasoning.map((level, reasonIndex) => (
-                      <span
-                        key={`${entry.name}-${index}-reason-${reasonIndex}`}
-                        className="runner-model-reason"
-                      >
-                        {level}
-                      </span>
-                    ))}
-                  </span>
-                ) : null}
-              </span>
-            );
-          };
-
-          return (
-            <div className="chat-settings-modal-form">
-              <div className="chat-settings-field">
-                <span className="chat-settings-label">Runner ID</span>
-                <p className="chat-settings-readonly">{detailsRunner.id}</p>
-              </div>
-
-              <div className="chat-settings-field">
-                <span className="chat-settings-label">Status</span>
-                <p className="chat-settings-readonly">
-                  <span className={`runner-status runner-status-${runnerStatus}`}>
-                    {runnerStatus}
-                  </span>
-                </p>
-              </div>
-
-              <div className="chat-settings-field">
-                <span className="chat-settings-label">gRPC target</span>
-                <p className="chat-settings-readonly">{runnerGrpcTarget || "-"}</p>
-              </div>
-
-              <div className="chat-settings-field">
-                <span className="chat-settings-label">Last seen</span>
-                <p className="chat-settings-readonly">{formatTimestamp(detailsRunner.lastSeenAt)}</p>
-              </div>
-
-              <div className="chat-settings-field">
-                <span className="chat-settings-label">Last health check</span>
-                <p className="chat-settings-readonly">{formatTimestamp(detailsRunner.lastHealthCheckAt)}</p>
-              </div>
-
-              <div className="chat-settings-field">
-                <span className="chat-settings-label">CLI command</span>
-                <pre className="runner-command runner-command-inline">
-                  <code>{runnerCommand}</code>
-                </pre>
-              </div>
-
-              <div className="chat-settings-field">
-                <label htmlFor={`details-runner-secret-${detailsRunner.id}`} className="chat-settings-label">
-                  Runner secret
-                </label>
-                <input
-                  id={`details-runner-secret-${detailsRunner.id}`}
-                  className="chat-settings-input"
-                  type="text"
-                  value={runnerSecret}
-                  onChange={(event) =>
-                    onRunnerCommandSecretChange(detailsRunner.id, event.target.value)
-                  }
-                  placeholder="Paste runner secret to complete command"
-                  autoComplete="off"
-                  spellCheck={false}
-                  disabled={isBusy}
-                />
-                {!runnerSecret ? (
-                  <p className="runner-command-hint">
-                    Secret is only shown at provisioning time. Paste it here to complete the CLI command.
-                  </p>
-                ) : null}
-                <button
-                  type="button"
-                  className="secondary-btn"
-                  onClick={() => onRegenerateRunnerSecret(detailsRunner.id)}
-                  disabled={isBusy}
-                  style={{ marginTop: "0.5rem" }}
-                >
-                  {regeneratingRunnerId === detailsRunner.id ? "Regenerating..." : "Regenerate key"}
-                </button>
-              </div>
-
-              <div className="chat-settings-field">
-                <span className="chat-settings-label">SDK catalog</span>
-                <p className="chat-settings-readonly">
-                  {availableSdkNames.length > 0 ? availableSdkNames.join(", ") : "none reported"}
-                </p>
-              </div>
-
-              <div className="chat-settings-field">
-                <span className="chat-settings-label">{DEFAULT_AGENT_SDK} models</span>
-                {codexAvailableModels.length === 0 ? (
-                  <p className="chat-settings-readonly">none reported yet</p>
-                ) : (
-                  <div className="runner-models-list">
-                    {codexAvailableModels.map((entry, index) => renderModelPill(entry, index))}
-                  </div>
-                )}
-              </div>
-
-              <div className="chat-settings-actions">
-                <button
-                  type="button"
-                  className="danger-btn"
-                  onClick={() => {
-                    onDeleteRunner(detailsRunner.id);
-                    setDetailsRunnerId("");
-                  }}
-                  disabled={isBusy}
-                >
-                  {deletingRunnerId === detailsRunner.id ? "Deleting..." : "Delete runner"}
-                </button>
-              </div>
-            </div>
-          );
-        })() : null}
-      </CreationModal>
     </div>
   );
 }

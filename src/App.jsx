@@ -152,6 +152,7 @@ import {
   getAgentsRouteFromPathname,
   getSkillsRouteFromPathname,
   getGitSkillPackagesRouteFromPathname,
+  getRunnersRouteFromPathname,
   setBrowserPath,
   getPathForPage,
   parseGithubInstallCallbackFromLocation,
@@ -179,6 +180,7 @@ import { CompanyRequiredPanel } from "./components/CompanyRequiredPanel.jsx";
 import { DashboardPage } from "./pages/DashboardPage.jsx";
 import { TasksPage } from "./pages/TasksPage.jsx";
 import { AgentRunnerPage } from "./pages/AgentRunnerPage.jsx";
+import { AgentRunnerDetailPage } from "./pages/AgentRunnerDetailPage.jsx";
 import { AgentsPage } from "./pages/AgentsPage.jsx";
 import { SkillsPage } from "./pages/SkillsPage.jsx";
 import { GitSkillPackagesPage } from "./pages/GitSkillPackagesPage.jsx";
@@ -1675,6 +1677,7 @@ function App() {
   const [gitSkillPackagesRoute, setGitSkillPackagesRoute] = useState(
     () => getGitSkillPackagesRouteFromPathname(),
   );
+  const [runnersRoute, setRunnersRoute] = useState(() => getRunnersRouteFromPathname());
   const [companies, setCompanies] = useState([]);
   const [isLoadingCompanies, setIsLoadingCompanies] = useState(true);
   const [companyError, setCompanyError] = useState("");
@@ -1775,6 +1778,7 @@ function App() {
   const [agentModelReasoningLevel, setAgentModelReasoningLevel] = useState("");
   const [agentDefaultAdditionalModelInstructions, setAgentDefaultAdditionalModelInstructions] = useState("");
   const [agentDrafts, setAgentDrafts] = useState({});
+  const [pendingEditAgentId, setPendingEditAgentId] = useState("");
   const [chatAgentId, setChatAgentId] = useState("");
   const [chatSessions, setChatSessions] = useState([]);
   const [chatSessionsByAgent, setChatSessionsByAgent] = useState({});
@@ -2026,25 +2030,24 @@ function App() {
 
     if (activePage === "agents") {
       if (agentsRoute.view === "list" || !agentsRoute.agentId) {
-        return [{ label: "Agents", href: "#agents" }];
+        return [{ label: "Agents", href: "/agents" }];
       }
 
-      const chatsHref = `/agents/${agentsRoute.agentId}/chats`;
+      const agentHref = `/agents/${agentsRoute.agentId}`;
       const items = [
         { label: "Agents", href: "/agents" },
-        { label: getAgentLabel(agentsRoute.agentId), href: chatsHref },
+        { label: getAgentLabel(agentsRoute.agentId), href: agentHref },
       ];
 
       if (agentsRoute.view === "chat" && agentsRoute.sessionId) {
         const chatHref = `/agents/${agentsRoute.agentId}/chats/${agentsRoute.sessionId}`;
         return [
           ...items,
-          { label: "Chats", href: chatsHref },
           { label: getChatLabel(agentsRoute.sessionId), href: chatHref },
         ];
       }
 
-      return [...items, { label: "Chats", href: chatsHref }];
+      return items;
     }
 
     if (activePage === "chats") {
@@ -2083,10 +2086,29 @@ function App() {
       ];
     }
 
+    if (
+      activePage === "agent-runner"
+      && runnersRoute.view === "detail"
+      && runnersRoute.runnerId
+    ) {
+      const getRunnerLabel = (runnerId) => {
+        const matchingRunner = agentRunners.find((r) => r.id === runnerId);
+        return matchingRunner?.name || `Runner ${runnerId.slice(0, 8)}`;
+      };
+      return [
+        { label: "Runners", href: "/agent-runner" },
+        {
+          label: getRunnerLabel(runnersRoute.runnerId),
+          href: `/agent-runner/${runnersRoute.runnerId}`,
+        },
+      ];
+    }
+
     return [{ label: currentPageLabel, href: getPathForPage(activePage) }];
   }, [
     activePage,
     agents,
+    agentRunners,
     agentsRoute.agentId,
     agentsRoute.sessionId,
     agentsRoute.view,
@@ -2095,6 +2117,8 @@ function App() {
     gitSkillPackagesRoute.packageId,
     gitSkillPackagesRoute.view,
     resolvedChatSessionId,
+    runnersRoute.runnerId,
+    runnersRoute.view,
     skills,
     skillsRoute.skillId,
     skillsRoute.view,
@@ -2106,7 +2130,7 @@ function App() {
     activePage === "agents" && agentsRoute.view === "chat" && Boolean(resolvedChatSessionId);
   const isChatConversationRoute = isChatsConversationView || isAgentConversationView;
   const shouldSubscribeChatSessions =
-    activePage === "agents" && (agentsRoute.view === "chats" || agentsRoute.view === "chat");
+    activePage === "agents" && (agentsRoute.view === "agent" || agentsRoute.view === "chats" || agentsRoute.view === "chat");
   const shouldSubscribeChatTurns = isChatConversationRoute;
   const shouldLoadGithubData = activePage === "settings";
   const shouldLoadTaskData = activePage === "dashboard" || activePage === "tasks" || activePage === "profile";
@@ -3125,7 +3149,7 @@ function App() {
       return;
     }
 
-    if (activePage === "agents" && agentsRoute.view === "chats") {
+    if (activePage === "agents" && (agentsRoute.view === "agent" || agentsRoute.view === "chats")) {
       setChatSessionId("");
       setChatTurns([]);
       setQueuedChatMessages([]);
@@ -3159,6 +3183,7 @@ function App() {
       setAgentsRoute(getAgentsRouteFromPathname());
       setSkillsRoute(getSkillsRouteFromPathname());
       setGitSkillPackagesRoute(getGitSkillPackagesRouteFromPathname());
+      setRunnersRoute(getRunnersRouteFromPathname());
     };
 
     handlePopState();
@@ -3191,11 +3216,11 @@ function App() {
     if (activePage !== "agents" || !selectedCompanyId) {
       return;
     }
-    if (agentsRoute.view === "chats" || agentsRoute.view === "chat") {
+    if (agentsRoute.view === "agent" || agentsRoute.view === "chats" || agentsRoute.view === "chat") {
       if (agentsRoute.agentId) {
         setChatAgentId(agentsRoute.agentId);
       }
-      if (agentsRoute.view === "chats") {
+      if (agentsRoute.view === "agent" || agentsRoute.view === "chats") {
         setChatSessionId("");
         setChatTurns([]);
         setQueuedChatMessages([]);
@@ -3211,7 +3236,7 @@ function App() {
       return;
     }
 
-    if (agentsRoute.view === "chats") {
+    if (agentsRoute.view === "agent" || agentsRoute.view === "chats") {
       loadAgentChatSessions({
         silently: true,
         agentIdOverride: agentsRoute.agentId,
@@ -5429,7 +5454,7 @@ function App() {
     setChatSessionId("");
     setChatTurns([]);
     setQueuedChatMessages([]);
-    setBrowserPath(`/agents/${resolvedAgentId}/chats`);
+    setBrowserPath(`/agents/${resolvedAgentId}`);
   }
 
   const taskLookup = useMemo(() => {
@@ -5512,11 +5537,13 @@ function App() {
         </div>
         <button
           type="button"
-          className="secondary-btn side-menu-toggle-btn"
+          className="side-menu-icon-btn"
           onClick={() => setIsSideMenuCollapsed(true)}
-          aria-label="Collapse left menu"
+          aria-label="Collapse menu"
         >
-          Collapse menu
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
         </button>
 
         <div className="side-company-scope">
@@ -5595,13 +5622,17 @@ function App() {
         {isSideMenuCollapsed ? (
           <button
             type="button"
-            className={`secondary-btn side-menu-open-btn${
+            className={`side-menu-icon-btn side-menu-open-btn${
               isChatConversationRoute ? " side-menu-open-btn-chat" : ""
             }`}
             onClick={() => setIsSideMenuCollapsed(false)}
-            aria-label="Open left menu"
+            aria-label="Open menu"
           >
-            Menu
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
           </button>
         ) : null}
         <Breadcrumbs items={breadcrumbItems} onNavigate={setBrowserPath} />
@@ -5727,29 +5758,46 @@ function App() {
         ) : null}
 
         {selectedCompanyId && activePage === "agent-runner" ? (
-          <AgentRunnerPage
-            selectedCompanyId={selectedCompanyId}
-            agentRunners={agentRunners}
-            isLoadingRunners={isLoadingRunners}
-            runnerError={runnerError}
-            isCreatingRunner={isCreatingRunner}
-            runnerNameDraft={runnerNameDraft}
-            runnerGrpcTarget={DEFAULT_RUNNER_GRPC_TARGET}
-            runnerSecretsById={runnerSecretsById}
-            regeneratingRunnerId={regeneratingRunnerId}
-            deletingRunnerId={deletingRunnerId}
-            runnerCountLabel={runnerCountLabel}
-            onRunnerNameChange={setRunnerNameDraft}
-            onRunnerCommandSecretChange={(runnerId, value) =>
-              setRunnerSecretsById((currentSecrets) => ({
-                ...currentSecrets,
-                [runnerId]: value,
-              }))
+          runnersRoute.view === "detail" && runnersRoute.runnerId ? (() => {
+            const detailRunner = agentRunners.find((r) => r.id === runnersRoute.runnerId);
+            if (!detailRunner) {
+              return <p className="empty-hint">Runner not found.</p>;
             }
-            onCreateRunner={handleCreateRunner}
-            onRegenerateRunnerSecret={handleRegenerateRunnerSecret}
-            onDeleteRunner={handleDeleteRunner}
-          />
+            return (
+              <AgentRunnerDetailPage
+                runner={detailRunner}
+                agents={agents}
+                agentRunnerLookup={agentRunnerLookup}
+                runnerGrpcTarget={DEFAULT_RUNNER_GRPC_TARGET}
+                runnerSecretsById={runnerSecretsById}
+                regeneratingRunnerId={regeneratingRunnerId}
+                deletingRunnerId={deletingRunnerId}
+                onRunnerCommandSecretChange={(runnerId, value) =>
+                  setRunnerSecretsById((currentSecrets) => ({
+                    ...currentSecrets,
+                    [runnerId]: value,
+                  }))
+                }
+                onRegenerateRunnerSecret={handleRegenerateRunnerSecret}
+                onDeleteRunner={handleDeleteRunner}
+              />
+            );
+          })() : (
+            <AgentRunnerPage
+              selectedCompanyId={selectedCompanyId}
+              agentRunners={agentRunners}
+              isLoadingRunners={isLoadingRunners}
+              runnerError={runnerError}
+              isCreatingRunner={isCreatingRunner}
+              runnerNameDraft={runnerNameDraft}
+              regeneratingRunnerId={regeneratingRunnerId}
+              deletingRunnerId={deletingRunnerId}
+              runnerCountLabel={runnerCountLabel}
+              onRunnerNameChange={setRunnerNameDraft}
+              onCreateRunner={handleCreateRunner}
+              onDeleteRunner={handleDeleteRunner}
+            />
+          )
         ) : null}
 
         {selectedCompanyId && activePage === "chats" ? (
@@ -5805,7 +5853,7 @@ function App() {
         ) : null}
 
         {selectedCompanyId && activePage === "agents" ? (
-          agentsRoute.view === "chats" ? (
+          agentsRoute.view === "agent" || agentsRoute.view === "chats" ? (
             <AgentChatsPage
               selectedCompanyId={selectedCompanyId}
               agent={agents.find((agent) => agent.id === chatAgentId) || null}
@@ -5834,6 +5882,12 @@ function App() {
               onBackToAgents={() => {
                 navigateTo("agents");
               }}
+              onOpenEditModal={() => {
+                if (chatAgentId) {
+                  setPendingEditAgentId(chatAgentId);
+                  navigateTo("agents");
+                }
+              }}
             />
           ) : agentsRoute.view === "chat" ? (
             <AgentChatPage
@@ -5859,7 +5913,7 @@ function App() {
                   navigateTo("agents");
                   return;
                 }
-                setBrowserPath(`/agents/${chatAgentId}/chats`);
+                setBrowserPath(`/agents/${chatAgentId}`);
               }}
               onDeleteChat={handleDeleteChatSession}
               onSaveChatSessionTitle={handleUpdateChatSessionTitle}
@@ -5914,6 +5968,8 @@ function App() {
               onRetryAgentSkillInstall={handleRetryAgentSkillInstall}
               onOpenAgentSessions={handleOpenAgentSessions}
               onDeleteAgent={handleDeleteAgent}
+              pendingEditAgentId={pendingEditAgentId}
+              onClearPendingEditAgentId={() => setPendingEditAgentId("")}
             />
           )
         ) : null}
