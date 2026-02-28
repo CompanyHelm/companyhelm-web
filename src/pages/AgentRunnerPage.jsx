@@ -44,6 +44,9 @@ export function AgentRunnerPage({
   onDeleteRunner,
 }) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [detailsRunnerId, setDetailsRunnerId] = useState("");
+
+  const detailsRunner = agentRunners.find((r) => r.id === detailsRunnerId) || null;
 
   const readyRunnerCount = useMemo(() => {
     return agentRunners.filter((runner) => normalizeRunnerStatus(runner.status) === "ready")
@@ -63,14 +66,27 @@ export function AgentRunnerPage({
 
   return (
     <div className="page-stack">
-      <section className="panel hero-panel">
-        <p className="eyebrow">Infrastructure</p>
-        <h1>Agent runner page</h1>
-        <p className="subcopy">
-          Track runner status signals and heartbeat timestamps.
-        </p>
-        <p className="context-pill">Company: {selectedCompanyId}</p>
-      </section>
+      <header className="chat-minimal-header">
+        <div className="chat-minimal-header-info">
+          <p className="chat-minimal-header-agent">{selectedCompanyId}</p>
+          <h1 className="chat-minimal-header-title">Runners</h1>
+        </div>
+        <div className="chat-minimal-header-actions">
+          <span className="chat-card-meta">{runnerCountLabel}</span>
+          <button
+            type="button"
+            className="chat-minimal-header-icon-btn"
+            aria-label="Register runner"
+            title="Register runner"
+            onClick={() => setIsCreateModalOpen(true)}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
+        </div>
+      </header>
 
       <section className="dashboard-grid">
         <article className="panel stat-panel">
@@ -90,21 +106,7 @@ export function AgentRunnerPage({
         </article>
       </section>
 
-      <section className="panel runner-panel">
-        <header className="panel-header panel-header-row">
-          <h2>Agent runners</h2>
-          <div className="task-meta">
-            <button
-              type="button"
-              className="icon-create-btn"
-              aria-label="Create agent runner"
-              title="Create agent runner"
-              onClick={() => setIsCreateModalOpen(true)}
-            >
-              +
-            </button>
-          </div>
-        </header>
+      <section className="panel list-panel">
 
         {runnerError ? <p className="error-banner">{runnerError}</p> : null}
         {isLoadingRunners ? <p className="empty-hint">Loading runners...</p> : null}
@@ -122,153 +124,58 @@ export function AgentRunnerPage({
         ) : null}
 
         {agentRunners.length > 0 ? (
-          <ul className="runner-list">
+          <ul className="chat-card-list">
             {[...agentRunners]
               .sort((a, b) => toSortableTimestamp(b.lastSeenAt) - toSortableTimestamp(a.lastSeenAt))
               .map((runner) => {
                 const runnerStatus = normalizeRunnerStatus(runner.status);
-                const runnerSecret = runnerSecretsById[runner.id] || "";
-                const availableAgentSdks = normalizeRunnerAvailableAgentSdks(runner);
-                const availableSdkNames = availableAgentSdks.map((entry) => entry.name);
-                const codexAvailableModels = normalizeRunnerCodexAvailableModels(runner);
-                const codexAvailableModelsPreview = codexAvailableModels.slice(0, 4);
-                const codexAvailableModelsOverflow = Math.max(
-                  0,
-                  codexAvailableModels.length - codexAvailableModelsPreview.length,
-                );
-                const runnerCommand = buildRunnerStartCommand({
-                  backendGrpcTarget: runnerGrpcTarget,
-                  runnerSecret: runnerSecret || "<RUNNER_SECRET>",
-                });
-                const renderModelPill = (entry, index) => {
-                  const reasoningLabel = entry.reasoning.join(", ");
-                  return (
-                    <span
-                      key={`${entry.name}-${index}`}
-                      className="runner-model-pill"
-                      title={reasoningLabel ? `${entry.name} (${reasoningLabel})` : entry.name}
-                    >
-                      <span className="runner-model-name">{entry.name}</span>
-                      {entry.reasoning.length > 0 ? (
-                        <span className="runner-model-reasons">
-                          {entry.reasoning.map((level, reasonIndex) => (
-                            <span
-                              key={`${entry.name}-${index}-reason-${reasonIndex}`}
-                              className="runner-model-reason"
-                            >
-                              {level}
-                            </span>
-                          ))}
-                        </span>
-                      ) : null}
-                    </span>
-                  );
-                };
+                const isBusy =
+                  deletingRunnerId === runner.id || regeneratingRunnerId === runner.id;
+
                 return (
-                  <li key={runner.id} className="runner-card">
-                    <div className="runner-card-top">
-                      <div>
-                        <p className="runner-card-title">{runner.name || "Unnamed runner"}</p>
-                        <code className="runner-id">{runner.id}</code>
-                      </div>
-                      <span className={`runner-status runner-status-${runnerStatus}`}>
-                        {runnerStatus}
-                      </span>
-                    </div>
-                    <p className="runner-last-seen">
-                      Last seen: <em>{formatTimestamp(runner.lastSeenAt)}</em>
-                    </p>
-                    <p className="runner-last-seen">
-                      Last health check: <em>{formatTimestamp(runner.lastHealthCheckAt)}</em>
-                    </p>
-                    <section className="runner-codex-section">
-                      <h3 className="runner-section-title">SDK catalog</h3>
-                      <p className="runner-last-seen">
-                        Available SDKs:{" "}
-                        <strong>{availableSdkNames.length > 0 ? availableSdkNames.join(", ") : "none reported"}</strong>
+                  <li
+                    key={runner.id}
+                    className="chat-card"
+                    onClick={() => !isBusy && setDetailsRunnerId(runner.id)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && !isBusy) {
+                        setDetailsRunnerId(runner.id);
+                      }
+                    }}
+                  >
+                    <div className="chat-card-main">
+                      <p className="chat-card-title">
+                        <strong>{runner.name || "Unnamed runner"}</strong>
+                        {" "}
+                        <span className={`runner-status runner-status-${runnerStatus}`}>
+                          {runnerStatus}
+                        </span>
                       </p>
-                      <div className="runner-last-seen runner-models-row">
-                        <span className="runner-models-label">{DEFAULT_AGENT_SDK} models:</span>
-                        {codexAvailableModels.length === 0 ? (
-                          <em className="runner-models-empty">none reported yet</em>
-                        ) : codexAvailableModelsOverflow === 0 ? (
-                          <span className="runner-models-list">
-                            {codexAvailableModelsPreview.map((entry, index) =>
-                              renderModelPill(entry, index),
-                            )}
-                          </span>
-                        ) : (
-                          <details className="runner-models-details">
-                            <summary className="runner-models-summary">
-                              <span className="runner-models-list">
-                                {codexAvailableModelsPreview.map((entry, index) =>
-                                  renderModelPill(entry, index),
-                                )}
-                                <span className="runner-model-pill runner-model-pill-more">
-                                  +{codexAvailableModelsOverflow} more
-                                </span>
-                              </span>
-                            </summary>
-                            <div className="runner-models-expanded">
-                              <span className="runner-models-list">
-                                {codexAvailableModels.map((entry, index) =>
-                                  renderModelPill(entry, index),
-                                )}
-                              </span>
-                            </div>
-                          </details>
-                        )}
-                      </div>
-                    </section>
-                    <div className="runner-cli-block">
-                      <label
-                        className="relationship-field"
-                        htmlFor={`runner-secret-command-${runner.id}`}
-                      >
-                        Runner secret for CLI
-                      </label>
-                      <input
-                        id={`runner-secret-command-${runner.id}`}
-                        className="runner-secret-input"
-                        type="text"
-                        value={runnerSecret}
-                        onChange={(event) =>
-                          onRunnerCommandSecretChange(runner.id, event.target.value)
-                        }
-                        placeholder="Paste runner secret to complete command"
-                        autoComplete="off"
-                        spellCheck={false}
-                      />
-                      <pre className="runner-command runner-command-inline">
-                        <code>{runnerCommand}</code>
-                      </pre>
-                      {!runnerSecret ? (
-                        <p className="runner-command-hint">
-                          Secret is only shown at provisioning time. Paste it here to run this
-                          command.
-                        </p>
-                      ) : null}
+                      <p className="chat-card-meta">
+                        {runner.id} &middot; Last seen {formatTimestamp(runner.lastSeenAt)}
+                      </p>
                     </div>
-                    <div className="runner-card-actions">
+                    <div className="chat-card-actions">
                       <button
                         type="button"
-                        className="secondary-btn"
-                        onClick={() => onRegenerateRunnerSecret(runner.id)}
-                        disabled={
-                          deletingRunnerId === runner.id || regeneratingRunnerId === runner.id
-                        }
+                        className="chat-card-icon-btn chat-card-icon-btn-danger"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onDeleteRunner(runner.id);
+                        }}
+                        disabled={isBusy}
+                        aria-label={deletingRunnerId === runner.id ? "Deleting..." : "Delete runner"}
+                        title={deletingRunnerId === runner.id ? "Deleting..." : "Delete runner"}
                       >
-                        {regeneratingRunnerId === runner.id ? "Regenerating..." : "Regenerate key"}
-                      </button>
-                      <button
-                        type="button"
-                        className="danger-btn"
-                        onClick={() => onDeleteRunner(runner.id)}
-                        disabled={
-                          deletingRunnerId === runner.id || regeneratingRunnerId === runner.id
-                        }
-                      >
-                        {deletingRunnerId === runner.id ? "Deleting..." : "Delete runner"}
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                          <path d="M3 6h18" />
+                          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                          <line x1="10" y1="11" x2="10" y2="17" />
+                          <line x1="14" y1="11" x2="14" y2="17" />
+                        </svg>
                       </button>
                     </div>
                   </li>
@@ -301,6 +208,159 @@ export function AgentRunnerPage({
             {isCreatingRunner ? "Creating..." : "Create runner"}
           </button>
         </form>
+      </CreationModal>
+
+      <CreationModal
+        modalId="runner-details-modal"
+        title={detailsRunner ? (detailsRunner.name || "Unnamed runner") : "Runner details"}
+        description=""
+        isOpen={Boolean(detailsRunnerId)}
+        onClose={() => setDetailsRunnerId("")}
+        cardClassName="modal-card-wide"
+      >
+        {detailsRunner ? (() => {
+          const runnerStatus = normalizeRunnerStatus(detailsRunner.status);
+          const runnerSecret = runnerSecretsById[detailsRunner.id] || "";
+          const availableAgentSdks = normalizeRunnerAvailableAgentSdks(detailsRunner);
+          const availableSdkNames = availableAgentSdks.map((entry) => entry.name);
+          const codexAvailableModels = normalizeRunnerCodexAvailableModels(detailsRunner);
+          const isBusy =
+            deletingRunnerId === detailsRunner.id || regeneratingRunnerId === detailsRunner.id;
+          const runnerCommand = buildRunnerStartCommand({
+            backendGrpcTarget: runnerGrpcTarget,
+            runnerSecret: runnerSecret || "<RUNNER_SECRET>",
+          });
+
+          const renderModelPill = (entry, index) => {
+            const reasoningLabel = entry.reasoning.join(", ");
+            return (
+              <span
+                key={`${entry.name}-${index}`}
+                className="runner-model-pill"
+                title={reasoningLabel ? `${entry.name} (${reasoningLabel})` : entry.name}
+              >
+                <span className="runner-model-name">{entry.name}</span>
+                {entry.reasoning.length > 0 ? (
+                  <span className="runner-model-reasons">
+                    {entry.reasoning.map((level, reasonIndex) => (
+                      <span
+                        key={`${entry.name}-${index}-reason-${reasonIndex}`}
+                        className="runner-model-reason"
+                      >
+                        {level}
+                      </span>
+                    ))}
+                  </span>
+                ) : null}
+              </span>
+            );
+          };
+
+          return (
+            <div className="chat-settings-modal-form">
+              <div className="chat-settings-field">
+                <span className="chat-settings-label">Runner ID</span>
+                <p className="chat-settings-readonly">{detailsRunner.id}</p>
+              </div>
+
+              <div className="chat-settings-field">
+                <span className="chat-settings-label">Status</span>
+                <p className="chat-settings-readonly">
+                  <span className={`runner-status runner-status-${runnerStatus}`}>
+                    {runnerStatus}
+                  </span>
+                </p>
+              </div>
+
+              <div className="chat-settings-field">
+                <span className="chat-settings-label">gRPC target</span>
+                <p className="chat-settings-readonly">{runnerGrpcTarget || "-"}</p>
+              </div>
+
+              <div className="chat-settings-field">
+                <span className="chat-settings-label">Last seen</span>
+                <p className="chat-settings-readonly">{formatTimestamp(detailsRunner.lastSeenAt)}</p>
+              </div>
+
+              <div className="chat-settings-field">
+                <span className="chat-settings-label">Last health check</span>
+                <p className="chat-settings-readonly">{formatTimestamp(detailsRunner.lastHealthCheckAt)}</p>
+              </div>
+
+              <div className="chat-settings-field">
+                <span className="chat-settings-label">CLI command</span>
+                <pre className="runner-command runner-command-inline">
+                  <code>{runnerCommand}</code>
+                </pre>
+              </div>
+
+              <div className="chat-settings-field">
+                <label htmlFor={`details-runner-secret-${detailsRunner.id}`} className="chat-settings-label">
+                  Runner secret
+                </label>
+                <input
+                  id={`details-runner-secret-${detailsRunner.id}`}
+                  className="chat-settings-input"
+                  type="text"
+                  value={runnerSecret}
+                  onChange={(event) =>
+                    onRunnerCommandSecretChange(detailsRunner.id, event.target.value)
+                  }
+                  placeholder="Paste runner secret to complete command"
+                  autoComplete="off"
+                  spellCheck={false}
+                  disabled={isBusy}
+                />
+                {!runnerSecret ? (
+                  <p className="runner-command-hint">
+                    Secret is only shown at provisioning time. Paste it here to complete the CLI command.
+                  </p>
+                ) : null}
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={() => onRegenerateRunnerSecret(detailsRunner.id)}
+                  disabled={isBusy}
+                  style={{ marginTop: "0.5rem" }}
+                >
+                  {regeneratingRunnerId === detailsRunner.id ? "Regenerating..." : "Regenerate key"}
+                </button>
+              </div>
+
+              <div className="chat-settings-field">
+                <span className="chat-settings-label">SDK catalog</span>
+                <p className="chat-settings-readonly">
+                  {availableSdkNames.length > 0 ? availableSdkNames.join(", ") : "none reported"}
+                </p>
+              </div>
+
+              <div className="chat-settings-field">
+                <span className="chat-settings-label">{DEFAULT_AGENT_SDK} models</span>
+                {codexAvailableModels.length === 0 ? (
+                  <p className="chat-settings-readonly">none reported yet</p>
+                ) : (
+                  <div className="runner-models-list">
+                    {codexAvailableModels.map((entry, index) => renderModelPill(entry, index))}
+                  </div>
+                )}
+              </div>
+
+              <div className="chat-settings-actions">
+                <button
+                  type="button"
+                  className="danger-btn"
+                  onClick={() => {
+                    onDeleteRunner(detailsRunner.id);
+                    setDetailsRunnerId("");
+                  }}
+                  disabled={isBusy}
+                >
+                  {deletingRunnerId === detailsRunner.id ? "Deleting..." : "Delete runner"}
+                </button>
+              </div>
+            </div>
+          );
+        })() : null}
       </CreationModal>
     </div>
   );

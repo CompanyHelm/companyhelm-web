@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { formatTimestamp } from "../utils/formatting.js";
+import { CreationModal } from "../components/CreationModal.jsx";
 
 export function SettingsPage({
   hasCompanies,
@@ -27,6 +29,8 @@ export function SettingsPage({
   onDeleteGithubInstallation,
   onRefreshGithubInstallationRepositories,
 }) {
+  const [isCreateCompanyModalOpen, setIsCreateCompanyModalOpen] = useState(false);
+
   const repositoriesByInstallationId = githubRepositories.reduce((grouped, repository) => {
     const installationId = String(repository.githubInstallationId || "").trim();
     if (!installationId) {
@@ -39,39 +43,62 @@ export function SettingsPage({
     return grouped;
   }, {});
 
+  async function handleCreateCompanySubmit(event) {
+    const didCreate = await onCreateCompany(event);
+    if (didCreate) {
+      setIsCreateCompanyModalOpen(false);
+    }
+  }
+
   return (
     <div className="page-stack">
-      <section className="panel hero-panel">
-        <p className="eyebrow">Settings</p>
-        <h1>Company settings</h1>
-        <p className="subcopy">
-          Create new companies and manage deletion from a dedicated settings page.
-        </p>
-        <p className="context-pill">
-          Active company: {selectedCompany ? selectedCompany.name : "none"}
-        </p>
-      </section>
+      <header className="chat-minimal-header">
+        <div className="chat-minimal-header-info">
+          <p className="chat-minimal-header-agent">{selectedCompany ? selectedCompany.name : "No company"}</p>
+          <h1 className="chat-minimal-header-title">Settings</h1>
+        </div>
+        <div className="chat-minimal-header-actions">
+          <button
+            type="button"
+            className="chat-minimal-header-icon-btn"
+            aria-label="Create company"
+            title="Create company"
+            onClick={() => setIsCreateCompanyModalOpen(true)}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
+        </div>
+      </header>
 
-      <section className="panel composer-panel">
-        <header className="panel-header">
-          <h2>Create company</h2>
-        </header>
-        <form className="task-form" onSubmit={onCreateCompany}>
-          <label htmlFor="settings-company-name">
-            {hasCompanies ? "Company name" : "Create your first company"}
-          </label>
-          <input
-            id="settings-company-name"
-            value={newCompanyName}
-            onChange={(event) => onNewCompanyNameChange(event.target.value)}
-            placeholder="e.g. Acme Labs"
-            disabled={isCreatingCompany}
-          />
+      <CreationModal
+        modalId="create-company"
+        title="Create company"
+        description={hasCompanies ? undefined : "Create your first company to get started."}
+        isOpen={isCreateCompanyModalOpen}
+        onClose={() => setIsCreateCompanyModalOpen(false)}
+      >
+        <form className="chat-settings-form" onSubmit={handleCreateCompanySubmit}>
+          <div className="chat-settings-field">
+            <label className="chat-settings-label" htmlFor="settings-company-name">
+              {hasCompanies ? "Company name" : "Create your first company"}
+            </label>
+            <input
+              className="chat-settings-input"
+              id="settings-company-name"
+              value={newCompanyName}
+              onChange={(event) => onNewCompanyNameChange(event.target.value)}
+              placeholder="e.g. Acme Labs"
+              disabled={isCreatingCompany}
+            />
+          </div>
           <button type="submit" disabled={isCreatingCompany}>
             {isCreatingCompany ? "Creating..." : "Create company"}
           </button>
         </form>
-      </section>
+      </CreationModal>
 
       {hasCompanies ? (
         <section className="panel">
@@ -116,48 +143,59 @@ export function SettingsPage({
             <p className="empty-hint">No GitHub installations linked to this company yet.</p>
           ) : null}
           {githubInstallations.length > 0 ? (
-            <ul className="task-list">
-              {githubInstallations.map((installation) => (
-                <li key={`github-installation-${installation.installationId}`} className="task-card">
-                  <div className="task-card-top">
-                    <strong>Installation {installation.installationId}</strong>
-                    <code className="runner-id">{installation.installationId}</code>
-                  </div>
-                  <p className="agent-subcopy">
-                    Linked at: <strong>{formatTimestamp(installation.createdAt)}</strong>
-                  </p>
-                  <div className="task-card-actions">
+            <ul className="chat-card-list">
+              {githubInstallations.map((installation) => {
+                const isBusy =
+                  refreshingGithubInstallationId === installation.installationId ||
+                  deletingGithubInstallationId === installation.installationId;
+                return (
+                  <li key={`github-installation-${installation.installationId}`} className="chat-card">
+                    <div className="chat-card-content">
+                      <strong>{installation.accountLogin || `Installation ${installation.installationId}`}</strong>
+                      <span className="chat-card-meta">
+                        ID: {installation.installationId} &middot; Linked {formatTimestamp(installation.createdAt)}
+                      </span>
+                    </div>
                     <button
                       type="button"
-                      className="secondary-btn"
-                      onClick={() =>
-                        onRefreshGithubInstallationRepositories(installation.installationId)
-                      }
-                      disabled={
-                        refreshingGithubInstallationId === installation.installationId ||
-                        deletingGithubInstallationId === installation.installationId
-                      }
+                      className="chat-card-icon-btn"
+                      aria-label="Refresh repos"
+                      title={refreshingGithubInstallationId === installation.installationId ? "Refreshing..." : "Refresh repos"}
+                      disabled={isBusy}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onRefreshGithubInstallationRepositories(installation.installationId);
+                      }}
                     >
-                      {refreshingGithubInstallationId === installation.installationId
-                        ? "Refreshing repos..."
-                        : "Refresh repos"}
+                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <polyline points="23 4 23 10 17 10" />
+                        <polyline points="1 20 1 14 7 14" />
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10" />
+                        <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14" />
+                      </svg>
                     </button>
                     <button
                       type="button"
-                      className="danger-btn"
-                      onClick={() => onDeleteGithubInstallation(installation.installationId)}
-                      disabled={
-                        deletingGithubInstallationId === installation.installationId ||
-                        refreshingGithubInstallationId === installation.installationId
-                      }
+                      className="chat-card-icon-btn chat-card-icon-btn-danger"
+                      aria-label="Delete installation"
+                      title={deletingGithubInstallationId === installation.installationId ? "Deleting..." : "Delete installation"}
+                      disabled={isBusy}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onDeleteGithubInstallation(installation.installationId);
+                      }}
                     >
-                      {deletingGithubInstallationId === installation.installationId
-                        ? "Deleting..."
-                        : "Delete installation"}
+                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6l-1 14H6L5 6" />
+                        <path d="M10 11v6" />
+                        <path d="M14 11v6" />
+                        <path d="M9 6V4h6v2" />
+                      </svg>
                     </button>
-                  </div>
-                </li>
-              ))}
+                  </li>
+                );
+              })}
             </ul>
           ) : null}
         </section>
@@ -176,18 +214,18 @@ export function SettingsPage({
             <p className="empty-hint">No repositories imported yet. Refresh an installation above.</p>
           ) : null}
           {githubInstallations.length > 0 ? (
-            <ul className="task-list">
+            <ul className="chat-card-list">
               {githubInstallations.map((installation) => {
                 const installationRepositories =
                   repositoriesByInstallationId[installation.installationId] || [];
                 return (
                   <li
                     key={`repo-installation-${installation.installationId}`}
-                    className="task-card"
+                    className="chat-card"
                   >
-                    <div className="task-card-top">
-                      <strong>Installation {installation.installationId}</strong>
-                      <span>{installationRepositories.length} repos</span>
+                    <div className="chat-card-content">
+                      <strong>{installation.accountLogin || `Installation ${installation.installationId}`}</strong>
+                      <span className="chat-card-meta">{installationRepositories.length} repos</span>
                     </div>
                     {installationRepositories.length === 0 ? (
                       <p className="empty-hint">No repos cached for this installation.</p>
