@@ -32,25 +32,18 @@ export function DashboardPage({
 
   return (
     <div className="page-stack">
-      <section className="panel hero-panel">
-        <p className="eyebrow">CompanyHelm</p>
-        <h1>Operations dashboard</h1>
-        <p className="subcopy">
-          Monitor task volume, runner connectivity, and jump into details from a single page.
-        </p>
-        <p className="context-pill">Company: {selectedCompanyId}</p>
-        <div className="hero-actions">
-          <button type="button" className="secondary-btn" onClick={() => onNavigate("tasks")}>
-            Open tasks
-          </button>
+      <header className="chat-minimal-header">
+        <div className="chat-minimal-header-info">
+          <p className="chat-minimal-header-agent">{selectedCompanyId}</p>
+          <h1 className="chat-minimal-header-title">Dashboard</h1>
         </div>
-      </section>
+      </header>
 
       <section className="dashboard-grid">
         <article className="panel stat-panel">
           <p className="stat-label">Tasks</p>
           <p className="stat-value">{tasks.length}</p>
-          <button type="button" className="inline-link" onClick={() => onNavigate("tasks")}>
+          <button type="button" className="secondary-btn" onClick={() => onNavigate("tasks")}>
             Open task page
           </button>
         </article>
@@ -60,7 +53,7 @@ export function DashboardPage({
           <p className="stat-value">{agentRunners.length}</p>
           <button
             type="button"
-            className="inline-link"
+            className="secondary-btn"
             onClick={() => onNavigate("agent-runner")}
           >
             Open runner page

@@ -26,27 +26,26 @@ export function ChatsOverviewPage({
 
   return (
     <div className="page-stack">
-      <section className="panel hero-panel">
-        <p className="eyebrow">Agent Runtime</p>
-        <h1>Chats</h1>
-        <p className="subcopy">Browse all agents and open chats from a single page.</p>
-        <p className="context-pill">Company: {selectedCompanyId}</p>
-      </section>
-
-      <section className="panel list-panel">
-        <header className="panel-header panel-header-row">
-          <h2>Agent chats</h2>
+      <header className="chat-minimal-header">
+        <div className="chat-minimal-header-info">
+          <p className="chat-minimal-header-agent">{selectedCompanyId}</p>
+          <h1 className="chat-minimal-header-title">Chats</h1>
+        </div>
+        <div className="chat-minimal-header-actions">
           <button type="button" className="secondary-btn" onClick={onRefreshChatLists}>
             Refresh
           </button>
-        </header>
+        </div>
+      </header>
+
+      <section className="panel list-panel">
         {chatIndexError ? <p className="error-banner">Chat error: {chatIndexError}</p> : null}
         {isLoadingChatIndex ? <p className="empty-hint">Loading chats...</p> : null}
         {!isLoadingChatIndex && sortedAgents.length === 0 ? (
           <p className="empty-hint">No agents available yet.</p>
         ) : null}
         {sortedAgents.length > 0 ? (
-          <ul className="task-list">
+          <ul className="chat-card-list">
             {sortedAgents.map((agent) => {
               const agentChats = Array.isArray(chatSessionsByAgent?.[agent.id])
                 ? chatSessionsByAgent[agent.id]
@@ -62,23 +61,26 @@ export function ChatsOverviewPage({
               const hasChats = sortedChats.length > 0;
               const modelLabel = String(agent.model || "").trim() || "n/a";
               return (
-                <li key={`chat-agent-${agent.id}`} className="task-card">
-                  <div className="task-card-top">
-                    <strong>{agent.name}</strong>
-                    <code className="runner-id">{agent.id}</code>
+                <li key={`chat-agent-${agent.id}`} className="chat-card">
+                  <div className="chat-card-main">
+                    <p className="chat-card-title"><strong>{agent.name}</strong></p>
+                    <p className="chat-card-meta">
+                      SDK: {agent.agentSdk} · model: {modelLabel}
+                    </p>
                   </div>
-                  <p className="agent-subcopy">
-                    SDK: <strong>{agent.agentSdk}</strong> · model: <strong>{modelLabel}</strong>
-                  </p>
-                  <div className="task-card-actions">
+                  <div className="chat-card-actions">
                     <button
                       type="button"
-                      className="secondary-btn"
+                      className="chat-card-icon-btn"
                       onClick={() => onCreateChatForAgent(agent.id)}
                       disabled={isCreateChatDisabled}
-                      title={createChatDisabledReason || undefined}
+                      aria-label={isCreatingChatSession ? "Creating..." : "New chat"}
+                      title={createChatDisabledReason || (isCreatingChatSession ? "Creating..." : "New chat")}
                     >
-                      {isCreatingChatSession ? "Creating..." : "New chat"}
+                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                      </svg>
                     </button>
                   </div>
                   {createChatDisabledReason ? <p className="empty-hint">{createChatDisabledReason}</p> : null}

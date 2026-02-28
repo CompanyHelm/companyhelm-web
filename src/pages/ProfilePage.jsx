@@ -1,15 +1,12 @@
 export function ProfilePage({ selectedCompany, tasks, skills, agents, agentRunners }) {
   return (
     <div className="page-stack">
-      <section className="panel hero-panel">
-        <p className="eyebrow">Profile</p>
-        <h1>Workspace profile</h1>
-        <p className="subcopy">
-          Account preferences can live here. This page currently shows your active workspace
-          context.
-        </p>
-        <p className="context-pill">Company: {selectedCompany ? selectedCompany.name : "none"}</p>
-      </section>
+      <header className="chat-minimal-header">
+        <div className="chat-minimal-header-info">
+          <p className="chat-minimal-header-agent">{selectedCompany ? selectedCompany.name : "No company"}</p>
+          <h1 className="chat-minimal-header-title">Profile</h1>
+        </div>
+      </header>
 
       <section className="runner-summary-grid">
         <article className="panel stat-panel">
