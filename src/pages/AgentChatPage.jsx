@@ -2,7 +2,6 @@ import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } fr
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CreationModal } from "../components/CreationModal.jsx";
-import { matchesMediaQuery } from "../utils/media.js";
 import { formatTimestamp } from "../utils/formatting.js";
 import {
   compareTurnsByTimestamp,
@@ -10,7 +9,6 @@ import {
   selectVisibleTurnsByMessageCount,
 } from "../utils/chat.js";
 import {
-  COMPACT_CHAT_MEDIA_QUERY,
   CHAT_MESSAGE_BATCH_SIZE,
   THREAD_TITLE_MAX_LENGTH,
   TRANSCRIPT_TOP_LOAD_THRESHOLD_PX,
@@ -123,18 +121,10 @@ export function AgentChatPage({
   const isDeletingCurrentChat = Boolean(
     currentChatSessionKey && deletingChatSessionKey === currentChatSessionKey,
   );
-  const [isEditingChatTitle, setIsEditingChatTitle] = useState(false);
-  const [isContextPanelCollapsed, setIsContextPanelCollapsed] = useState(() =>
-    matchesMediaQuery(COMPACT_CHAT_MEDIA_QUERY),
-  );
-  const [isSessionPanelCollapsed, setIsSessionPanelCollapsed] = useState(true);
-  const [isCompactChatViewport, setIsCompactChatViewport] = useState(() =>
-    matchesMediaQuery(COMPACT_CHAT_MEDIA_QUERY),
-  );
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [selectedCommandOutputItem, setSelectedCommandOutputItem] = useState(null);
   const [selectedQueuedMessage, setSelectedQueuedMessage] = useState(null);
   const [visibleMessageCount, setVisibleMessageCount] = useState(CHAT_MESSAGE_BATCH_SIZE);
-  const chatTitleInputRef = useRef(null);
   const chatMessageInputRef = useRef(null);
   const transcriptScrollRef = useRef(null);
   const shouldStickTranscriptToBottomRef = useRef(true);
@@ -203,43 +193,9 @@ export function AgentChatPage({
   }, [totalMessageCount]);
 
   useEffect(() => {
-    setIsEditingChatTitle(false);
+    setIsSettingsModalOpen(false);
     setSelectedQueuedMessage(null);
   }, [session?.id]);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
-      return undefined;
-    }
-    const mediaQueryList = window.matchMedia(COMPACT_CHAT_MEDIA_QUERY);
-    const handleMediaQueryChange = (event) => {
-      setIsCompactChatViewport(Boolean(event.matches));
-    };
-    setIsCompactChatViewport(mediaQueryList.matches);
-    if (typeof mediaQueryList.addEventListener === "function") {
-      mediaQueryList.addEventListener("change", handleMediaQueryChange);
-      return () => mediaQueryList.removeEventListener("change", handleMediaQueryChange);
-    }
-    mediaQueryList.addListener(handleMediaQueryChange);
-    return () => mediaQueryList.removeListener(handleMediaQueryChange);
-  }, []);
-
-  useEffect(() => {
-    if (isCompactChatViewport) {
-      setIsContextPanelCollapsed(true);
-      setIsSessionPanelCollapsed(true);
-      return;
-    }
-    setIsContextPanelCollapsed(false);
-  }, [isCompactChatViewport]);
-
-  useEffect(() => {
-    if (!isEditingChatTitle || !chatTitleInputRef.current) {
-      return;
-    }
-    chatTitleInputRef.current.focus();
-    chatTitleInputRef.current.select();
-  }, [isEditingChatTitle]);
 
   useLayoutEffect(() => {
     const transcriptNode = transcriptScrollRef.current;
@@ -338,186 +294,76 @@ export function AgentChatPage({
     }
   }
 
-  function handleStartChatTitleEdit() {
-    if (!session || isUpdatingChatTitle) {
+  function handleOpenSettingsModal() {
+    if (!session) {
       return;
     }
     onChatSessionRenameDraftChange(clampThreadTitle(session.title));
-    setIsSessionPanelCollapsed(false);
-    setIsEditingChatTitle(true);
+    setIsSettingsModalOpen(true);
   }
 
-  function handleCancelChatTitleEdit() {
+  function handleCloseSettingsModal() {
     onChatSessionRenameDraftChange(clampThreadTitle(session?.title));
-    setIsEditingChatTitle(false);
+    setIsSettingsModalOpen(false);
   }
 
-  function handleChatTitleInputKeyDown(event) {
-    if (event.key !== "Escape" || event.isComposing) {
-      return;
-    }
-    event.preventDefault();
-    handleCancelChatTitleEdit();
-  }
-
-  async function handleSubmitChatTitle(event) {
+  async function handleSaveSettings(event) {
     const updated = await onSaveChatSessionTitle(event);
     if (updated) {
-      setIsEditingChatTitle(false);
+      setIsSettingsModalOpen(false);
     }
-  }
-
-  function toggleContextPanelVisibility() {
-    setIsContextPanelCollapsed((currentValue) => !currentValue);
-  }
-
-  function toggleSessionPanelVisibility() {
-    setIsSessionPanelCollapsed((currentValue) => !currentValue);
   }
 
   return (
     <div className="page-stack chat-page-stack">
-      <section
-        className={`panel hero-panel chat-context-panel${
-          isContextPanelCollapsed ? " chat-context-panel-collapsed" : ""
-        }${isCompactChatViewport ? " chat-context-panel-compact" : ""}`}
-      >
-        <div className="chat-context-header">
-          <div>
-            {isCompactChatViewport ? (
-              <h1 className="chat-context-compact-title">
-                {agent ? agent.name : "Agent chat"}
-              </h1>
-            ) : (
-              <>
-                <p className="eyebrow">Agent Runtime</p>
-                <h1>Agent chat</h1>
-              </>
-            )}
-          </div>
-          <div className="hero-actions chat-context-actions">
-            <button type="button" className="secondary-btn" onClick={onBackToChats}>
-              Back to chats
-            </button>
-            <button
-              type="button"
-              className="danger-btn"
-              onClick={handleDeleteCurrentChat}
-              disabled={!canChat || isDeletingCurrentChat}
-            >
-              {isDeletingCurrentChat ? "Deleting..." : "Delete chat"}
-            </button>
-            {!isCompactChatViewport ? (
-              <button
-                type="button"
-                className="secondary-btn chat-collapse-toggle-btn"
-                onClick={toggleContextPanelVisibility}
-                aria-expanded={!isContextPanelCollapsed}
-              >
-                {isContextPanelCollapsed ? "Show context" : "Hide context"}
-              </button>
+      <header className="chat-minimal-header">
+        <div className="chat-minimal-header-info">
+          <p className="chat-minimal-header-agent">
+            {agent ? agent.name : "Unknown agent"}
+          </p>
+          <h1 className="chat-minimal-header-title">
+            {session?.title || "Untitled chat"}
+            {hasRunningTurn ? (
+              <span
+                className="chat-turn-spinner chat-minimal-header-spinner"
+                aria-label="Turn is running"
+                title="Turn in progress"
+              />
             ) : null}
-          </div>
+          </h1>
         </div>
-        {!isContextPanelCollapsed && !isCompactChatViewport ? (
-          <>
-            <p className="subcopy">Send new messages to the selected agent chat.</p>
-            <div className="chat-context-pills">
-              <p className="context-pill">Company: {selectedCompanyId}</p>
-              <p className="context-pill">
-                Agent: {agent ? `${agent.name} (${agent.id.slice(0, 8)})` : "Unknown agent"}
-              </p>
-            </div>
-          </>
-        ) : null}
-      </section>
-
-      <section
-        className={`panel composer-panel chat-session-panel${
-          isSessionPanelCollapsed ? " chat-session-panel-collapsed" : ""
-        }`}
-      >
-        <header className="panel-header panel-header-row chat-panel-header">
-          <h2>Chat</h2>
-          <div className="chat-panel-header-controls">
-            {session ? (
-              isEditingChatTitle ? (
-                <form className="task-form chat-title-inline-form" onSubmit={handleSubmitChatTitle}>
-                  <input
-                    id="chat-session-rename"
-                    ref={chatTitleInputRef}
-                    value={chatSessionRenameDraft}
-                    onChange={(event) => onChatSessionRenameDraftChange(clampThreadTitle(event.target.value))}
-                    onKeyDown={handleChatTitleInputKeyDown}
-                    placeholder="e.g. Release planning"
-                    disabled={isUpdatingChatTitle}
-                    aria-label="Chat title"
-                    maxLength={THREAD_TITLE_MAX_LENGTH}
-                  />
-                  <p className="chat-title-inline-hint">
-                    {isUpdatingChatTitle ? "Saving..." : "Press Enter to save, Esc to cancel"}
-                  </p>
-                </form>
-              ) : (
-                <p className="chat-session-title-row chat-title-inline-display">
-                  <strong>{session.title || "Untitled chat"}</strong>
-                  <button
-                    type="button"
-                    className="chat-title-edit-btn"
-                    onClick={handleStartChatTitleEdit}
-                    disabled={isUpdatingChatTitle}
-                    aria-label="Edit chat title"
-                    title="Edit chat title"
-                  >
-                    <svg
-                      className="chat-title-edit-icon"
-                      viewBox="0 0 24 24"
-                      aria-hidden="true"
-                      focusable="false"
-                    >
-                      <path d="M4 20h4l10-10-4-4L4 16v4z" />
-                      <path d="m13 7 4 4" />
-                    </svg>
-                  </button>
-                </p>
-              )
-            ) : null}
-            <button
-              type="button"
-              className="secondary-btn chat-collapse-toggle-btn"
-              onClick={toggleSessionPanelVisibility}
-              aria-expanded={!isSessionPanelCollapsed}
-            >
-              {isSessionPanelCollapsed ? "Show settings" : "Hide settings"}
-            </button>
-          </div>
-        </header>
-        {!isSessionPanelCollapsed || !session ? (
-          session ? (
-            <div className="codex-auth-state">
-              {!isCompactChatViewport ? (
-                <p className="codex-auth-row">
-                  <strong>Thread ID:</strong> <code className="runner-id">{session.id}</code>
-                </p>
-              ) : null}
-              <p className="codex-auth-row">
-                <strong>Model:</strong> {session.currentModelName || session.currentModelId || "n/a"}
-              </p>
-              <p className="codex-auth-row">
-                <strong>Reasoning:</strong> {session.currentReasoningLevel || "n/a"}
-              </p>
-              {!isCompactChatViewport ? (
-                <p className="codex-auth-row codex-auth-row-additional-instructions">
-                  <strong>Additional instructions:</strong>{" "}
-                  {session.additionalModelInstructions || "none"}
-                </p>
-              ) : null}
-            </div>
-          ) : (
-            <p className="empty-hint">Chat not found.</p>
-          )
-        ) : null}
-      </section>
+        <div className="chat-minimal-header-actions">
+          <button
+            type="button"
+            className="chat-minimal-header-icon-btn"
+            onClick={handleDeleteCurrentChat}
+            disabled={!canChat || isDeletingCurrentChat}
+            aria-label={isDeletingCurrentChat ? "Deleting chat..." : "Delete chat"}
+            title={isDeletingCurrentChat ? "Deleting chat..." : "Delete chat"}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M3 6h18" />
+              <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+              <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+              <line x1="10" y1="11" x2="10" y2="17" />
+              <line x1="14" y1="11" x2="14" y2="17" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className="chat-minimal-header-icon-btn"
+            onClick={handleOpenSettingsModal}
+            disabled={!session}
+            aria-label="Chat settings"
+            title="Chat settings"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+          </button>
+        </div>
+      </header>
 
       <section className="panel chat-panel">
         {chatError ? <p className="error-banner">Chat error: {chatError}</p> : null}
@@ -729,6 +575,54 @@ export function AgentChatPage({
           </div>
         ) : null}
       </section>
+
+      <CreationModal
+        modalId="chat-settings-modal"
+        title="Chat Settings"
+        description="View and edit chat details."
+        isOpen={isSettingsModalOpen}
+        onClose={handleCloseSettingsModal}
+      >
+        <form className="chat-settings-modal-form" onSubmit={handleSaveSettings}>
+          <div className="chat-settings-field">
+            <label htmlFor="chat-settings-title" className="chat-settings-label">Title</label>
+            <input
+              id="chat-settings-title"
+              className="chat-settings-input"
+              value={chatSessionRenameDraft}
+              onChange={(event) => onChatSessionRenameDraftChange(clampThreadTitle(event.target.value))}
+              placeholder="e.g. Release planning"
+              disabled={isUpdatingChatTitle}
+              maxLength={THREAD_TITLE_MAX_LENGTH}
+            />
+          </div>
+          <div className="chat-settings-field">
+            <label className="chat-settings-label">Additional instructions</label>
+            <p className="chat-settings-readonly">
+              {session?.additionalModelInstructions || "none"}
+            </p>
+          </div>
+          <div className="chat-settings-info">
+            <p className="chat-settings-info-row">
+              <span className="chat-settings-info-label">Thread ID</span>
+              <code className="runner-id">{session?.id || "n/a"}</code>
+            </p>
+            <p className="chat-settings-info-row">
+              <span className="chat-settings-info-label">Model</span>
+              <span>{session?.currentModelName || session?.currentModelId || "n/a"}</span>
+            </p>
+            <p className="chat-settings-info-row">
+              <span className="chat-settings-info-label">Reasoning</span>
+              <span>{session?.currentReasoningLevel || "n/a"}</span>
+            </p>
+          </div>
+          <div className="chat-settings-actions">
+            <button type="submit" disabled={isUpdatingChatTitle}>
+              {isUpdatingChatTitle ? "Saving..." : "Save"}
+            </button>
+          </div>
+        </form>
+      </CreationModal>
 
       <CreationModal
         modalId="chat-command-output-modal"
