@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CreationModal } from "../components/CreationModal.jsx";
@@ -15,6 +15,9 @@ import {
   TRANSCRIPT_TOP_LOAD_THRESHOLD_PX,
   TRANSCRIPT_BOTTOM_STICKY_THRESHOLD_PX,
 } from "../utils/constants.js";
+
+const CHAT_COMPOSER_MIN_LINES = 2;
+const CHAT_COMPOSER_MAX_LINES = 10;
 
 function toItemTypePlaceholder(itemType) {
   switch (itemType) {
@@ -127,6 +130,7 @@ export function AgentChatPage({
   const [selectedQueuedMessage, setSelectedQueuedMessage] = useState(null);
   const [visibleMessageCount, setVisibleMessageCount] = useState(CHAT_MESSAGE_BATCH_SIZE);
   const chatTitleInputRef = useRef(null);
+  const chatMessageInputRef = useRef(null);
   const transcriptScrollRef = useRef(null);
   const shouldStickTranscriptToBottomRef = useRef(true);
   const pendingTranscriptScrollRestoreRef = useRef(null);
@@ -230,6 +234,39 @@ export function AgentChatPage({
     }
     transcriptNode.scrollTop = transcriptNode.scrollHeight;
   }, [session?.id, orderedTurns.length, totalMessageCount, visibleMessageCount, queuedMessages.length]);
+
+  const resizeChatMessageInput = useCallback(() => {
+    const chatMessageInputNode = chatMessageInputRef.current;
+    if (!chatMessageInputNode || typeof window === "undefined") {
+      return;
+    }
+    const inputStyles = window.getComputedStyle(chatMessageInputNode);
+    const resolvedLineHeight = Number.parseFloat(inputStyles.lineHeight);
+    const lineHeight = Number.isFinite(resolvedLineHeight) && resolvedLineHeight > 0 ? resolvedLineHeight : 20;
+    const resolvedPaddingTop = Number.parseFloat(inputStyles.paddingTop);
+    const resolvedPaddingBottom = Number.parseFloat(inputStyles.paddingBottom);
+    const resolvedBorderTopWidth = Number.parseFloat(inputStyles.borderTopWidth);
+    const resolvedBorderBottomWidth = Number.parseFloat(inputStyles.borderBottomWidth);
+    const verticalPadding = (Number.isFinite(resolvedPaddingTop) ? resolvedPaddingTop : 0)
+      + (Number.isFinite(resolvedPaddingBottom) ? resolvedPaddingBottom : 0);
+    const verticalBorder = (Number.isFinite(resolvedBorderTopWidth) ? resolvedBorderTopWidth : 0)
+      + (Number.isFinite(resolvedBorderBottomWidth) ? resolvedBorderBottomWidth : 0);
+    const resolvedMinHeight = Number.parseFloat(inputStyles.minHeight);
+    const fallbackMinHeight = lineHeight * CHAT_COMPOSER_MIN_LINES + verticalPadding + verticalBorder;
+    const minHeight = Number.isFinite(resolvedMinHeight) && resolvedMinHeight > 0
+      ? resolvedMinHeight
+      : fallbackMinHeight;
+    const maxHeight = lineHeight * CHAT_COMPOSER_MAX_LINES + verticalPadding + verticalBorder;
+
+    chatMessageInputNode.style.height = "auto";
+    const nextHeight = Math.min(Math.max(chatMessageInputNode.scrollHeight, minHeight), maxHeight);
+    chatMessageInputNode.style.height = `${nextHeight}px`;
+    chatMessageInputNode.style.overflowY = chatMessageInputNode.scrollHeight > maxHeight ? "auto" : "hidden";
+  }, []);
+
+  useLayoutEffect(() => {
+    resizeChatMessageInput();
+  }, [chatDraftMessage, resizeChatMessageInput]);
 
   function handleChatMessageKeyDown(event) {
     if (event.key !== "Enter" || event.shiftKey || event.isComposing) {
@@ -716,8 +753,9 @@ export function AgentChatPage({
           <div className="chat-composer-input-row">
             <textarea
               id="chat-message-input"
+              ref={chatMessageInputRef}
               className="chat-composer-input"
-              rows={2}
+              rows={CHAT_COMPOSER_MIN_LINES}
               placeholder="Ask the agent to plan, debug, or implement something..."
               value={chatDraftMessage}
               onChange={(event) => onChatDraftMessageChange(event.target.value)}
