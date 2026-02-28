@@ -1565,6 +1565,149 @@ export const COMPANY_API_REMOVE_SKILL_FROM_GROUP_MUTATION = `
   }
 `;
 
+export const COMPANY_API_LIST_MCP_SERVERS_QUERY = `
+  query CompanyApiListMcpServers($companyId: ID!) {
+    mcpServers(companyId: $companyId) {
+      id
+      companyId
+      name
+      transportType
+      url
+      command
+      args
+      envVars {
+        key
+        value
+      }
+      authType
+      bearerToken
+      customHeaders {
+        key
+        value
+      }
+      enabled
+    }
+  }
+`;
+
+export const COMPANY_API_CREATE_MCP_SERVER_MUTATION = `
+  mutation CompanyApiCreateMcpServer(
+    $companyId: ID!
+    $name: String!
+    $transportType: String
+    $url: String
+    $command: String
+    $args: [String!]
+    $envVars: [McpEnvVarInput!]
+    $authType: String
+    $bearerToken: String
+    $customHeaders: [McpHeaderInput!]
+    $enabled: Boolean
+  ) {
+    createMcpServer(
+      companyId: $companyId
+      name: $name
+      transportType: $transportType
+      url: $url
+      command: $command
+      args: $args
+      envVars: $envVars
+      authType: $authType
+      bearerToken: $bearerToken
+      customHeaders: $customHeaders
+      enabled: $enabled
+    ) {
+      ok
+      error
+      mcpServer {
+        id
+        companyId
+        name
+        transportType
+        url
+        command
+        args
+        envVars {
+          key
+          value
+        }
+        authType
+        bearerToken
+        customHeaders {
+          key
+          value
+        }
+        enabled
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_UPDATE_MCP_SERVER_MUTATION = `
+  mutation CompanyApiUpdateMcpServer(
+    $companyId: ID!
+    $id: ID!
+    $name: String!
+    $transportType: String
+    $url: String
+    $command: String
+    $args: [String!]
+    $envVars: [McpEnvVarInput!]
+    $authType: String
+    $bearerToken: String
+    $customHeaders: [McpHeaderInput!]
+    $enabled: Boolean
+  ) {
+    updateMcpServer(
+      companyId: $companyId
+      id: $id
+      name: $name
+      transportType: $transportType
+      url: $url
+      command: $command
+      args: $args
+      envVars: $envVars
+      authType: $authType
+      bearerToken: $bearerToken
+      customHeaders: $customHeaders
+      enabled: $enabled
+    ) {
+      ok
+      error
+      mcpServer {
+        id
+        companyId
+        name
+        transportType
+        url
+        command
+        args
+        envVars {
+          key
+          value
+        }
+        authType
+        bearerToken
+        customHeaders {
+          key
+          value
+        }
+        enabled
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_DELETE_MCP_SERVER_MUTATION = `
+  mutation CompanyApiDeleteMcpServer($companyId: ID!, $id: ID!) {
+    deleteMcpServer(companyId: $companyId, id: $id) {
+      ok
+      error
+      deletedMcpServerId
+    }
+  }
+`;
+
 export const COMPANY_API_LIST_AGENT_RUNNERS_CONNECTION_QUERY = `
   query CompanyApiListAgentRunners($companyId: ID, $first: Int!, $after: String) {
     agentRunners(companyId: $companyId, first: $first, after: $after) {
@@ -1696,6 +1839,7 @@ export const COMPANY_API_LIST_AGENTS_CONNECTION_QUERY = `
           name
           status
           skillGroupIds
+          mcpServerIds
           skillGroups {
             id
             name
@@ -1754,6 +1898,7 @@ export const COMPANY_API_CREATE_AGENT_MUTATION = `
     $agentRunnerSdkId: ID!
     $defaultModelId: ID!
     $skillGroupIds: [ID!]
+    $mcpServerIds: [ID!]
     $defaultReasoningLevel: String
     $defaultAdditionalModelInstructions: String
   ) {
@@ -1764,6 +1909,7 @@ export const COMPANY_API_CREATE_AGENT_MUTATION = `
       agentRunnerSdkId: $agentRunnerSdkId
       defaultModelId: $defaultModelId
       skillGroupIds: $skillGroupIds
+      mcpServerIds: $mcpServerIds
       defaultReasoningLevel: $defaultReasoningLevel
       defaultAdditionalModelInstructions: $defaultAdditionalModelInstructions
     ) {
@@ -1771,6 +1917,7 @@ export const COMPANY_API_CREATE_AGENT_MUTATION = `
       name
       status
       skillGroupIds
+      mcpServerIds
       skillGroups {
         id
         name
@@ -1796,6 +1943,7 @@ export const COMPANY_API_UPDATE_AGENT_MUTATION = `
     $agentRunnerSdkId: ID!
     $defaultModelId: ID!
     $skillGroupIds: [ID!]
+    $mcpServerIds: [ID!]
     $defaultReasoningLevel: String
     $defaultAdditionalModelInstructions: String
   ) {
@@ -1806,6 +1954,7 @@ export const COMPANY_API_UPDATE_AGENT_MUTATION = `
       agentRunnerSdkId: $agentRunnerSdkId
       defaultModelId: $defaultModelId
       skillGroupIds: $skillGroupIds
+      mcpServerIds: $mcpServerIds
       defaultReasoningLevel: $defaultReasoningLevel
       defaultAdditionalModelInstructions: $defaultAdditionalModelInstructions
     ) {
@@ -1813,6 +1962,7 @@ export const COMPANY_API_UPDATE_AGENT_MUTATION = `
       name
       status
       skillGroupIds
+      mcpServerIds
       skillGroups {
         id
         name

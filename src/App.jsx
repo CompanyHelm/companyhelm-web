@@ -87,6 +87,7 @@ import {
   COMPANY_API_LIST_SKILLS_QUERY,
   COMPANY_API_LIST_SKILL_GROUPS_QUERY,
   COMPANY_API_LIST_GIT_SKILL_PACKAGES_QUERY,
+  COMPANY_API_LIST_MCP_SERVERS_QUERY,
   COMPANY_API_PREVIEW_GIT_SKILL_PACKAGE_MUTATION,
   COMPANY_API_CREATE_GIT_SKILL_PACKAGE_MUTATION,
   COMPANY_API_DELETE_GIT_SKILL_PACKAGE_MUTATION,
@@ -95,6 +96,9 @@ import {
   COMPANY_API_DELETE_SKILL_GROUP_MUTATION,
   COMPANY_API_ADD_SKILL_TO_GROUP_MUTATION,
   COMPANY_API_REMOVE_SKILL_FROM_GROUP_MUTATION,
+  COMPANY_API_CREATE_MCP_SERVER_MUTATION,
+  COMPANY_API_UPDATE_MCP_SERVER_MUTATION,
+  COMPANY_API_DELETE_MCP_SERVER_MUTATION,
   COMPANY_API_LIST_AGENT_RUNNERS_CONNECTION_QUERY,
   COMPANY_API_CREATE_AGENT_RUNNER_MUTATION,
   COMPANY_API_REGENERATE_AGENT_RUNNER_SECRET_MUTATION,
@@ -376,7 +380,7 @@ function toAgentPayload(agent) {
           }))
           .filter((skillGroup) => skillGroup.id)
       : [],
-    mcpServerIds: [],
+    mcpServerIds: normalizeUniqueStringList(agent?.mcpServerIds || []),
     installedSkills: [],
     agentSdk: resolvedSdk,
     model: resolveLegacyId(agent?.model, agent?.defaultModel?.name),
@@ -428,6 +432,39 @@ function toGitSkillPackagePayload(gitSkillPackage) {
           }))
           .filter((skill) => skill.id)
       : [],
+  };
+}
+
+function toMcpServerPayload(mcpServer) {
+  return {
+    id: resolveLegacyId(mcpServer?.id),
+    companyId: resolveLegacyId(mcpServer?.company?.id, mcpServer?.companyId),
+    name: resolveLegacyId(mcpServer?.name),
+    transportType: normalizeMcpTransportType(mcpServer?.transportType),
+    url: String(mcpServer?.url || "").trim(),
+    command: String(mcpServer?.command || "").trim(),
+    args: Array.isArray(mcpServer?.args)
+      ? mcpServer.args.map((arg) => String(arg || "").trim()).filter(Boolean)
+      : [],
+    envVars: Array.isArray(mcpServer?.envVars)
+      ? mcpServer.envVars
+          .map((envVar) => ({
+            key: String(envVar?.key || "").trim(),
+            value: String(envVar?.value || "").trim(),
+          }))
+          .filter((envVar) => envVar.key)
+      : [],
+    authType: normalizeMcpAuthType(mcpServer?.authType),
+    bearerToken: String(mcpServer?.bearerToken || "").trim(),
+    customHeaders: Array.isArray(mcpServer?.customHeaders)
+      ? mcpServer.customHeaders
+          .map((header) => ({
+            key: String(header?.key || "").trim(),
+            value: String(header?.value || "").trim(),
+          }))
+          .filter((header) => header.key && header.value)
+      : [],
+    enabled: mcpServer?.enabled !== false,
   };
 }
 
@@ -822,6 +859,7 @@ async function executeGraphQL(query, variables = {}) {
     const defaultReasoningLevel =
       resolveLegacyId(variables?.defaultReasoningLevel, variables?.modelReasoningLevel) || null;
     const skillGroupIds = normalizeUniqueStringList(variables?.skillGroupIds || []);
+    const mcpServerIds = normalizeUniqueStringList(variables?.mcpServerIds || []);
     const defaultAdditionalModelInstructions = normalizeOptionalInstructions(
       variables?.defaultAdditionalModelInstructions,
     );
@@ -836,6 +874,7 @@ async function executeGraphQL(query, variables = {}) {
       agentRunnerSdkId,
       defaultModelId,
       skillGroupIds,
+      mcpServerIds,
       defaultReasoningLevel,
       defaultAdditionalModelInstructions,
     });
@@ -857,6 +896,7 @@ async function executeGraphQL(query, variables = {}) {
     const defaultReasoningLevel =
       resolveLegacyId(variables?.defaultReasoningLevel, variables?.modelReasoningLevel) || null;
     const skillGroupIds = normalizeUniqueStringList(variables?.skillGroupIds || []);
+    const mcpServerIds = normalizeUniqueStringList(variables?.mcpServerIds || []);
     const defaultAdditionalModelInstructions = normalizeOptionalInstructions(
       variables?.defaultAdditionalModelInstructions,
     );
@@ -871,6 +911,7 @@ async function executeGraphQL(query, variables = {}) {
       agentRunnerSdkId,
       defaultModelId,
       skillGroupIds,
+      mcpServerIds,
       defaultReasoningLevel,
       defaultAdditionalModelInstructions,
     });
@@ -1348,7 +1389,14 @@ async function executeGraphQL(query, variables = {}) {
   }
 
   if (query === LIST_MCP_SERVERS_QUERY) {
-    return { mcpServers: [] };
+    const data = await executeRawGraphQL(COMPANY_API_LIST_MCP_SERVERS_QUERY, {
+      companyId: resolveLegacyId(variables?.companyId),
+    });
+    return {
+      mcpServers: Array.isArray(data?.mcpServers)
+        ? data.mcpServers.map((mcpServer) => toMcpServerPayload(mcpServer))
+        : [],
+    };
   }
 
   if (query === DELETE_GITHUB_INSTALLATION_MUTATION) {
@@ -1433,31 +1481,97 @@ async function executeGraphQL(query, variables = {}) {
   }
 
   if (query === CREATE_MCP_SERVER_MUTATION) {
+    const data = await executeRawGraphQL(COMPANY_API_CREATE_MCP_SERVER_MUTATION, {
+      companyId: resolveLegacyId(variables?.companyId),
+      name: resolveLegacyId(variables?.name),
+      transportType: resolveLegacyId(variables?.transportType) || null,
+      url: resolveLegacyId(variables?.url) || null,
+      command: resolveLegacyId(variables?.command) || null,
+      args: Array.isArray(variables?.args)
+        ? variables.args.map((arg) => String(arg || "").trim()).filter(Boolean)
+        : [],
+      envVars: Array.isArray(variables?.envVars)
+        ? variables.envVars
+            .map((envVar) => ({
+              key: String(envVar?.key || "").trim(),
+              value: String(envVar?.value || "").trim(),
+            }))
+            .filter((envVar) => envVar.key)
+        : [],
+      authType: resolveLegacyId(variables?.authType) || null,
+      bearerToken: String(variables?.bearerToken || "").trim() || null,
+      customHeaders: Array.isArray(variables?.customHeaders)
+        ? variables.customHeaders
+            .map((header) => ({
+              key: String(header?.key || "").trim(),
+              value: String(header?.value || "").trim(),
+            }))
+            .filter((header) => header.key && header.value)
+        : [],
+      enabled: typeof variables?.enabled === "boolean" ? variables.enabled : null,
+    });
+    const payload = data?.createMcpServer;
     return {
-      ...unsupportedMutation("createMcpServer"),
       createMcpServer: {
-        ...unsupportedMutation("createMcpServer").createMcpServer,
-        mcpServer: null,
+        ok: Boolean(payload?.ok),
+        error: payload?.error ? String(payload.error) : null,
+        mcpServer: payload?.mcpServer ? toMcpServerPayload(payload.mcpServer) : null,
       },
     };
   }
 
   if (query === UPDATE_MCP_SERVER_MUTATION) {
+    const data = await executeRawGraphQL(COMPANY_API_UPDATE_MCP_SERVER_MUTATION, {
+      companyId: resolveLegacyId(variables?.companyId),
+      id: resolveLegacyId(variables?.id),
+      name: resolveLegacyId(variables?.name),
+      transportType: resolveLegacyId(variables?.transportType) || null,
+      url: resolveLegacyId(variables?.url) || null,
+      command: resolveLegacyId(variables?.command) || null,
+      args: Array.isArray(variables?.args)
+        ? variables.args.map((arg) => String(arg || "").trim()).filter(Boolean)
+        : [],
+      envVars: Array.isArray(variables?.envVars)
+        ? variables.envVars
+            .map((envVar) => ({
+              key: String(envVar?.key || "").trim(),
+              value: String(envVar?.value || "").trim(),
+            }))
+            .filter((envVar) => envVar.key)
+        : [],
+      authType: resolveLegacyId(variables?.authType) || null,
+      bearerToken: String(variables?.bearerToken || "").trim() || null,
+      customHeaders: Array.isArray(variables?.customHeaders)
+        ? variables.customHeaders
+            .map((header) => ({
+              key: String(header?.key || "").trim(),
+              value: String(header?.value || "").trim(),
+            }))
+            .filter((header) => header.key && header.value)
+        : [],
+      enabled: typeof variables?.enabled === "boolean" ? variables.enabled : null,
+    });
+    const payload = data?.updateMcpServer;
     return {
-      ...unsupportedMutation("updateMcpServer"),
       updateMcpServer: {
-        ...unsupportedMutation("updateMcpServer").updateMcpServer,
-        mcpServer: null,
+        ok: Boolean(payload?.ok),
+        error: payload?.error ? String(payload.error) : null,
+        mcpServer: payload?.mcpServer ? toMcpServerPayload(payload.mcpServer) : null,
       },
     };
   }
 
   if (query === DELETE_MCP_SERVER_MUTATION) {
+    const data = await executeRawGraphQL(COMPANY_API_DELETE_MCP_SERVER_MUTATION, {
+      companyId: resolveLegacyId(variables?.companyId),
+      id: resolveLegacyId(variables?.id),
+    });
+    const payload = data?.deleteMcpServer;
     return {
-      ...unsupportedMutation("deleteMcpServer"),
       deleteMcpServer: {
-        ...unsupportedMutation("deleteMcpServer").deleteMcpServer,
-        deletedMcpServerId: null,
+        ok: Boolean(payload?.ok),
+        error: payload?.error ? String(payload.error) : null,
+        deletedMcpServerId: resolveLegacyId(payload?.deletedMcpServerId) || null,
       },
     };
   }
