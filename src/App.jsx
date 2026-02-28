@@ -86,6 +86,7 @@ import {
   COMPANY_API_UPDATE_THREAD_TITLE_MUTATION,
   COMPANY_API_DELETE_THREAD_MUTATION,
   COMPANY_API_LIST_THREAD_TURNS_CONNECTION_QUERY,
+  COMPANY_API_LIST_THREAD_TURNS_WITH_QUEUED_QUERY,
   COMPANY_API_LIST_QUEUED_USER_MESSAGES_QUERY,
   COMPANY_API_QUEUE_USER_MESSAGE_MUTATION,
   COMPANY_API_STEER_QUEUED_USER_MESSAGE_MUTATION,
@@ -330,8 +331,9 @@ function toLegacyRunnerPayload(agentRunner) {
 }
 
 function toAgentPayload(agent) {
-  const resolvedSdk = isAvailableAgentSdk(agent?.agentSdk)
-    ? normalizeAgentSdkValue(agent?.agentSdk)
+  const resolvedSdkValue = resolveLegacyId(agent?.agentSdk, agent?.agentRunnerSdk?.name);
+  const resolvedSdk = isAvailableAgentSdk(resolvedSdkValue)
+    ? normalizeAgentSdkValue(resolvedSdkValue)
     : DEFAULT_AGENT_SDK;
 
   return {
@@ -339,13 +341,13 @@ function toAgentPayload(agent) {
     companyId: resolveLegacyId(agent?.company?.id),
     name: resolveLegacyId(agent?.name),
     status: resolveLegacyId(agent?.status) || "pending",
-    agentRunnerId: resolveLegacyId(agent?.runner?.id),
+    agentRunnerId: resolveLegacyId(agent?.runner?.id, agent?.agentRunnerId),
     skillIds: [],
     mcpServerIds: [],
     installedSkills: [],
     agentSdk: resolvedSdk,
-    model: resolveLegacyId(agent?.model),
-    modelReasoningLevel: resolveLegacyId(agent?.modelReasoningLevel),
+    model: resolveLegacyId(agent?.model, agent?.defaultModel?.name),
+    modelReasoningLevel: resolveLegacyId(agent?.modelReasoningLevel, agent?.defaultReasoningLevel),
     defaultAdditionalModelInstructions: normalizeOptionalInstructions(
       agent?.defaultAdditionalModelInstructions,
     ),
@@ -691,8 +693,19 @@ async function executeGraphQL(query, variables = {}) {
       rootField: "agents",
       variables: { companyId },
     });
+    const agentRunnersById = new Map();
+    const legacyAgents = agents.map((agent) => {
+      const legacyAgent = toAgentPayload(agent);
+      const legacyRunner = agent?.runner ? toLegacyRunnerPayload(agent.runner) : null;
+      const resolvedRunnerId = resolveLegacyId(legacyRunner?.id);
+      if (resolvedRunnerId) {
+        agentRunnersById.set(resolvedRunnerId, legacyRunner);
+      }
+      return legacyAgent;
+    });
     return {
-      agents: agents.map((agent) => toAgentPayload(agent)),
+      agents: legacyAgents,
+      agentRunners: [...agentRunnersById.values()],
     };
   }
 
@@ -1840,6 +1853,8 @@ function App() {
       setAgentError("");
       setAgents([]);
       setAgentDrafts({});
+      setAgentRunners([]);
+      setHasLoadedAgentRunners(false);
       setAgentRunnerId("");
       setAgentSkillIds([]);
       setAgentMcpServerIds([]);
@@ -1856,8 +1871,14 @@ function App() {
       setIsLoadingAgents(true);
       const data = await executeGraphQL(LIST_AGENTS_QUERY, { companyId: selectedCompanyId });
       const nextAgents = data.agents || [];
+      const nextRunners = data.agentRunners || [];
       setAgents(nextAgents);
       setAgentDrafts(createAgentDrafts(nextAgents));
+      if (nextRunners.length > 0) {
+        setAgentRunners((currentRunners) =>
+          mergeAgentRunnerPayloadList(currentRunners, nextRunners),
+        );
+      }
     } catch (loadError) {
       setAgentError(loadError.message);
     } finally {
@@ -1956,19 +1977,19 @@ function App() {
         }
         const metadata = companyApiThreadMetadataById.get(targetSessionId) || {};
         const runnerId = resolveLegacyId(metadata.runnerId) || null;
-        const [nextTurns, queuedUserMessagesPayload] = await Promise.all([
-          loadCompanyApiThreadTurns({
+        const threadSnapshotPayload = await executeRawGraphQL(
+          COMPANY_API_LIST_THREAD_TURNS_WITH_QUEUED_QUERY,
+          {
             threadId: targetSessionId,
-            runnerId,
-            limit: 200,
-          }),
-          executeRawGraphQL(COMPANY_API_LIST_QUEUED_USER_MESSAGES_QUERY, {
-            threadId: targetSessionId,
-            first: 200,
-          }),
-        ]);
-        const nextQueuedMessages = Array.isArray(queuedUserMessagesPayload?.queuedUserMessages)
-          ? queuedUserMessagesPayload.queuedUserMessages.map((queuedMessage) =>
+            firstTurns: 200,
+            firstQueuedUserMessages: 200,
+          },
+        );
+        const nextTurns = toConnectionNodes(threadSnapshotPayload?.threadTurns).map((turnNode) =>
+          toLegacyTurnPayload(turnNode, { runnerId }),
+        );
+        const nextQueuedMessages = Array.isArray(threadSnapshotPayload?.queuedUserMessages)
+          ? threadSnapshotPayload.queuedUserMessages.map((queuedMessage) =>
               toLegacyQueuedUserMessagePayload(queuedMessage),
             )
           : [];
@@ -2012,28 +2033,36 @@ function App() {
           setChatIndexError("");
           setIsLoadingChatIndex(true);
         }
-        const sessionEntries = await Promise.all(
-          agentsToLoad.map(async (agentEntry) => {
-            const resolvedAgentId = String(agentEntry?.id || "").trim();
-            if (!resolvedAgentId) {
-              return [resolvedAgentId, []];
-            }
-            const sessionsForAgent = await loadCompanyApiAgentThreads({
-              companyId: selectedCompanyId,
-              agentId: resolvedAgentId,
-              limit: 200,
-            });
-            return [resolvedAgentId, sessionsForAgent];
-          }),
-        );
-
         const nextSessionsByAgent = {};
-        for (const [agentId, sessionsForAgent] of sessionEntries) {
-          if (!agentId) {
+        for (const agentEntry of agentsToLoad) {
+          const resolvedAgentId = String(agentEntry?.id || "").trim();
+          if (resolvedAgentId) {
+            nextSessionsByAgent[resolvedAgentId] = [];
+          }
+        }
+
+        const threadNodes = await fetchCompanyApiConnectionNodes({
+          query: COMPANY_API_LIST_THREADS_CONNECTION_QUERY,
+          rootField: "threads",
+          variables: {
+            companyId: selectedCompanyId,
+            agentId: null,
+          },
+          limit: 2000,
+        });
+
+        for (const threadNode of threadNodes) {
+          const session = toLegacyThreadPayload(threadNode);
+          const sessionAgentId = String(session?.agentId || "").trim();
+          if (!sessionAgentId) {
             continue;
           }
-          nextSessionsByAgent[agentId] = sessionsForAgent;
+          if (!nextSessionsByAgent[sessionAgentId]) {
+            nextSessionsByAgent[sessionAgentId] = [];
+          }
+          nextSessionsByAgent[sessionAgentId].push(session);
         }
+
         setChatSessionsByAgent(nextSessionsByAgent);
         syncChatSessionRunningStateFromSessions(
           Object.values(nextSessionsByAgent).flatMap((sessionsForAgent) =>
@@ -2398,17 +2427,22 @@ function App() {
   }, [loadAgents, selectedCompanyId, shouldLoadAgentData]);
 
   useEffect(() => {
-    if (!selectedCompanyId || !chatAgentId) {
+    if (!selectedCompanyId || activePage !== "chats" || !chatAgentId) {
       return;
     }
     loadAgentChatSessions({
       silently: true,
       agentIdOverride: chatAgentId,
     });
-  }, [chatAgentId, loadAgentChatSessions, selectedCompanyId]);
+  }, [activePage, chatAgentId, loadAgentChatSessions, selectedCompanyId]);
 
   useEffect(() => {
-    if (!selectedCompanyId || !chatAgentId || !resolvedChatSessionId) {
+    if (
+      !selectedCompanyId
+      || activePage !== "chats"
+      || !chatAgentId
+      || !resolvedChatSessionId
+    ) {
       return;
     }
     loadAgentChatTurns({
@@ -2417,6 +2451,7 @@ function App() {
       sessionIdOverride: resolvedChatSessionId,
     });
   }, [
+    activePage,
     chatAgentId,
     resolvedChatSessionId,
     loadAgentChatTurns,
