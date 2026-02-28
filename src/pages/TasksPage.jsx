@@ -26,6 +26,11 @@ export function TasksPage({
   renderTaskLink,
 }) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState("");
+
+  function openEditTaskModal(taskId) {
+    setEditingTaskId(taskId);
+  }
 
   async function handleCreateTaskSubmit(event) {
     const didCreate = await onCreateTask(event);
@@ -36,31 +41,29 @@ export function TasksPage({
 
   return (
     <div className="page-stack">
-      <section className="panel hero-panel">
-        <p className="eyebrow">Task Management</p>
-        <h1>Task page</h1>
-        <p className="subcopy">
-          Create tasks, update dependency links, and keep planning relationships in sync.
-        </p>
-        <p className="context-pill">Company: {selectedCompanyId}</p>
-      </section>
+      <header className="chat-minimal-header">
+        <div className="chat-minimal-header-info">
+          <p className="chat-minimal-header-agent">{selectedCompanyId}</p>
+          <h1 className="chat-minimal-header-title">Tasks</h1>
+        </div>
+        <div className="chat-minimal-header-actions">
+          <span className="chat-card-meta">{taskCountLabel}</span>
+          <button
+            type="button"
+            className="chat-minimal-header-icon-btn"
+            aria-label="Create task"
+            title="Create task"
+            onClick={() => setIsCreateModalOpen(true)}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
+        </div>
+      </header>
 
       <section className="panel list-panel">
-        <header className="panel-header panel-header-row">
-          <h2>Tasks</h2>
-          <div className="task-meta">
-            <span>{taskCountLabel}</span>
-            <button
-              type="button"
-              className="icon-create-btn"
-              aria-label="Create task"
-              title="Create task"
-              onClick={() => setIsCreateModalOpen(true)}
-            >
-              +
-            </button>
-          </div>
-        </header>
 
         {taskError ? <p className="error-banner">{taskError}</p> : null}
         {isLoadingTasks ? <p className="empty-hint">Loading tasks...</p> : null}
@@ -78,94 +81,54 @@ export function TasksPage({
         ) : null}
 
         {tasks.length > 0 ? (
-          <ul className="task-list">
-            {tasks.map((task) => (
-              <li key={task.id} className="task-card">
-                <div className="task-card-top">
-                  <strong>{task.name}</strong>
-                  <span className="task-id">#{task.id}</span>
-                </div>
-                <p>{task.description || "No description provided."}</p>
-                <div className="task-links">
-                  <span>
-                    parent: <em>{renderTaskLink(task.parentTaskId)}</em>
-                  </span>
-                  <span>
-                    depends on: <em>{renderTaskLink(task.dependsOnTaskId)}</em>
-                  </span>
-                </div>
-
-                <div className="relationship-editor">
-                  <div className="relationship-grid">
-                    <label className="relationship-field" htmlFor={`parent-${task.id}`}>
-                      Parent
-                    </label>
-                    <select
-                      id={`parent-${task.id}`}
-                      value={relationshipDrafts[task.id]?.parentTaskId ?? ""}
-                      onChange={(event) =>
-                        onDraftChange(task.id, "parentTaskId", event.target.value)
-                      }
-                      disabled={savingTaskId === task.id || deletingTaskId === task.id}
-                    >
-                      <option value="">None</option>
-                      {tasks
-                        .filter((candidateTask) => candidateTask.id !== task.id)
-                        .map((candidateTask) => (
-                          <option
-                            key={`parent-option-${task.id}-${candidateTask.id}`}
-                            value={String(candidateTask.id)}
-                          >
-                            #{candidateTask.id} {candidateTask.name}
-                          </option>
-                        ))}
-                    </select>
-
-                    <label className="relationship-field" htmlFor={`depends-on-${task.id}`}>
-                      Depends on
-                    </label>
-                    <select
-                      id={`depends-on-${task.id}`}
-                      value={relationshipDrafts[task.id]?.dependsOnTaskId ?? ""}
-                      onChange={(event) =>
-                        onDraftChange(task.id, "dependsOnTaskId", event.target.value)
-                      }
-                      disabled={savingTaskId === task.id || deletingTaskId === task.id}
-                    >
-                      <option value="">None</option>
-                      {tasks
-                        .filter((candidateTask) => candidateTask.id !== task.id)
-                        .map((candidateTask) => (
-                          <option
-                            key={`dependency-option-${task.id}-${candidateTask.id}`}
-                            value={String(candidateTask.id)}
-                          >
-                            #{candidateTask.id} {candidateTask.name}
-                          </option>
-                        ))}
-                    </select>
+          <ul className="chat-card-list">
+            {tasks.map((task) => {
+              const isBusy = savingTaskId === task.id || deletingTaskId === task.id;
+              return (
+                <li
+                  key={task.id}
+                  className="chat-card"
+                  onClick={() => openEditTaskModal(task.id)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") openEditTaskModal(task.id);
+                  }}
+                >
+                  <div className="chat-card-content">
+                    <strong>{task.name}</strong>
+                    <span className="chat-card-meta">
+                      {task.description || "No description provided."}
+                      {task.parentTaskId
+                        ? <> &middot; parent: {renderTaskLink(task.parentTaskId)}</>
+                        : null}
+                      {task.dependsOnTaskId
+                        ? <> &middot; depends on: {renderTaskLink(task.dependsOnTaskId)}</>
+                        : null}
+                    </span>
                   </div>
-                  <div className="task-card-actions">
-                    <button
-                      type="button"
-                      className="secondary-btn relationship-save-btn"
-                      onClick={() => onSaveRelationships(task.id)}
-                      disabled={savingTaskId === task.id || deletingTaskId === task.id}
-                    >
-                      {savingTaskId === task.id ? "Saving links..." : "Save links"}
-                    </button>
-                    <button
-                      type="button"
-                      className="danger-btn"
-                      onClick={() => onDeleteTask(task.id, task.name)}
-                      disabled={savingTaskId === task.id || deletingTaskId === task.id}
-                    >
-                      {deletingTaskId === task.id ? "Deleting..." : "Delete task"}
-                    </button>
-                  </div>
-                </div>
-              </li>
-            ))}
+                  <button
+                    type="button"
+                    className="chat-card-icon-btn"
+                    aria-label="Delete task"
+                    title="Delete task"
+                    disabled={isBusy}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteTask(task.id, task.name);
+                    }}
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6l-1 14H6L5 6" />
+                      <path d="M10 11v6" />
+                      <path d="M14 11v6" />
+                      <path d="M9 6V4h6v2" />
+                    </svg>
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         ) : null}
       </section>
@@ -234,6 +197,101 @@ export function TasksPage({
           </button>
         </form>
       </CreationModal>
+
+      {editingTaskId ? (() => {
+        const editTask = tasks.find((t) => t.id === editingTaskId);
+        const editDraft = relationshipDrafts[editingTaskId];
+        if (!editTask) return null;
+        return (
+          <CreationModal
+            modalId="edit-task-modal"
+            title="Edit task"
+            description="Update task relationships."
+            isOpen={!!editingTaskId}
+            onClose={() => setEditingTaskId("")}
+          >
+            <div className="chat-settings-modal-form">
+              <div className="chat-settings-field">
+                <span className="chat-settings-label">Name</span>
+                <p className="chat-settings-input">{editTask.name}</p>
+              </div>
+
+              <div className="chat-settings-field">
+                <span className="chat-settings-label">Description</span>
+                <p className="chat-settings-input">
+                  {editTask.description || "No description provided."}
+                </p>
+              </div>
+
+              <div className="chat-settings-field">
+                <label className="chat-settings-label" htmlFor="edit-parent-task">
+                  Parent task
+                </label>
+                <select
+                  id="edit-parent-task"
+                  className="chat-settings-input"
+                  value={editDraft?.parentTaskId ?? ""}
+                  onChange={(e) =>
+                    onDraftChange(editingTaskId, "parentTaskId", e.target.value)
+                  }
+                >
+                  <option value="">None</option>
+                  {tasks
+                    .filter((t) => t.id !== editingTaskId)
+                    .map((t) => (
+                      <option key={`edit-parent-${t.id}`} value={String(t.id)}>
+                        #{t.id} {t.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div className="chat-settings-field">
+                <label className="chat-settings-label" htmlFor="edit-depends-on-task">
+                  Depends on
+                </label>
+                <select
+                  id="edit-depends-on-task"
+                  className="chat-settings-input"
+                  value={editDraft?.dependsOnTaskId ?? ""}
+                  onChange={(e) =>
+                    onDraftChange(editingTaskId, "dependsOnTaskId", e.target.value)
+                  }
+                >
+                  <option value="">None</option>
+                  {tasks
+                    .filter((t) => t.id !== editingTaskId)
+                    .map((t) => (
+                      <option key={`edit-depends-${t.id}`} value={String(t.id)}>
+                        #{t.id} {t.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div className="chat-settings-field">
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={() => {
+                    onSaveRelationships(editingTaskId);
+                    setEditingTaskId("");
+                  }}
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={() => setEditingTaskId("")}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </CreationModal>
+        );
+      })() : null}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { CreationModal } from "../components/CreationModal.jsx";
 
 function splitGitReferences(preview) {
   if (!preview) {
@@ -30,6 +31,7 @@ export function GitSkillPackagesPage({
   const [createWarnings, setCreateWarnings] = useState([]);
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const combinedReferences = useMemo(() => splitGitReferences(preview), [preview]);
 
@@ -74,56 +76,72 @@ export function GitSkillPackagesPage({
   if (activeGitSkillPackage) {
     return (
       <div className="page-stack">
-        <section className="panel hero-panel">
-          <p className="eyebrow">Git Skill Package</p>
-          <h1>{activeGitSkillPackage.packageName}</h1>
-          <p className="subcopy">Repository: {activeGitSkillPackage.gitRepositoryUrl}</p>
-          <p className="context-pill">Company: {selectedCompanyId}</p>
-        </section>
+        <header className="chat-minimal-header">
+          <div className="chat-minimal-header-info">
+            <p className="chat-minimal-header-agent">Git Skill Package</p>
+            <h1 className="chat-minimal-header-title">{activeGitSkillPackage.packageName}</h1>
+          </div>
+          <div className="chat-minimal-header-actions">
+            <button type="button" className="secondary-btn" onClick={onBackToGitSkillPackages}>
+              Back
+            </button>
+          </div>
+        </header>
 
         <section className="panel list-panel">
-          <header className="panel-header panel-header-row">
-            <h2>Package details</h2>
-            <div className="task-meta">
-              <button type="button" className="secondary-btn" onClick={onBackToGitSkillPackages}>
-                Back to packages
-              </button>
-            </div>
-          </header>
-
           {skillError ? <p className="error-banner">{skillError}</p> : null}
 
-          <p className="agent-subcopy">
-            Hosting provider: <strong>{activeGitSkillPackage.hostingProvider}</strong>
-          </p>
-          <p className="agent-subcopy">
-            Current ref: <strong>{activeGitSkillPackage.currentReference}</strong>
-          </p>
-          <p className="agent-subcopy">
-            Commit: <code>{activeGitSkillPackage.currentCommitHash}</code>
+          <p className="chat-card-meta" style={{ padding: "0.2rem 0" }}>
+            {activeGitSkillPackage.gitRepositoryUrl}
           </p>
 
-          <div className="task-card-actions">
+          <div className="skill-detail-info">
+            <p className="chat-card-meta">
+              Hosting provider: {activeGitSkillPackage.hostingProvider}
+              {" · "}Ref: {activeGitSkillPackage.currentReference}
+              {" · "}Commit: {activeGitSkillPackage.currentCommitHash}
+            </p>
             <button
               type="button"
-              className="danger-btn"
+              className="chat-card-icon-btn chat-card-icon-btn-danger"
               onClick={() =>
                 onDeleteGitSkillPackage(activeGitSkillPackage.id, activeGitSkillPackage.packageName)
               }
+              aria-label="Delete package"
+              title="Delete package"
             >
-              Delete package
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M3 6h18" />
+                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                <line x1="10" y1="11" x2="10" y2="17" />
+                <line x1="14" y1="11" x2="14" y2="17" />
+              </svg>
             </button>
           </div>
 
-          <section className="subpanel">
+          <section className="skill-detail-section">
             <h3>Skills in package</h3>
             {Array.isArray(activeGitSkillPackage.skills) && activeGitSkillPackage.skills.length > 0 ? (
-              <ul className="task-list">
+              <ul className="chat-card-list">
                 {activeGitSkillPackage.skills.map((skill) => (
-                  <li key={`package-skill-${skill.id}`} className="task-card">
-                    <button type="button" className="secondary-btn" onClick={() => onOpenSkill(skill.id)}>
-                      {skill.name}
-                    </button>
+                  <li
+                    key={`package-skill-${skill.id}`}
+                    className="chat-card"
+                    onClick={() => onOpenSkill(skill.id)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        onOpenSkill(skill.id);
+                      }
+                    }}
+                  >
+                    <div className="chat-card-main">
+                      <p className="chat-card-title">
+                        <strong>{skill.name}</strong>
+                      </p>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -138,124 +156,154 @@ export function GitSkillPackagesPage({
 
   return (
     <div className="page-stack">
-      <section className="panel hero-panel">
-        <p className="eyebrow">Git Skill Packages</p>
-        <h1>Git skill packages</h1>
-        <p className="subcopy">
-          Import skills from a public HTTPS repository by previewing refs and selecting a branch or tag.
-        </p>
-        <p className="context-pill">Company: {selectedCompanyId}</p>
-      </section>
-
-      <section className="panel list-panel">
-        <header className="panel-header panel-header-row">
-          <h2>Import package</h2>
-        </header>
-
-        {skillError || previewError ? <p className="error-banner">{skillError || previewError}</p> : null}
-        {createWarnings.length > 0 ? (
-          <div className="panel">
-            <h3>Import warnings</h3>
-            <ul>
-              {createWarnings.map((warning, index) => (
-                <li key={`import-warning-${index}`}>{warning}</li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-
-        <form className="task-form" onSubmit={handlePreview}>
-          <label htmlFor="git-skill-package-url">Git repository URL</label>
-          <input
-            id="git-skill-package-url"
-            value={gitRepositoryUrl}
-            onChange={(event) => setGitRepositoryUrl(event.target.value)}
-            placeholder="https://github.com/obra/superpowers"
-            required
-          />
-          <button type="submit" disabled={isPreviewing}>
-            {isPreviewing ? "Previewing..." : "Preview refs"}
+      <header className="chat-minimal-header">
+        <div className="chat-minimal-header-info">
+          <p className="chat-minimal-header-agent">{selectedCompanyId}</p>
+          <h1 className="chat-minimal-header-title">Git Skill Packages</h1>
+        </div>
+        <div className="chat-minimal-header-actions">
+          <button
+            type="button"
+            className="chat-minimal-header-icon-btn"
+            aria-label="Add package"
+            title="Add package"
+            onClick={() => setIsCreateModalOpen(true)}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
           </button>
-        </form>
+        </div>
+      </header>
 
-        {preview ? (
-          <form className="task-form" onSubmit={handleCreate}>
-            <label htmlFor="git-skill-reference">Branch or tag</label>
-            <select
-              id="git-skill-reference"
-              value={selectedReference}
-              onChange={(event) => setSelectedReference(event.target.value)}
-              required
-            >
-              <option value="">Select branch or tag</option>
-              {combinedReferences.map((reference) => (
-                <option key={`${reference.kind}:${reference.fullRef}`} value={reference.fullRef}>
-                  {reference.name} ({reference.kind})
-                </option>
-              ))}
-            </select>
+      {skillError || previewError ? <p className="error-banner">{skillError || previewError}</p> : null}
+      {isLoadingGitSkillPackages ? <p className="empty-hint">Loading git skill packages...</p> : null}
 
-            <p className="agent-subcopy">
-              Package name: <strong>{preview.packageName}</strong>
-            </p>
-
-            <button type="submit" disabled={isCreating || !selectedReference}>
-              {isCreating ? "Adding package..." : "Add skill package"}
-            </button>
-          </form>
-        ) : null}
-      </section>
-
-      <section className="panel list-panel">
-        <header className="panel-header panel-header-row">
-          <h2>Packages</h2>
-          <div className="task-meta">
-            <span>{gitSkillPackages.length} packages</span>
-          </div>
-        </header>
-
-        {isLoadingGitSkillPackages ? <p className="empty-hint">Loading git skill packages...</p> : null}
-
-        {gitSkillPackages.length === 0 ? (
+      {gitSkillPackages.length === 0 ? (
+        <section className="panel list-panel">
           <p className="empty-hint">No git skill packages imported yet.</p>
-        ) : (
-          <ul className="task-list">
+        </section>
+      ) : (
+        <section className="panel list-panel">
+          <ul className="chat-card-list">
             {gitSkillPackages.map((gitSkillPackage) => (
-              <li key={gitSkillPackage.id} className="task-card">
-                <div className="task-card-top">
-                  <strong>{gitSkillPackage.packageName}</strong>
-                  <code className="runner-id">{gitSkillPackage.id}</code>
+              <li
+                key={gitSkillPackage.id}
+                className="chat-card"
+                onClick={() => onOpenGitSkillPackage(gitSkillPackage.id)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    onOpenGitSkillPackage(gitSkillPackage.id);
+                  }
+                }}
+              >
+                <div className="chat-card-main">
+                  <p className="chat-card-title">
+                    <strong>{gitSkillPackage.packageName}</strong>
+                  </p>
+                  <p className="chat-card-meta">
+                    {gitSkillPackage.gitRepositoryUrl} · {gitSkillPackage.currentReference}
+                  </p>
                 </div>
-                <p className="agent-subcopy">{gitSkillPackage.gitRepositoryUrl}</p>
-                <p className="agent-subcopy">
-                  Ref: <strong>{gitSkillPackage.currentReference}</strong>
-                </p>
-                <p className="agent-subcopy">
-                  Skills: <strong>{gitSkillPackage.skills?.length || 0}</strong>
-                </p>
-                <div className="task-card-actions">
+                <div className="chat-card-actions">
                   <button
                     type="button"
-                    className="secondary-btn"
-                    onClick={() => onOpenGitSkillPackage(gitSkillPackage.id)}
+                    className="chat-card-icon-btn chat-card-icon-btn-danger"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onDeleteGitSkillPackage(gitSkillPackage.id, gitSkillPackage.packageName);
+                    }}
+                    aria-label="Delete package"
+                    title="Delete package"
                   >
-                    Open
-                  </button>
-                  <button
-                    type="button"
-                    className="danger-btn"
-                    onClick={() =>
-                      onDeleteGitSkillPackage(gitSkillPackage.id, gitSkillPackage.packageName)
-                    }
-                  >
-                    Delete
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <path d="M3 6h18" />
+                      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                      <line x1="10" y1="11" x2="10" y2="17" />
+                      <line x1="14" y1="11" x2="14" y2="17" />
+                    </svg>
                   </button>
                 </div>
               </li>
             ))}
           </ul>
-        )}
-      </section>
+        </section>
+      )}
+
+      <CreationModal
+        modalId="create-git-skill-package-modal"
+        title="Import git skill package"
+        description="Import skills from a public HTTPS repository by previewing refs and selecting a branch or tag."
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+      >
+        {createWarnings.length > 0 ? (
+          <div className="chat-settings-modal-form">
+            <div className="chat-settings-field">
+              <label className="chat-settings-label">Import warnings</label>
+              <ul>
+                {createWarnings.map((warning, index) => (
+                  <li key={`import-warning-${index}`}>{warning}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        ) : null}
+
+        <form className="chat-settings-modal-form" onSubmit={handlePreview}>
+          <div className="chat-settings-field">
+            <label htmlFor="git-skill-package-url" className="chat-settings-label">Git repository URL</label>
+            <input
+              id="git-skill-package-url"
+              className="chat-settings-input"
+              value={gitRepositoryUrl}
+              onChange={(event) => setGitRepositoryUrl(event.target.value)}
+              placeholder="https://github.com/obra/superpowers"
+              required
+              autoFocus
+            />
+          </div>
+          <div className="chat-settings-actions">
+            <button type="submit" disabled={isPreviewing}>
+              {isPreviewing ? "Previewing..." : "Preview refs"}
+            </button>
+          </div>
+        </form>
+
+        {preview ? (
+          <form className="chat-settings-modal-form" onSubmit={handleCreate}>
+            <div className="chat-settings-field">
+              <label htmlFor="git-skill-reference" className="chat-settings-label">Branch or tag</label>
+              <select
+                id="git-skill-reference"
+                className="chat-settings-input"
+                value={selectedReference}
+                onChange={(event) => setSelectedReference(event.target.value)}
+                required
+              >
+                <option value="">Select branch or tag</option>
+                {combinedReferences.map((reference) => (
+                  <option key={`${reference.kind}:${reference.fullRef}`} value={reference.fullRef}>
+                    {reference.name} ({reference.kind})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <p className="chat-card-meta" style={{ padding: "0.2rem 0" }}>
+              Package name: <strong>{preview.packageName}</strong>
+            </p>
+            <div className="chat-settings-actions">
+              <button type="submit" disabled={isCreating || !selectedReference}>
+                {isCreating ? "Adding package..." : "Add skill package"}
+              </button>
+            </div>
+          </form>
+        ) : null}
+      </CreationModal>
     </div>
   );
 }

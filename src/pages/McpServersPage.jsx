@@ -46,6 +46,7 @@ export function McpServersPage({
   onDeleteMcpServer,
 }) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingMcpServerId, setEditingMcpServerId] = useState("");
 
   async function handleCreateMcpServerSubmit(event) {
     const didCreate = await onCreateMcpServer(event);
@@ -56,31 +57,29 @@ export function McpServersPage({
 
   return (
     <div className="page-stack">
-      <section className="panel hero-panel">
-        <p className="eyebrow">MCP Registry</p>
-        <h1>MCP servers page</h1>
-        <p className="subcopy">
-          Register company-level MCP servers as streamable HTTP or stdio transports.
-        </p>
-        <p className="context-pill">Company: {selectedCompanyId}</p>
-      </section>
+      <header className="chat-minimal-header">
+        <div className="chat-minimal-header-info">
+          <p className="chat-minimal-header-agent">{selectedCompanyId}</p>
+          <h1 className="chat-minimal-header-title">MCP Servers</h1>
+        </div>
+        <div className="chat-minimal-header-actions">
+          <span className="chat-card-meta">{mcpServerCountLabel}</span>
+          <button
+            type="button"
+            className="chat-minimal-header-icon-btn"
+            aria-label="Create MCP server"
+            title="Create MCP server"
+            onClick={() => setIsCreateModalOpen(true)}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
+        </div>
+      </header>
 
       <section className="panel list-panel">
-        <header className="panel-header panel-header-row">
-          <h2>MCP servers</h2>
-          <div className="task-meta">
-            <span>{mcpServerCountLabel}</span>
-            <button
-              type="button"
-              className="icon-create-btn"
-              aria-label="Create MCP server"
-              title="Create MCP server"
-              onClick={() => setIsCreateModalOpen(true)}
-            >
-              +
-            </button>
-          </div>
-        </header>
 
         {mcpServerError ? <p className="error-banner">{mcpServerError}</p> : null}
         {isLoadingMcpServers ? <p className="empty-hint">Loading MCP servers...</p> : null}
@@ -98,7 +97,7 @@ export function McpServersPage({
         ) : null}
 
         {mcpServers.length > 0 ? (
-          <ul className="task-list">
+          <ul className="chat-card-list">
             {mcpServers.map((mcpServer) => {
               const draft = mcpServerDrafts[mcpServer.id] || {
                 name: "",
@@ -117,214 +116,53 @@ export function McpServersPage({
               const transportLabel =
                 MCP_TRANSPORT_TYPE_OPTIONS.find((option) => option.value === draft.transportType)
                   ?.label || "Streamable HTTP";
-              const authLabel =
-                MCP_AUTH_TYPE_OPTIONS.find((option) => option.value === draft.authType)?.label ||
-                "No auth";
-              const endpointLabel =
+              const endpointSummary =
                 draft.transportType === MCP_TRANSPORT_TYPE_STDIO
-                  ? `Command: ${draft.command || "-"}`
-                  : `URL: ${draft.url || "-"}`;
+                  ? draft.command || "-"
+                  : draft.url || "-";
 
               return (
-                <li key={mcpServer.id} className="task-card">
-                  <div className="task-card-top">
-                    <strong>{mcpServer.name}</strong>
-                    <code className="runner-id">{mcpServer.id}</code>
+                <li
+                  key={mcpServer.id}
+                  className="chat-card"
+                  onClick={() => !isSavingOrDeleting && setEditingMcpServerId(mcpServer.id)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !isSavingOrDeleting) {
+                      setEditingMcpServerId(mcpServer.id);
+                    }
+                  }}
+                >
+                  <div className="chat-card-main">
+                    <p className="chat-card-title">
+                      <strong>{mcpServer.name}</strong>
+                    </p>
+                    <p className="chat-card-meta">
+                      {transportLabel} &middot; {endpointSummary} &middot;{" "}
+                      {draft.enabled ? "enabled" : "disabled"}
+                    </p>
                   </div>
-                  <p className="agent-subcopy">
-                    Transport: <strong>{transportLabel}</strong> • {endpointLabel}
-                  </p>
-                  <p className="agent-subcopy">
-                    Auth:{" "}
-                    <strong>
-                      {draft.transportType === MCP_TRANSPORT_TYPE_STDIO ? "n/a" : authLabel}
-                    </strong>{" "}
-                    • enabled:{" "}
-                    <strong>{draft.enabled ? "yes" : "no"}</strong>
-                  </p>
-
-                  <div className="relationship-editor">
-                    <div className="mcp-edit-grid">
-                      <label className="relationship-field" htmlFor={`mcp-name-${mcpServer.id}`}>
-                        Name
-                      </label>
-                      <input
-                        id={`mcp-name-${mcpServer.id}`}
-                        type="text"
-                        value={draft.name}
-                        onChange={(event) =>
-                          onMcpServerDraftChange(mcpServer.id, "name", event.target.value)
-                        }
-                        disabled={isSavingOrDeleting}
-                      />
-
-                      <label className="relationship-field" htmlFor={`mcp-transport-${mcpServer.id}`}>
-                        Transport
-                      </label>
-                      <select
-                        id={`mcp-transport-${mcpServer.id}`}
-                        value={draft.transportType}
-                        onChange={(event) =>
-                          onMcpServerDraftChange(mcpServer.id, "transportType", event.target.value)
-                        }
-                        disabled={isSavingOrDeleting}
-                      >
-                        {MCP_TRANSPORT_TYPE_OPTIONS.map((option) => (
-                          <option key={`${mcpServer.id}-transport-${option.value}`} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-
-                      {draft.transportType === MCP_TRANSPORT_TYPE_STDIO ? (
-                        <>
-                          <label className="relationship-field" htmlFor={`mcp-command-${mcpServer.id}`}>
-                            Command
-                          </label>
-                          <input
-                            id={`mcp-command-${mcpServer.id}`}
-                            type="text"
-                            value={draft.command}
-                            onChange={(event) =>
-                              onMcpServerDraftChange(mcpServer.id, "command", event.target.value)
-                            }
-                            placeholder="npx"
-                            disabled={isSavingOrDeleting}
-                          />
-
-                          <label className="relationship-field" htmlFor={`mcp-args-${mcpServer.id}`}>
-                            Arguments
-                          </label>
-                          <textarea
-                            id={`mcp-args-${mcpServer.id}`}
-                            rows={4}
-                            value={draft.argsText}
-                            onChange={(event) =>
-                              onMcpServerDraftChange(mcpServer.id, "argsText", event.target.value)
-                            }
-                            placeholder={"-y\n@modelcontextprotocol/server-filesystem\n/workspace"}
-                            disabled={isSavingOrDeleting}
-                          />
-
-                          <label className="relationship-field" htmlFor={`mcp-env-${mcpServer.id}`}>
-                            Environment variables
-                          </label>
-                          <textarea
-                            id={`mcp-env-${mcpServer.id}`}
-                            rows={4}
-                            value={draft.envVarsText}
-                            onChange={(event) =>
-                              onMcpServerDraftChange(mcpServer.id, "envVarsText", event.target.value)
-                            }
-                            placeholder={"API_KEY=secret\nLOG_LEVEL=debug"}
-                            disabled={isSavingOrDeleting}
-                          />
-                        </>
-                      ) : (
-                        <>
-                          <label className="relationship-field" htmlFor={`mcp-url-${mcpServer.id}`}>
-                            URL
-                          </label>
-                          <input
-                            id={`mcp-url-${mcpServer.id}`}
-                            type="text"
-                            value={draft.url}
-                            onChange={(event) =>
-                              onMcpServerDraftChange(mcpServer.id, "url", event.target.value)
-                            }
-                            disabled={isSavingOrDeleting}
-                          />
-
-                          <label className="relationship-field" htmlFor={`mcp-auth-${mcpServer.id}`}>
-                            Auth
-                          </label>
-                          <select
-                            id={`mcp-auth-${mcpServer.id}`}
-                            value={draft.authType}
-                            onChange={(event) =>
-                              onMcpServerDraftChange(mcpServer.id, "authType", event.target.value)
-                            }
-                            disabled={isSavingOrDeleting}
-                          >
-                            {MCP_AUTH_TYPE_OPTIONS.map((option) => (
-                              <option key={`${mcpServer.id}-auth-${option.value}`} value={option.value}>
-                                {option.label}
-                              </option>
-                            ))}
-                          </select>
-
-                          <label className="relationship-field" htmlFor={`mcp-token-${mcpServer.id}`}>
-                            Bearer token
-                          </label>
-                          <input
-                            id={`mcp-token-${mcpServer.id}`}
-                            type="text"
-                            value={draft.bearerToken}
-                            onChange={(event) =>
-                              onMcpServerDraftChange(mcpServer.id, "bearerToken", event.target.value)
-                            }
-                            placeholder="Token value only"
-                            disabled={
-                              isSavingOrDeleting || draft.authType !== MCP_AUTH_TYPE_BEARER_TOKEN
-                            }
-                          />
-
-                          <label className="relationship-field" htmlFor={`mcp-headers-${mcpServer.id}`}>
-                            Custom headers
-                          </label>
-                          <textarea
-                            id={`mcp-headers-${mcpServer.id}`}
-                            rows={4}
-                            value={draft.customHeadersText}
-                            onChange={(event) =>
-                              onMcpServerDraftChange(
-                                mcpServer.id,
-                                "customHeadersText",
-                                event.target.value,
-                              )
-                            }
-                            placeholder={"Authorization: Bearer <token>\nX-Env: staging"}
-                            disabled={
-                              isSavingOrDeleting || draft.authType !== MCP_AUTH_TYPE_CUSTOM_HEADERS
-                            }
-                          />
-                        </>
-                      )}
-
-                      <label className="relationship-field" htmlFor={`mcp-enabled-${mcpServer.id}`}>
-                        Enabled
-                      </label>
-                      <label htmlFor={`mcp-enabled-${mcpServer.id}`}>
-                        <input
-                          id={`mcp-enabled-${mcpServer.id}`}
-                          type="checkbox"
-                          checked={Boolean(draft.enabled)}
-                          onChange={(event) =>
-                            onMcpServerDraftChange(mcpServer.id, "enabled", event.target.checked)
-                          }
-                          disabled={isSavingOrDeleting}
-                        />{" "}
-                        Enable this MCP server
-                      </label>
-                    </div>
-                    <div className="task-card-actions">
-                      <button
-                        type="button"
-                        className="secondary-btn relationship-save-btn"
-                        onClick={() => onSaveMcpServer(mcpServer.id)}
-                        disabled={isSavingOrDeleting}
-                      >
-                        {savingMcpServerId === mcpServer.id ? "Saving..." : "Save"}
-                      </button>
-                      <button
-                        type="button"
-                        className="danger-btn"
-                        onClick={() => onDeleteMcpServer(mcpServer.id, mcpServer.name)}
-                        disabled={isSavingOrDeleting}
-                      >
-                        {deletingMcpServerId === mcpServer.id ? "Deleting..." : "Delete"}
-                      </button>
-                    </div>
+                  <div className="chat-card-actions">
+                    <button
+                      type="button"
+                      className="chat-card-icon-btn chat-card-icon-btn-danger"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onDeleteMcpServer(mcpServer.id, mcpServer.name);
+                      }}
+                      disabled={isSavingOrDeleting}
+                      aria-label={deletingMcpServerId === mcpServer.id ? "Deleting..." : "Delete MCP server"}
+                      title={deletingMcpServerId === mcpServer.id ? "Deleting..." : "Delete MCP server"}
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path d="M3 6h18" />
+                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                        <line x1="10" y1="11" x2="10" y2="17" />
+                        <line x1="14" y1="11" x2="14" y2="17" />
+                      </svg>
+                    </button>
                   </div>
                 </li>
               );
@@ -452,6 +290,252 @@ export function McpServersPage({
             {isCreatingMcpServer ? "Creating..." : "Create MCP server"}
           </button>
         </form>
+      </CreationModal>
+
+      <CreationModal
+        modalId="edit-mcp-server-modal"
+        title={
+          editingMcpServerId
+            ? `Edit MCP server "${(mcpServers.find((s) => s.id === editingMcpServerId) || {}).name || ""}"`
+            : "Edit MCP server"
+        }
+        description=""
+        isOpen={Boolean(editingMcpServerId)}
+        onClose={() => setEditingMcpServerId("")}
+        cardClassName="modal-card-wide"
+      >
+        {editingMcpServerId ? (() => {
+          const draft = mcpServerDrafts[editingMcpServerId] || {
+            name: "",
+            transportType: MCP_TRANSPORT_TYPE_STREAMABLE_HTTP,
+            url: "",
+            command: "",
+            argsText: "",
+            envVarsText: "",
+            authType: MCP_AUTH_TYPE_NONE,
+            bearerToken: "",
+            customHeadersText: "",
+            enabled: true,
+          };
+          const isSavingOrDeleting =
+            savingMcpServerId === editingMcpServerId ||
+            deletingMcpServerId === editingMcpServerId;
+
+          return (
+            <div className="chat-settings-modal-form">
+              <div className="chat-settings-field">
+                <label htmlFor={`edit-mcp-name-${editingMcpServerId}`} className="chat-settings-label">
+                  Name
+                </label>
+                <input
+                  id={`edit-mcp-name-${editingMcpServerId}`}
+                  className="chat-settings-input"
+                  type="text"
+                  value={draft.name}
+                  onChange={(event) =>
+                    onMcpServerDraftChange(editingMcpServerId, "name", event.target.value)
+                  }
+                  disabled={isSavingOrDeleting}
+                />
+              </div>
+
+              <div className="chat-settings-field">
+                <label htmlFor={`edit-mcp-transport-${editingMcpServerId}`} className="chat-settings-label">
+                  Transport
+                </label>
+                <select
+                  id={`edit-mcp-transport-${editingMcpServerId}`}
+                  className="chat-settings-input"
+                  value={draft.transportType}
+                  onChange={(event) =>
+                    onMcpServerDraftChange(editingMcpServerId, "transportType", event.target.value)
+                  }
+                  disabled={isSavingOrDeleting}
+                >
+                  {MCP_TRANSPORT_TYPE_OPTIONS.map((option) => (
+                    <option key={`edit-${editingMcpServerId}-transport-${option.value}`} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {draft.transportType === MCP_TRANSPORT_TYPE_STDIO ? (
+                <>
+                  <div className="chat-settings-field">
+                    <label htmlFor={`edit-mcp-command-${editingMcpServerId}`} className="chat-settings-label">
+                      Command
+                    </label>
+                    <input
+                      id={`edit-mcp-command-${editingMcpServerId}`}
+                      className="chat-settings-input"
+                      type="text"
+                      value={draft.command}
+                      onChange={(event) =>
+                        onMcpServerDraftChange(editingMcpServerId, "command", event.target.value)
+                      }
+                      placeholder="npx"
+                      disabled={isSavingOrDeleting}
+                    />
+                  </div>
+
+                  <div className="chat-settings-field">
+                    <label htmlFor={`edit-mcp-args-${editingMcpServerId}`} className="chat-settings-label">
+                      Arguments
+                    </label>
+                    <textarea
+                      id={`edit-mcp-args-${editingMcpServerId}`}
+                      className="chat-settings-input"
+                      rows={4}
+                      value={draft.argsText}
+                      onChange={(event) =>
+                        onMcpServerDraftChange(editingMcpServerId, "argsText", event.target.value)
+                      }
+                      placeholder={"-y\n@modelcontextprotocol/server-filesystem\n/workspace"}
+                      disabled={isSavingOrDeleting}
+                    />
+                  </div>
+
+                  <div className="chat-settings-field">
+                    <label htmlFor={`edit-mcp-env-${editingMcpServerId}`} className="chat-settings-label">
+                      Environment variables
+                    </label>
+                    <textarea
+                      id={`edit-mcp-env-${editingMcpServerId}`}
+                      className="chat-settings-input"
+                      rows={4}
+                      value={draft.envVarsText}
+                      onChange={(event) =>
+                        onMcpServerDraftChange(editingMcpServerId, "envVarsText", event.target.value)
+                      }
+                      placeholder={"API_KEY=secret\nLOG_LEVEL=debug"}
+                      disabled={isSavingOrDeleting}
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="chat-settings-field">
+                    <label htmlFor={`edit-mcp-url-${editingMcpServerId}`} className="chat-settings-label">
+                      URL
+                    </label>
+                    <input
+                      id={`edit-mcp-url-${editingMcpServerId}`}
+                      className="chat-settings-input"
+                      type="text"
+                      value={draft.url}
+                      onChange={(event) =>
+                        onMcpServerDraftChange(editingMcpServerId, "url", event.target.value)
+                      }
+                      disabled={isSavingOrDeleting}
+                    />
+                  </div>
+
+                  <div className="chat-settings-field">
+                    <label htmlFor={`edit-mcp-auth-${editingMcpServerId}`} className="chat-settings-label">
+                      Auth
+                    </label>
+                    <select
+                      id={`edit-mcp-auth-${editingMcpServerId}`}
+                      className="chat-settings-input"
+                      value={draft.authType}
+                      onChange={(event) =>
+                        onMcpServerDraftChange(editingMcpServerId, "authType", event.target.value)
+                      }
+                      disabled={isSavingOrDeleting}
+                    >
+                      {MCP_AUTH_TYPE_OPTIONS.map((option) => (
+                        <option key={`edit-${editingMcpServerId}-auth-${option.value}`} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {draft.authType === MCP_AUTH_TYPE_BEARER_TOKEN ? (
+                    <div className="chat-settings-field">
+                      <label htmlFor={`edit-mcp-token-${editingMcpServerId}`} className="chat-settings-label">
+                        Bearer token
+                      </label>
+                      <input
+                        id={`edit-mcp-token-${editingMcpServerId}`}
+                        className="chat-settings-input"
+                        type="text"
+                        value={draft.bearerToken}
+                        onChange={(event) =>
+                          onMcpServerDraftChange(editingMcpServerId, "bearerToken", event.target.value)
+                        }
+                        placeholder="Token value only"
+                        disabled={isSavingOrDeleting}
+                      />
+                    </div>
+                  ) : null}
+
+                  {draft.authType === MCP_AUTH_TYPE_CUSTOM_HEADERS ? (
+                    <div className="chat-settings-field">
+                      <label htmlFor={`edit-mcp-headers-${editingMcpServerId}`} className="chat-settings-label">
+                        Custom headers
+                      </label>
+                      <textarea
+                        id={`edit-mcp-headers-${editingMcpServerId}`}
+                        className="chat-settings-input"
+                        rows={4}
+                        value={draft.customHeadersText}
+                        onChange={(event) =>
+                          onMcpServerDraftChange(
+                            editingMcpServerId,
+                            "customHeadersText",
+                            event.target.value,
+                          )
+                        }
+                        placeholder={"Authorization: Bearer <token>\nX-Env: staging"}
+                        disabled={isSavingOrDeleting}
+                      />
+                    </div>
+                  ) : null}
+                </>
+              )}
+
+              <div className="chat-settings-field">
+                <label htmlFor={`edit-mcp-enabled-${editingMcpServerId}`} className="chat-settings-label">
+                  Enabled
+                </label>
+                <label htmlFor={`edit-mcp-enabled-${editingMcpServerId}`}>
+                  <input
+                    id={`edit-mcp-enabled-${editingMcpServerId}`}
+                    type="checkbox"
+                    checked={Boolean(draft.enabled)}
+                    onChange={(event) =>
+                      onMcpServerDraftChange(editingMcpServerId, "enabled", event.target.checked)
+                    }
+                    disabled={isSavingOrDeleting}
+                  />{" "}
+                  Enable this MCP server
+                </label>
+              </div>
+
+              <div className="chat-settings-actions">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSaveMcpServer(editingMcpServerId);
+                    setEditingMcpServerId("");
+                  }}
+                  disabled={isSavingOrDeleting}
+                >
+                  {savingMcpServerId === editingMcpServerId ? "Saving..." : "Save"}
+                </button>
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={() => setEditingMcpServerId("")}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          );
+        })() : null}
       </CreationModal>
     </div>
   );
