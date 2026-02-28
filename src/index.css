@@ -495,20 +495,6 @@ h2 {
   max-width: 62ch;
 }
 
-.context-pill {
-  margin: 0.7rem 0 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 0.74rem;
-  color: var(--ink-1);
-  background: rgba(15, 118, 110, 0.08);
-  border: 1px solid rgba(15, 118, 110, 0.24);
-  border-radius: 999px;
-  padding: 0.22rem 0.58rem;
-}
-
 .hero-actions {
   margin-top: 0.85rem;
   display: flex;
@@ -558,17 +544,6 @@ h2 {
   font-size: 0.86rem;
 }
 
-.inline-link {
-  border: none;
-  background: transparent;
-  padding: 0;
-  margin-top: 0.2rem;
-  color: var(--action);
-  font-weight: 700;
-  cursor: pointer;
-  justify-self: start;
-}
-
 .panel-header {
   margin-bottom: 0.85rem;
 }
@@ -589,43 +564,6 @@ h2 {
   font-size: 0.82rem;
 }
 
-.icon-create-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  padding: 0;
-  border-radius: 999px;
-  background: var(--action);
-  color: var(--action-ink);
-  font-size: 1.18rem;
-  line-height: 1;
-}
-
-.icon-edit-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  padding: 0;
-  border-radius: 999px;
-  background: rgba(26, 32, 38, 0.06);
-  color: var(--ink-0);
-  border: 1px solid rgba(26, 32, 38, 0.12);
-}
-
-.icon-edit-btn:hover {
-  background: rgba(15, 118, 110, 0.12);
-  color: var(--action);
-}
-
-.icon-edit-btn svg {
-  width: 1rem;
-  height: 1rem;
-}
-
 .task-form {
   display: grid;
   gap: 0.55rem;
@@ -639,14 +577,10 @@ h2 {
 .task-form input,
 .task-form textarea,
 .task-form select,
-.relationship-editor select,
 .agent-edit-grid input,
 .agent-edit-grid select,
 .skill-edit-grid input,
-.skill-edit-grid textarea,
-.mcp-edit-grid input[type="text"],
-.mcp-edit-grid textarea,
-.mcp-edit-grid select {
+.skill-edit-grid textarea {
   width: 100%;
   border-radius: 11px;
   border: 1px solid rgba(26, 32, 38, 0.24);
@@ -660,14 +594,10 @@ h2 {
 .task-form input:focus,
 .task-form textarea:focus,
 .task-form select:focus,
-.relationship-editor select:focus,
 .agent-edit-grid input:focus,
 .agent-edit-grid select:focus,
 .skill-edit-grid input:focus,
-.skill-edit-grid textarea:focus,
-.mcp-edit-grid input[type="text"]:focus,
-.mcp-edit-grid textarea:focus,
-.mcp-edit-grid select:focus {
+.skill-edit-grid textarea:focus {
   outline: none;
   border-color: var(--action);
   box-shadow: 0 0 0 4px var(--ring);
@@ -788,9 +718,7 @@ button:disabled {
   flex-shrink: 0;
 }
 
-.compact-list,
-.task-list,
-.runner-list {
+.compact-list {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -799,8 +727,7 @@ button:disabled {
 }
 
 .compact-item,
-.task-card,
-.runner-card {
+.task-card {
   border: 1px solid rgba(26, 32, 38, 0.12);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.74);
@@ -818,26 +745,6 @@ button:disabled {
   margin: 0.2rem 0 0;
   color: var(--ink-1);
   font-size: 0.85rem;
-}
-
-.task-card-top,
-.runner-card-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 0.6rem;
-}
-
-.task-card-title-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.12rem;
-}
-
-.task-card-top-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
 }
 
 .runner-section-title {
@@ -951,12 +858,6 @@ button:disabled {
   color: var(--ink-1);
 }
 
-.agent-subcopy {
-  margin: 0.35rem 0 0.52rem;
-  color: var(--ink-1);
-  font-size: 0.88rem;
-}
-
 .repo-list {
   list-style: none;
   margin: 0.38rem 0 0;
@@ -990,64 +891,6 @@ button:disabled {
   font-size: 0.73rem;
 }
 
-.agent-installed-skills {
-  margin: 0.4rem 0 0.58rem;
-  padding: 0.52rem 0.6rem;
-  border-radius: 10px;
-  border: 1px solid rgba(26, 32, 38, 0.12);
-  background: rgba(255, 255, 255, 0.62);
-  display: grid;
-  gap: 0.5rem;
-}
-
-.agent-installed-skill-row {
-  display: grid;
-  gap: 0.38rem;
-}
-
-.agent-install-status {
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 0.76rem;
-  text-transform: lowercase;
-}
-
-.agent-install-status-installed {
-  color: #0f766e;
-}
-
-.agent-install-status-failed {
-  color: #9e1d24;
-}
-
-.agent-install-status-queued,
-.agent-install-status-installing,
-.agent-install-status-not_installed {
-  color: #1c679d;
-}
-
-.agent-install-logs {
-  border: 1px solid rgba(26, 32, 38, 0.14);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.8);
-  padding: 0.36rem 0.5rem;
-}
-
-.agent-install-logs summary {
-  cursor: pointer;
-  font-size: 0.8rem;
-  color: var(--ink-1);
-}
-
-.agent-install-logs pre {
-  margin: 0.42rem 0 0;
-  max-height: 180px;
-  overflow: auto;
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 0.74rem;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
 .task-id,
 .runner-id {
   margin: 0;
@@ -1075,21 +918,6 @@ button:disabled {
 .task-links em {
   color: var(--accent);
   font-style: normal;
-}
-
-.relationship-editor {
-  margin-top: 0.72rem;
-  padding-top: 0.72rem;
-  border-top: 1px dashed rgba(26, 32, 38, 0.14);
-  display: grid;
-  gap: 0.6rem;
-}
-
-.relationship-grid {
-  display: grid;
-  grid-template-columns: minmax(90px, auto) 1fr;
-  gap: 0.45rem 0.64rem;
-  align-items: center;
 }
 
 .agent-edit-grid {
@@ -1157,21 +985,10 @@ button:disabled {
   align-items: start;
 }
 
-.mcp-edit-grid {
-  display: grid;
-  grid-template-columns: minmax(90px, auto) 1fr;
-  gap: 0.45rem 0.64rem;
-  align-items: start;
-}
-
 .relationship-field {
   font-family: "IBM Plex Mono", monospace;
   font-size: 0.74rem;
   color: var(--ink-1);
-}
-
-.relationship-save-btn {
-  justify-self: start;
 }
 
 .multi-select-input {
@@ -1261,31 +1078,6 @@ button:disabled {
   font-style: normal;
   font-family: "IBM Plex Mono", monospace;
   font-size: 0.8rem;
-}
-
-.runner-cli-block {
-  margin-top: 0.72rem;
-  padding-top: 0.72rem;
-  border-top: 1px dashed rgba(26, 32, 38, 0.14);
-  display: grid;
-  gap: 0.45rem;
-}
-
-.runner-secret-input {
-  width: 100%;
-  border-radius: 11px;
-  border: 1px solid rgba(26, 32, 38, 0.24);
-  background: rgba(255, 255, 255, 0.9);
-  color: var(--ink-0);
-  padding: 0.62rem 0.72rem;
-  font-size: 0.9rem;
-  font-family: inherit;
-}
-
-.runner-secret-input:focus {
-  outline: none;
-  border-color: var(--action);
-  box-shadow: 0 0 0 4px var(--ring);
 }
 
 .runner-command-panel {
@@ -2896,23 +2688,14 @@ button:disabled {
     flex-wrap: wrap;
   }
 
-  .relationship-grid,
   .agent-edit-grid,
-  .skill-edit-grid,
-  .mcp-edit-grid {
+  .skill-edit-grid {
     grid-template-columns: 1fr;
   }
 
   .compact-item {
     flex-direction: column;
     gap: 0.35rem;
-  }
-
-  .task-card-top,
-  .runner-card-top {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.3rem;
   }
 
   .modal-overlay {
