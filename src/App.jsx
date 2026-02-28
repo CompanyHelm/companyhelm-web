@@ -13,6 +13,7 @@ import {
   MCP_AUTH_TYPE_BEARER_TOKEN,
   MCP_AUTH_TYPE_CUSTOM_HEADERS,
   SIDEBAR_COLLAPSE_MEDIA_QUERY,
+  THREAD_TITLE_MAX_LENGTH,
   NAV_SECTIONS,
   BOTTOM_NAV_ITEMS,
   NAV_ITEMS,
@@ -1396,6 +1397,9 @@ function App() {
     matchesMediaQuery(SIDEBAR_COLLAPSE_MEDIA_QUERY),
   );
   const hasCompanies = companies.length > 0;
+  const handleChatSessionRenameDraftChange = useCallback((nextTitle) => {
+    setChatSessionRenameDraft(String(nextTitle || "").slice(0, THREAD_TITLE_MAX_LENGTH));
+  }, []);
 
   const selectedCompany = useMemo(() => {
     return companies.find((company) => company.id === selectedCompanyId) || null;
@@ -2470,8 +2474,9 @@ function App() {
     }
 
     const nextTitle = String(selectedChatSession?.title || "");
+    const normalizedNextTitle = nextTitle.slice(0, THREAD_TITLE_MAX_LENGTH);
     setChatSessionRenameDraft((currentTitle) =>
-      currentTitle === nextTitle ? currentTitle : nextTitle,
+      currentTitle === normalizedNextTitle ? currentTitle : normalizedNextTitle,
     );
   }, [resolvedChatSessionId, selectedChatSession?.title]);
 
@@ -4259,9 +4264,11 @@ function App() {
     try {
       setIsUpdatingChatTitle(true);
       setChatError("");
+      const normalizedRenameTitle = String(chatSessionRenameDraft || "").trim();
+      const cappedRenameTitle = normalizedRenameTitle.slice(0, THREAD_TITLE_MAX_LENGTH);
       const data = await executeGraphQL(UPDATE_AGENT_THREAD_MUTATION, {
         threadId: targetSessionId,
-        title: String(chatSessionRenameDraft || "").trim() || null,
+        title: cappedRenameTitle || null,
       });
       const result = data?.updateAgentThread;
       if (!result?.ok || !result?.thread) {
@@ -4943,7 +4950,7 @@ function App() {
               deletingChatSessionKey={deletingChatSessionKey}
               steeringQueuedMessageId={steeringQueuedMessageId}
               deletingQueuedMessageId={deletingQueuedMessageId}
-              onChatSessionRenameDraftChange={setChatSessionRenameDraft}
+              onChatSessionRenameDraftChange={handleChatSessionRenameDraftChange}
               onChatDraftMessageChange={setChatDraftMessage}
               onBackToChats={() => {
                 setChatSessionId("");
@@ -5024,7 +5031,7 @@ function App() {
               deletingChatSessionKey={deletingChatSessionKey}
               steeringQueuedMessageId={steeringQueuedMessageId}
               deletingQueuedMessageId={deletingQueuedMessageId}
-              onChatSessionRenameDraftChange={setChatSessionRenameDraft}
+              onChatSessionRenameDraftChange={handleChatSessionRenameDraftChange}
               onChatDraftMessageChange={setChatDraftMessage}
               onBackToChats={() => {
                 if (!chatAgentId) {

@@ -12,6 +12,7 @@ import {
 import {
   COMPACT_CHAT_MEDIA_QUERY,
   CHAT_MESSAGE_BATCH_SIZE,
+  THREAD_TITLE_MAX_LENGTH,
   TRANSCRIPT_TOP_LOAD_THRESHOLD_PX,
   TRANSCRIPT_BOTTOM_STICKY_THRESHOLD_PX,
 } from "../utils/constants.js";
@@ -85,6 +86,10 @@ function getQueuedMessagePreview(rawText) {
     hasAdditionalContent: normalizedText.length > firstLine.length,
     hasOriginalContent: true,
   };
+}
+
+function clampThreadTitle(value) {
+  return String(value || "").slice(0, THREAD_TITLE_MAX_LENGTH);
 }
 
 export function AgentChatPage({
@@ -316,13 +321,13 @@ export function AgentChatPage({
     if (!session || isUpdatingChatTitle) {
       return;
     }
-    onChatSessionRenameDraftChange(String(session.title || ""));
+    onChatSessionRenameDraftChange(clampThreadTitle(session.title));
     setIsSessionPanelCollapsed(false);
     setIsEditingChatTitle(true);
   }
 
   function handleCancelChatTitleEdit() {
-    onChatSessionRenameDraftChange(String(session?.title || ""));
+    onChatSessionRenameDraftChange(clampThreadTitle(session?.title));
     setIsEditingChatTitle(false);
   }
 
@@ -421,11 +426,12 @@ export function AgentChatPage({
                     id="chat-session-rename"
                     ref={chatTitleInputRef}
                     value={chatSessionRenameDraft}
-                    onChange={(event) => onChatSessionRenameDraftChange(event.target.value)}
+                    onChange={(event) => onChatSessionRenameDraftChange(clampThreadTitle(event.target.value))}
                     onKeyDown={handleChatTitleInputKeyDown}
                     placeholder="e.g. Release planning"
                     disabled={isUpdatingChatTitle}
                     aria-label="Chat title"
+                    maxLength={THREAD_TITLE_MAX_LENGTH}
                   />
                   <p className="chat-title-inline-hint">
                     {isUpdatingChatTitle ? "Saving..." : "Press Enter to save, Esc to cancel"}
