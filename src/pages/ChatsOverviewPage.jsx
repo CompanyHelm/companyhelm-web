@@ -68,7 +68,7 @@ export function ChatsOverviewPage({
                     <code className="runner-id">{agent.id}</code>
                   </div>
                   <p className="agent-subcopy">
-                    SDK: <strong>{agent.agentSdk}</strong> • model: <strong>{modelLabel}</strong>
+                    SDK: <strong>{agent.agentSdk}</strong> · model: <strong>{modelLabel}</strong>
                   </p>
                   <div className="task-card-actions">
                     <button
@@ -84,56 +84,69 @@ export function ChatsOverviewPage({
                   {createChatDisabledReason ? <p className="empty-hint">{createChatDisabledReason}</p> : null}
                   {!hasChats ? <p className="empty-hint">No chats yet for this agent.</p> : null}
                   {hasChats ? (
-                    <ul className="chat-session-list">
+                    <ul className="chat-card-list">
                       {sortedChats.map((chatSession) => {
                         const isRunning = isChatSessionRunning(chatSession, chatSessionRunningById);
                         const chatSessionKey = `${agent.id}:${chatSession.id}`;
                         const isDeletingChat = deletingChatSessionKey === chatSessionKey;
-                        const modelLabel =
+                        const sessionModelLabel =
                           String(chatSession?.currentModelName || chatSession?.currentModelId || "").trim() || "n/a";
                         const reasoningLabel = String(chatSession?.currentReasoningLevel || "").trim() || "n/a";
                         return (
-                          <li key={`chat-session-${agent.id}-${chatSession.id}`} className="chat-session-row">
-                            <div>
-                              <p className="chat-session-title-row">
+                          <li
+                            key={`chat-session-${agent.id}-${chatSession.id}`}
+                            className="chat-card"
+                            onClick={() =>
+                              !isDeletingChat && onOpenChat({
+                                agentId: agent.id,
+                                sessionId: chatSession.id,
+                                sessionsForAgent: sortedChats,
+                              })
+                            }
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter" && !isDeletingChat) {
+                                onOpenChat({
+                                  agentId: agent.id,
+                                  sessionId: chatSession.id,
+                                  sessionsForAgent: sortedChats,
+                                });
+                              }
+                            }}
+                          >
+                            <div className="chat-card-main">
+                              <p className="chat-card-title">
                                 <strong>{chatSession.title || "Untitled chat"}</strong>
                                 {isRunning ? <ChatSessionRunningBadge /> : null}
                               </p>
-                              <p className="agent-subcopy">
-                                Updated: <strong>{formatTimestamp(chatSession.updatedAt)}</strong>
-                              </p>
-                              <p className="agent-subcopy">
-                                Model: <strong>{modelLabel}</strong> • Reasoning: <strong>{reasoningLabel}</strong>
+                              <p className="chat-card-meta">
+                                {formatTimestamp(chatSession.updatedAt)} · {sessionModelLabel} · {reasoningLabel}
                               </p>
                             </div>
-                            <div className="task-card-actions">
+                            <div className="chat-card-actions">
                               <button
                                 type="button"
-                                className="secondary-btn"
-                                onClick={() =>
-                                  onOpenChat({
-                                    agentId: agent.id,
-                                    sessionId: chatSession.id,
-                                    sessionsForAgent: sortedChats,
-                                  })
-                                }
-                                disabled={isDeletingChat}
-                              >
-                                Open chat
-                              </button>
-                              <button
-                                type="button"
-                                className="danger-btn"
-                                onClick={() =>
+                                className="chat-card-icon-btn chat-card-icon-btn-danger"
+                                onClick={(event) => {
+                                  event.stopPropagation();
                                   onDeleteChat({
                                     agentId: agent.id,
                                     sessionId: chatSession.id,
                                     title: chatSession.title,
-                                  })
-                                }
+                                  });
+                                }}
                                 disabled={isDeletingChat}
+                                aria-label={isDeletingChat ? "Deleting..." : "Delete chat"}
+                                title={isDeletingChat ? "Deleting..." : "Delete chat"}
                               >
-                                {isDeletingChat ? "Deleting..." : "Delete"}
+                                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                  <path d="M3 6h18" />
+                                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                                  <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                                  <line x1="10" y1="11" x2="10" y2="17" />
+                                  <line x1="14" y1="11" x2="14" y2="17" />
+                                </svg>
                               </button>
                             </div>
                           </li>

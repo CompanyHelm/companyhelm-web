@@ -5829,6 +5829,7 @@ function App() {
                 }
                 setBrowserPath(`/agents/${chatAgentId}/chats/${sessionId}`);
               }}
+              onSetChatDraftMessage={setChatDraftMessage}
               onDeleteChat={handleDeleteChatSession}
               onBackToAgents={() => {
                 navigateTo("agents");

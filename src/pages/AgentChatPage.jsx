@@ -122,6 +122,7 @@ export function AgentChatPage({
     currentChatSessionKey && deletingChatSessionKey === currentChatSessionKey,
   );
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isInstructionsExpanded, setIsInstructionsExpanded] = useState(false);
   const [selectedCommandOutputItem, setSelectedCommandOutputItem] = useState(null);
   const [selectedQueuedMessage, setSelectedQueuedMessage] = useState(null);
   const [visibleMessageCount, setVisibleMessageCount] = useState(CHAT_MESSAGE_BATCH_SIZE);
@@ -598,9 +599,18 @@ export function AgentChatPage({
           </div>
           <div className="chat-settings-field">
             <label className="chat-settings-label">Additional instructions</label>
-            <p className="chat-settings-readonly">
+            <p className="chat-settings-readonly chat-settings-readonly-clamped">
               {session?.additionalModelInstructions || "none"}
             </p>
+            {session?.additionalModelInstructions ? (
+              <button
+                type="button"
+                className="chat-settings-show-all-btn"
+                onClick={() => setIsInstructionsExpanded(true)}
+              >
+                Show all
+              </button>
+            ) : null}
           </div>
           <div className="chat-settings-info">
             <p className="chat-settings-info-row">
@@ -622,6 +632,20 @@ export function AgentChatPage({
             </button>
           </div>
         </form>
+      </CreationModal>
+
+      <CreationModal
+        modalId="chat-instructions-modal"
+        title="Additional Instructions"
+        isOpen={isInstructionsExpanded}
+        onClose={() => setIsInstructionsExpanded(false)}
+        cardClassName="modal-card-fullscreen"
+      >
+        <div className="chat-instructions-modal-body">
+          <pre className="chat-instructions-modal-pre">
+            <code>{session?.additionalModelInstructions || "(none)"}</code>
+          </pre>
+        </div>
       </CreationModal>
 
       <CreationModal
