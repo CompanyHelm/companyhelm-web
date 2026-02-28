@@ -1250,7 +1250,25 @@ export const COMPANY_API_LIST_AGENTS_CONNECTION_QUERY = `
           id
           name
           status
+          defaultReasoningLevel
           defaultAdditionalModelInstructions
+          agentRunnerSdk {
+            id
+            name
+            models {
+              id
+              name
+              reasoning
+            }
+          }
+          defaultModel {
+            id
+            name
+            reasoning
+            sdk {
+              id
+            }
+          }
           company {
             id
           }
@@ -1258,6 +1276,15 @@ export const COMPANY_API_LIST_AGENTS_CONNECTION_QUERY = `
             id
             name
             status
+            agentSdks {
+              id
+              name
+              models {
+                id
+                name
+                reasoning
+              }
+            }
           }
         }
       }
@@ -1481,6 +1508,65 @@ export const COMPANY_API_LIST_THREAD_TURNS_CONNECTION_QUERY = `
       pageInfo {
         hasNextPage
         endCursor
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_LIST_THREAD_TURNS_WITH_QUEUED_QUERY = `
+  query CompanyApiListThreadTurnsWithQueued(
+    $threadId: ID!
+    $firstTurns: Int!
+    $firstQueuedUserMessages: Int!
+  ) {
+    threadTurns(threadId: $threadId, first: $firstTurns) {
+      edges {
+        node {
+          id
+          sdkTurnId
+          status
+          reasoningText
+          startedAt
+          endedAt
+          company {
+            id
+          }
+          thread {
+            id
+          }
+          agent {
+            id
+          }
+          items {
+            id
+            sdkItemId
+            type
+            status
+            text
+            commandOutput
+            consoleOutput
+            processId
+            startedAt
+            completedAt
+            company {
+              id
+            }
+            turn {
+              id
+            }
+          }
+        }
+      }
+    }
+    queuedUserMessages(threadId: $threadId, first: $firstQueuedUserMessages) {
+      id
+      allowSteer
+      text
+      company {
+        id
+      }
+      thread {
+        id
       }
     }
   }

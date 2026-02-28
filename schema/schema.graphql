@@ -5,8 +5,11 @@ type AddGithubInstallationPayload {
 }
 
 type Agent {
+  agentRunnerSdk: AgentRunnerSdk!
   company: Company!
   defaultAdditionalModelInstructions: String
+  defaultModel: AgentRunnerSdkModel!
+  defaultReasoningLevel: String
   id: ID!
   name: String!
   runner: AgentRunner!
