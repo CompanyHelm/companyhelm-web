@@ -1,306 +1,396 @@
-import { useState } from "react";
-import { CreationModal } from "../components/CreationModal.jsx";
-import { SKILL_TYPE_TEXT, SKILL_TYPE_SKILLSMP, SKILL_TYPE_OPTIONS } from "../utils/constants.js";
-import { normalizeSkillType } from "../utils/normalization.js";
+import { useMemo, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export function SkillsPage({
   selectedCompanyId,
   skills,
+  skillGroups,
+  activeSkill,
   isLoadingSkills,
+  isLoadingSkillGroups,
   skillError,
-  isCreatingSkill,
-  savingSkillId,
-  deletingSkillId,
-  skillName,
-  skillType,
-  skillSkillsMpPackageName,
-  skillDescription,
-  skillInstructions,
-  skillDrafts,
-  skillCountLabel,
-  onSkillNameChange,
-  onSkillTypeChange,
-  onSkillSkillsMpPackageNameChange,
-  onSkillDescriptionChange,
-  onSkillInstructionsChange,
-  onCreateSkill,
-  onSkillDraftChange,
-  onSaveSkill,
-  onDeleteSkill,
+  onOpenSkill,
+  onBackToSkills,
+  onCreateSkillGroup,
+  onUpdateSkillGroup,
+  onDeleteSkillGroup,
+  onAddSkillToGroup,
+  onRemoveSkillFromGroup,
+  onOpenGitSkillPackage,
 }) {
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [newGroupParentId, setNewGroupParentId] = useState("");
+  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
+  const [savingGroupId, setSavingGroupId] = useState("");
+  const [groupDrafts, setGroupDrafts] = useState({});
+  const [localError, setLocalError] = useState("");
+  const [showRawMarkdown, setShowRawMarkdown] = useState(false);
 
-  async function handleCreateSkillSubmit(event) {
-    const didCreate = await onCreateSkill(event);
-    if (didCreate) {
-      setIsCreateModalOpen(false);
+  const groupedSkillIds = useMemo(() => {
+    const ids = new Set();
+    for (const group of skillGroups) {
+      for (const skill of group.skills || []) {
+        if (skill?.id) {
+          ids.add(skill.id);
+        }
+      }
     }
+    return ids;
+  }, [skillGroups]);
+
+  const ungroupedSkills = useMemo(() => {
+    return skills.filter((skill) => !groupedSkillIds.has(skill.id));
+  }, [groupedSkillIds, skills]);
+
+  async function handleCreateGroup(event) {
+    event.preventDefault();
+    try {
+      setIsCreatingGroup(true);
+      setLocalError("");
+      await onCreateSkillGroup({
+        name: newGroupName,
+        parentSkillGroupId: newGroupParentId || null,
+      });
+      setNewGroupName("");
+      setNewGroupParentId("");
+    } catch (error) {
+      setLocalError(error.message);
+    } finally {
+      setIsCreatingGroup(false);
+    }
+  }
+
+  async function handleAddSkillToGroup(skillGroupId, skillId) {
+    try {
+      setLocalError("");
+      await onAddSkillToGroup(skillGroupId, skillId);
+    } catch (error) {
+      setLocalError(error.message);
+    }
+  }
+
+  async function handleRemoveSkillFromGroup(skillGroupId, skillId) {
+    try {
+      setLocalError("");
+      await onRemoveSkillFromGroup(skillGroupId, skillId);
+    } catch (error) {
+      setLocalError(error.message);
+    }
+  }
+
+  function getGroupDraft(group) {
+    const existingDraft = groupDrafts[group.id];
+    if (existingDraft) {
+      return existingDraft;
+    }
+    return {
+      name: group.name || "",
+      parentSkillGroupId: group.parentSkillGroup?.id || "",
+    };
+  }
+
+  function updateGroupDraft(groupId, nextDraft) {
+    setGroupDrafts((current) => ({
+      ...current,
+      [groupId]: {
+        ...current[groupId],
+        ...nextDraft,
+      },
+    }));
+  }
+
+  async function handleUpdateGroup(groupId) {
+    try {
+      const draft = groupDrafts[groupId];
+      if (!draft) {
+        return;
+      }
+      setSavingGroupId(groupId);
+      setLocalError("");
+      await onUpdateSkillGroup({
+        id: groupId,
+        name: draft.name,
+        parentSkillGroupId: draft.parentSkillGroupId || null,
+      });
+    } catch (error) {
+      setLocalError(error.message);
+    } finally {
+      setSavingGroupId("");
+    }
+  }
+
+  if (activeSkill) {
+    const gitSkillPackage = activeSkill.gitSkillPackage || null;
+
+    return (
+      <div className="page-stack">
+        <section className="panel hero-panel">
+          <p className="eyebrow">Skill</p>
+          <h1>{activeSkill.name}</h1>
+          <p className="subcopy">{activeSkill.description || "No description provided."}</p>
+          <p className="context-pill">Company: {selectedCompanyId}</p>
+        </section>
+
+        <section className="panel list-panel">
+          <header className="panel-header panel-header-row">
+            <h2>Skill details</h2>
+            <div className="task-meta">
+              <button type="button" className="secondary-btn" onClick={onBackToSkills}>
+                Back to skills
+              </button>
+            </div>
+          </header>
+
+          {skillError || localError ? <p className="error-banner">{skillError || localError}</p> : null}
+
+          <p className="agent-subcopy">
+            Groups: <strong>{(activeSkill.groups || []).map((group) => group.name).join(", ") || "none"}</strong>
+          </p>
+          <p className="agent-subcopy">
+            Files: <strong>{activeSkill.fileList?.length || 0}</strong>
+          </p>
+
+          {gitSkillPackage ? (
+            <section className="subpanel">
+              <h3>Git skill package</h3>
+              <p className="agent-subcopy">
+                Package: <strong>{gitSkillPackage.packageName}</strong>
+              </p>
+              <p className="agent-subcopy">
+                Skill path: <strong>{activeSkill.gitSkillPackagePath || "-"}</strong>
+              </p>
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={() => onOpenGitSkillPackage(gitSkillPackage.id)}
+              >
+                Open package
+              </button>
+            </section>
+          ) : null}
+
+          <section className="subpanel">
+            <h3>Content</h3>
+            <div className="task-card-actions">
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={() => setShowRawMarkdown((current) => !current)}
+              >
+                {showRawMarkdown ? "Show rendered" : "Show raw"}
+              </button>
+            </div>
+            {showRawMarkdown ? (
+              <pre className="agent-install-logs">{activeSkill.content || ""}</pre>
+            ) : (
+              <div className="chat-message-content chat-message-content-markdown">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{activeSkill.content || ""}</ReactMarkdown>
+              </div>
+            )}
+          </section>
+
+          <section className="subpanel">
+            <h3>File list</h3>
+            {Array.isArray(activeSkill.fileList) && activeSkill.fileList.length > 0 ? (
+              <ul className="task-list">
+                {activeSkill.fileList.map((filePath) => (
+                  <li key={filePath} className="task-card">
+                    <code>{filePath}</code>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="empty-hint">No files found.</p>
+            )}
+          </section>
+        </section>
+      </div>
+    );
   }
 
   return (
     <div className="page-stack">
       <section className="panel hero-panel">
         <p className="eyebrow">Skill Library</p>
-        <h1>Skills page</h1>
-        <p className="subcopy">
-          Capture reusable skills with clear descriptions and detailed instructions.
-        </p>
+        <h1>Skills</h1>
+        <p className="subcopy">Browse skills grouped by skill groups and manage group memberships.</p>
         <p className="context-pill">Company: {selectedCompanyId}</p>
       </section>
 
       <section className="panel list-panel">
         <header className="panel-header panel-header-row">
-          <h2>Skills</h2>
+          <h2>Skill groups</h2>
           <div className="task-meta">
-            <span>{skillCountLabel}</span>
-            <button
-              type="button"
-              className="icon-create-btn"
-              aria-label="Create skill"
-              title="Create skill"
-              onClick={() => setIsCreateModalOpen(true)}
-            >
-              +
-            </button>
+            <span>{skillGroups.length} groups</span>
           </div>
         </header>
 
-        {skillError ? <p className="error-banner">{skillError}</p> : null}
-        {isLoadingSkills ? <p className="empty-hint">Loading skills...</p> : null}
-        {!isLoadingSkills && skills.length === 0 ? (
-          <div className="empty-state">
-            <p className="empty-hint">No skills created for this company yet.</p>
-            <button
-              type="button"
-              className="secondary-btn empty-create-btn"
-              onClick={() => setIsCreateModalOpen(true)}
-            >
-              + Create skill
-            </button>
-          </div>
-        ) : null}
+        {skillError || localError ? <p className="error-banner">{skillError || localError}</p> : null}
+        {isLoadingSkills || isLoadingSkillGroups ? <p className="empty-hint">Loading skills...</p> : null}
 
-        {skills.length > 0 ? (
-          <ul className="task-list">
-            {skills.map((skill) => {
-              const draft = skillDrafts[skill.id] || {
-                name: "",
-                skillType: SKILL_TYPE_TEXT,
-                skillsMpPackageName: "",
-                description: "",
-                instructions: "",
-              };
-              const resolvedSkillType = normalizeSkillType(draft.skillType);
-              const isSavingOrDeleting =
-                savingSkillId === skill.id || deletingSkillId === skill.id;
-              return (
-                <li key={skill.id} className="task-card">
-                  <div className="task-card-top">
-                    <strong>{skill.name}</strong>
-                    <code className="runner-id">{skill.id}</code>
-                  </div>
-                  <p className="agent-subcopy">
-                    Type: <strong>{resolvedSkillType === SKILL_TYPE_SKILLSMP ? "SkillsMP" : "Text"}</strong>
-                  </p>
-                  {resolvedSkillType === SKILL_TYPE_SKILLSMP ? (
-                    <p className="agent-subcopy">
-                      Package: <strong>{draft.skillsMpPackageName || "-"}</strong>
-                    </p>
-                  ) : (
-                    <p className="agent-subcopy">{draft.description}</p>
-                  )}
-                  <div className="relationship-editor">
-                    <div className="skill-edit-grid">
-                      <label className="relationship-field" htmlFor={`skill-name-${skill.id}`}>
-                        Name
-                      </label>
-                      <input
-                        id={`skill-name-${skill.id}`}
-                        value={draft.name}
-                        onChange={(event) =>
-                          onSkillDraftChange(skill.id, "name", event.target.value)
-                        }
-                        disabled={isSavingOrDeleting}
-                      />
-
-                      <label className="relationship-field" htmlFor={`skill-type-${skill.id}`}>
-                        Type
-                      </label>
-                      <select
-                        id={`skill-type-${skill.id}`}
-                        value={resolvedSkillType}
-                        onChange={(event) =>
-                          onSkillDraftChange(skill.id, "skillType", event.target.value)
-                        }
-                        disabled={isSavingOrDeleting}
-                      >
-                        {SKILL_TYPE_OPTIONS.map((option) => (
-                          <option key={`${skill.id}-skill-type-${option.value}`} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-
-                      {resolvedSkillType === SKILL_TYPE_SKILLSMP ? (
-                        <>
-                          <label
-                            className="relationship-field"
-                            htmlFor={`skill-package-${skill.id}`}
-                          >
-                            SkillsMP package
-                          </label>
-                          <input
-                            id={`skill-package-${skill.id}`}
-                            value={draft.skillsMpPackageName}
-                            onChange={(event) =>
-                              onSkillDraftChange(
-                                skill.id,
-                                "skillsMpPackageName",
-                                event.target.value,
-                              )
-                            }
-                            placeholder="upstash/context7 or npx skills add upstash/context7"
-                            disabled={isSavingOrDeleting}
-                          />
-                        </>
-                      ) : (
-                        <>
-                          <label
-                            className="relationship-field"
-                            htmlFor={`skill-description-${skill.id}`}
-                          >
-                            Description
-                          </label>
-                          <textarea
-                            id={`skill-description-${skill.id}`}
-                            rows={2}
-                            value={draft.description}
-                            onChange={(event) =>
-                              onSkillDraftChange(skill.id, "description", event.target.value)
-                            }
-                            disabled={isSavingOrDeleting}
-                          />
-
-                          <label
-                            className="relationship-field"
-                            htmlFor={`skill-instructions-${skill.id}`}
-                          >
-                            Instructions
-                          </label>
-                          <textarea
-                            id={`skill-instructions-${skill.id}`}
-                            rows={4}
-                            value={draft.instructions}
-                            onChange={(event) =>
-                              onSkillDraftChange(skill.id, "instructions", event.target.value)
-                            }
-                            disabled={isSavingOrDeleting}
-                          />
-                        </>
-                      )}
-                    </div>
-                    <div className="task-card-actions">
-                      <button
-                        type="button"
-                        className="secondary-btn relationship-save-btn"
-                        onClick={() => onSaveSkill(skill.id)}
-                        disabled={isSavingOrDeleting}
-                      >
-                        {savingSkillId === skill.id ? "Saving..." : "Save"}
-                      </button>
-                      <button
-                        type="button"
-                        className="danger-btn"
-                        onClick={() => onDeleteSkill(skill.id, skill.name)}
-                        disabled={isSavingOrDeleting}
-                      >
-                        {deletingSkillId === skill.id ? "Deleting..." : "Delete"}
-                      </button>
-                    </div>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        ) : null}
-      </section>
-
-      <CreationModal
-        modalId="create-skill-modal"
-        title="Create skill"
-        description="Add a reusable skill for the active company."
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-      >
-        <form className="task-form" onSubmit={handleCreateSkillSubmit}>
-          <label htmlFor="skill-name">Name</label>
+        <form className="task-form" onSubmit={handleCreateGroup}>
+          <label htmlFor="new-skill-group-name">New group name</label>
           <input
-            id="skill-name"
-            name="name"
-            placeholder="e.g. Sprint Planning"
-            value={skillName}
-            onChange={(event) => onSkillNameChange(event.target.value)}
+            id="new-skill-group-name"
+            value={newGroupName}
+            onChange={(event) => setNewGroupName(event.target.value)}
+            placeholder="e.g. obra/superpowers"
             required
-            autoFocus
           />
 
-          <label htmlFor="skill-type">Type</label>
+          <label htmlFor="new-skill-group-parent">Parent group (optional)</label>
           <select
-            id="skill-type"
-            name="skillType"
-            value={skillType}
-            onChange={(event) => onSkillTypeChange(event.target.value)}
+            id="new-skill-group-parent"
+            value={newGroupParentId}
+            onChange={(event) => setNewGroupParentId(event.target.value)}
           >
-            {SKILL_TYPE_OPTIONS.map((option) => (
-              <option key={`create-skill-type-${option.value}`} value={option.value}>
-                {option.label}
+            <option value="">None</option>
+            {skillGroups.map((group) => (
+              <option key={`parent-group-${group.id}`} value={group.id}>
+                {group.name}
               </option>
             ))}
           </select>
 
-          {normalizeSkillType(skillType) === SKILL_TYPE_SKILLSMP ? (
-            <>
-              <label htmlFor="skill-package-name">SkillsMP package</label>
-              <input
-                id="skill-package-name"
-                name="skillsMpPackageName"
-                placeholder="upstash/context7 or npx skills add upstash/context7"
-                value={skillSkillsMpPackageName}
-                onChange={(event) => onSkillSkillsMpPackageNameChange(event.target.value)}
-                required
-              />
-            </>
-          ) : (
-            <>
-              <label htmlFor="skill-description">Description</label>
-              <textarea
-                id="skill-description"
-                name="description"
-                rows={2}
-                placeholder="One sentence summary..."
-                value={skillDescription}
-                onChange={(event) => onSkillDescriptionChange(event.target.value)}
-                required
-              />
-
-              <label htmlFor="skill-instructions">Instructions</label>
-              <textarea
-                id="skill-instructions"
-                name="instructions"
-                rows={5}
-                placeholder="Detailed instructions..."
-                value={skillInstructions}
-                onChange={(event) => onSkillInstructionsChange(event.target.value)}
-                required
-              />
-            </>
-          )}
-
-          <button type="submit" disabled={isCreatingSkill}>
-            {isCreatingSkill ? "Creating..." : "Create skill"}
+          <button type="submit" disabled={isCreatingGroup}>
+            {isCreatingGroup ? "Creating..." : "Create group"}
           </button>
         </form>
-      </CreationModal>
+
+        {skillGroups.length === 0 ? <p className="empty-hint">No skill groups yet.</p> : null}
+
+        {skillGroups.map((group) => {
+          const groupDraft = getGroupDraft(group);
+          const parentOptions = skillGroups.filter((entry) => entry.id !== group.id);
+          const groupSkillIds = new Set((group.skills || []).map((skill) => skill.id));
+          const availableSkills = skills.filter((skill) => !groupSkillIds.has(skill.id));
+
+          return (
+            <article key={group.id} className="task-card">
+              <div className="task-card-top">
+                <strong>{group.name}</strong>
+                <div className="task-card-actions">
+                  <button
+                    type="button"
+                    className="danger-btn"
+                    onClick={() => onDeleteSkillGroup(group.id, group.name)}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+              <p className="agent-subcopy">
+                Parent: <strong>{group.parentSkillGroup?.name || "none"}</strong>
+              </p>
+
+              <label htmlFor={`group-name-${group.id}`}>Group name</label>
+              <input
+                id={`group-name-${group.id}`}
+                value={groupDraft.name}
+                onChange={(event) =>
+                  updateGroupDraft(group.id, {
+                    name: event.target.value,
+                  })}
+              />
+
+              <label htmlFor={`group-parent-${group.id}`}>Parent group</label>
+              <select
+                id={`group-parent-${group.id}`}
+                value={groupDraft.parentSkillGroupId || ""}
+                onChange={(event) =>
+                  updateGroupDraft(group.id, {
+                    parentSkillGroupId: event.target.value,
+                  })}
+              >
+                <option value="">None</option>
+                {parentOptions.map((parentGroup) => (
+                  <option key={`group-parent-option-${group.id}-${parentGroup.id}`} value={parentGroup.id}>
+                    {parentGroup.name}
+                  </option>
+                ))}
+              </select>
+              <div className="task-card-actions">
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={() => void handleUpdateGroup(group.id)}
+                  disabled={savingGroupId === group.id}
+                >
+                  {savingGroupId === group.id ? "Saving..." : "Save group"}
+                </button>
+              </div>
+
+              <label htmlFor={`group-add-skill-${group.id}`}>Add skill to group</label>
+              <select
+                id={`group-add-skill-${group.id}`}
+                value=""
+                onChange={(event) => {
+                  const nextSkillId = String(event.target.value || "").trim();
+                  if (!nextSkillId) {
+                    return;
+                  }
+                  void handleAddSkillToGroup(group.id, nextSkillId);
+                }}
+                disabled={availableSkills.length === 0}
+              >
+                <option value="">
+                  {availableSkills.length === 0 ? "All skills assigned" : "Select skill"}
+                </option>
+                {availableSkills.map((skill) => (
+                  <option key={`group-skill-option-${group.id}-${skill.id}`} value={skill.id}>
+                    {skill.name}
+                  </option>
+                ))}
+              </select>
+
+              {(group.skills || []).length === 0 ? (
+                <p className="empty-hint">No skills in this group.</p>
+              ) : (
+                <ul className="task-list">
+                  {group.skills.map((skill) => (
+                    <li key={`${group.id}-${skill.id}`} className="task-card">
+                      <div className="task-card-top">
+                        <button
+                          type="button"
+                          className="secondary-btn"
+                          onClick={() => onOpenSkill(skill.id)}
+                        >
+                          {skill.name}
+                        </button>
+                        <button
+                          type="button"
+                          className="secondary-btn"
+                          onClick={() => void handleRemoveSkillFromGroup(group.id, skill.id)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </article>
+          );
+        })}
+
+        <section className="subpanel">
+          <h3>Ungrouped skills</h3>
+          {ungroupedSkills.length === 0 ? (
+            <p className="empty-hint">All skills are assigned to at least one group.</p>
+          ) : (
+            <ul className="task-list">
+              {ungroupedSkills.map((skill) => (
+                <li key={`ungrouped-skill-${skill.id}`} className="task-card">
+                  <button type="button" className="secondary-btn" onClick={() => onOpenSkill(skill.id)}>
+                    {skill.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </section>
     </div>
   );
 }

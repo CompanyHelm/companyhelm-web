@@ -49,6 +49,12 @@ export const NAV_SECTIONS = [
     items: [
       { id: "agents", label: "Agents", href: "/agents", requiresCompany: true },
       { id: "skills", label: "Skills", href: "/skills", requiresCompany: true },
+      {
+        id: "gitskillpackages",
+        label: "Git Skill Packages",
+        href: "/gitSkillPackages",
+        requiresCompany: true,
+      },
       { id: "mcp-servers", label: "MCP Servers", href: "/mcp-servers", requiresCompany: true },
     ],
   },

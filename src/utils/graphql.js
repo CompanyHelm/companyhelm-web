@@ -255,12 +255,231 @@ export const LIST_SKILLS_QUERY = `
   query ListSkills($companyId: String!) {
     skills(companyId: $companyId) {
       id
-      companyId
       name
-      skillType
-      skillsMpPackageName
       description
-      instructions
+      content
+      fileList
+      gitSkillPackagePath
+      company {
+        id
+      }
+      groups {
+        id
+        name
+      }
+      gitSkillPackage {
+        id
+        packageName
+        gitRepositoryUrl
+      }
+    }
+  }
+`;
+
+export const LIST_SKILL_GROUPS_QUERY = `
+  query ListSkillGroups($companyId: String!) {
+    skillGroups(companyId: $companyId) {
+      id
+      name
+      company {
+        id
+      }
+      parentSkillGroup {
+        id
+        name
+      }
+      skills {
+        id
+        name
+      }
+    }
+  }
+`;
+
+export const LIST_GIT_SKILL_PACKAGES_QUERY = `
+  query ListGitSkillPackages($companyId: String!) {
+    gitSkillPackages(companyId: $companyId) {
+      id
+      packageName
+      gitRepositoryUrl
+      hostingProvider
+      currentCommitHash
+      currentReference
+      company {
+        id
+      }
+      skills {
+        id
+        name
+      }
+    }
+  }
+`;
+
+export const PREVIEW_GIT_SKILL_PACKAGE_MUTATION = `
+  mutation PreviewGitSkillPackage($gitRepositoryUrl: String!) {
+    previewGitSkillPackage(gitRepositoryUrl: $gitRepositoryUrl) {
+      ok
+      error
+      normalizedRepositoryUrl
+      packageName
+      branches {
+        kind
+        name
+        fullRef
+      }
+      tags {
+        kind
+        name
+        fullRef
+      }
+    }
+  }
+`;
+
+export const CREATE_GIT_SKILL_PACKAGE_MUTATION = `
+  mutation CreateGitSkillPackage(
+    $companyId: ID!
+    $gitRepositoryUrl: String!
+    $gitReference: String!
+  ) {
+    createGitSkillPackage(
+      companyId: $companyId
+      gitRepositoryUrl: $gitRepositoryUrl
+      gitReference: $gitReference
+    ) {
+      ok
+      error
+      warnings
+      packageId
+      gitSkillPackage {
+        id
+        packageName
+        gitRepositoryUrl
+        hostingProvider
+        currentCommitHash
+        currentReference
+        company {
+          id
+        }
+      }
+      skills {
+        id
+        name
+        description
+        content
+        fileList
+        gitSkillPackagePath
+        company {
+          id
+        }
+      }
+    }
+  }
+`;
+
+export const DELETE_GIT_SKILL_PACKAGE_MUTATION = `
+  mutation DeleteGitSkillPackage($companyId: ID!, $id: ID!) {
+    deleteGitSkillPackage(companyId: $companyId, id: $id) {
+      ok
+      error
+      deletedGitSkillPackageId
+    }
+  }
+`;
+
+export const CREATE_SKILL_GROUP_MUTATION = `
+  mutation CreateSkillGroup($companyId: ID!, $name: String!, $parentSkillGroupId: ID) {
+    createSkillGroup(
+      companyId: $companyId
+      name: $name
+      parentSkillGroupId: $parentSkillGroupId
+    ) {
+      ok
+      error
+      skillGroup {
+        id
+        name
+        company {
+          id
+        }
+        parentSkillGroup {
+          id
+          name
+        }
+      }
+    }
+  }
+`;
+
+export const UPDATE_SKILL_GROUP_MUTATION = `
+  mutation UpdateSkillGroup(
+    $companyId: ID!
+    $id: ID!
+    $name: String!
+    $parentSkillGroupId: ID
+  ) {
+    updateSkillGroup(
+      companyId: $companyId
+      id: $id
+      name: $name
+      parentSkillGroupId: $parentSkillGroupId
+    ) {
+      ok
+      error
+      skillGroup {
+        id
+        name
+        company {
+          id
+        }
+        parentSkillGroup {
+          id
+          name
+        }
+      }
+    }
+  }
+`;
+
+export const DELETE_SKILL_GROUP_MUTATION = `
+  mutation DeleteSkillGroup($companyId: ID!, $id: ID!) {
+    deleteSkillGroup(companyId: $companyId, id: $id) {
+      ok
+      error
+      deletedSkillGroupId
+    }
+  }
+`;
+
+export const ADD_SKILL_TO_GROUP_MUTATION = `
+  mutation AddSkillToGroup($companyId: ID!, $skillGroupId: ID!, $skillId: ID!) {
+    addSkillToSkillGroup(
+      companyId: $companyId
+      skillGroupId: $skillGroupId
+      skillId: $skillId
+    ) {
+      ok
+      error
+      skillGroup {
+        id
+      }
+    }
+  }
+`;
+
+export const REMOVE_SKILL_FROM_GROUP_MUTATION = `
+  mutation RemoveSkillFromGroup($companyId: ID!, $skillGroupId: ID!, $skillId: ID!) {
+    removeSkillFromSkillGroup(
+      companyId: $companyId
+      skillGroupId: $skillGroupId
+      skillId: $skillId
+    ) {
+      ok
+      error
+      skillGroup {
+        id
+      }
     }
   }
 `;
@@ -1120,6 +1339,232 @@ export const COMPANY_API_ADD_GITHUB_INSTALLATION_MUTATION = `
   }
 `;
 
+export const COMPANY_API_LIST_SKILLS_QUERY = `
+  query CompanyApiListSkills($companyId: ID!) {
+    skills(companyId: $companyId) {
+      id
+      name
+      description
+      content
+      fileList
+      gitSkillPackagePath
+      company {
+        id
+      }
+      groups {
+        id
+        name
+      }
+      gitSkillPackage {
+        id
+        packageName
+        gitRepositoryUrl
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_LIST_SKILL_GROUPS_QUERY = `
+  query CompanyApiListSkillGroups($companyId: ID!) {
+    skillGroups(companyId: $companyId) {
+      id
+      name
+      company {
+        id
+      }
+      parentSkillGroup {
+        id
+        name
+      }
+      skills {
+        id
+        name
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_LIST_GIT_SKILL_PACKAGES_QUERY = `
+  query CompanyApiListGitSkillPackages($companyId: ID!) {
+    gitSkillPackages(companyId: $companyId) {
+      id
+      packageName
+      gitRepositoryUrl
+      hostingProvider
+      currentCommitHash
+      currentReference
+      company {
+        id
+      }
+      skills {
+        id
+        name
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_PREVIEW_GIT_SKILL_PACKAGE_MUTATION = `
+  mutation CompanyApiPreviewGitSkillPackage($gitRepositoryUrl: String!) {
+    previewGitSkillPackage(gitRepositoryUrl: $gitRepositoryUrl) {
+      ok
+      error
+      normalizedRepositoryUrl
+      packageName
+      branches {
+        kind
+        name
+        fullRef
+      }
+      tags {
+        kind
+        name
+        fullRef
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_CREATE_GIT_SKILL_PACKAGE_MUTATION = `
+  mutation CompanyApiCreateGitSkillPackage(
+    $companyId: ID!
+    $gitRepositoryUrl: String!
+    $gitReference: String!
+  ) {
+    createGitSkillPackage(
+      companyId: $companyId
+      gitRepositoryUrl: $gitRepositoryUrl
+      gitReference: $gitReference
+    ) {
+      ok
+      error
+      warnings
+      packageId
+      gitSkillPackage {
+        id
+        packageName
+        gitRepositoryUrl
+        hostingProvider
+        currentCommitHash
+        currentReference
+        company {
+          id
+        }
+      }
+      skills {
+        id
+        name
+        description
+        content
+        fileList
+        gitSkillPackagePath
+        company {
+          id
+        }
+        groups {
+          id
+          name
+        }
+        gitSkillPackage {
+          id
+          packageName
+          gitRepositoryUrl
+        }
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_DELETE_GIT_SKILL_PACKAGE_MUTATION = `
+  mutation CompanyApiDeleteGitSkillPackage($companyId: ID!, $id: ID!) {
+    deleteGitSkillPackage(companyId: $companyId, id: $id) {
+      ok
+      error
+      deletedGitSkillPackageId
+    }
+  }
+`;
+
+export const COMPANY_API_CREATE_SKILL_GROUP_MUTATION = `
+  mutation CompanyApiCreateSkillGroup($companyId: ID!, $name: String!, $parentSkillGroupId: ID) {
+    createSkillGroup(
+      companyId: $companyId
+      name: $name
+      parentSkillGroupId: $parentSkillGroupId
+    ) {
+      ok
+      error
+      skillGroup {
+        id
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_UPDATE_SKILL_GROUP_MUTATION = `
+  mutation CompanyApiUpdateSkillGroup(
+    $companyId: ID!
+    $id: ID!
+    $name: String!
+    $parentSkillGroupId: ID
+  ) {
+    updateSkillGroup(
+      companyId: $companyId
+      id: $id
+      name: $name
+      parentSkillGroupId: $parentSkillGroupId
+    ) {
+      ok
+      error
+      skillGroup {
+        id
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_DELETE_SKILL_GROUP_MUTATION = `
+  mutation CompanyApiDeleteSkillGroup($companyId: ID!, $id: ID!) {
+    deleteSkillGroup(companyId: $companyId, id: $id) {
+      ok
+      error
+      deletedSkillGroupId
+    }
+  }
+`;
+
+export const COMPANY_API_ADD_SKILL_TO_GROUP_MUTATION = `
+  mutation CompanyApiAddSkillToGroup($companyId: ID!, $skillGroupId: ID!, $skillId: ID!) {
+    addSkillToSkillGroup(
+      companyId: $companyId
+      skillGroupId: $skillGroupId
+      skillId: $skillId
+    ) {
+      ok
+      error
+      skillGroup {
+        id
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_REMOVE_SKILL_FROM_GROUP_MUTATION = `
+  mutation CompanyApiRemoveSkillFromGroup($companyId: ID!, $skillGroupId: ID!, $skillId: ID!) {
+    removeSkillFromSkillGroup(
+      companyId: $companyId
+      skillGroupId: $skillGroupId
+      skillId: $skillId
+    ) {
+      ok
+      error
+      skillGroup {
+        id
+      }
+    }
+  }
+`;
+
 export const COMPANY_API_LIST_AGENT_RUNNERS_CONNECTION_QUERY = `
   query CompanyApiListAgentRunners($companyId: ID, $first: Int!, $after: String) {
     agentRunners(companyId: $companyId, first: $first, after: $after) {
@@ -1250,6 +1695,11 @@ export const COMPANY_API_LIST_AGENTS_CONNECTION_QUERY = `
           id
           name
           status
+          skillGroupIds
+          skillGroups {
+            id
+            name
+          }
           defaultReasoningLevel
           defaultAdditionalModelInstructions
           agentRunnerSdk {
@@ -1303,6 +1753,7 @@ export const COMPANY_API_CREATE_AGENT_MUTATION = `
     $agentRunnerId: ID!
     $agentRunnerSdkId: ID!
     $defaultModelId: ID!
+    $skillGroupIds: [ID!]
     $defaultReasoningLevel: String
     $defaultAdditionalModelInstructions: String
   ) {
@@ -1312,12 +1763,18 @@ export const COMPANY_API_CREATE_AGENT_MUTATION = `
       agentRunnerId: $agentRunnerId
       agentRunnerSdkId: $agentRunnerSdkId
       defaultModelId: $defaultModelId
+      skillGroupIds: $skillGroupIds
       defaultReasoningLevel: $defaultReasoningLevel
       defaultAdditionalModelInstructions: $defaultAdditionalModelInstructions
     ) {
       id
       name
       status
+      skillGroupIds
+      skillGroups {
+        id
+        name
+      }
       defaultAdditionalModelInstructions
       company {
         id
@@ -1338,6 +1795,7 @@ export const COMPANY_API_UPDATE_AGENT_MUTATION = `
     $agentRunnerId: ID!
     $agentRunnerSdkId: ID!
     $defaultModelId: ID!
+    $skillGroupIds: [ID!]
     $defaultReasoningLevel: String
     $defaultAdditionalModelInstructions: String
   ) {
@@ -1347,12 +1805,18 @@ export const COMPANY_API_UPDATE_AGENT_MUTATION = `
       agentRunnerId: $agentRunnerId
       agentRunnerSdkId: $agentRunnerSdkId
       defaultModelId: $defaultModelId
+      skillGroupIds: $skillGroupIds
       defaultReasoningLevel: $defaultReasoningLevel
       defaultAdditionalModelInstructions: $defaultAdditionalModelInstructions
     ) {
       id
       name
       status
+      skillGroupIds
+      skillGroups {
+        id
+        name
+      }
       defaultAdditionalModelInstructions
       company {
         id
