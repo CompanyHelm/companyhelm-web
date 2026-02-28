@@ -138,7 +138,9 @@ export function AgentChatPage({
   const chatMessageInputRef = useRef(null);
   const transcriptScrollRef = useRef(null);
   const shouldStickTranscriptToBottomRef = useRef(true);
+  const isTranscriptNearTopRef = useRef(false);
   const pendingTranscriptScrollRestoreRef = useRef(null);
+  const previousTotalMessageCountRef = useRef(null);
   const queuedMessages = Array.isArray(queuedChatMessages) ? queuedChatMessages : [];
   const orderedTurns = useMemo(
     () => [...(Array.isArray(chatTurns) ? chatTurns : [])].sort(compareTurnsByTimestamp),
@@ -180,8 +182,25 @@ export function AgentChatPage({
   useEffect(() => {
     setVisibleMessageCount(CHAT_MESSAGE_BATCH_SIZE);
     shouldStickTranscriptToBottomRef.current = true;
+    isTranscriptNearTopRef.current = false;
     pendingTranscriptScrollRestoreRef.current = null;
+    previousTotalMessageCountRef.current = null;
   }, [session?.id]);
+
+  useEffect(() => {
+    const previousTotalMessageCount = previousTotalMessageCountRef.current;
+    previousTotalMessageCountRef.current = totalMessageCount;
+    if (!Number.isInteger(previousTotalMessageCount)) {
+      return;
+    }
+    const addedMessageCount = totalMessageCount - previousTotalMessageCount;
+    if (addedMessageCount <= 0 || !isTranscriptNearTopRef.current) {
+      return;
+    }
+    setVisibleMessageCount((currentCount) =>
+      Math.min(totalMessageCount, Math.max(0, currentCount) + addedMessageCount),
+    );
+  }, [totalMessageCount]);
 
   useEffect(() => {
     setIsEditingChatTitle(false);
@@ -286,12 +305,14 @@ export function AgentChatPage({
 
   function handleTranscriptScroll(event) {
     const transcriptNode = event.currentTarget;
+    const isTranscriptNearTop = transcriptNode.scrollTop <= TRANSCRIPT_TOP_LOAD_THRESHOLD_PX;
+    isTranscriptNearTopRef.current = isTranscriptNearTop;
     const distanceFromBottom =
       transcriptNode.scrollHeight - transcriptNode.scrollTop - transcriptNode.clientHeight;
     shouldStickTranscriptToBottomRef.current =
       distanceFromBottom <= TRANSCRIPT_BOTTOM_STICKY_THRESHOLD_PX;
     const canLoadMoreMessages = visibleMessageCount < totalMessageCount;
-    if (!canLoadMoreMessages || transcriptNode.scrollTop > TRANSCRIPT_TOP_LOAD_THRESHOLD_PX) {
+    if (!canLoadMoreMessages || !isTranscriptNearTop) {
       return;
     }
     pendingTranscriptScrollRestoreRef.current = {
