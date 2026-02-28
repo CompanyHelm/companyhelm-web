@@ -30,7 +30,7 @@ export const MCP_AUTH_TYPE_OPTIONS = [
   { value: MCP_AUTH_TYPE_BEARER_TOKEN, label: "Bearer token" },
   { value: MCP_AUTH_TYPE_CUSTOM_HEADERS, label: "Custom headers" },
 ];
-export const CHAT_MESSAGE_BATCH_SIZE = 20;
+export const CHAT_MESSAGE_BATCH_SIZE = 50;
 export const THREAD_TITLE_MAX_LENGTH = 100;
 export const TRANSCRIPT_TOP_LOAD_THRESHOLD_PX = 12;
 export const TRANSCRIPT_BOTTOM_STICKY_THRESHOLD_PX = 12;
