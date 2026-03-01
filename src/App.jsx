@@ -59,6 +59,8 @@ import {
   DELETE_SKILL_GROUP_MUTATION,
   ADD_SKILL_TO_GROUP_MUTATION,
   REMOVE_SKILL_FROM_GROUP_MUTATION,
+  ADD_MCP_SERVER_TO_ROLE_MUTATION,
+  REMOVE_MCP_SERVER_FROM_ROLE_MUTATION,
   CREATE_MCP_SERVER_MUTATION,
   UPDATE_MCP_SERVER_MUTATION,
   DELETE_MCP_SERVER_MUTATION,
@@ -97,6 +99,8 @@ import {
   COMPANY_API_DELETE_SKILL_GROUP_MUTATION,
   COMPANY_API_ADD_SKILL_TO_GROUP_MUTATION,
   COMPANY_API_REMOVE_SKILL_FROM_GROUP_MUTATION,
+  COMPANY_API_ADD_MCP_SERVER_TO_ROLE_MUTATION,
+  COMPANY_API_REMOVE_MCP_SERVER_FROM_ROLE_MUTATION,
   COMPANY_API_CREATE_MCP_SERVER_MUTATION,
   COMPANY_API_UPDATE_MCP_SERVER_MUTATION,
   COMPANY_API_DELETE_MCP_SERVER_MUTATION,
@@ -152,6 +156,7 @@ import {
   getPageFromPathname,
   getAgentsRouteFromPathname,
   getSkillsRouteFromPathname,
+  getRolesRouteFromPathname,
   getGitSkillPackagesRouteFromPathname,
   getRunnersRouteFromPathname,
   setBrowserPath,
@@ -185,6 +190,7 @@ import { AgentRunnerPage } from "./pages/AgentRunnerPage.jsx";
 import { AgentRunnerDetailPage } from "./pages/AgentRunnerDetailPage.jsx";
 import { AgentsPage } from "./pages/AgentsPage.jsx";
 import { SkillsPage } from "./pages/SkillsPage.jsx";
+import { RolesPage } from "./pages/RolesPage.jsx";
 import { GitSkillPackagesPage } from "./pages/GitSkillPackagesPage.jsx";
 import { McpServersPage } from "./pages/McpServersPage.jsx";
 import { ChatsOverviewPage } from "./pages/ChatsOverviewPage.jsx";
@@ -382,6 +388,13 @@ function toAgentPayload(agent) {
           .map((skillGroup) => ({
             id: resolveLegacyId(skillGroup?.id),
             name: resolveLegacyId(skillGroup?.name),
+            parentSkillGroup: skillGroup?.parentSkillGroup
+              ? {
+                  id: resolveLegacyId(skillGroup.parentSkillGroup.id),
+                  name: resolveLegacyId(skillGroup.parentSkillGroup.name),
+                }
+              : null,
+            parentId: resolveLegacyId(skillGroup?.parentSkillGroup?.id),
           }))
           .filter((skillGroup) => skillGroup.id)
       : [],
@@ -408,6 +421,14 @@ function toSkillGroupPayload(skillGroup) {
           name: resolveLegacyId(skillGroup.parentSkillGroup.name),
         }
       : null,
+    subRoles: Array.isArray(skillGroup?.subRoles)
+      ? skillGroup.subRoles
+          .map((subRole) => ({
+            id: resolveLegacyId(subRole?.id),
+            name: resolveLegacyId(subRole?.name),
+          }))
+          .filter((subRole) => subRole.id)
+      : [],
     skills: Array.isArray(skillGroup?.skills)
       ? skillGroup.skills
           .map((skill) => ({
@@ -415,6 +436,14 @@ function toSkillGroupPayload(skillGroup) {
             name: resolveLegacyId(skill?.name),
           }))
           .filter((skill) => skill.id)
+      : [],
+    mcpServers: Array.isArray(skillGroup?.mcpServers)
+      ? skillGroup.mcpServers
+          .map((mcpServer) => ({
+            id: resolveLegacyId(mcpServer?.id),
+            name: resolveLegacyId(mcpServer?.name),
+          }))
+          .filter((mcpServer) => mcpServer.id)
       : [],
   };
 }
@@ -1428,7 +1457,7 @@ async function executeGraphQL(query, variables = {}) {
       skillGroupId: resolveLegacyId(variables?.skillGroupId),
       skillId: resolveLegacyId(variables?.skillId),
     });
-    const payload = data?.addSkillToSkillGroup;
+    const payload = data?.addSkillToGroup;
     return {
       addSkillToGroup: {
         ok: Boolean(payload?.ok),
@@ -1443,9 +1472,39 @@ async function executeGraphQL(query, variables = {}) {
       skillGroupId: resolveLegacyId(variables?.skillGroupId),
       skillId: resolveLegacyId(variables?.skillId),
     });
-    const payload = data?.removeSkillFromSkillGroup;
+    const payload = data?.removeSkillFromGroup;
     return {
       removeSkillFromGroup: {
+        ok: Boolean(payload?.ok),
+        error: payload?.error ? String(payload.error) : null,
+      },
+    };
+  }
+
+  if (query === ADD_MCP_SERVER_TO_ROLE_MUTATION) {
+    const data = await executeRawGraphQL(COMPANY_API_ADD_MCP_SERVER_TO_ROLE_MUTATION, {
+      companyId: resolveLegacyId(variables?.companyId),
+      skillGroupId: resolveLegacyId(variables?.skillGroupId),
+      mcpServerId: resolveLegacyId(variables?.mcpServerId),
+    });
+    const payload = data?.addMcpServerToRole;
+    return {
+      addMcpServerToRole: {
+        ok: Boolean(payload?.ok),
+        error: payload?.error ? String(payload.error) : null,
+      },
+    };
+  }
+
+  if (query === REMOVE_MCP_SERVER_FROM_ROLE_MUTATION) {
+    const data = await executeRawGraphQL(COMPANY_API_REMOVE_MCP_SERVER_FROM_ROLE_MUTATION, {
+      companyId: resolveLegacyId(variables?.companyId),
+      skillGroupId: resolveLegacyId(variables?.skillGroupId),
+      mcpServerId: resolveLegacyId(variables?.mcpServerId),
+    });
+    const payload = data?.removeMcpServerFromRole;
+    return {
+      removeMcpServerFromRole: {
         ok: Boolean(payload?.ok),
         error: payload?.error ? String(payload.error) : null,
       },
@@ -1763,6 +1822,7 @@ function App() {
   const [activePage, setActivePage] = useState(() => getPageFromPathname());
   const [agentsRoute, setAgentsRoute] = useState(() => getAgentsRouteFromPathname());
   const [skillsRoute, setSkillsRoute] = useState(() => getSkillsRouteFromPathname());
+  const [rolesRoute, setRolesRoute] = useState(() => getRolesRouteFromPathname());
   const [gitSkillPackagesRoute, setGitSkillPackagesRoute] = useState(
     () => getGitSkillPackagesRouteFromPathname(),
   );
@@ -1911,6 +1971,14 @@ function App() {
     }
     return skills.find((skill) => skill.id === skillId) || null;
   }, [skills, skillsRoute.skillId]);
+
+  const activeRole = useMemo(() => {
+    const roleId = String(rolesRoute.roleId || "").trim();
+    if (!roleId) {
+      return null;
+    }
+    return skillGroups.find((role) => role.id === roleId) || null;
+  }, [rolesRoute.roleId, skillGroups]);
 
   const activeGitSkillPackage = useMemo(() => {
     const packageId = String(gitSkillPackagesRoute.packageId || "").trim();
@@ -2109,6 +2177,15 @@ function App() {
       return matchingSkill?.name || `Skill ${resolvedSkillId.slice(0, 8)}`;
     };
 
+    const getRoleLabel = (roleId) => {
+      const resolvedRoleId = String(roleId || "").trim();
+      if (!resolvedRoleId) {
+        return "Role";
+      }
+      const matchingRole = skillGroups.find((role) => role.id === resolvedRoleId);
+      return matchingRole?.name || `Role ${resolvedRoleId.slice(0, 8)}`;
+    };
+
     const getGitSkillPackageLabel = (packageId) => {
       const resolvedPackageId = String(packageId || "").trim();
       if (!resolvedPackageId) {
@@ -2156,6 +2233,13 @@ function App() {
       return [
         { label: "Skills", href: "/skills" },
         { label: getSkillLabel(skillsRoute.skillId), href: `/skills/${skillsRoute.skillId}` },
+      ];
+    }
+
+    if (activePage === "roles" && rolesRoute.view === "detail" && rolesRoute.roleId) {
+      return [
+        { label: "Roles", href: "/roles" },
+        { label: getRoleLabel(rolesRoute.roleId), href: `/roles/${rolesRoute.roleId}` },
       ];
     }
 
@@ -2210,6 +2294,9 @@ function App() {
     skillsRoute.skillId,
     skillsRoute.view,
     selectedChatSession?.title,
+    rolesRoute.roleId,
+    rolesRoute.view,
+    skillGroups,
   ]);
 
   const isChatsConversationView = activePage === "chats" && Boolean(chatAgentId) && Boolean(resolvedChatSessionId);
@@ -2223,11 +2310,13 @@ function App() {
   const shouldLoadTaskData = activePage === "dashboard" || activePage === "tasks" || activePage === "profile";
   const shouldLoadSkillData =
     activePage === "skills"
+    || activePage === "roles"
     || activePage === "gitskillpackages"
     || activePage === "agents"
     || activePage === "profile";
   const shouldLoadSkillGroupData =
     activePage === "skills"
+    || activePage === "roles"
     || activePage === "gitskillpackages"
     || activePage === "agents"
     || activePage === "profile";
@@ -2235,6 +2324,7 @@ function App() {
   const shouldLoadMcpServerData =
     activePage === "mcp-servers"
     || activePage === "skills"
+    || activePage === "roles"
     || activePage === "agents"
     || activePage === "profile";
   const shouldLoadRunnerData =
@@ -2246,89 +2336,20 @@ function App() {
     activePage === "chats" ||
     activePage === "profile";
   const shouldSubscribeAgentRunners = activePage === "dashboard" || activePage === "agent-runner";
-  const roleMcpAssignmentsStorageKey = useMemo(() => {
-    const companyId = String(selectedCompanyId || "").trim();
-    return companyId ? `companyhelm.role-mcp-assignments.${companyId}` : "";
-  }, [selectedCompanyId]);
-
   useEffect(() => {
-    if (!roleMcpAssignmentsStorageKey) {
-      setRoleMcpServerIdsByRoleId({});
-      return;
-    }
-
-    try {
-      const rawValue = window.localStorage.getItem(roleMcpAssignmentsStorageKey);
-      if (!rawValue) {
-        setRoleMcpServerIdsByRoleId({});
-        return;
+    const nextAssignments = {};
+    for (const role of skillGroups) {
+      const roleId = String(role?.id || "").trim();
+      if (!roleId) {
+        continue;
       }
-      const parsedValue = JSON.parse(rawValue);
-      if (!parsedValue || typeof parsedValue !== "object" || Array.isArray(parsedValue)) {
-        setRoleMcpServerIdsByRoleId({});
-        return;
-      }
-
-      const normalized = {};
-      for (const [roleId, mcpServerIds] of Object.entries(parsedValue)) {
-        const normalizedRoleId = String(roleId || "").trim();
-        if (!normalizedRoleId) {
-          continue;
-        }
-        normalized[normalizedRoleId] = normalizeUniqueStringList(mcpServerIds || []);
-      }
-      setRoleMcpServerIdsByRoleId(normalized);
-    } catch {
-      setRoleMcpServerIdsByRoleId({});
-    }
-  }, [roleMcpAssignmentsStorageKey]);
-
-  useEffect(() => {
-    if (!roleMcpAssignmentsStorageKey) {
-      return;
-    }
-
-    try {
-      window.localStorage.setItem(
-        roleMcpAssignmentsStorageKey,
-        JSON.stringify(roleMcpServerIdsByRoleId),
+      const mcpServerIds = normalizeUniqueStringList(
+        (role?.mcpServers || []).map((mcpServer) => mcpServer?.id),
       );
-    } catch {
-      // ignore local storage write failures
+      nextAssignments[roleId] = mcpServerIds;
     }
-  }, [roleMcpAssignmentsStorageKey, roleMcpServerIdsByRoleId]);
-
-  useEffect(() => {
-    const validRoleIds = new Set(skillGroups.map((group) => group.id));
-    const validMcpServerIds = new Set(mcpServers.map((mcpServer) => mcpServer.id));
-
-    setRoleMcpServerIdsByRoleId((current) => {
-      const next = {};
-      let changed = false;
-
-      for (const [roleId, mcpServerIds] of Object.entries(current)) {
-        if (!validRoleIds.has(roleId)) {
-          changed = true;
-          continue;
-        }
-
-        const normalizedMcpServerIds = normalizeUniqueStringList(mcpServerIds || []).filter((mcpServerId) =>
-          validMcpServerIds.has(mcpServerId),
-        );
-
-        next[roleId] = normalizedMcpServerIds;
-        if (normalizedMcpServerIds.length !== normalizeUniqueStringList(mcpServerIds || []).length) {
-          changed = true;
-        }
-      }
-
-      if (!changed && Object.keys(current).length === Object.keys(next).length) {
-        return current;
-      }
-
-      return next;
-    });
-  }, [mcpServers, skillGroups]);
+    setRoleMcpServerIdsByRoleId(nextAssignments);
+  }, [skillGroups]);
 
   const loadCompanies = useCallback(async () => {
     try {
@@ -3356,6 +3377,7 @@ function App() {
       setActivePage(getPageFromPathname());
       setAgentsRoute(getAgentsRouteFromPathname());
       setSkillsRoute(getSkillsRouteFromPathname());
+      setRolesRoute(getRolesRouteFromPathname());
       setGitSkillPackagesRoute(getGitSkillPackagesRouteFromPathname());
       setRunnersRoute(getRunnersRouteFromPathname());
     };
@@ -4044,12 +4066,12 @@ function App() {
 
   async function handleCreateSkillGroup({ name, parentSkillGroupId }) {
     if (!selectedCompanyId) {
-      throw new Error("Select a company before creating skill groups.");
+      throw new Error("Select a company before creating roles.");
     }
 
     const normalizedName = String(name || "").trim();
     if (!normalizedName) {
-      throw new Error("Skill group name is required.");
+      throw new Error("Role name is required.");
     }
 
     const data = await executeGraphQL(CREATE_SKILL_GROUP_MUTATION, {
@@ -4059,7 +4081,7 @@ function App() {
     });
     const payload = data.createSkillGroup;
     if (!payload?.ok) {
-      throw new Error(payload?.error || "Failed to create skill group.");
+      throw new Error(payload?.error || "Failed to create role.");
     }
 
     await loadSkillGroups();
@@ -4068,17 +4090,17 @@ function App() {
 
   async function handleDeleteSkillGroup(skillGroupId, skillGroupName) {
     if (!selectedCompanyId) {
-      setSkillError("Select a company before deleting skill groups.");
+      setSkillError("Select a company before deleting roles.");
       return false;
     }
 
     const resolvedSkillGroupId = String(skillGroupId || "").trim();
     if (!resolvedSkillGroupId) {
-      setSkillError("Skill group id is required.");
+      setSkillError("Role id is required.");
       return false;
     }
 
-    const confirmed = window.confirm(`Delete skill group "${skillGroupName}"?`);
+    const confirmed = window.confirm(`Delete role "${skillGroupName}"?`);
     if (!confirmed) {
       return false;
     }
@@ -4091,7 +4113,7 @@ function App() {
       });
       const payload = data.deleteSkillGroup;
       if (!payload?.ok) {
-        throw new Error(payload?.error || "Failed to delete skill group.");
+        throw new Error(payload?.error || "Failed to delete role.");
       }
 
       await Promise.all([loadSkillGroups(), loadAgents()]);
@@ -4104,16 +4126,16 @@ function App() {
 
   async function handleUpdateSkillGroup({ id, name, parentSkillGroupId }) {
     if (!selectedCompanyId) {
-      throw new Error("Select a company before updating skill groups.");
+      throw new Error("Select a company before updating roles.");
     }
 
     const resolvedSkillGroupId = String(id || "").trim();
     const normalizedName = String(name || "").trim();
     if (!resolvedSkillGroupId) {
-      throw new Error("Skill group id is required.");
+      throw new Error("Role id is required.");
     }
     if (!normalizedName) {
-      throw new Error("Skill group name is required.");
+      throw new Error("Role name is required.");
     }
 
     const data = await executeGraphQL(UPDATE_SKILL_GROUP_MUTATION, {
@@ -4124,7 +4146,7 @@ function App() {
     });
     const payload = data.updateSkillGroup;
     if (!payload?.ok) {
-      throw new Error(payload?.error || "Failed to update skill group.");
+      throw new Error(payload?.error || "Failed to update role.");
     }
 
     await Promise.all([loadSkillGroups(), loadAgents()]);
@@ -4133,13 +4155,13 @@ function App() {
 
   async function handleAddSkillToGroup(skillGroupId, skillId) {
     if (!selectedCompanyId) {
-      throw new Error("Select a company before updating skill groups.");
+      throw new Error("Select a company before updating roles.");
     }
 
     const resolvedSkillGroupId = String(skillGroupId || "").trim();
     const resolvedSkillId = String(skillId || "").trim();
     if (!resolvedSkillGroupId || !resolvedSkillId) {
-      throw new Error("Skill group and skill ids are required.");
+      throw new Error("Role and skill ids are required.");
     }
 
     const data = await executeGraphQL(ADD_SKILL_TO_GROUP_MUTATION, {
@@ -4149,7 +4171,7 @@ function App() {
     });
     const payload = data.addSkillToGroup;
     if (!payload?.ok) {
-      throw new Error(payload?.error || "Failed to add skill to group.");
+      throw new Error(payload?.error || "Failed to add skill to role.");
     }
 
     await Promise.all([loadSkillGroups(), loadSkills()]);
@@ -4157,13 +4179,13 @@ function App() {
 
   async function handleRemoveSkillFromGroup(skillGroupId, skillId) {
     if (!selectedCompanyId) {
-      throw new Error("Select a company before updating skill groups.");
+      throw new Error("Select a company before updating roles.");
     }
 
     const resolvedSkillGroupId = String(skillGroupId || "").trim();
     const resolvedSkillId = String(skillId || "").trim();
     if (!resolvedSkillGroupId || !resolvedSkillId) {
-      throw new Error("Skill group and skill ids are required.");
+      throw new Error("Role and skill ids are required.");
     }
 
     const data = await executeGraphQL(REMOVE_SKILL_FROM_GROUP_MUTATION, {
@@ -4173,22 +4195,66 @@ function App() {
     });
     const payload = data.removeSkillFromGroup;
     if (!payload?.ok) {
-      throw new Error(payload?.error || "Failed to remove skill from group.");
+      throw new Error(payload?.error || "Failed to remove skill from role.");
     }
 
     await Promise.all([loadSkillGroups(), loadSkills()]);
   }
 
-  function handleRoleMcpServerIdsChange(roleId, nextMcpServerIds) {
+  async function handleRoleMcpServerIdsChange(roleId, nextMcpServerIds) {
     const normalizedRoleId = String(roleId || "").trim();
     if (!normalizedRoleId) {
       return;
     }
 
-    setRoleMcpServerIdsByRoleId((current) => ({
-      ...current,
-      [normalizedRoleId]: normalizeUniqueStringList(nextMcpServerIds || []),
-    }));
+    if (!selectedCompanyId) {
+      setSkillError("Select a company before updating roles.");
+      return;
+    }
+
+    const normalizedNextMcpServerIds = normalizeUniqueStringList(nextMcpServerIds || []);
+    const currentMcpServerIds = normalizeUniqueStringList(
+      roleMcpServerIdsByRoleId?.[normalizedRoleId] || [],
+    );
+    const currentSet = new Set(currentMcpServerIds);
+    const nextSet = new Set(normalizedNextMcpServerIds);
+    const mcpServerIdsToAdd = normalizedNextMcpServerIds.filter((mcpServerId) => !currentSet.has(mcpServerId));
+    const mcpServerIdsToRemove = currentMcpServerIds.filter((mcpServerId) => !nextSet.has(mcpServerId));
+
+    if (mcpServerIdsToAdd.length === 0 && mcpServerIdsToRemove.length === 0) {
+      return;
+    }
+
+    try {
+      setSkillError("");
+      for (const mcpServerId of mcpServerIdsToRemove) {
+        const data = await executeGraphQL(REMOVE_MCP_SERVER_FROM_ROLE_MUTATION, {
+          companyId: selectedCompanyId,
+          skillGroupId: normalizedRoleId,
+          mcpServerId,
+        });
+        const payload = data?.removeMcpServerFromRole;
+        if (!payload?.ok) {
+          throw new Error(payload?.error || "Failed to remove MCP server from role.");
+        }
+      }
+
+      for (const mcpServerId of mcpServerIdsToAdd) {
+        const data = await executeGraphQL(ADD_MCP_SERVER_TO_ROLE_MUTATION, {
+          companyId: selectedCompanyId,
+          skillGroupId: normalizedRoleId,
+          mcpServerId,
+        });
+        const payload = data?.addMcpServerToRole;
+        if (!payload?.ok) {
+          throw new Error(payload?.error || "Failed to add MCP server to role.");
+        }
+      }
+
+      await Promise.all([loadSkillGroups(), loadAgents()]);
+    } catch (error) {
+      setSkillError((error && error.message) || "Failed to update role MCP servers.");
+    }
   }
 
   function resolveMcpServerMutationPayload({
@@ -5895,6 +5961,28 @@ function App() {
             onRemoveSkillFromGroup={handleRemoveSkillFromGroup}
             onRoleMcpServerIdsChange={handleRoleMcpServerIdsChange}
             onOpenGitSkillPackage={(packageId) => setBrowserPath(`/gitSkillPackages/${packageId}`)}
+          />
+        ) : null}
+
+        {selectedCompanyId && activePage === "roles" ? (
+          <RolesPage
+            roles={skillGroups}
+            skills={skills}
+            mcpServers={mcpServers}
+            roleMcpServerIdsByRoleId={roleMcpServerIdsByRoleId}
+            activeRole={activeRole}
+            isLoadingRoles={isLoadingSkillGroups}
+            roleError={skillError}
+            onOpenRole={(roleId) => setBrowserPath(`/roles/${roleId}`)}
+            onBackToRoles={() => setBrowserPath("/roles")}
+            onCreateRole={handleCreateSkillGroup}
+            onUpdateRole={handleUpdateSkillGroup}
+            onDeleteRole={handleDeleteSkillGroup}
+            onAddSkillToRole={handleAddSkillToGroup}
+            onRemoveSkillFromRole={handleRemoveSkillFromGroup}
+            onRoleMcpServerIdsChange={(roleId, nextMcpServerIds) => {
+              void handleRoleMcpServerIdsChange(roleId, nextMcpServerIds);
+            }}
           />
         ) : null}
 
