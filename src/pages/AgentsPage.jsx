@@ -10,12 +10,56 @@ import {
 import { formatRunnerLabel } from "../utils/formatting.js";
 import { setBrowserPath } from "../utils/path.js";
 
+function collectRoleAndSubroleIds(roleIds, roleChildrenByParentId) {
+  const normalizedRoleIds = normalizeUniqueStringList(roleIds);
+  const visitedRoleIds = new Set();
+  const expandedRoleIds = [];
+  const queue = [...normalizedRoleIds];
+
+  while (queue.length > 0) {
+    const nextRoleId = String(queue.shift() || "").trim();
+    if (!nextRoleId || visitedRoleIds.has(nextRoleId)) {
+      continue;
+    }
+    visitedRoleIds.add(nextRoleId);
+    expandedRoleIds.push(nextRoleId);
+
+    const childRoleIds = roleChildrenByParentId.get(nextRoleId) || [];
+    for (const childRoleId of childRoleIds) {
+      if (!visitedRoleIds.has(childRoleId)) {
+        queue.push(childRoleId);
+      }
+    }
+  }
+
+  return expandedRoleIds;
+}
+
+function resolveEffectiveRoleMcpServerIds(expandedRoleIds, roleMcpServerIdsByRoleId) {
+  const effectiveMcpServerIds = [];
+  const seenMcpServerIds = new Set();
+
+  for (const roleId of expandedRoleIds) {
+    const roleMcpServerIds = normalizeUniqueStringList(roleMcpServerIdsByRoleId?.[roleId] || []);
+    for (const mcpServerId of roleMcpServerIds) {
+      if (seenMcpServerIds.has(mcpServerId)) {
+        continue;
+      }
+      seenMcpServerIds.add(mcpServerId);
+      effectiveMcpServerIds.push(mcpServerId);
+    }
+  }
+
+  return effectiveMcpServerIds;
+}
+
 export function AgentsPage({
   selectedCompanyId,
   agents,
   skills,
   skillGroups,
   mcpServers,
+  roleMcpServerIdsByRoleId,
   agentRunners,
   agentRunnerLookup,
   runnerCodexModelEntriesById,
@@ -28,7 +72,6 @@ export function AgentsPage({
   hasLoadedAgentRunners,
   agentRunnerId,
   agentSkillGroupIds,
-  agentMcpServerIds,
   agentName,
   agentSdk,
   agentModel,
@@ -38,7 +81,6 @@ export function AgentsPage({
   agentCountLabel,
   onAgentRunnerChange,
   onAgentSkillGroupIdsChange,
-  onAgentMcpServerIdsChange,
   onAgentNameChange,
   onAgentSdkChange,
   onAgentModelChange,
@@ -64,6 +106,23 @@ export function AgentsPage({
       return map;
     }, new Map());
   }, [skillGroups]);
+  const roleChildrenByParentId = useMemo(() => {
+    const childrenByParentId = new Map();
+    for (const role of skillGroups) {
+      const roleId = String(role?.id || "").trim();
+      const parentRoleId = String(role?.parentSkillGroup?.id || "").trim();
+      if (!roleId || !parentRoleId) {
+        continue;
+      }
+      const existingChildRoleIds = childrenByParentId.get(parentRoleId);
+      if (existingChildRoleIds) {
+        existingChildRoleIds.push(roleId);
+      } else {
+        childrenByParentId.set(parentRoleId, [roleId]);
+      }
+    }
+    return childrenByParentId;
+  }, [skillGroups]);
   const mcpServerLookup = useMemo(() => {
     return mcpServers.reduce((map, mcpServer) => {
       map.set(mcpServer.id, mcpServer);
@@ -79,22 +138,22 @@ export function AgentsPage({
   const createRunnerReasoningLevels = useMemo(() => {
     return getRunnerReasoningLevels(createRunnerCodexModelEntries, agentModel);
   }, [agentModel, createRunnerCodexModelEntries]);
-  const createAssignedMcpServerIds = useMemo(
-    () => normalizeUniqueStringList(agentMcpServerIds),
-    [agentMcpServerIds],
-  );
   const createAssignedSkillGroupIds = useMemo(
     () => normalizeUniqueStringList(agentSkillGroupIds),
     [agentSkillGroupIds],
+  );
+  const createExpandedRoleIds = useMemo(
+    () => collectRoleAndSubroleIds(createAssignedSkillGroupIds, roleChildrenByParentId),
+    [createAssignedSkillGroupIds, roleChildrenByParentId],
+  );
+  const createEffectiveMcpServerIds = useMemo(
+    () => resolveEffectiveRoleMcpServerIds(createExpandedRoleIds, roleMcpServerIdsByRoleId),
+    [createExpandedRoleIds, roleMcpServerIdsByRoleId],
   );
   const createAvailableSkillGroups = useMemo(
     () =>
       skillGroups.filter((skillGroup) => !createAssignedSkillGroupIds.includes(skillGroup.id)),
     [createAssignedSkillGroupIds, skillGroups],
-  );
-  const createAvailableMcpServers = useMemo(
-    () => mcpServers.filter((mcpServer) => !createAssignedMcpServerIds.includes(mcpServer.id)),
-    [createAssignedMcpServerIds, mcpServers],
   );
   const hasRegisteredRunners = agentRunners.length > 0;
   const isCreateBlockedByRunners = hasLoadedAgentRunners && !hasRegisteredRunners;
@@ -123,13 +182,17 @@ export function AgentsPage({
   const editingSkillGroupIds = editingDraft
     ? normalizeUniqueStringList(editingDraft.skillGroupIds)
     : [];
+  const editingExpandedRoleIds = useMemo(
+    () => collectRoleAndSubroleIds(editingSkillGroupIds, roleChildrenByParentId),
+    [editingSkillGroupIds, roleChildrenByParentId],
+  );
   const editingAvailableSkillGroups = editingDraft
     ? skillGroups.filter((skillGroup) => !editingSkillGroupIds.includes(skillGroup.id))
     : [];
-  const editingMcpServerIds = editingDraft ? normalizeUniqueStringList(editingDraft.mcpServerIds) : [];
-  const editingAvailableMcpServers = editingDraft
-    ? mcpServers.filter((mcpServer) => !editingMcpServerIds.includes(mcpServer.id))
-    : [];
+  const editingEffectiveMcpServerIds = useMemo(
+    () => resolveEffectiveRoleMcpServerIds(editingExpandedRoleIds, roleMcpServerIdsByRoleId),
+    [editingExpandedRoleIds, roleMcpServerIdsByRoleId],
+  );
   const editingRunnerCodexModelEntries = editingDraft
     ? getRunnerCodexModelEntriesForRunner(
         runnerCodexModelEntriesById,
@@ -296,6 +359,24 @@ export function AgentsPage({
               const assignedRunnerLabel = assignedRunner
                 ? formatRunnerLabel(assignedRunner)
                 : "Unassigned";
+              const assignedRoleIds = normalizeUniqueStringList(agent.skillGroupIds || []);
+              const assignedRoleLabels = assignedRoleIds.map((roleId) => {
+                const role = skillGroupLookup.get(roleId);
+                return role ? role.name : roleId;
+              });
+              const assignedRoleSummary =
+                assignedRoleLabels.length > 0 ? assignedRoleLabels.join(", ") : "none";
+              const expandedRoleIds = collectRoleAndSubroleIds(assignedRoleIds, roleChildrenByParentId);
+              const effectiveMcpServerIds = resolveEffectiveRoleMcpServerIds(
+                expandedRoleIds,
+                roleMcpServerIdsByRoleId,
+              );
+              const assignedMcpServerLabels = effectiveMcpServerIds.map((mcpServerId) => {
+                const mcpServer = mcpServerLookup.get(mcpServerId);
+                return mcpServer ? mcpServer.name : mcpServerId;
+              });
+              const assignedMcpServerSummary =
+                assignedMcpServerLabels.length > 0 ? assignedMcpServerLabels.join(", ") : "none";
               const isSavingOrDeleting =
                 savingAgentId === agent.id || deletingAgentId === agent.id;
               const isInitializing = initializingAgentId === agent.id;
@@ -322,6 +403,8 @@ export function AgentsPage({
                     <p className="chat-card-meta">
                       {agent.agentSdk} · {modelLabel} · {assignedRunnerLabel}
                     </p>
+                    <p className="chat-card-meta">Roles: {assignedRoleSummary}</p>
+                    <p className="chat-card-meta">MCP servers: {assignedMcpServerSummary}</p>
                   </div>
                   <div className="chat-card-actions">
                     <button
@@ -400,10 +483,10 @@ export function AgentsPage({
             )}
           </select>
 
-          <label htmlFor="create-agent-skills-assigned">Assigned skill groups (optional)</label>
+          <label htmlFor="create-agent-skills-assigned">Assigned roles (optional)</label>
           <div id="create-agent-skills-assigned" className="inline-selection-list">
             {createAssignedSkillGroupIds.length === 0 ? (
-              <span className="empty-hint">No skill groups assigned.</span>
+              <span className="empty-hint">No roles assigned.</span>
             ) : (
               createAssignedSkillGroupIds.map((skillGroupId) => {
                 const skillGroup = skillGroupLookup.get(skillGroupId);
@@ -429,7 +512,7 @@ export function AgentsPage({
             )}
           </div>
 
-          <label htmlFor="create-agent-skill-add">Add skill group</label>
+          <label htmlFor="create-agent-skill-add">Add role</label>
           <select
             id="create-agent-skill-add"
             value=""
@@ -444,8 +527,8 @@ export function AgentsPage({
           >
             <option value="">
               {createAvailableSkillGroups.length === 0
-                ? "All skill groups already assigned"
-                : "Select skill group to assign"}
+                ? "All roles already assigned"
+                : "Select role to assign"}
             </option>
             {createAvailableSkillGroups.map((skillGroup) => (
               <option key={`create-agent-skill-${skillGroup.id}`} value={skillGroup.id}>
@@ -454,57 +537,22 @@ export function AgentsPage({
             ))}
           </select>
 
-          <label htmlFor="create-agent-mcp-assigned">Assigned MCP servers (optional)</label>
-          <div id="create-agent-mcp-assigned" className="inline-selection-list">
-            {createAssignedMcpServerIds.length === 0 ? (
-              <span className="empty-hint">No MCP servers assigned.</span>
+          <label htmlFor="create-agent-effective-mcp">Effective MCP servers (from roles)</label>
+          <div id="create-agent-effective-mcp" className="inline-selection-list">
+            {createEffectiveMcpServerIds.length === 0 ? (
+              <span className="empty-hint">No MCP servers inherited from assigned roles.</span>
             ) : (
-              createAssignedMcpServerIds.map((mcpServerId) => {
+              createEffectiveMcpServerIds.map((mcpServerId) => {
                 const mcpServer = mcpServerLookup.get(mcpServerId);
                 const mcpServerLabel = mcpServer ? mcpServer.name : mcpServerId;
                 return (
-                  <button
-                    key={`create-agent-remove-mcp-${mcpServerId}`}
-                    type="button"
-                    className="tag-remove-btn"
-                    onClick={() =>
-                      onAgentMcpServerIdsChange(
-                        createAssignedMcpServerIds.filter((candidateId) => candidateId !== mcpServerId),
-                      )
-                    }
-                    title={`Remove ${mcpServerLabel}`}
-                  >
-                    {mcpServerLabel} ×
-                  </button>
+                  <span key={`create-agent-effective-mcp-${mcpServerId}`} className="tag-pill">
+                    {mcpServerLabel}
+                  </span>
                 );
               })
             )}
           </div>
-
-          <label htmlFor="create-agent-mcp-add">Add MCP server</label>
-          <select
-            id="create-agent-mcp-add"
-            value=""
-            onChange={(event) => {
-              const nextMcpServerId = String(event.target.value || "").trim();
-              if (!nextMcpServerId) {
-                return;
-              }
-              onAgentMcpServerIdsChange([...createAssignedMcpServerIds, nextMcpServerId]);
-            }}
-            disabled={createAvailableMcpServers.length === 0}
-          >
-            <option value="">
-              {createAvailableMcpServers.length === 0
-                ? "All company MCP servers already assigned"
-                : "Select MCP server to assign"}
-            </option>
-            {createAvailableMcpServers.map((mcpServer) => (
-              <option key={`create-agent-mcp-${mcpServer.id}`} value={mcpServer.id}>
-                {mcpServer.name}
-              </option>
-            ))}
-          </select>
 
           <label htmlFor="agent-name">Name</label>
           <input
@@ -608,7 +656,7 @@ export function AgentsPage({
         modalId="edit-agent-modal"
         title={editingAgent ? `Edit agent "${editingAgent.name}"` : "Edit agent"}
         description={
-          editingAgent ? "Update runner, model, skill groups, and MCP servers for this agent." : ""
+          editingAgent ? "Update runner, model, and role assignments for this agent." : ""
         }
         isOpen={isEditModalOpen}
         onClose={closeEditAgentModal}
@@ -760,14 +808,14 @@ export function AgentsPage({
                 className="relationship-field"
                 htmlFor={`edit-agent-skills-assigned-${editingAgent.id}`}
               >
-                Assigned skill groups
+                Assigned roles
               </label>
               <div
                 id={`edit-agent-skills-assigned-${editingAgent.id}`}
                 className="inline-selection-list"
               >
                 {editingSkillGroupIds.length === 0 ? (
-                  <span className="empty-hint">No skill groups assigned.</span>
+                  <span className="empty-hint">No roles assigned.</span>
                 ) : (
                   editingSkillGroupIds.map((skillGroupId) => {
                     const skillGroup = skillGroupLookup.get(skillGroupId);
@@ -797,7 +845,7 @@ export function AgentsPage({
               </div>
 
               <label className="relationship-field" htmlFor={`edit-agent-skills-add-${editingAgent.id}`}>
-                Add skill group
+                Add role
               </label>
               <select
                 id={`edit-agent-skills-add-${editingAgent.id}`}
@@ -816,8 +864,8 @@ export function AgentsPage({
               >
                 <option value="">
                   {editingAvailableSkillGroups.length === 0
-                    ? "All skill groups already assigned"
-                    : "Select skill group to assign"}
+                    ? "All roles already assigned"
+                    : "Select role to assign"}
                 </option>
                 {editingAvailableSkillGroups.map((skillGroup) => (
                   <option
@@ -831,72 +879,28 @@ export function AgentsPage({
 
               <label
                 className="relationship-field"
-                htmlFor={`edit-agent-mcp-assigned-${editingAgent.id}`}
+                htmlFor={`edit-agent-effective-mcp-${editingAgent.id}`}
               >
-                Assigned MCP servers
+                Effective MCP servers (from roles)
               </label>
               <div
-                id={`edit-agent-mcp-assigned-${editingAgent.id}`}
+                id={`edit-agent-effective-mcp-${editingAgent.id}`}
                 className="inline-selection-list"
               >
-                {editingMcpServerIds.length === 0 ? (
-                  <span className="empty-hint">No MCP servers assigned.</span>
+                {editingEffectiveMcpServerIds.length === 0 ? (
+                  <span className="empty-hint">No MCP servers inherited from assigned roles.</span>
                 ) : (
-                  editingMcpServerIds.map((mcpServerId) => {
+                  editingEffectiveMcpServerIds.map((mcpServerId) => {
                     const mcpServer = mcpServerLookup.get(mcpServerId);
                     const mcpServerLabel = mcpServer ? mcpServer.name : mcpServerId;
                     return (
-                      <button
-                        key={`edit-agent-remove-mcp-${editingAgent.id}-${mcpServerId}`}
-                        type="button"
-                        className="tag-remove-btn"
-                        onClick={() =>
-                          onAgentDraftChange(
-                            editingAgent.id,
-                            "mcpServerIds",
-                            editingMcpServerIds.filter((candidateId) => candidateId !== mcpServerId),
-                          )
-                        }
-                        disabled={isEditingDisabled}
-                        title={`Remove ${mcpServerLabel}`}
-                      >
-                        {mcpServerLabel} ×
-                      </button>
+                      <span key={`edit-agent-effective-mcp-${editingAgent.id}-${mcpServerId}`} className="tag-pill">
+                        {mcpServerLabel}
+                      </span>
                     );
                   })
                 )}
               </div>
-
-              <label className="relationship-field" htmlFor={`edit-agent-mcp-add-${editingAgent.id}`}>
-                Add MCP server
-              </label>
-              <select
-                id={`edit-agent-mcp-add-${editingAgent.id}`}
-                value=""
-                onChange={(event) => {
-                  const nextMcpServerId = String(event.target.value || "").trim();
-                  if (!nextMcpServerId) {
-                    return;
-                  }
-                  onAgentDraftChange(
-                    editingAgent.id,
-                    "mcpServerIds",
-                    [...editingMcpServerIds, nextMcpServerId],
-                  );
-                }}
-                disabled={isEditingDisabled || editingAvailableMcpServers.length === 0}
-              >
-                <option value="">
-                  {editingAvailableMcpServers.length === 0
-                    ? "All company MCP servers already assigned"
-                    : "Select MCP server to assign"}
-                </option>
-                {editingAvailableMcpServers.map((mcpServer) => (
-                  <option key={`edit-agent-mcp-option-${editingAgent.id}-${mcpServer.id}`} value={mcpServer.id}>
-                    {mcpServer.name}
-                  </option>
-                ))}
-              </select>
             </div>
 
             <div className="task-card-actions modal-actions">
