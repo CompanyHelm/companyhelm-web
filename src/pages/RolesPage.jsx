@@ -78,7 +78,7 @@ export function RolesPage({
       return;
     }
     setNameDraft(activeRole.name || "");
-    setParentRoleIdDraft(activeRole.parentSkillGroup?.id || "");
+    setParentRoleIdDraft(activeRole.parentRole?.id || "");
   }, [activeRole]);
 
   async function handleCreateRole(event) {
@@ -88,7 +88,7 @@ export function RolesPage({
       setLocalError("");
       await onCreateRole({
         name: newRoleName,
-        parentSkillGroupId: newRoleParentId || null,
+        parentRoleId: newRoleParentId || null,
       });
       setNewRoleName("");
       setNewRoleParentId("");
@@ -110,7 +110,7 @@ export function RolesPage({
       await onUpdateRole({
         id: activeRole.id,
         name: nameDraft || activeRole.name,
-        parentSkillGroupId: parentRoleIdDraft || null,
+        parentRoleId: parentRoleIdDraft || null,
       });
     } catch (error) {
       setLocalError(error.message);
@@ -135,7 +135,7 @@ export function RolesPage({
               {roles.map((role) => {
                 const skillCount = (role.skills || []).length;
                 const subRoleCount = (role.subRoles || []).length;
-                const parentName = role.parentSkillGroup?.name || null;
+                const parentName = role.parentRole?.name || null;
                 return (
                   <li
                     key={role.id}

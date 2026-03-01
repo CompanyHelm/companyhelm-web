@@ -9,139 +9,139 @@ import { useSetPageActions } from "../components/PageActionsContext.jsx";
 export function SkillsPage({
   selectedCompanyId,
   skills,
-  skillGroups,
+  roles,
   mcpServers,
   roleMcpServerIdsByRoleId,
   activeSkill,
   isLoadingSkills,
-  isLoadingSkillGroups,
+  isLoadingRoles,
   skillError,
   onOpenSkill,
   onBackToSkills,
-  onCreateSkillGroup,
-  onUpdateSkillGroup,
-  onDeleteSkillGroup,
-  onAddSkillToGroup,
-  onRemoveSkillFromGroup,
+  onCreateRole,
+  onUpdateRole,
+  onDeleteRole,
+  onAddSkillToRole,
+  onRemoveSkillFromRole,
   onRoleMcpServerIdsChange,
   onOpenGitSkillPackage,
 }) {
-  const [newGroupName, setNewGroupName] = useState("");
-  const [newGroupParentId, setNewGroupParentId] = useState("");
-  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
-  const [savingGroupId, setSavingGroupId] = useState("");
-  const [groupDrafts, setGroupDrafts] = useState({});
+  const [newRoleName, setNewRoleName] = useState("");
+  const [newRoleParentId, setNewRoleParentId] = useState("");
+  const [isCreatingRole, setIsCreatingRole] = useState(false);
+  const [savingRoleId, setSavingRoleId] = useState("");
+  const [roleDrafts, setRoleDrafts] = useState({});
   const [localError, setLocalError] = useState("");
   const [showRawMarkdown, setShowRawMarkdown] = useState(false);
-  const [editingGroupId, setEditingGroupId] = useState("");
-  const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false);
+  const [editingRoleId, setEditingRoleId] = useState("");
+  const [isCreateRoleModalOpen, setIsCreateRoleModalOpen] = useState(false);
 
-  const groupedSkillIds = useMemo(() => {
+  const assignedSkillIds = useMemo(() => {
     const ids = new Set();
-    for (const group of skillGroups) {
-      for (const skill of group.skills || []) {
+    for (const role of roles) {
+      for (const skill of role.skills || []) {
         if (skill?.id) {
           ids.add(skill.id);
         }
       }
     }
     return ids;
-  }, [skillGroups]);
+  }, [roles]);
 
-  const ungroupedSkills = useMemo(() => {
-    return skills.filter((skill) => !groupedSkillIds.has(skill.id));
-  }, [groupedSkillIds, skills]);
+  const unassignedSkills = useMemo(() => {
+    return skills.filter((skill) => !assignedSkillIds.has(skill.id));
+  }, [assignedSkillIds, skills]);
 
-  const editingGroup = skillGroups.find((group) => group.id === editingGroupId) || null;
+  const editingRole = roles.find((role) => role.id === editingRoleId) || null;
 
-  async function handleCreateGroup(event) {
+  async function handleCreateRole(event) {
     event.preventDefault();
     try {
-      setIsCreatingGroup(true);
+      setIsCreatingRole(true);
       setLocalError("");
-      await onCreateSkillGroup({
-        name: newGroupName,
-        parentSkillGroupId: newGroupParentId || null,
+      await onCreateRole({
+        name: newRoleName,
+        parentRoleId: newRoleParentId || null,
       });
-      setNewGroupName("");
-      setNewGroupParentId("");
-      setIsCreateGroupModalOpen(false);
+      setNewRoleName("");
+      setNewRoleParentId("");
+      setIsCreateRoleModalOpen(false);
     } catch (error) {
       setLocalError(error.message);
     } finally {
-      setIsCreatingGroup(false);
+      setIsCreatingRole(false);
     }
   }
 
-  async function handleAddSkillToGroup(skillGroupId, skillId) {
+  async function handleAddSkillToRole(roleId, skillId) {
     try {
       setLocalError("");
-      await onAddSkillToGroup(skillGroupId, skillId);
+      await onAddSkillToRole(roleId, skillId);
     } catch (error) {
       setLocalError(error.message);
     }
   }
 
-  async function handleRemoveSkillFromGroup(skillGroupId, skillId) {
+  async function handleRemoveSkillFromRole(roleId, skillId) {
     try {
       setLocalError("");
-      await onRemoveSkillFromGroup(skillGroupId, skillId);
+      await onRemoveSkillFromRole(roleId, skillId);
     } catch (error) {
       setLocalError(error.message);
     }
   }
 
-  function getGroupDraft(group) {
-    const existingDraft = groupDrafts[group.id];
+  function getRoleDraft(role) {
+    const existingDraft = roleDrafts[role.id];
     if (existingDraft) {
       return existingDraft;
     }
     return {
-      name: group.name || "",
-      parentSkillGroupId: group.parentSkillGroup?.id || "",
+      name: role.name || "",
+      parentRoleId: role.parentRole?.id || "",
     };
   }
 
-  function updateGroupDraft(groupId, nextDraft) {
-    setGroupDrafts((current) => ({
+  function updateRoleDraft(roleId, nextDraft) {
+    setRoleDrafts((current) => ({
       ...current,
-      [groupId]: {
-        ...current[groupId],
+      [roleId]: {
+        ...current[roleId],
         ...nextDraft,
       },
     }));
   }
 
-  async function handleUpdateGroup(groupId) {
+  async function handleUpdateRole(roleId) {
     try {
-      const draft = groupDrafts[groupId];
+      const draft = roleDrafts[roleId];
       if (!draft) {
         return;
       }
-      setSavingGroupId(groupId);
+      setSavingRoleId(roleId);
       setLocalError("");
-      await onUpdateSkillGroup({
-        id: groupId,
+      await onUpdateRole({
+        id: roleId,
         name: draft.name,
-        parentSkillGroupId: draft.parentSkillGroupId || null,
+        parentRoleId: draft.parentRoleId || null,
       });
-      setEditingGroupId("");
+      setEditingRoleId("");
     } catch (error) {
       setLocalError(error.message);
     } finally {
-      setSavingGroupId("");
+      setSavingRoleId("");
     }
   }
 
-  function openEditGroupModal(group) {
-    setGroupDrafts((current) => ({
+  function openEditRoleModal(role) {
+    setRoleDrafts((current) => ({
       ...current,
-      [group.id]: {
-        name: group.name || "",
-        parentSkillGroupId: group.parentSkillGroup?.id || "",
+      [role.id]: {
+        name: role.name || "",
+        parentRoleId: role.parentRole?.id || "",
       },
     }));
-    setEditingGroupId(group.id);
+    setEditingRoleId(role.id);
   }
 
   const pageActions = useMemo(() => (
@@ -149,9 +149,9 @@ export function SkillsPage({
       <button
         type="button"
         className="chat-minimal-header-icon-btn"
-        aria-label="Create skill group"
-        title="Create skill group"
-        onClick={() => setIsCreateGroupModalOpen(true)}
+        aria-label="Create role"
+        title="Create role"
+        onClick={() => setIsCreateRoleModalOpen(true)}
       >
         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <line x1="12" y1="5" x2="12" y2="19" />
@@ -176,7 +176,7 @@ export function SkillsPage({
 
           <div className="skill-detail-info">
             <p className="chat-card-meta">
-              Roles: {(activeSkill.groups || []).map((group) => group.name).join(", ") || "none"}
+              Roles: {(activeSkill.roles || []).map((role) => role.name).join(", ") || "none"}
               {" · "}Files: {activeSkill.fileList?.length || 0}
             </p>
           </div>
@@ -237,35 +237,35 @@ export function SkillsPage({
   return (
     <Page><div className="page-stack">
       {skillError || localError ? <p className="error-banner">{skillError || localError}</p> : null}
-      {isLoadingSkills || isLoadingSkillGroups ? <p className="empty-hint">Loading skills...</p> : null}
+      {isLoadingSkills || isLoadingRoles ? <p className="empty-hint">Loading skills...</p> : null}
 
-      {skillGroups.length > 0 ? (
+      {roles.length > 0 ? (
         <section className="panel list-panel">
           <header className="panel-header panel-header-row">
             <h2>Roles</h2>
-            <span className="chat-card-meta">{skillGroups.length} roles</span>
+            <span className="chat-card-meta">{roles.length} roles</span>
           </header>
 
           <ul className="chat-card-list">
-            {skillGroups.map((group) => {
-              const skillCount = (group.skills || []).length;
-              const parentLabel = group.parentSkillGroup?.name || null;
+            {roles.map((role) => {
+              const skillCount = (role.skills || []).length;
+              const parentLabel = role.parentRole?.name || null;
               return (
                 <li
-                  key={group.id}
+                  key={role.id}
                   className="chat-card"
-                  onClick={() => openEditGroupModal(group)}
+                  onClick={() => openEditRoleModal(role)}
                   role="button"
                   tabIndex={0}
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {
-                      openEditGroupModal(group);
+                      openEditRoleModal(role);
                     }
                   }}
                 >
                   <div className="chat-card-main">
                     <p className="chat-card-title">
-                      <strong>{group.name}</strong>
+                      <strong>{role.name}</strong>
                     </p>
                     <p className="chat-card-meta">
                       {skillCount} {skillCount === 1 ? "skill" : "skills"}
@@ -278,10 +278,10 @@ export function SkillsPage({
                       className="chat-card-icon-btn chat-card-icon-btn-danger"
                       onClick={(event) => {
                         event.stopPropagation();
-                        onDeleteSkillGroup(group.id, group.name);
+                        onDeleteRole(role.id, role.name);
                       }}
-                      aria-label="Delete group"
-                      title="Delete group"
+                      aria-label="Delete role"
+                      title="Delete role"
                     >
                       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                         <path d="M3 6h18" />
@@ -297,22 +297,22 @@ export function SkillsPage({
             })}
           </ul>
         </section>
-      ) : !isLoadingSkillGroups ? (
+      ) : !isLoadingRoles ? (
         <section className="panel list-panel">
           <p className="empty-hint">No roles yet.</p>
         </section>
       ) : null}
 
-      {ungroupedSkills.length > 0 ? (
+      {unassignedSkills.length > 0 ? (
         <section className="panel list-panel">
           <header className="panel-header panel-header-row">
             <h2>Skills without roles</h2>
-            <span className="chat-card-meta">{ungroupedSkills.length} skills</span>
+            <span className="chat-card-meta">{unassignedSkills.length} skills</span>
           </header>
           <ul className="chat-card-list">
-            {ungroupedSkills.map((skill) => (
+            {unassignedSkills.map((skill) => (
               <li
-                key={`ungrouped-skill-${skill.id}`}
+                key={`unassigned-skill-${skill.id}`}
                 className="chat-card"
                 onClick={() => onOpenSkill(skill.id)}
                 role="button"
@@ -335,64 +335,64 @@ export function SkillsPage({
       ) : null}
 
       <CreationModal
-        modalId="create-skill-group-modal"
+        modalId="create-skill-role-modal"
         title="Create role"
         description="Add a new role to organize skills and assigned MCP servers."
-        isOpen={isCreateGroupModalOpen}
-        onClose={() => setIsCreateGroupModalOpen(false)}
+        isOpen={isCreateRoleModalOpen}
+        onClose={() => setIsCreateRoleModalOpen(false)}
       >
-        <form className="chat-settings-modal-form" onSubmit={handleCreateGroup}>
+        <form className="chat-settings-modal-form" onSubmit={handleCreateRole}>
           <div className="chat-settings-field">
-            <label htmlFor="new-skill-group-name" className="chat-settings-label">Role name</label>
+            <label htmlFor="new-skill-role-name" className="chat-settings-label">Role name</label>
             <input
-              id="new-skill-group-name"
+              id="new-skill-role-name"
               className="chat-settings-input"
-              value={newGroupName}
-              onChange={(event) => setNewGroupName(event.target.value)}
+              value={newRoleName}
+              onChange={(event) => setNewRoleName(event.target.value)}
               placeholder="e.g. obra/superpowers"
               required
               autoFocus
             />
           </div>
           <div className="chat-settings-field">
-            <label htmlFor="new-skill-group-parent" className="chat-settings-label">Parent role (optional)</label>
+            <label htmlFor="new-skill-role-parent" className="chat-settings-label">Parent role (optional)</label>
             <select
-              id="new-skill-group-parent"
+              id="new-skill-role-parent"
               className="chat-settings-input"
-              value={newGroupParentId}
-              onChange={(event) => setNewGroupParentId(event.target.value)}
+              value={newRoleParentId}
+              onChange={(event) => setNewRoleParentId(event.target.value)}
             >
               <option value="">None</option>
-              {skillGroups.map((group) => (
-                <option key={`parent-group-${group.id}`} value={group.id}>
-                  {group.name}
+              {roles.map((role) => (
+                <option key={`parent-role-${role.id}`} value={role.id}>
+                  {role.name}
                 </option>
               ))}
             </select>
           </div>
           <div className="chat-settings-actions">
-            <button type="submit" disabled={isCreatingGroup}>
-              {isCreatingGroup ? "Creating..." : "Create role"}
+            <button type="submit" disabled={isCreatingRole}>
+              {isCreatingRole ? "Creating..." : "Create role"}
             </button>
           </div>
         </form>
       </CreationModal>
 
       <CreationModal
-        modalId="edit-skill-group-modal"
-        title={editingGroup ? `Edit role "${editingGroup.name}"` : "Edit role"}
+        modalId="edit-skill-role-modal"
+        title={editingRole ? `Edit role "${editingRole.name}"` : "Edit role"}
         description="Update role settings, skills, and role MCP assignments."
-        isOpen={Boolean(editingGroup)}
-        onClose={() => setEditingGroupId("")}
+        isOpen={Boolean(editingRole)}
+        onClose={() => setEditingRoleId("")}
         cardClassName="modal-card-wide"
       >
-        {editingGroup ? (() => {
-          const groupDraft = getGroupDraft(editingGroup);
-          const parentOptions = skillGroups.filter((entry) => entry.id !== editingGroup.id);
-          const groupSkillIds = new Set((editingGroup.skills || []).map((skill) => skill.id));
-          const availableSkills = skills.filter((skill) => !groupSkillIds.has(skill.id));
+        {editingRole ? (() => {
+          const roleDraft = getRoleDraft(editingRole);
+          const parentOptions = roles.filter((entry) => entry.id !== editingRole.id);
+          const roleSkillIds = new Set((editingRole.skills || []).map((skill) => skill.id));
+          const availableSkills = skills.filter((skill) => !roleSkillIds.has(skill.id));
           const assignedRoleMcpServerIds = normalizeUniqueStringList(
-            roleMcpServerIdsByRoleId?.[editingGroup.id] || [],
+            roleMcpServerIdsByRoleId?.[editingRole.id] || [],
           );
           const availableRoleMcpServers = mcpServers.filter(
             (mcpServer) => !assignedRoleMcpServerIds.includes(mcpServer.id),
@@ -401,30 +401,30 @@ export function SkillsPage({
           return (
             <div className="chat-settings-modal-form">
               <div className="chat-settings-field">
-                <label htmlFor={`group-name-${editingGroup.id}`} className="chat-settings-label">Role name</label>
+                <label htmlFor={`role-name-${editingRole.id}`} className="chat-settings-label">Role name</label>
                 <input
-                  id={`group-name-${editingGroup.id}`}
+                  id={`role-name-${editingRole.id}`}
                   className="chat-settings-input"
-                  value={groupDraft.name}
+                  value={roleDraft.name}
                   onChange={(event) =>
-                    updateGroupDraft(editingGroup.id, { name: event.target.value })
+                    updateRoleDraft(editingRole.id, { name: event.target.value })
                   }
                 />
               </div>
               <div className="chat-settings-field">
-                <label htmlFor={`group-parent-${editingGroup.id}`} className="chat-settings-label">Parent role</label>
+                <label htmlFor={`role-parent-${editingRole.id}`} className="chat-settings-label">Parent role</label>
                 <select
-                  id={`group-parent-${editingGroup.id}`}
+                  id={`role-parent-${editingRole.id}`}
                   className="chat-settings-input"
-                  value={groupDraft.parentSkillGroupId || ""}
+                  value={roleDraft.parentRoleId || ""}
                   onChange={(event) =>
-                    updateGroupDraft(editingGroup.id, { parentSkillGroupId: event.target.value })
+                    updateRoleDraft(editingRole.id, { parentRoleId: event.target.value })
                   }
                 >
                   <option value="">None</option>
-                  {parentOptions.map((parentGroup) => (
-                    <option key={`group-parent-option-${editingGroup.id}-${parentGroup.id}`} value={parentGroup.id}>
-                      {parentGroup.name}
+                  {parentOptions.map((parentRole) => (
+                    <option key={`role-parent-option-${editingRole.id}-${parentRole.id}`} value={parentRole.id}>
+                      {parentRole.name}
                     </option>
                   ))}
                 </select>
@@ -432,18 +432,18 @@ export function SkillsPage({
               <div className="chat-settings-actions">
                 <button
                   type="button"
-                  onClick={() => void handleUpdateGroup(editingGroup.id)}
-                  disabled={savingGroupId === editingGroup.id}
+                  onClick={() => void handleUpdateRole(editingRole.id)}
+                  disabled={savingRoleId === editingRole.id}
                 >
-                  {savingGroupId === editingGroup.id ? "Saving..." : "Save role"}
+                  {savingRoleId === editingRole.id ? "Saving..." : "Save role"}
                 </button>
               </div>
 
               <div className="chat-settings-field">
-                <label htmlFor={`group-mcp-assigned-${editingGroup.id}`} className="chat-settings-label">
+                <label htmlFor={`role-mcp-assigned-${editingRole.id}`} className="chat-settings-label">
                   Assigned MCP servers
                 </label>
-                <div id={`group-mcp-assigned-${editingGroup.id}`} className="inline-selection-list">
+                <div id={`role-mcp-assigned-${editingRole.id}`} className="inline-selection-list">
                   {assignedRoleMcpServerIds.length === 0 ? (
                     <span className="empty-hint">No MCP servers assigned to this role.</span>
                   ) : (
@@ -452,12 +452,12 @@ export function SkillsPage({
                       const mcpServerLabel = mcpServer ? mcpServer.name : mcpServerId;
                       return (
                         <button
-                          key={`group-remove-mcp-${editingGroup.id}-${mcpServerId}`}
+                          key={`role-remove-mcp-${editingRole.id}-${mcpServerId}`}
                           type="button"
                           className="tag-remove-btn"
                           onClick={() =>
                             onRoleMcpServerIdsChange(
-                              editingGroup.id,
+                              editingRole.id,
                               assignedRoleMcpServerIds.filter(
                                 (candidateId) => candidateId !== mcpServerId,
                               ),
@@ -474,11 +474,11 @@ export function SkillsPage({
               </div>
 
               <div className="chat-settings-field">
-                <label htmlFor={`group-add-mcp-${editingGroup.id}`} className="chat-settings-label">
+                <label htmlFor={`role-add-mcp-${editingRole.id}`} className="chat-settings-label">
                   Add MCP server
                 </label>
                 <select
-                  id={`group-add-mcp-${editingGroup.id}`}
+                  id={`role-add-mcp-${editingRole.id}`}
                   className="chat-settings-input"
                   value=""
                   onChange={(event) => {
@@ -486,7 +486,7 @@ export function SkillsPage({
                     if (!nextMcpServerId) {
                       return;
                     }
-                    onRoleMcpServerIdsChange(editingGroup.id, [
+                    onRoleMcpServerIdsChange(editingRole.id, [
                       ...assignedRoleMcpServerIds,
                       nextMcpServerId,
                     ]);
@@ -500,7 +500,7 @@ export function SkillsPage({
                   </option>
                   {availableRoleMcpServers.map((mcpServer) => (
                     <option
-                      key={`group-mcp-option-${editingGroup.id}-${mcpServer.id}`}
+                      key={`role-mcp-option-${editingRole.id}-${mcpServer.id}`}
                       value={mcpServer.id}
                     >
                       {mcpServer.name}
@@ -511,12 +511,12 @@ export function SkillsPage({
 
               <div className="chat-settings-field">
                 <label className="chat-settings-label">Skills in role</label>
-                {(editingGroup.skills || []).length === 0 ? (
+                {(editingRole.skills || []).length === 0 ? (
                   <p className="empty-hint">No skills in this role.</p>
                 ) : (
                   <ul className="chat-card-list">
-                    {editingGroup.skills.map((skill) => (
-                      <li key={`${editingGroup.id}-${skill.id}`} className="chat-card">
+                    {editingRole.skills.map((skill) => (
+                      <li key={`${editingRole.id}-${skill.id}`} className="chat-card">
                         <div className="chat-card-main">
                           <p className="chat-card-title">
                             <strong>{skill.name}</strong>
@@ -527,7 +527,7 @@ export function SkillsPage({
                             type="button"
                             className="chat-card-icon-btn"
                             onClick={() => {
-                              setEditingGroupId("");
+                              setEditingRoleId("");
                               onOpenSkill(skill.id);
                             }}
                             aria-label="View skill"
@@ -541,7 +541,7 @@ export function SkillsPage({
                           <button
                             type="button"
                             className="chat-card-icon-btn chat-card-icon-btn-danger"
-                            onClick={() => void handleRemoveSkillFromGroup(editingGroup.id, skill.id)}
+                            onClick={() => void handleRemoveSkillFromRole(editingRole.id, skill.id)}
                             aria-label="Remove from role"
                             title="Remove from role"
                           >
@@ -558,11 +558,11 @@ export function SkillsPage({
 
               {availableSkills.length > 0 ? (
                 <div className="chat-settings-field">
-                  <label htmlFor={`group-add-skill-${editingGroup.id}`} className="chat-settings-label">
+                  <label htmlFor={`role-add-skill-${editingRole.id}`} className="chat-settings-label">
                     Add skill to role
                   </label>
                   <select
-                    id={`group-add-skill-${editingGroup.id}`}
+                    id={`role-add-skill-${editingRole.id}`}
                     className="chat-settings-input"
                     value=""
                     onChange={(event) => {
@@ -570,12 +570,12 @@ export function SkillsPage({
                       if (!nextSkillId) {
                         return;
                       }
-                      void handleAddSkillToGroup(editingGroup.id, nextSkillId);
+                      void handleAddSkillToRole(editingRole.id, nextSkillId);
                     }}
                   >
                     <option value="">Select skill</option>
                     {availableSkills.map((skill) => (
-                      <option key={`group-skill-option-${editingGroup.id}-${skill.id}`} value={skill.id}>
+                      <option key={`role-skill-option-${editingRole.id}-${skill.id}`} value={skill.id}>
                         {skill.name}
                       </option>
                     ))}
