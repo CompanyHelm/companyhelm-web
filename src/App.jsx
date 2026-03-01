@@ -84,6 +84,7 @@ import {
   COMPANY_API_LIST_GITHUB_INSTALLATIONS_QUERY,
   COMPANY_API_LIST_REPOSITORIES_CONNECTION_QUERY,
   COMPANY_API_ADD_GITHUB_INSTALLATION_MUTATION,
+  COMPANY_API_REFRESH_GITHUB_INSTALLATION_REPOSITORIES_MUTATION,
   COMPANY_API_LIST_SKILLS_QUERY,
   COMPANY_API_LIST_SKILL_GROUPS_QUERY,
   COMPANY_API_LIST_GIT_SKILL_PACKAGES_QUERY,
@@ -1475,12 +1476,35 @@ async function executeGraphQL(query, variables = {}) {
   }
 
   if (query === REFRESH_GITHUB_INSTALLATION_REPOSITORIES_MUTATION) {
+    const data = await executeRawGraphQL(
+      COMPANY_API_REFRESH_GITHUB_INSTALLATION_REPOSITORIES_MUTATION,
+      {
+        companyId: resolveLegacyId(variables?.companyId),
+        installationId: resolveLegacyId(variables?.installationId),
+      },
+    );
+    const payload = data?.refreshGithubInstallationRepositories;
     return {
-      ...unsupportedMutation("refreshGithubInstallationRepositories"),
       refreshGithubInstallationRepositories: {
-        ...unsupportedMutation("refreshGithubInstallationRepositories")
-          .refreshGithubInstallationRepositories,
-        repositories: [],
+        ok: Boolean(payload?.ok),
+        error: payload?.error ? String(payload.error) : null,
+        repositories: Array.isArray(payload?.repositories)
+          ? payload.repositories.map((repository) => ({
+            id: resolveLegacyId(repository?.id),
+            companyId: resolveLegacyId(repository?.company?.id),
+            provider: resolveLegacyId(repository?.provider) || "github",
+            externalId: resolveLegacyId(repository?.externalId),
+            githubInstallationId: resolveLegacyId(repository?.githubInstallation?.installationId),
+            name: resolveLegacyId(repository?.name),
+            fullName: resolveLegacyId(repository?.fullName),
+            htmlUrl: resolveLegacyId(repository?.htmlUrl) || null,
+            isPrivate: Boolean(repository?.isPrivate),
+            defaultBranch: resolveLegacyId(repository?.defaultBranch) || null,
+            archived: Boolean(repository?.archived),
+            createdAt: String(repository?.createdAt || ""),
+            updatedAt: String(repository?.updatedAt || ""),
+          }))
+          : [],
       },
     };
   }

@@ -11,8 +11,11 @@ type Agent {
   defaultModel: AgentRunnerSdkModel!
   defaultReasoningLevel: String
   id: ID!
+  mcpServerIds: [ID!]!
   name: String!
   runner: AgentRunner!
+  skillGroupIds: [ID!]!
+  skillGroups: [SkillGroup!]!
   status: AgentStatus!
 }
 
@@ -91,6 +94,15 @@ type CompanyEdge {
   node: Company!
 }
 
+type CreateGitSkillPackagePayload {
+  error: String
+  gitSkillPackage: GitSkillPackage
+  ok: Boolean!
+  packageId: ID
+  skills: [Skill!]!
+  warnings: [String!]!
+}
+
 input DeleteAgentInput {
   agentId: ID!
   force: Boolean = false
@@ -99,6 +111,46 @@ input DeleteAgentInput {
 type DeleteAgentPayload {
   errors: [String!]!
   ok: Boolean!
+}
+
+type DeleteGitSkillPackagePayload {
+  deletedGitSkillPackageId: ID
+  error: String
+  ok: Boolean!
+}
+
+type DeleteMcpServerPayload {
+  deletedMcpServerId: ID
+  error: String
+  ok: Boolean!
+}
+
+type DeleteSkillGroupPayload {
+  deletedSkillGroupId: ID
+  error: String
+  ok: Boolean!
+}
+
+type GitSkillPackage {
+  company: Company!
+  currentCommitHash: String!
+  currentReference: String!
+  gitRepositoryUrl: String!
+  hostingProvider: String!
+  id: ID!
+  packageName: String!
+  skills: [Skill!]!
+}
+
+type GitSkillReference {
+  fullRef: String!
+  kind: GitSkillReferenceKind!
+  name: String!
+}
+
+enum GitSkillReferenceKind {
+  branch
+  tag
 }
 
 type GithubAppConfig {
@@ -112,28 +164,91 @@ type GithubInstallation {
   installationId: ID!
 }
 
+type McpEnvVar {
+  key: String!
+  value: String!
+}
+
+input McpEnvVarInput {
+  key: String!
+  value: String!
+}
+
+type McpHeader {
+  key: String!
+  value: String!
+}
+
+input McpHeaderInput {
+  key: String!
+  value: String!
+}
+
+type McpServer {
+  args: [String!]!
+  authType: String!
+  bearerToken: String
+  command: String
+  company: Company!
+  companyId: ID!
+  customHeaders: [McpHeader!]!
+  enabled: Boolean!
+  envVars: [McpEnvVar!]!
+  id: ID!
+  name: String!
+  transportType: String!
+  url: String
+}
+
+type McpServerMutationPayload {
+  error: String
+  mcpServer: McpServer
+  ok: Boolean!
+}
+
 type Mutation {
   addGithubInstallation(companyId: ID!, installationId: ID!, setupAction: String): AddGithubInstallationPayload!
-  createAgent(agentRunnerId: ID!, agentRunnerSdkId: ID!, companyId: ID!, defaultAdditionalModelInstructions: String, defaultModelId: ID!, defaultReasoningLevel: String, name: String!): Agent!
+  addSkillToSkillGroup(companyId: ID!, skillGroupId: ID!, skillId: ID!): SkillGroupMutationPayload!
+  createAgent(agentRunnerId: ID!, agentRunnerSdkId: ID!, companyId: ID!, defaultAdditionalModelInstructions: String, defaultModelId: ID!, defaultReasoningLevel: String, mcpServerIds: [ID!], name: String!, skillGroupIds: [ID!]): Agent!
   createAgentRunner(companyId: ID!, name: String!): AgentRunnerSecretPayload!
   createCompany(name: String!): Company!
+  createGitSkillPackage(companyId: ID!, gitReference: String!, gitRepositoryUrl: String!): CreateGitSkillPackagePayload!
+  createMcpServer(args: [String!], authType: String, bearerToken: String, command: String, companyId: ID!, customHeaders: [McpHeaderInput!], enabled: Boolean, envVars: [McpEnvVarInput!], name: String!, transportType: String, url: String): McpServerMutationPayload!
+  createSkillGroup(companyId: ID!, name: String!, parentSkillGroupId: ID): SkillGroupMutationPayload!
   createThread(additionalModelInstructions: String, agentId: ID!, companyId: ID!, title: String): Thread!
   deleteAgent(input: DeleteAgentInput!): DeleteAgentPayload!
   deleteAgentRunner(agentRunnerId: ID!): Boolean!
   deleteCompany(companyId: ID!): Boolean!
+  deleteGitSkillPackage(companyId: ID!, id: ID!): DeleteGitSkillPackagePayload!
+  deleteMcpServer(companyId: ID!, id: ID!): DeleteMcpServerPayload!
   deleteQueuedUserMessage(queuedMessageId: ID!): Boolean!
+  deleteSkillGroup(companyId: ID!, id: ID!): DeleteSkillGroupPayload!
   deleteThread(threadId: ID!): Boolean!
   interruptTurn(threadId: ID!): Boolean!
+  previewGitSkillPackage(gitRepositoryUrl: String!): PreviewGitSkillPackagePayload!
   queueUserMessage(allowSteer: Boolean!, modelId: ID, reasoningLevel: String, text: String!, threadId: ID!): QueuedUserMessage!
+  refreshGithubInstallationRepositories(companyId: ID!, installationId: ID!): RefreshGithubInstallationRepositoriesPayload!
   regenerateAgentRunnerSecret(agentRunnerId: ID!): AgentRunnerSecretPayload!
+  removeSkillFromSkillGroup(companyId: ID!, skillGroupId: ID!, skillId: ID!): SkillGroupMutationPayload!
   steerQueuedUserMessage(queuedMessageId: ID!): QueuedUserMessage!
-  updateAgent(agentId: ID!, agentRunnerId: ID!, agentRunnerSdkId: ID!, defaultAdditionalModelInstructions: String, defaultModelId: ID!, defaultReasoningLevel: String, name: String!): Agent!
+  updateAgent(agentId: ID!, agentRunnerId: ID!, agentRunnerSdkId: ID!, defaultAdditionalModelInstructions: String, defaultModelId: ID!, defaultReasoningLevel: String, mcpServerIds: [ID!], name: String!, skillGroupIds: [ID!]): Agent!
+  updateMcpServer(args: [String!], authType: String, bearerToken: String, command: String, companyId: ID!, customHeaders: [McpHeaderInput!], enabled: Boolean, envVars: [McpEnvVarInput!], id: ID!, name: String!, transportType: String, url: String): McpServerMutationPayload!
+  updateSkillGroup(companyId: ID!, id: ID!, name: String!, parentSkillGroupId: ID): SkillGroupMutationPayload!
   updateThreadTitle(threadId: ID!, title: String): Thread!
 }
 
 type PageInfo {
   endCursor: String
   hasNextPage: Boolean!
+}
+
+type PreviewGitSkillPackagePayload {
+  branches: [GitSkillReference!]!
+  error: String
+  normalizedRepositoryUrl: String
+  ok: Boolean!
+  packageName: String
+  tags: [GitSkillReference!]!
 }
 
 type Query {
@@ -143,10 +258,16 @@ type Query {
   agents(after: String, companyId: ID, first: Int = 20): AgentConnection!
   companies(after: String, first: Int = 20): CompanyConnection!
   company(id: ID!): Company
+  gitSkillPackage(id: ID!): GitSkillPackage
+  gitSkillPackages(companyId: ID!): [GitSkillPackage!]!
   githubAppConfig: GithubAppConfig!
   githubInstallations(companyId: ID!): [GithubInstallation!]!
+  mcpServers(companyId: ID!): [McpServer!]!
   queuedUserMessages(first: Int = 20, threadId: ID!): [QueuedUserMessage!]!
   repositories(after: String, companyId: ID!, first: Int = 20, githubInstallationId: ID): RepositoryConnection!
+  skill(id: ID!): Skill
+  skillGroups(companyId: ID!): [SkillGroup!]!
+  skills(companyId: ID!): [Skill!]!
   thread(id: ID!): Thread
   threadTurns(after: String, first: Int = 20, threadId: ID!): ThreadTurnConnection!
   threads(after: String, agentId: ID, companyId: ID, first: Int = 20): ThreadConnection!
@@ -158,6 +279,12 @@ type QueuedUserMessage {
   id: ID!
   text: String!
   thread: Thread!
+}
+
+type RefreshGithubInstallationRepositoriesPayload {
+  error: String
+  ok: Boolean!
+  repositories: [Repository!]!
 }
 
 type Repository {
@@ -184,6 +311,32 @@ type RepositoryConnection {
 type RepositoryEdge {
   cursor: String!
   node: Repository!
+}
+
+type Skill {
+  company: Company!
+  content: String
+  description: String
+  fileList: [String!]!
+  gitSkillPackage: GitSkillPackage
+  gitSkillPackagePath: String
+  groups: [SkillGroup!]!
+  id: ID!
+  name: String!
+}
+
+type SkillGroup {
+  company: Company!
+  id: ID!
+  name: String!
+  parentSkillGroup: SkillGroup
+  skills: [Skill!]!
+}
+
+type SkillGroupMutationPayload {
+  error: String
+  ok: Boolean!
+  skillGroup: SkillGroup
 }
 
 type Subscription {

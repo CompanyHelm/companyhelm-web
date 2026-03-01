@@ -218,6 +218,7 @@ export function SettingsPage({
               {githubInstallations.map((installation) => {
                 const installationRepositories =
                   repositoriesByInstallationId[installation.installationId] || [];
+                const isRefreshing = refreshingGithubInstallationId === installation.installationId;
                 return (
                   <li
                     key={`repo-installation-${installation.installationId}`}
@@ -227,6 +228,24 @@ export function SettingsPage({
                       <strong>{installation.accountLogin || `Installation ${installation.installationId}`}</strong>
                       <span className="chat-card-meta">{installationRepositories.length} repos</span>
                     </div>
+                    <button
+                      type="button"
+                      className="chat-card-icon-btn"
+                      aria-label="Refresh repos"
+                      title={isRefreshing ? "Refreshing..." : "Refresh repos"}
+                      disabled={isRefreshing}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onRefreshGithubInstallationRepositories(installation.installationId);
+                      }}
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <polyline points="23 4 23 10 17 10" />
+                        <polyline points="1 20 1 14 7 14" />
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10" />
+                        <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14" />
+                      </svg>
+                    </button>
                     {installationRepositories.length === 0 ? (
                       <p className="empty-hint">No repos cached for this installation.</p>
                     ) : (
