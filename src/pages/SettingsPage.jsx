@@ -1,47 +1,21 @@
-import { useState } from "react";
-import { formatTimestamp } from "../utils/formatting.js";
+import { useMemo, useState } from "react";
+import { Page } from "../components/Page.jsx";
 import { CreationModal } from "../components/CreationModal.jsx";
+import { useSetPageActions } from "../components/PageActionsContext.jsx";
 
 export function SettingsPage({
   hasCompanies,
   selectedCompanyId,
   selectedCompany,
   companyError,
-  githubAppInstallUrl,
-  isLoadingGithubAppConfig,
-  githubAppConfigError,
-  githubInstallations,
-  githubRepositories,
-  isLoadingGithubInstallations,
-  isLoadingGithubRepositories,
-  githubInstallationError,
-  githubInstallationNotice,
-  isAddingGithubInstallationFromCallback,
-  pendingGithubInstallCallback,
-  deletingGithubInstallationId,
-  refreshingGithubInstallationId,
   newCompanyName,
   isCreatingCompany,
   isDeletingCompany,
   onNewCompanyNameChange,
   onCreateCompany,
   onDeleteCompany,
-  onDeleteGithubInstallation,
-  onRefreshGithubInstallationRepositories,
 }) {
   const [isCreateCompanyModalOpen, setIsCreateCompanyModalOpen] = useState(false);
-
-  const repositoriesByInstallationId = githubRepositories.reduce((grouped, repository) => {
-    const installationId = String(repository.githubInstallationId || "").trim();
-    if (!installationId) {
-      return grouped;
-    }
-    if (!grouped[installationId]) {
-      grouped[installationId] = [];
-    }
-    grouped[installationId].push(repository);
-    return grouped;
-  }, {});
 
   async function handleCreateCompanySubmit(event) {
     const didCreate = await onCreateCompany(event);
@@ -50,29 +24,26 @@ export function SettingsPage({
     }
   }
 
-  return (
-    <div className="page-stack">
-      <header className="chat-minimal-header">
-        <div className="chat-minimal-header-info">
-          <p className="chat-minimal-header-agent">{selectedCompany ? selectedCompany.name : "No company"}</p>
-          <h1 className="chat-minimal-header-title">Settings</h1>
-        </div>
-        <div className="chat-minimal-header-actions">
-          <button
-            type="button"
-            className="chat-minimal-header-icon-btn"
-            aria-label="Create company"
-            title="Create company"
-            onClick={() => setIsCreateCompanyModalOpen(true)}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-          </button>
-        </div>
-      </header>
+  const pageActions = useMemo(() => (
+    <>
+      <button
+        type="button"
+        className="chat-minimal-header-icon-btn"
+        aria-label="Create company"
+        title="Create company"
+        onClick={() => setIsCreateCompanyModalOpen(true)}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+      </button>
+    </>
+  ), []);
+  useSetPageActions(pageActions);
 
+  return (
+    <Page><div className="page-stack">
       <CreationModal
         modalId="create-company"
         title="Create company"
@@ -295,6 +266,6 @@ export function SettingsPage({
       ) : null}
 
       {companyError ? <p className="error-banner">Company error: {companyError}</p> : null}
-    </div>
+    </div></Page>
   );
 }

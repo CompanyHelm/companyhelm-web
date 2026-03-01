@@ -57,10 +57,23 @@ h3 {
 }
 
 .layout-shell-menu-collapsed {
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: 3.2rem minmax(0, 1fr);
 }
 
 .layout-shell-menu-collapsed .side-menu {
+  padding: 1.25rem 0.4rem 1rem;
+  align-items: center;
+  overflow: hidden;
+}
+
+.layout-shell-menu-collapsed .side-menu-collapse-btn {
+  display: none;
+}
+
+.layout-shell-menu-collapsed .side-brand,
+.layout-shell-menu-collapsed .side-company-scope,
+.layout-shell-menu-collapsed .side-nav-section,
+.layout-shell-menu-collapsed .side-nav-bottom {
   display: none;
 }
 
@@ -92,7 +105,7 @@ h3 {
   transition: background 0.15s, color 0.15s;
   flex-shrink: 0;
   align-self: flex-start;
-  margin: 0 0.35rem 0.85rem;
+  margin: 0 0.35rem 0.5rem;
 }
 
 .side-menu-icon-btn:hover {
@@ -108,18 +121,6 @@ h3 {
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
-}
-
-.side-menu-open-btn {
-  justify-self: start;
-  margin: 0;
-}
-
-.side-menu-open-btn-chat {
-  position: fixed;
-  top: 0.75rem;
-  left: 0.75rem;
-  z-index: 40;
 }
 
 .side-brand {
@@ -313,8 +314,6 @@ h3 {
 
 .page-shell {
   min-width: 0;
-  max-width: 1000px;
-  margin: 0 auto;
   padding: 1.5rem 2rem 2rem;
   display: grid;
   gap: 0.85rem;
@@ -398,6 +397,30 @@ h3 {
 
 .breadcrumb-panel {
   padding: 0.58rem 0.82rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.breadcrumb-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.breadcrumb-page-title {
+  margin: 0.1rem 0 0;
+  font-size: 1.35rem;
+  line-height: 1.2;
+  flex: 1;
+  min-width: 0;
+}
+
+.breadcrumb-page-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
 }
 
 .breadcrumb-list {
@@ -447,6 +470,12 @@ h3 {
   color: rgba(90, 97, 107, 0.8);
   font-family: "IBM Plex Mono", monospace;
   font-size: 0.76rem;
+}
+
+.page-container {
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
 }
 
 .page-stack {
@@ -1333,7 +1362,7 @@ button:disabled {
 .chat-message-footer:focus-within,
 .chat-message-running .chat-message-footer {
   opacity: 1;
-  max-height: 2rem;
+  max-height: 4rem;
 }
 
 /* Keep old class for non-chat-page usage */
@@ -1840,6 +1869,15 @@ button:disabled {
   transition: background 0.12s, border-color 0.12s;
 }
 
+.chat-card:has(> .chat-card-list) {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.chat-card > .chat-card-list {
+  min-width: 50%;
+}
+
 .chat-card:hover {
   background: rgba(255, 255, 255, 0.8);
   border-color: rgba(26, 32, 38, 0.16);
@@ -1915,6 +1953,43 @@ button:disabled {
   stroke-linecap: round;
   stroke-linejoin: round;
   color: var(--action);
+}
+
+.new-chat-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+  padding: 0.32rem 0.65rem;
+  font-size: 0.82rem;
+  font-family: inherit;
+  font-weight: 500;
+  border: 1px dashed rgba(26, 32, 38, 0.2);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--action);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.new-chat-btn:hover:not(:disabled) {
+  background: rgba(15, 118, 110, 0.05);
+  border-color: var(--action);
+}
+
+.new-chat-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.new-chat-btn svg {
+  width: 0.92rem;
+  height: 0.92rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .chat-card-icon-btn {
@@ -2465,6 +2540,15 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
+  .layout-shell-menu-collapsed {
+    grid-template-columns: 1fr;
+  }
+
+  .layout-shell-menu-collapsed .side-menu {
+    flex-direction: row;
+    padding: 0.62rem 0.85rem;
+  }
+
   .side-menu {
     position: static;
     height: auto;
@@ -2526,7 +2610,6 @@ button:disabled {
 
   .page-shell {
     padding: 1rem;
-    max-width: none;
   }
 
   .page-shell-chat-layout {
@@ -2635,14 +2718,6 @@ button:disabled {
     border-bottom-color: var(--nav-active-border);
   }
 
-  .side-menu-open-btn {
-    margin: 0;
-  }
-
-  .side-menu-open-btn-chat {
-    top: 0.62rem;
-    left: 0.62rem;
-  }
 
   .page-shell {
     padding: 0.85rem;

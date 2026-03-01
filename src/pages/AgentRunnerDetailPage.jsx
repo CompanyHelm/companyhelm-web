@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { Page } from "../components/Page.jsx";
 import { formatTimestamp, normalizeRunnerStatus } from "../utils/formatting.js";
 import { normalizeRunnerAvailableAgentSdks, normalizeRunnerCodexAvailableModels } from "../utils/normalization.js";
 import { DEFAULT_AGENT_SDK } from "../utils/constants.js";
@@ -34,29 +35,7 @@ export function AgentRunnerDetailPage({
   }, [runnerGrpcTarget, runnerSecret]);
 
   return (
-    <div className="page-stack">
-      <header className="chat-minimal-header">
-        <div className="chat-minimal-header-info">
-          <p className="chat-minimal-header-agent">
-            <a
-              href="/agent-runner"
-              onClick={(event) => {
-                event.preventDefault();
-                setBrowserPath("/agent-runner");
-              }}
-            >
-              Runners
-            </a>
-          </p>
-          <h1 className="chat-minimal-header-title">{runner.name || "Unnamed runner"}</h1>
-        </div>
-        <div className="chat-minimal-header-actions">
-          <span className={`runner-status runner-status-${runnerStatus}`}>
-            {runnerStatus}
-          </span>
-        </div>
-      </header>
-
+    <Page><div className="page-stack">
       <section className="dashboard-grid">
         <article className="panel stat-panel">
           <p className="stat-label">Status</p>
@@ -231,6 +210,6 @@ export function AgentRunnerDetailPage({
           </button>
         </div>
       </section>
-    </div>
+    </div></Page>
   );
 }

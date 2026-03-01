@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { Page } from "../components/Page.jsx";
 import { CreationModal } from "../components/CreationModal.jsx";
+import { useSetPageActions } from "../components/PageActionsContext.jsx";
 
 export function TasksPage({
   selectedCompanyId,
@@ -39,29 +41,27 @@ export function TasksPage({
     }
   }
 
+  const pageActions = useMemo(() => (
+    <>
+      <span className="chat-card-meta">{taskCountLabel}</span>
+      <button
+        type="button"
+        className="chat-minimal-header-icon-btn"
+        aria-label="Create task"
+        title="Create task"
+        onClick={() => setIsCreateModalOpen(true)}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+      </button>
+    </>
+  ), [taskCountLabel]);
+  useSetPageActions(pageActions);
+
   return (
-    <div className="page-stack">
-      <header className="chat-minimal-header">
-        <div className="chat-minimal-header-info">
-          <p className="chat-minimal-header-agent">{selectedCompanyId}</p>
-          <h1 className="chat-minimal-header-title">Tasks</h1>
-        </div>
-        <div className="chat-minimal-header-actions">
-          <span className="chat-card-meta">{taskCountLabel}</span>
-          <button
-            type="button"
-            className="chat-minimal-header-icon-btn"
-            aria-label="Create task"
-            title="Create task"
-            onClick={() => setIsCreateModalOpen(true)}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-          </button>
-        </div>
-      </header>
+    <Page><div className="page-stack">
 
       <section className="panel list-panel">
 
@@ -292,6 +292,6 @@ export function TasksPage({
           </CreationModal>
         );
       })() : null}
-    </div>
+    </div></Page>
   );
 }

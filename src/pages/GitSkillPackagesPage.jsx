@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
+import { Page } from "../components/Page.jsx";
 import { CreationModal } from "../components/CreationModal.jsx";
+import { useSetPageActions } from "../components/PageActionsContext.jsx";
 
 function splitGitReferences(preview) {
   if (!preview) {
@@ -34,6 +36,24 @@ export function GitSkillPackagesPage({
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const combinedReferences = useMemo(() => splitGitReferences(preview), [preview]);
+
+  const pageActions = useMemo(() => (
+    <>
+      <button
+        type="button"
+        className="chat-minimal-header-icon-btn"
+        aria-label="Add package"
+        title="Add package"
+        onClick={() => setIsCreateModalOpen(true)}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+      </button>
+    </>
+  ), []);
+  useSetPageActions(pageActions);
 
   async function handlePreview(event) {
     event.preventDefault();
@@ -75,19 +95,7 @@ export function GitSkillPackagesPage({
 
   if (activeGitSkillPackage) {
     return (
-      <div className="page-stack">
-        <header className="chat-minimal-header">
-          <div className="chat-minimal-header-info">
-            <p className="chat-minimal-header-agent">Git Skill Package</p>
-            <h1 className="chat-minimal-header-title">{activeGitSkillPackage.packageName}</h1>
-          </div>
-          <div className="chat-minimal-header-actions">
-            <button type="button" className="secondary-btn" onClick={onBackToGitSkillPackages}>
-              Back
-            </button>
-          </div>
-        </header>
-
+      <Page><div className="page-stack">
         <section className="panel list-panel">
           {skillError ? <p className="error-banner">{skillError}</p> : null}
 
@@ -150,33 +158,12 @@ export function GitSkillPackagesPage({
             )}
           </section>
         </section>
-      </div>
+      </div></Page>
     );
   }
 
   return (
-    <div className="page-stack">
-      <header className="chat-minimal-header">
-        <div className="chat-minimal-header-info">
-          <p className="chat-minimal-header-agent">{selectedCompanyId}</p>
-          <h1 className="chat-minimal-header-title">Git Skill Packages</h1>
-        </div>
-        <div className="chat-minimal-header-actions">
-          <button
-            type="button"
-            className="chat-minimal-header-icon-btn"
-            aria-label="Add package"
-            title="Add package"
-            onClick={() => setIsCreateModalOpen(true)}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-          </button>
-        </div>
-      </header>
-
+    <Page><div className="page-stack">
       {skillError || previewError ? <p className="error-banner">{skillError || previewError}</p> : null}
       {isLoadingGitSkillPackages ? <p className="empty-hint">Loading git skill packages...</p> : null}
 
@@ -304,6 +291,6 @@ export function GitSkillPackagesPage({
           </form>
         ) : null}
       </CreationModal>
-    </div>
+    </div></Page>
   );
 }

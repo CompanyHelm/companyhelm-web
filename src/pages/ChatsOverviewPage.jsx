@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { Page } from "../components/Page.jsx";
 import { ChatSessionRunningBadge } from "../components/ChatSessionRunningBadge.jsx";
 import { isChatSessionRunning, compareTurnsByTimestamp } from "../utils/chat.js";
 import { formatTimestamp } from "../utils/formatting.js";
@@ -25,19 +26,7 @@ export function ChatsOverviewPage({
   }, [agents]);
 
   return (
-    <div className="page-stack">
-      <header className="chat-minimal-header">
-        <div className="chat-minimal-header-info">
-          <p className="chat-minimal-header-agent">{selectedCompanyId}</p>
-          <h1 className="chat-minimal-header-title">Chats</h1>
-        </div>
-        <div className="chat-minimal-header-actions">
-          <button type="button" className="secondary-btn" onClick={onRefreshChatLists}>
-            Refresh
-          </button>
-        </div>
-      </header>
-
+    <Page><div className="page-stack">
       <section className="panel list-panel">
         {chatIndexError ? <p className="error-banner">Chat error: {chatIndexError}</p> : null}
         {isLoadingChatIndex ? <p className="empty-hint">Loading chats...</p> : null}
@@ -65,29 +54,32 @@ export function ChatsOverviewPage({
                   <div className="chat-card-main">
                     <p className="chat-card-title"><strong>{agent.name}</strong></p>
                     <p className="chat-card-meta">
-                      SDK: {agent.agentSdk} · model: {modelLabel}
+                      {agent.agentSdk} · {modelLabel}
                     </p>
                   </div>
-                  <div className="chat-card-actions">
-                    <button
-                      type="button"
-                      className="chat-card-icon-btn"
-                      onClick={() => onCreateChatForAgent(agent.id)}
-                      disabled={isCreateChatDisabled}
-                      aria-label={isCreatingChatSession ? "Creating..." : "New chat"}
-                      title={createChatDisabledReason || (isCreatingChatSession ? "Creating..." : "New chat")}
-                    >
-                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                        <line x1="12" y1="5" x2="12" y2="19" />
-                        <line x1="5" y1="12" x2="19" y2="12" />
-                      </svg>
-                    </button>
-                  </div>
                   {createChatDisabledReason ? <p className="empty-hint">{createChatDisabledReason}</p> : null}
-                  {!hasChats ? <p className="empty-hint">No chats yet for this agent.</p> : null}
-                  {hasChats ? (
-                    <ul className="chat-card-list">
-                      {sortedChats.map((chatSession) => {
+                  <ul className="chat-card-list">
+                    <li
+                      className="chat-card chat-card-new"
+                      onClick={() => !isCreateChatDisabled && onCreateChatForAgent(agent.id)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" && !isCreateChatDisabled) {
+                          onCreateChatForAgent(agent.id);
+                        }
+                      }}
+                    >
+                      <div className="chat-card-main">
+                        <p className="chat-card-title">
+                          <svg viewBox="0 0 24 24" className="chat-card-new-icon" aria-hidden="true" focusable="false">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                          </svg>
+                          <strong>{isCreatingChatSession ? "Creating..." : "New chat"}</strong>
+                        </p>
+                      </div>
+                    </li>
+                    {sortedChats.map((chatSession) => {
                         const isRunning = isChatSessionRunning(chatSession, chatSessionRunningById);
                         const chatSessionKey = `${agent.id}:${chatSession.id}`;
                         const isDeletingChat = deletingChatSessionKey === chatSessionKey;
@@ -156,14 +148,13 @@ export function ChatsOverviewPage({
                           </li>
                         );
                       })}
-                    </ul>
-                  ) : null}
+                  </ul>
                 </li>
               );
             })}
           </ul>
         ) : null}
       </section>
-    </div>
+    </div></Page>
   );
 }

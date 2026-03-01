@@ -176,6 +176,7 @@ import { subscribeGraphQL, useGraphQLSubscription } from "./hooks/useGraphQLSubs
 import { executeRelayGraphQL } from "./relay/client.js";
 
 import { Breadcrumbs } from "./components/Breadcrumbs.jsx";
+import { PageActionsProvider } from "./components/PageActionsContext.jsx";
 import { CompanyRequiredPanel } from "./components/CompanyRequiredPanel.jsx";
 
 import { DashboardPage } from "./pages/DashboardPage.jsx";
@@ -190,6 +191,7 @@ import { ChatsOverviewPage } from "./pages/ChatsOverviewPage.jsx";
 import { AgentChatsPage } from "./pages/AgentChatsPage.jsx";
 import { AgentChatPage } from "./pages/AgentChatPage.jsx";
 import { SettingsPage } from "./pages/SettingsPage.jsx";
+import { ReposPage } from "./pages/ReposPage.jsx";
 import { ProfilePage } from "./pages/ProfilePage.jsx";
 
 // --- Module-level mutable state (shared by adapter functions and executeGraphQL) ---
@@ -2140,15 +2142,12 @@ function App() {
 
     if (activePage === "chats") {
       const items = [{ label: "Chats", href: "/chats" }];
-      if (chatAgentId) {
-        const chatsHref = `/agents/${chatAgentId}/chats`;
-        items.push({ label: getAgentLabel(chatAgentId), href: chatsHref });
-        if (resolvedChatSessionId) {
-          items.push({
-            label: getChatLabel(resolvedChatSessionId),
-            href: `/agents/${chatAgentId}/chats/${resolvedChatSessionId}`,
-          });
-        }
+      if (chatAgentId && resolvedChatSessionId) {
+        items.push({ label: getAgentLabel(chatAgentId), href: `/agents/${chatAgentId}/chats` });
+        items.push({
+          label: getChatLabel(resolvedChatSessionId),
+          href: `/agents/${chatAgentId}/chats/${resolvedChatSessionId}`,
+        });
       }
       return items;
     }
@@ -2220,7 +2219,7 @@ function App() {
   const shouldSubscribeChatSessions =
     activePage === "agents" && (agentsRoute.view === "agent" || agentsRoute.view === "chats" || agentsRoute.view === "chat");
   const shouldSubscribeChatTurns = isChatConversationRoute;
-  const shouldLoadGithubData = activePage === "settings";
+  const shouldLoadGithubData = activePage === "settings" || activePage === "repos";
   const shouldLoadTaskData = activePage === "dashboard" || activePage === "tasks" || activePage === "profile";
   const shouldLoadSkillData =
     activePage === "skills"
@@ -5724,15 +5723,30 @@ function App() {
   );
 
   return (
+    <PageActionsProvider>
     <div className={`layout-shell${isSideMenuCollapsed ? " layout-shell-menu-collapsed" : ""}`}>
       <aside className="side-menu">
+        {isSideMenuCollapsed ? (
+          <button
+            type="button"
+            className="side-menu-icon-btn"
+            onClick={() => setIsSideMenuCollapsed(false)}
+            aria-label="Open menu"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
+        ) : null}
         <div className="side-brand">
           <p className="side-overline">Control Plane</p>
           <h2>CompanyHelm</h2>
         </div>
         <button
           type="button"
-          className="side-menu-icon-btn"
+          className="side-menu-icon-btn side-menu-collapse-btn"
           onClick={() => setIsSideMenuCollapsed(true)}
           aria-label="Collapse menu"
         >
@@ -5814,22 +5828,6 @@ function App() {
       </aside>
 
       <main className={`page-shell${isChatConversationRoute ? " page-shell-chat-layout" : ""}`}>
-        {isSideMenuCollapsed ? (
-          <button
-            type="button"
-            className={`side-menu-icon-btn side-menu-open-btn${
-              isChatConversationRoute ? " side-menu-open-btn-chat" : ""
-            }`}
-            onClick={() => setIsSideMenuCollapsed(false)}
-            aria-label="Open menu"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <line x1="3" y1="18" x2="21" y2="18" />
-            </svg>
-          </button>
-        ) : null}
         <Breadcrumbs items={breadcrumbItems} onNavigate={setBrowserPath} />
 
         {!selectedCompanyId && activePage !== "settings" && activePage !== "profile" ? (
@@ -5839,6 +5837,7 @@ function App() {
         {selectedCompanyId && activePage === "dashboard" ? (
           <DashboardPage
             selectedCompanyId={selectedCompanyId}
+            selectedCompany={selectedCompany}
             tasks={tasks}
             agentRunners={agentRunners}
             isLoadingTasks={isLoadingTasks}
@@ -6055,6 +6054,7 @@ function App() {
             <AgentChatsPage
               selectedCompanyId={selectedCompanyId}
               agent={agents.find((agent) => agent.id === chatAgentId) || null}
+              agents={agents}
               chatSessions={chatSessions}
               chatSessionRunningById={chatSessionRunningById}
               isLoadingChatSessions={isLoadingChatSessions}
@@ -6080,12 +6080,18 @@ function App() {
               onBackToAgents={() => {
                 navigateTo("agents");
               }}
-              onOpenEditModal={() => {
-                if (chatAgentId) {
-                  setPendingEditAgentId(chatAgentId);
-                  navigateTo("agents");
-                }
-              }}
+              agentRunners={agentRunners}
+              skillGroups={skillGroups}
+              mcpServers={mcpServers}
+              roleMcpServerIdsByRoleId={roleMcpServerIdsByRoleId}
+              runnerCodexModelEntriesById={runnerCodexModelEntriesById}
+              agentDrafts={agentDrafts}
+              savingAgentId={savingAgentId}
+              deletingAgentId={deletingAgentId}
+              initializingAgentId={initializingAgentId}
+              onAgentDraftChange={handleAgentDraftChange}
+              onSaveAgent={handleSaveAgent}
+              onEnsureAgentEditorData={ensureAgentEditorData}
             />
           ) : agentsRoute.view === "chat" ? (
             <AgentChatPage
@@ -6177,6 +6183,18 @@ function App() {
             selectedCompanyId={selectedCompanyId}
             selectedCompany={selectedCompany}
             companyError={companyError}
+            newCompanyName={newCompanyName}
+            isCreatingCompany={isCreatingCompany}
+            isDeletingCompany={isDeletingCompany}
+            onNewCompanyNameChange={setNewCompanyName}
+            onCreateCompany={handleCreateCompany}
+            onDeleteCompany={handleDeleteCompany}
+          />
+        ) : null}
+
+        {selectedCompanyId && activePage === "repos" ? (
+          <ReposPage
+            selectedCompanyId={selectedCompanyId}
             githubAppInstallUrl={githubAppInstallUrl}
             isLoadingGithubAppConfig={isLoadingGithubAppConfig}
             githubAppConfigError={githubAppConfigError}
@@ -6190,12 +6208,6 @@ function App() {
             pendingGithubInstallCallback={pendingGithubInstallCallback}
             deletingGithubInstallationId={deletingGithubInstallationId}
             refreshingGithubInstallationId={refreshingGithubInstallationId}
-            newCompanyName={newCompanyName}
-            isCreatingCompany={isCreatingCompany}
-            isDeletingCompany={isDeletingCompany}
-            onNewCompanyNameChange={setNewCompanyName}
-            onCreateCompany={handleCreateCompany}
-            onDeleteCompany={handleDeleteCompany}
             onDeleteGithubInstallation={handleDeleteGithubInstallation}
             onRefreshGithubInstallationRepositories={handleRefreshGithubInstallationRepositories}
           />
@@ -6212,6 +6224,7 @@ function App() {
         ) : null}
       </main>
     </div>
+    </PageActionsProvider>
   );
 }
 

@@ -2,6 +2,7 @@ import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } fr
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CreationModal } from "../components/CreationModal.jsx";
+import { useSetPageActions } from "../components/PageActionsContext.jsx";
 import { formatTimestamp } from "../utils/formatting.js";
 import {
   compareTurnsByTimestamp,
@@ -315,57 +316,50 @@ export function AgentChatPage({
     }
   }
 
+  const pageActions = useMemo(() => (
+    <>
+      {hasRunningTurn ? (
+        <span
+          className="chat-turn-spinner chat-minimal-header-spinner"
+          aria-label="Turn is running"
+          title="Turn in progress"
+        />
+      ) : null}
+      <button
+        type="button"
+        className="chat-minimal-header-icon-btn"
+        onClick={handleDeleteCurrentChat}
+        disabled={!canChat || isDeletingCurrentChat}
+        aria-label={isDeletingCurrentChat ? "Deleting chat..." : "Delete chat"}
+        title={isDeletingCurrentChat ? "Deleting chat..." : "Delete chat"}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M3 6h18" />
+          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+          <line x1="10" y1="11" x2="10" y2="17" />
+          <line x1="14" y1="11" x2="14" y2="17" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        className="chat-minimal-header-icon-btn"
+        onClick={handleOpenSettingsModal}
+        disabled={!session}
+        aria-label="Chat settings"
+        title="Chat settings"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        </svg>
+      </button>
+    </>
+  ), [canChat, isDeletingCurrentChat, hasRunningTurn, session]);
+  useSetPageActions(pageActions);
+
   return (
     <div className="page-stack chat-page-stack">
-      <header className="chat-minimal-header">
-        <div className="chat-minimal-header-info">
-          <p className="chat-minimal-header-agent">
-            {agent ? agent.name : "Unknown agent"}
-          </p>
-          <h1 className="chat-minimal-header-title">
-            {session?.title || "Untitled chat"}
-            {hasRunningTurn ? (
-              <span
-                className="chat-turn-spinner chat-minimal-header-spinner"
-                aria-label="Turn is running"
-                title="Turn in progress"
-              />
-            ) : null}
-          </h1>
-        </div>
-        <div className="chat-minimal-header-actions">
-          <button
-            type="button"
-            className="chat-minimal-header-icon-btn"
-            onClick={handleDeleteCurrentChat}
-            disabled={!canChat || isDeletingCurrentChat}
-            aria-label={isDeletingCurrentChat ? "Deleting chat..." : "Delete chat"}
-            title={isDeletingCurrentChat ? "Deleting chat..." : "Delete chat"}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path d="M3 6h18" />
-              <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-              <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-              <line x1="10" y1="11" x2="10" y2="17" />
-              <line x1="14" y1="11" x2="14" y2="17" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            className="chat-minimal-header-icon-btn"
-            onClick={handleOpenSettingsModal}
-            disabled={!session}
-            aria-label="Chat settings"
-            title="Chat settings"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-            </svg>
-          </button>
-        </div>
-      </header>
-
       <section className="panel chat-panel">
         {chatError ? <p className="error-banner">Chat error: {chatError}</p> : null}
         {!agent ? <p className="empty-hint">Agent not found.</p> : null}

@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { Page } from "../components/Page.jsx";
 import { CreationModal } from "../components/CreationModal.jsx";
 import { normalizeUniqueStringList } from "../utils/normalization.js";
+import { useSetPageActions } from "../components/PageActionsContext.jsx";
 
 export function SkillsPage({
   selectedCompanyId,
@@ -142,23 +144,29 @@ export function SkillsPage({
     setEditingGroupId(group.id);
   }
 
+  const pageActions = useMemo(() => (
+    <>
+      <button
+        type="button"
+        className="chat-minimal-header-icon-btn"
+        aria-label="Create skill group"
+        title="Create skill group"
+        onClick={() => setIsCreateGroupModalOpen(true)}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+      </button>
+    </>
+  ), []);
+  useSetPageActions(pageActions);
+
   if (activeSkill) {
     const gitSkillPackage = activeSkill.gitSkillPackage || null;
 
     return (
-      <div className="page-stack">
-        <header className="chat-minimal-header">
-          <div className="chat-minimal-header-info">
-            <p className="chat-minimal-header-agent">Skill</p>
-            <h1 className="chat-minimal-header-title">{activeSkill.name}</h1>
-          </div>
-          <div className="chat-minimal-header-actions">
-            <button type="button" className="secondary-btn" onClick={onBackToSkills}>
-              Back
-            </button>
-          </div>
-        </header>
-
+      <Page><div className="page-stack">
         <section className="panel list-panel">
           {skillError || localError ? <p className="error-banner">{skillError || localError}</p> : null}
 
@@ -222,33 +230,12 @@ export function SkillsPage({
             </section>
           ) : null}
         </section>
-      </div>
+      </div></Page>
     );
   }
 
   return (
-    <div className="page-stack">
-      <header className="chat-minimal-header">
-        <div className="chat-minimal-header-info">
-          <p className="chat-minimal-header-agent">{selectedCompanyId}</p>
-          <h1 className="chat-minimal-header-title">Skills</h1>
-        </div>
-        <div className="chat-minimal-header-actions">
-          <button
-            type="button"
-            className="chat-minimal-header-icon-btn"
-            aria-label="Create role"
-            title="Create role"
-            onClick={() => setIsCreateGroupModalOpen(true)}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-          </button>
-        </div>
-      </header>
-
+    <Page><div className="page-stack">
       {skillError || localError ? <p className="error-banner">{skillError || localError}</p> : null}
       {isLoadingSkills || isLoadingSkillGroups ? <p className="empty-hint">Loading skills...</p> : null}
 
@@ -599,6 +586,6 @@ export function SkillsPage({
           );
         })() : null}
       </CreationModal>
-    </div>
+    </div></Page>
   );
 }

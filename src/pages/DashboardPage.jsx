@@ -1,8 +1,10 @@
 import { useMemo } from "react";
+import { Page } from "../components/Page.jsx";
 import { formatTimestamp, normalizeRunnerStatus, toSortableTimestamp } from "../utils/formatting.js";
 
 export function DashboardPage({
   selectedCompanyId,
+  selectedCompany,
   tasks,
   agentRunners,
   isLoadingTasks,
@@ -31,14 +33,7 @@ export function DashboardPage({
   }, [agentRunners]);
 
   return (
-    <div className="page-stack">
-      <header className="chat-minimal-header">
-        <div className="chat-minimal-header-info">
-          <p className="chat-minimal-header-agent">{selectedCompanyId}</p>
-          <h1 className="chat-minimal-header-title">Dashboard</h1>
-        </div>
-      </header>
-
+    <Page><div className="page-stack">
       <section className="dashboard-grid">
         <article className="panel stat-panel">
           <p className="stat-label">Tasks</p>
@@ -129,7 +124,7 @@ export function DashboardPage({
                 return (
                   <li key={`dashboard-runner-${runner.id}`} className="compact-item">
                     <div>
-                      <code className="runner-id">{runner.id}</code>
+                      <strong>{runner.name || runner.id}</strong>
                       <p>Seen {formatTimestamp(runner.lastSeenAt)}</p>
                     </div>
                     <span className={`runner-status runner-status-${status}`}>{status}</span>
@@ -141,6 +136,6 @@ export function DashboardPage({
         </article>
 
       </section>
-    </div>
+    </div></Page>
   );
 }

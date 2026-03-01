@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
+import { Page } from "../components/Page.jsx";
 import { CreationModal } from "../components/CreationModal.jsx";
 import { formatTimestamp, normalizeRunnerStatus, toSortableTimestamp } from "../utils/formatting.js";
 import { setBrowserPath } from "../utils/path.js";
+import { useSetPageActions } from "../components/PageActionsContext.jsx";
 
 export function AgentRunnerPage({
   selectedCompanyId,
@@ -35,30 +37,27 @@ export function AgentRunnerPage({
     }
   }
 
-  return (
-    <div className="page-stack">
-      <header className="chat-minimal-header">
-        <div className="chat-minimal-header-info">
-          <p className="chat-minimal-header-agent">{selectedCompanyId}</p>
-          <h1 className="chat-minimal-header-title">Runners</h1>
-        </div>
-        <div className="chat-minimal-header-actions">
-          <span className="chat-card-meta">{runnerCountLabel}</span>
-          <button
-            type="button"
-            className="chat-minimal-header-icon-btn"
-            aria-label="Register runner"
-            title="Register runner"
-            onClick={() => setIsCreateModalOpen(true)}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-          </button>
-        </div>
-      </header>
+  const pageActions = useMemo(() => (
+    <>
+      <span className="chat-card-meta">{runnerCountLabel}</span>
+      <button
+        type="button"
+        className="chat-minimal-header-icon-btn"
+        aria-label="Register runner"
+        title="Register runner"
+        onClick={() => setIsCreateModalOpen(true)}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+      </button>
+    </>
+  ), [runnerCountLabel]);
+  useSetPageActions(pageActions);
 
+  return (
+    <Page><div className="page-stack">
       <section className="dashboard-grid">
         <article className="panel stat-panel">
           <p className="stat-label">Registered</p>
@@ -181,6 +180,6 @@ export function AgentRunnerPage({
         </form>
       </CreationModal>
 
-    </div>
+    </div></Page>
   );
 }

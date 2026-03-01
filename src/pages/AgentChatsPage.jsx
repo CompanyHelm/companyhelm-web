@@ -1,12 +1,16 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { Page } from "../components/Page.jsx";
 import { CreationModal } from "../components/CreationModal.jsx";
+import { AgentEditModal } from "../components/AgentEditModal.jsx";
 import { ChatSessionRunningBadge } from "../components/ChatSessionRunningBadge.jsx";
 import { isChatSessionRunning } from "../utils/chat.js";
 import { formatTimestamp } from "../utils/formatting.js";
+import { useSetPageActions } from "../components/PageActionsContext.jsx";
 
 export function AgentChatsPage({
   selectedCompanyId,
   agent,
+  agents,
   chatSessions,
   chatSessionRunningById,
   isLoadingChatSessions,
@@ -23,11 +27,23 @@ export function AgentChatsPage({
   onDeleteChat,
   onBackToAgents,
   onSetChatDraftMessage,
-  onOpenEditModal,
+  agentRunners,
+  skillGroups,
+  mcpServers,
+  roleMcpServerIdsByRoleId,
+  runnerCodexModelEntriesById,
+  agentDrafts,
+  savingAgentId,
+  deletingAgentId,
+  initializingAgentId,
+  onAgentDraftChange,
+  onSaveAgent,
+  onEnsureAgentEditorData,
 }) {
   const resolvedCreateChatDisabledReason = String(createChatDisabledReason || "").trim();
   const isCreateChatDisabled = !agent || isCreatingChatSession || Boolean(resolvedCreateChatDisabledReason);
   const [isCreateSettingsOpen, setIsCreateSettingsOpen] = useState(false);
+  const [isEditAgentModalOpen, setIsEditAgentModalOpen] = useState(false);
 
   async function handleNewChat() {
     const createdSessionId = await onCreateChatSession({
@@ -39,31 +55,26 @@ export function AgentChatsPage({
     }
   }
 
-  return (
-    <div className="page-stack">
-      <header className="chat-minimal-header">
-        <div className="chat-minimal-header-info">
-          <p className="chat-minimal-header-agent">
-            {agent ? agent.name : "Unknown agent"}
-          </p>
-          <h1 className="chat-minimal-header-title">Agent Chats</h1>
-        </div>
-        <div className="chat-minimal-header-actions">
-          <button
-            type="button"
-            className="chat-minimal-header-icon-btn"
-            onClick={onOpenEditModal}
-            aria-label="Edit agent settings"
-            title="Edit agent settings"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-            </svg>
-          </button>
-        </div>
-      </header>
+  const pageActions = useMemo(() => (
+    <>
+      <button
+        type="button"
+        className="chat-minimal-header-icon-btn"
+        onClick={() => setIsEditAgentModalOpen(true)}
+        aria-label="Edit agent settings"
+        title="Edit agent settings"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        </svg>
+      </button>
+    </>
+  ), []);
+  useSetPageActions(pageActions);
 
+  return (
+    <Page><div className="page-stack">
       <section className="panel list-panel">
         {chatError ? <p className="error-banner">Chat error: {chatError}</p> : null}
         {!agent ? <p className="empty-hint">Agent not found.</p> : null}
@@ -204,7 +215,7 @@ export function AgentChatsPage({
               onChange={(event) =>
                 onChatSessionAdditionalModelInstructionsDraftChange(event.target.value)
               }
-              placeholder="Optional. Leave blank for agent defaults."
+              placeholder={agent?.defaultAdditionalModelInstructions || "Optional. Leave blank for agent defaults."}
               rows={4}
               disabled={isCreateChatDisabled}
             />
@@ -219,6 +230,24 @@ export function AgentChatsPage({
           </div>
         </div>
       </CreationModal>
-    </div>
+
+      <AgentEditModal
+        agents={agents || []}
+        agentRunners={agentRunners || []}
+        skillGroups={skillGroups || []}
+        mcpServers={mcpServers || []}
+        roleMcpServerIdsByRoleId={roleMcpServerIdsByRoleId || {}}
+        runnerCodexModelEntriesById={runnerCodexModelEntriesById || {}}
+        agentDrafts={agentDrafts || {}}
+        savingAgentId={savingAgentId}
+        deletingAgentId={deletingAgentId}
+        initializingAgentId={initializingAgentId}
+        onAgentDraftChange={onAgentDraftChange}
+        onSaveAgent={onSaveAgent}
+        onEnsureAgentEditorData={onEnsureAgentEditorData}
+        editingAgentId={isEditAgentModalOpen && agent ? agent.id : ""}
+        onClose={() => setIsEditAgentModalOpen(false)}
+      />
+    </div></Page>
   );
 }

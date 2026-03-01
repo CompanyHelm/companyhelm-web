@@ -1,7 +1,14 @@
+import { usePageActions } from "./PageActionsContext.jsx";
+
 export function Breadcrumbs({ items, onNavigate }) {
+  const pageActionsCtx = usePageActions();
+  const actions = pageActionsCtx?.actions || null;
+
   if (!Array.isArray(items) || items.length === 0) {
     return null;
   }
+
+  const pageTitle = String(items[items.length - 1]?.label || "").trim();
 
   return (
     <nav className="panel breadcrumb-panel" aria-label="Breadcrumb">
@@ -38,6 +45,12 @@ export function Breadcrumbs({ items, onNavigate }) {
           );
         })}
       </ol>
+      {pageTitle ? (
+        <div className="breadcrumb-title-row">
+          <h1 className="breadcrumb-page-title">{pageTitle}</h1>
+          {actions ? <div className="breadcrumb-page-actions">{actions}</div> : null}
+        </div>
+      ) : null}
     </nav>
   );
 }

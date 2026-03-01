@@ -64,6 +64,7 @@ export const NAV_SECTIONS = [
     items: [
       { id: "agent-runner", label: "Agent Runner", href: "/agent-runner", requiresCompany: true },
       { id: "chats", label: "Chats", href: "/chats", requiresCompany: true },
+      { id: "repos", label: "Repos", href: "/repos", requiresCompany: true },
     ],
   },
 ];

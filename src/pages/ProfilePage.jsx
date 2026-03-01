@@ -1,13 +1,8 @@
+import { Page } from "../components/Page.jsx";
+
 export function ProfilePage({ selectedCompany, tasks, skills, agents, agentRunners }) {
   return (
-    <div className="page-stack">
-      <header className="chat-minimal-header">
-        <div className="chat-minimal-header-info">
-          <p className="chat-minimal-header-agent">{selectedCompany ? selectedCompany.name : "No company"}</p>
-          <h1 className="chat-minimal-header-title">Profile</h1>
-        </div>
-      </header>
-
+    <Page><div className="page-stack">
       <section className="runner-summary-grid">
         <article className="panel stat-panel">
           <p className="stat-label">Tasks</p>
@@ -26,6 +21,6 @@ export function ProfilePage({ selectedCompany, tasks, skills, agents, agentRunne
           <p className="stat-value">{agentRunners.length}</p>
         </article>
       </section>
-    </div>
+    </div></Page>
   );
 }
