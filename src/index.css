@@ -127,15 +127,27 @@ h3 {
   padding: 0 0.35rem 1rem;
 }
 
+.side-brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.side-brand-logo {
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+}
+
 .side-brand h2 {
-  margin: 0.15rem 0 0;
+  margin: 0;
   font-size: 1.18rem;
   color: var(--ink-0);
   letter-spacing: -0.02em;
 }
 
 .side-overline {
-  margin: 0;
+  margin: 0 0 0.08rem;
   font-family: "IBM Plex Mono", monospace;
   text-transform: uppercase;
   letter-spacing: 0.1em;
