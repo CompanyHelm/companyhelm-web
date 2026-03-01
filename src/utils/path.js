@@ -104,6 +104,19 @@ export function getSkillsRouteFromPathname(pathname = window.location.pathname) 
   return { view: "detail", skillId };
 }
 
+export function getRolesRouteFromPathname(pathname = window.location.pathname) {
+  const segments = normalizePathname(pathname).split("/").filter(Boolean);
+  if (segments[0] !== "roles") {
+    return { view: "list", roleId: "" };
+  }
+
+  const roleId = String(segments[1] || "").trim();
+  if (!roleId) {
+    return { view: "list", roleId: "" };
+  }
+  return { view: "detail", roleId };
+}
+
 export function getRunnersRouteFromPathname(pathname = window.location.pathname) {
   const segments = normalizePathname(pathname).split("/").filter(Boolean);
   if (String(segments[0] || "").toLowerCase() !== "agent-runner") {

@@ -28,7 +28,7 @@ export function AgentChatsPage({
   onBackToAgents,
   onSetChatDraftMessage,
   agentRunners,
-  skillGroups,
+  roles,
   mcpServers,
   roleMcpServerIdsByRoleId,
   runnerCodexModelEntriesById,
@@ -234,7 +234,7 @@ export function AgentChatsPage({
       <AgentEditModal
         agents={agents || []}
         agentRunners={agentRunners || []}
-        skillGroups={skillGroups || []}
+        roles={roles || []}
         mcpServers={mcpServers || []}
         roleMcpServerIdsByRoleId={roleMcpServerIdsByRoleId || {}}
         runnerCodexModelEntriesById={runnerCodexModelEntriesById || {}}

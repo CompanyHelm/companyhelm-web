@@ -55,7 +55,7 @@ function resolveEffectiveRoleMcpServerIds(expandedRoleIds, roleMcpServerIdsByRol
 export function AgentEditModal({
   agents,
   agentRunners,
-  skillGroups,
+  roles,
   mcpServers,
   roleMcpServerIdsByRoleId,
   runnerCodexModelEntriesById,
@@ -74,12 +74,12 @@ export function AgentEditModal({
   const editingAgent = agents.find((agent) => agent.id === editingAgentId) || null;
   const isEditModalOpen = Boolean(editingAgent);
 
-  const skillGroupLookup = useMemo(() => {
-    return skillGroups.reduce((map, skillGroup) => {
-      map.set(skillGroup.id, skillGroup);
+  const roleLookup = useMemo(() => {
+    return roles.reduce((map, role) => {
+      map.set(role.id, role);
       return map;
     }, new Map());
-  }, [skillGroups]);
+  }, [roles]);
 
   const mcpServerLookup = useMemo(() => {
     return mcpServers.reduce((map, mcpServer) => {
@@ -92,7 +92,7 @@ export function AgentEditModal({
     return (
       agentDrafts[agentId] || {
         agentRunnerId: "",
-        skillGroupIds: [],
+        roleIds: [],
         mcpServerIds: [],
         name: "",
         agentSdk: DEFAULT_AGENT_SDK,
@@ -104,31 +104,31 @@ export function AgentEditModal({
   }
 
   const editingDraft = editingAgent ? getAgentDraft(editingAgentId) : null;
-  const editingSkillGroupIds = editingDraft
-    ? normalizeUniqueStringList(editingDraft.skillGroupIds)
+  const editingRoleIds = editingDraft
+    ? normalizeUniqueStringList(editingDraft.roleIds)
     : [];
-  const editingAvailableSkillGroups = editingDraft
-    ? skillGroups.filter((skillGroup) => !editingSkillGroupIds.includes(skillGroup.id))
+  const editingAvailableRoles = editingDraft
+    ? roles.filter((role) => !editingRoleIds.includes(role.id))
     : [];
 
   const roleChildrenByParentId = useMemo(() => {
     const map = new Map();
-    for (const skillGroup of skillGroups) {
-      const parentId = String(skillGroup.parentId || "").trim();
+    for (const role of roles) {
+      const parentId = String(role.parentId || "").trim();
       if (!parentId) {
         continue;
       }
       if (!map.has(parentId)) {
         map.set(parentId, []);
       }
-      map.get(parentId).push(skillGroup.id);
+      map.get(parentId).push(role.id);
     }
     return map;
-  }, [skillGroups]);
+  }, [roles]);
 
   const editingExpandedRoleIds = useMemo(
-    () => collectRoleAndSubroleIds(editingSkillGroupIds, roleChildrenByParentId),
-    [editingSkillGroupIds, roleChildrenByParentId],
+    () => collectRoleAndSubroleIds(editingRoleIds, roleChildrenByParentId),
+    [editingRoleIds, roleChildrenByParentId],
   );
   const editingEffectiveMcpServerIds = useMemo(
     () => resolveEffectiveRoleMcpServerIds(editingExpandedRoleIds, roleMcpServerIdsByRoleId),
@@ -341,30 +341,30 @@ export function AgentEditModal({
               id={`edit-agent-skills-assigned-${editingAgent.id}`}
               className="inline-selection-list"
             >
-              {editingSkillGroupIds.length === 0 ? (
+              {editingRoleIds.length === 0 ? (
                 <span className="empty-hint">No roles assigned.</span>
               ) : (
-                editingSkillGroupIds.map((skillGroupId) => {
-                  const skillGroup = skillGroupLookup.get(skillGroupId);
-                  const skillGroupLabel = skillGroup ? skillGroup.name : skillGroupId;
+                editingRoleIds.map((roleId) => {
+                  const role = roleLookup.get(roleId);
+                  const roleLabel = role ? role.name : roleId;
                   return (
                     <button
-                      key={`edit-agent-remove-skill-${editingAgent.id}-${skillGroupId}`}
+                      key={`edit-agent-remove-skill-${editingAgent.id}-${roleId}`}
                       type="button"
                       className="tag-remove-btn"
                       onClick={() =>
                         onAgentDraftChange(
                           editingAgent.id,
-                          "skillGroupIds",
-                          editingSkillGroupIds.filter(
-                            (candidateId) => candidateId !== skillGroupId,
+                          "roleIds",
+                          editingRoleIds.filter(
+                            (candidateId) => candidateId !== roleId,
                           ),
                         )
                       }
                       disabled={isEditingDisabled}
-                      title={`Remove ${skillGroupLabel}`}
+                      title={`Remove ${roleLabel}`}
                     >
-                      {skillGroupLabel} ×
+                      {roleLabel} ×
                     </button>
                   );
                 })
@@ -378,28 +378,28 @@ export function AgentEditModal({
               id={`edit-agent-skills-add-${editingAgent.id}`}
               value=""
               onChange={(event) => {
-                const nextSkillGroupId = String(event.target.value || "").trim();
-                if (!nextSkillGroupId) {
+                const nextRoleId = String(event.target.value || "").trim();
+                if (!nextRoleId) {
                   return;
                 }
-                onAgentDraftChange(editingAgent.id, "skillGroupIds", [
-                  ...editingSkillGroupIds,
-                  nextSkillGroupId,
+                onAgentDraftChange(editingAgent.id, "roleIds", [
+                  ...editingRoleIds,
+                  nextRoleId,
                 ]);
               }}
-              disabled={isEditingDisabled || editingAvailableSkillGroups.length === 0}
+              disabled={isEditingDisabled || editingAvailableRoles.length === 0}
             >
               <option value="">
-                {editingAvailableSkillGroups.length === 0
+                {editingAvailableRoles.length === 0
                   ? "All roles already assigned"
                   : "Select role to assign"}
               </option>
-              {editingAvailableSkillGroups.map((skillGroup) => (
+              {editingAvailableRoles.map((role) => (
                 <option
-                  key={`edit-agent-skill-option-${editingAgent.id}-${skillGroup.id}`}
-                  value={skillGroup.id}
+                  key={`edit-agent-skill-option-${editingAgent.id}-${role.id}`}
+                  value={role.id}
                 >
-                  {skillGroup.name}
+                  {role.name}
                 </option>
               ))}
             </select>

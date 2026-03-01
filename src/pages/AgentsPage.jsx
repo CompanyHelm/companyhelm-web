@@ -60,7 +60,7 @@ export function AgentsPage({
   selectedCompanyId,
   agents,
   skills,
-  skillGroups,
+  roles,
   mcpServers,
   roleMcpServerIdsByRoleId,
   agentRunners,
@@ -74,7 +74,7 @@ export function AgentsPage({
   initializingAgentId,
   hasLoadedAgentRunners,
   agentRunnerId,
-  agentSkillGroupIds,
+  agentRoleIds,
   agentName,
   agentSdk,
   agentModel,
@@ -83,7 +83,7 @@ export function AgentsPage({
   agentDrafts,
   agentCountLabel,
   onAgentRunnerChange,
-  onAgentSkillGroupIdsChange,
+  onAgentRoleIdsChange,
   onAgentNameChange,
   onAgentSdkChange,
   onAgentModelChange,
@@ -102,17 +102,17 @@ export function AgentsPage({
   const [editingAgentId, setEditingAgentId] = useState("");
   const [pendingDeleteAgent, setPendingDeleteAgent] = useState(null);
   const [forceDeleteAgent, setForceDeleteAgent] = useState(false);
-  const skillGroupLookup = useMemo(() => {
-    return skillGroups.reduce((map, skillGroup) => {
-      map.set(skillGroup.id, skillGroup);
+  const roleLookup = useMemo(() => {
+    return roles.reduce((map, role) => {
+      map.set(role.id, role);
       return map;
     }, new Map());
-  }, [skillGroups]);
+  }, [roles]);
   const roleChildrenByParentId = useMemo(() => {
     const childrenByParentId = new Map();
-    for (const role of skillGroups) {
+    for (const role of roles) {
       const roleId = String(role?.id || "").trim();
-      const parentRoleId = String(role?.parentSkillGroup?.id || "").trim();
+      const parentRoleId = String(role?.parentRole?.id || "").trim();
       if (!roleId || !parentRoleId) {
         continue;
       }
@@ -124,7 +124,7 @@ export function AgentsPage({
       }
     }
     return childrenByParentId;
-  }, [skillGroups]);
+  }, [roles]);
   const mcpServerLookup = useMemo(() => {
     return mcpServers.reduce((map, mcpServer) => {
       map.set(mcpServer.id, mcpServer);
@@ -140,22 +140,22 @@ export function AgentsPage({
   const createRunnerReasoningLevels = useMemo(() => {
     return getRunnerReasoningLevels(createRunnerCodexModelEntries, agentModel);
   }, [agentModel, createRunnerCodexModelEntries]);
-  const createAssignedSkillGroupIds = useMemo(
-    () => normalizeUniqueStringList(agentSkillGroupIds),
-    [agentSkillGroupIds],
+  const createAssignedRoleIds = useMemo(
+    () => normalizeUniqueStringList(agentRoleIds),
+    [agentRoleIds],
   );
   const createExpandedRoleIds = useMemo(
-    () => collectRoleAndSubroleIds(createAssignedSkillGroupIds, roleChildrenByParentId),
-    [createAssignedSkillGroupIds, roleChildrenByParentId],
+    () => collectRoleAndSubroleIds(createAssignedRoleIds, roleChildrenByParentId),
+    [createAssignedRoleIds, roleChildrenByParentId],
   );
   const createEffectiveMcpServerIds = useMemo(
     () => resolveEffectiveRoleMcpServerIds(createExpandedRoleIds, roleMcpServerIdsByRoleId),
     [createExpandedRoleIds, roleMcpServerIdsByRoleId],
   );
-  const createAvailableSkillGroups = useMemo(
+  const createAvailableRoles = useMemo(
     () =>
-      skillGroups.filter((skillGroup) => !createAssignedSkillGroupIds.includes(skillGroup.id)),
-    [createAssignedSkillGroupIds, skillGroups],
+      roles.filter((role) => !createAssignedRoleIds.includes(role.id)),
+    [createAssignedRoleIds, roles],
   );
   const hasRegisteredRunners = agentRunners.length > 0;
   const isCreateBlockedByRunners = hasLoadedAgentRunners && !hasRegisteredRunners;
@@ -274,9 +274,9 @@ export function AgentsPage({
               const assignedRunnerLabel = assignedRunner
                 ? formatRunnerLabel(assignedRunner)
                 : "Unassigned";
-              const assignedRoleIds = normalizeUniqueStringList(agent.skillGroupIds || []);
+              const assignedRoleIds = normalizeUniqueStringList(agent.roleIds || []);
               const assignedRoleLabels = assignedRoleIds.map((roleId) => {
-                const role = skillGroupLookup.get(roleId);
+                const role = roleLookup.get(roleId);
                 return role ? role.name : roleId;
               });
               const assignedRoleSummary =
@@ -400,27 +400,27 @@ export function AgentsPage({
 
           <label htmlFor="create-agent-skills-assigned">Assigned roles (optional)</label>
           <div id="create-agent-skills-assigned" className="inline-selection-list">
-            {createAssignedSkillGroupIds.length === 0 ? (
+            {createAssignedRoleIds.length === 0 ? (
               <span className="empty-hint">No roles assigned.</span>
             ) : (
-              createAssignedSkillGroupIds.map((skillGroupId) => {
-                const skillGroup = skillGroupLookup.get(skillGroupId);
-                const skillGroupLabel = skillGroup ? skillGroup.name : skillGroupId;
+              createAssignedRoleIds.map((roleId) => {
+                const role = roleLookup.get(roleId);
+                const roleLabel = role ? role.name : roleId;
                 return (
                   <button
-                    key={`create-agent-remove-skill-${skillGroupId}`}
+                    key={`create-agent-remove-skill-${roleId}`}
                     type="button"
                     className="tag-remove-btn"
                     onClick={() =>
-                      onAgentSkillGroupIdsChange(
-                        createAssignedSkillGroupIds.filter(
-                          (candidateId) => candidateId !== skillGroupId,
+                      onAgentRoleIdsChange(
+                        createAssignedRoleIds.filter(
+                          (candidateId) => candidateId !== roleId,
                         ),
                       )
                     }
-                    title={`Remove ${skillGroupLabel}`}
+                    title={`Remove ${roleLabel}`}
                   >
-                    {skillGroupLabel} ×
+                    {roleLabel} ×
                   </button>
                 );
               })
@@ -432,22 +432,22 @@ export function AgentsPage({
             id="create-agent-skill-add"
             value=""
             onChange={(event) => {
-              const nextSkillGroupId = String(event.target.value || "").trim();
-              if (!nextSkillGroupId) {
+              const nextRoleId = String(event.target.value || "").trim();
+              if (!nextRoleId) {
                 return;
               }
-              onAgentSkillGroupIdsChange([...createAssignedSkillGroupIds, nextSkillGroupId]);
+              onAgentRoleIdsChange([...createAssignedRoleIds, nextRoleId]);
             }}
-            disabled={createAvailableSkillGroups.length === 0}
+            disabled={createAvailableRoles.length === 0}
           >
             <option value="">
-              {createAvailableSkillGroups.length === 0
+              {createAvailableRoles.length === 0
                 ? "All roles already assigned"
                 : "Select role to assign"}
             </option>
-            {createAvailableSkillGroups.map((skillGroup) => (
-              <option key={`create-agent-skill-${skillGroup.id}`} value={skillGroup.id}>
-                {skillGroup.name}
+            {createAvailableRoles.map((role) => (
+              <option key={`create-agent-skill-${role.id}`} value={role.id}>
+                {role.name}
               </option>
             ))}
           </select>
@@ -570,7 +570,7 @@ export function AgentsPage({
       <AgentEditModal
         agents={agents}
         agentRunners={agentRunners}
-        skillGroups={skillGroups}
+        roles={roles}
         mcpServers={mcpServers}
         roleMcpServerIdsByRoleId={roleMcpServerIdsByRoleId}
         runnerCodexModelEntriesById={runnerCodexModelEntriesById}
