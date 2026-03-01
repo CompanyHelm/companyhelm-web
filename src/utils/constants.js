@@ -50,6 +50,7 @@ export const NAV_SECTIONS = [
     items: [
       { id: "agents", label: "Agents", href: "/agents", requiresCompany: true },
       { id: "skills", label: "Skills", href: "/skills", requiresCompany: true },
+      { id: "skill-groups", label: "Skill Groups", href: "/skill-groups", requiresCompany: true },
       { id: "roles", label: "Roles", href: "/roles", requiresCompany: true },
       {
         id: "gitskillpackages",
