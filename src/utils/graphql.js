@@ -1339,6 +1339,40 @@ export const COMPANY_API_ADD_GITHUB_INSTALLATION_MUTATION = `
   }
 `;
 
+export const COMPANY_API_REFRESH_GITHUB_INSTALLATION_REPOSITORIES_MUTATION = `
+  mutation CompanyApiRefreshGithubInstallationRepositories(
+    $companyId: ID!
+    $installationId: ID!
+  ) {
+    refreshGithubInstallationRepositories(
+      companyId: $companyId
+      installationId: $installationId
+    ) {
+      ok
+      error
+      repositories {
+        id
+        provider
+        externalId
+        name
+        fullName
+        htmlUrl
+        isPrivate
+        defaultBranch
+        archived
+        createdAt
+        updatedAt
+        company {
+          id
+        }
+        githubInstallation {
+          installationId
+        }
+      }
+    }
+  }
+`;
+
 export const COMPANY_API_LIST_SKILLS_QUERY = `
   query CompanyApiListSkills($companyId: ID!) {
     skills(companyId: $companyId) {
