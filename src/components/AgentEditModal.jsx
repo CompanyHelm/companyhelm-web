@@ -52,6 +52,31 @@ function resolveEffectiveRoleMcpServerIds(expandedRoleIds, roleMcpServerIdsByRol
   return effectiveMcpServerIds;
 }
 
+function resolveEffectiveRoleSkills(expandedRoleIds, roleLookup) {
+  const effectiveSkills = [];
+  const seenSkillIds = new Set();
+
+  for (const roleId of expandedRoleIds) {
+    const role = roleLookup.get(roleId);
+    const roleEffectiveSkills = Array.isArray(role?.effectiveSkills)
+      ? role.effectiveSkills
+      : [];
+    for (const skill of roleEffectiveSkills) {
+      const skillId = String(skill?.id || "").trim();
+      if (!skillId || seenSkillIds.has(skillId)) {
+        continue;
+      }
+      seenSkillIds.add(skillId);
+      effectiveSkills.push({
+        id: skillId,
+        name: String(skill?.name || "").trim() || skillId,
+      });
+    }
+  }
+
+  return effectiveSkills;
+}
+
 export function AgentEditModal({
   agents,
   agentRunners,
@@ -133,6 +158,10 @@ export function AgentEditModal({
   const editingEffectiveMcpServerIds = useMemo(
     () => resolveEffectiveRoleMcpServerIds(editingExpandedRoleIds, roleMcpServerIdsByRoleId),
     [editingExpandedRoleIds, roleMcpServerIdsByRoleId],
+  );
+  const editingEffectiveSkills = useMemo(
+    () => resolveEffectiveRoleSkills(editingExpandedRoleIds, roleLookup),
+    [editingExpandedRoleIds, roleLookup],
   );
   const editingRunnerCodexModelEntries = editingDraft
     ? getRunnerCodexModelEntriesForRunner(runnerCodexModelEntriesById, editingDraft.agentRunnerId)
@@ -403,6 +432,30 @@ export function AgentEditModal({
                 </option>
               ))}
             </select>
+
+            <label
+              className="relationship-field"
+              htmlFor={`edit-agent-effective-skills-${editingAgent.id}`}
+            >
+              Effective skills (from roles)
+            </label>
+            <div
+              id={`edit-agent-effective-skills-${editingAgent.id}`}
+              className="inline-selection-list"
+            >
+              {editingEffectiveSkills.length === 0 ? (
+                <span className="empty-hint">No skills inherited from assigned roles.</span>
+              ) : (
+                editingEffectiveSkills.map((skill) => (
+                  <span
+                    key={`edit-agent-effective-skill-${editingAgent.id}-${skill.id}`}
+                    className="tag-pill"
+                  >
+                    {skill.name}
+                  </span>
+                ))
+              )}
+            </div>
 
             <label
               className="relationship-field"
