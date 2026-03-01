@@ -7,7 +7,9 @@ import { useSetPageActions } from "../components/PageActionsContext.jsx";
 export function RolesPage({
   roles,
   skills,
+  skillGroups,
   mcpServers,
+  roleSkillGroupIdsByRoleId,
   roleMcpServerIdsByRoleId,
   activeRole,
   isLoadingRoles,
@@ -19,6 +21,7 @@ export function RolesPage({
   onDeleteRole,
   onAddSkillToRole,
   onRemoveSkillFromRole,
+  onRoleSkillGroupIdsChange,
   onRoleMcpServerIdsChange,
 }) {
   const [newRoleName, setNewRoleName] = useState("");
@@ -41,8 +44,27 @@ export function RolesPage({
     return mcpServers.filter((mcpServer) => !assignedMcpServerIds.includes(mcpServer.id));
   }, [assignedMcpServerIds, mcpServers]);
 
+  const assignedSkillGroupIds = useMemo(() => {
+    if (!activeRole) {
+      return [];
+    }
+    return normalizeUniqueStringList(roleSkillGroupIdsByRoleId?.[activeRole.id] || []);
+  }, [activeRole, roleSkillGroupIdsByRoleId]);
+
+  const availableSkillGroups = useMemo(() => {
+    return skillGroups.filter((skillGroup) => !assignedSkillGroupIds.includes(skillGroup.id));
+  }, [assignedSkillGroupIds, skillGroups]);
+
   const activeRoleSkills = useMemo(() => {
     return activeRole?.skills || [];
+  }, [activeRole]);
+
+  const activeRoleEffectiveSkills = useMemo(() => {
+    return activeRole?.effectiveSkills || [];
+  }, [activeRole]);
+
+  const activeRoleEffectiveMcpServers = useMemo(() => {
+    return activeRole?.effectiveMcpServers || [];
   }, [activeRole]);
 
   const availableSkills = useMemo(() => {
@@ -134,6 +156,7 @@ export function RolesPage({
             <ul className="chat-card-list">
               {roles.map((role) => {
                 const skillCount = (role.skills || []).length;
+                const skillGroupCount = (role.skillGroups || []).length;
                 const subRoleCount = (role.subRoles || []).length;
                 const parentName = role.parentRole?.name || null;
                 return (
@@ -154,7 +177,7 @@ export function RolesPage({
                         <strong>{role.name}</strong>
                       </p>
                       <p className="chat-card-meta">
-                        {skillCount} {skillCount === 1 ? "skill" : "skills"} · {subRoleCount} sub-roles
+                        {skillCount} {skillCount === 1 ? "skill" : "skills"} · {skillGroupCount} {skillGroupCount === 1 ? "group" : "groups"} · {subRoleCount} sub-roles
                         {parentName ? ` · parent: ${parentName}` : ""}
                       </p>
                     </div>
@@ -364,6 +387,65 @@ export function RolesPage({
         </section>
 
         <section className="skill-detail-section">
+          <h3>Skill groups</h3>
+          <div className="inline-selection-list">
+            {assignedSkillGroupIds.length === 0 ? (
+              <span className="empty-hint">No skill groups assigned to this role.</span>
+            ) : (
+              assignedSkillGroupIds.map((skillGroupId) => {
+                const skillGroup = skillGroups.find((group) => group.id === skillGroupId);
+                const label = skillGroup ? skillGroup.name : skillGroupId;
+                return (
+                  <button
+                    key={`remove-role-skill-group-${activeRole.id}-${skillGroupId}`}
+                    type="button"
+                    className="tag-remove-btn"
+                    onClick={() =>
+                      onRoleSkillGroupIdsChange(
+                        activeRole.id,
+                        assignedSkillGroupIds.filter((candidateId) => candidateId !== skillGroupId),
+                      )
+                    }
+                    title={`Remove ${label}`}
+                  >
+                    {label} ×
+                  </button>
+                );
+              })
+            )}
+          </div>
+          <div className="chat-settings-field" style={{ marginTop: "0.75rem" }}>
+            <label htmlFor={`role-add-skill-group-${activeRole.id}`} className="chat-settings-label">
+              Add skill group
+            </label>
+            <select
+              id={`role-add-skill-group-${activeRole.id}`}
+              className="chat-settings-input"
+              value=""
+              onChange={(event) => {
+                const skillGroupId = String(event.target.value || "").trim();
+                if (!skillGroupId) {
+                  return;
+                }
+                onRoleSkillGroupIdsChange(activeRole.id, [...assignedSkillGroupIds, skillGroupId]);
+              }}
+              disabled={availableSkillGroups.length === 0}
+            >
+              <option value="">
+                {availableSkillGroups.length === 0
+                  ? "All skill groups already assigned"
+                  : "Select skill group to add"}
+              </option>
+              {availableSkillGroups.map((skillGroup) => (
+                <option key={`role-skill-group-option-${activeRole.id}-${skillGroup.id}`} value={skillGroup.id}>
+                  {skillGroup.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </section>
+
+        <section className="skill-detail-section">
           <h3>Skills</h3>
           {activeRoleSkills.length === 0 ? (
             <p className="empty-hint">No skills in this role.</p>
@@ -416,6 +498,40 @@ export function RolesPage({
               ))}
             </select>
           </div>
+        </section>
+
+        <section className="skill-detail-section">
+          <h3>Effective skills</h3>
+          {activeRoleEffectiveSkills.length === 0 ? (
+            <p className="empty-hint">No effective skills for this role.</p>
+          ) : (
+            <ul className="chat-card-list">
+              {activeRoleEffectiveSkills.map((skill) => (
+                <li key={`role-effective-skill-${activeRole.id}-${skill.id}`} className="chat-card">
+                  <div className="chat-card-main">
+                    <p className="chat-card-title"><strong>{skill.name}</strong></p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="skill-detail-section">
+          <h3>Effective MCP servers</h3>
+          {activeRoleEffectiveMcpServers.length === 0 ? (
+            <p className="empty-hint">No effective MCP servers for this role.</p>
+          ) : (
+            <ul className="chat-card-list">
+              {activeRoleEffectiveMcpServers.map((mcpServer) => (
+                <li key={`role-effective-mcp-${activeRole.id}-${mcpServer.id}`} className="chat-card">
+                  <div className="chat-card-main">
+                    <p className="chat-card-title"><strong>{mcpServer.name}</strong></p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       </section>
     </div></Page>

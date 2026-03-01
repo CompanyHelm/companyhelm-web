@@ -296,7 +296,39 @@ export const LIST_ROLES_QUERY = `
         id
         name
       }
+      skillGroups {
+        id
+        name
+      }
+      effectiveSkills {
+        id
+        name
+      }
       mcpServers {
+        id
+        name
+      }
+      effectiveMcpServers {
+        id
+        name
+      }
+    }
+  }
+`;
+
+export const LIST_SKILL_GROUPS_QUERY = `
+  query ListSkillGroups($companyId: String!) {
+    skillGroups(companyId: $companyId) {
+      id
+      name
+      company {
+        id
+      }
+      parentSkillGroup {
+        id
+        name
+      }
+      skills {
         id
         name
       }
@@ -396,6 +428,102 @@ export const DELETE_GIT_SKILL_PACKAGE_MUTATION = `
   }
 `;
 
+export const CREATE_SKILL_GROUP_MUTATION = `
+  mutation CreateSkillGroup($companyId: ID!, $name: String!, $parentSkillGroupId: ID) {
+    createSkillGroup(
+      companyId: $companyId
+      name: $name
+      parentSkillGroupId: $parentSkillGroupId
+    ) {
+      ok
+      error
+      skillGroup {
+        id
+        name
+        company {
+          id
+        }
+        parentSkillGroup {
+          id
+          name
+        }
+      }
+    }
+  }
+`;
+
+export const UPDATE_SKILL_GROUP_MUTATION = `
+  mutation UpdateSkillGroup(
+    $companyId: ID!
+    $id: ID!
+    $name: String!
+    $parentSkillGroupId: ID
+  ) {
+    updateSkillGroup(
+      companyId: $companyId
+      id: $id
+      name: $name
+      parentSkillGroupId: $parentSkillGroupId
+    ) {
+      ok
+      error
+      skillGroup {
+        id
+        name
+        company {
+          id
+        }
+        parentSkillGroup {
+          id
+          name
+        }
+      }
+    }
+  }
+`;
+
+export const DELETE_SKILL_GROUP_MUTATION = `
+  mutation DeleteSkillGroup($companyId: ID!, $id: ID!) {
+    deleteSkillGroup(companyId: $companyId, id: $id) {
+      ok
+      error
+      deletedSkillGroupId
+    }
+  }
+`;
+
+export const ADD_SKILL_TO_GROUP_MUTATION = `
+  mutation AddSkillToGroup($companyId: ID!, $skillGroupId: ID!, $skillId: ID!) {
+    addSkillToSkillGroup(
+      companyId: $companyId
+      skillGroupId: $skillGroupId
+      skillId: $skillId
+    ) {
+      ok
+      error
+      skillGroup {
+        id
+      }
+    }
+  }
+`;
+
+export const REMOVE_SKILL_FROM_GROUP_MUTATION = `
+  mutation RemoveSkillFromGroup($companyId: ID!, $skillGroupId: ID!, $skillId: ID!) {
+    removeSkillFromSkillGroup(
+      companyId: $companyId
+      skillGroupId: $skillGroupId
+      skillId: $skillId
+    ) {
+      ok
+      error
+      skillGroup {
+        id
+      }
+    }
+  }
+`;
+
 export const CREATE_ROLE_MUTATION = `
   mutation CreateRole($companyId: ID!, $name: String!, $parentRoleId: ID) {
     createRole: createRole(
@@ -486,6 +614,38 @@ export const REMOVE_SKILL_FROM_ROLE_MUTATION = `
       ok
       error
       role: role {
+        id
+      }
+    }
+  }
+`;
+
+export const ADD_SKILL_GROUP_TO_ROLE_MUTATION = `
+  mutation AddSkillGroupToRole($companyId: ID!, $roleId: ID!, $skillGroupId: ID!) {
+    addSkillGroupToRole(
+      companyId: $companyId
+      roleId: $roleId
+      skillGroupId: $skillGroupId
+    ) {
+      ok
+      error
+      role {
+        id
+      }
+    }
+  }
+`;
+
+export const REMOVE_SKILL_GROUP_FROM_ROLE_MUTATION = `
+  mutation RemoveSkillGroupFromRole($companyId: ID!, $roleId: ID!, $skillGroupId: ID!) {
+    removeSkillGroupFromRole(
+      companyId: $companyId
+      roleId: $roleId
+      skillGroupId: $skillGroupId
+    ) {
+      ok
+      error
+      role {
         id
       }
     }
@@ -1458,7 +1618,39 @@ export const COMPANY_API_LIST_ROLES_QUERY = `
         id
         name
       }
+      skillGroups {
+        id
+        name
+      }
+      effectiveSkills {
+        id
+        name
+      }
       mcpServers {
+        id
+        name
+      }
+      effectiveMcpServers {
+        id
+        name
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_LIST_SKILL_GROUPS_QUERY = `
+  query CompanyApiListSkillGroups($companyId: ID!) {
+    skillGroups(companyId: $companyId) {
+      id
+      name
+      company {
+        id
+      }
+      parentSkillGroup {
+        id
+        name
+      }
+      skills {
         id
         name
       }
@@ -1567,6 +1759,86 @@ export const COMPANY_API_DELETE_GIT_SKILL_PACKAGE_MUTATION = `
   }
 `;
 
+export const COMPANY_API_CREATE_SKILL_GROUP_MUTATION = `
+  mutation CompanyApiCreateSkillGroup($companyId: ID!, $name: String!, $parentSkillGroupId: ID) {
+    createSkillGroup(
+      companyId: $companyId
+      name: $name
+      parentSkillGroupId: $parentSkillGroupId
+    ) {
+      ok
+      error
+      skillGroup {
+        id
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_UPDATE_SKILL_GROUP_MUTATION = `
+  mutation CompanyApiUpdateSkillGroup(
+    $companyId: ID!
+    $id: ID!
+    $name: String!
+    $parentSkillGroupId: ID
+  ) {
+    updateSkillGroup(
+      companyId: $companyId
+      id: $id
+      name: $name
+      parentSkillGroupId: $parentSkillGroupId
+    ) {
+      ok
+      error
+      skillGroup {
+        id
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_DELETE_SKILL_GROUP_MUTATION = `
+  mutation CompanyApiDeleteSkillGroup($companyId: ID!, $id: ID!) {
+    deleteSkillGroup(companyId: $companyId, id: $id) {
+      ok
+      error
+      deletedSkillGroupId
+    }
+  }
+`;
+
+export const COMPANY_API_ADD_SKILL_TO_GROUP_MUTATION = `
+  mutation CompanyApiAddSkillToGroup($companyId: ID!, $skillGroupId: ID!, $skillId: ID!) {
+    addSkillToSkillGroup(
+      companyId: $companyId
+      skillGroupId: $skillGroupId
+      skillId: $skillId
+    ) {
+      ok
+      error
+      skillGroup {
+        id
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_REMOVE_SKILL_FROM_GROUP_MUTATION = `
+  mutation CompanyApiRemoveSkillFromGroup($companyId: ID!, $skillGroupId: ID!, $skillId: ID!) {
+    removeSkillFromSkillGroup(
+      companyId: $companyId
+      skillGroupId: $skillGroupId
+      skillId: $skillId
+    ) {
+      ok
+      error
+      skillGroup {
+        id
+      }
+    }
+  }
+`;
+
 export const COMPANY_API_CREATE_ROLE_MUTATION = `
   mutation CompanyApiCreateRole($companyId: ID!, $name: String!, $parentRoleId: ID) {
     createRole: createRole(
@@ -1641,6 +1913,38 @@ export const COMPANY_API_REMOVE_SKILL_FROM_ROLE_MUTATION = `
       ok
       error
       role: role {
+        id
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_ADD_SKILL_GROUP_TO_ROLE_MUTATION = `
+  mutation CompanyApiAddSkillGroupToRole($companyId: ID!, $roleId: ID!, $skillGroupId: ID!) {
+    addSkillGroupToRole(
+      companyId: $companyId
+      roleId: $roleId
+      skillGroupId: $skillGroupId
+    ) {
+      ok
+      error
+      role {
+        id
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_REMOVE_SKILL_GROUP_FROM_ROLE_MUTATION = `
+  mutation CompanyApiRemoveSkillGroupFromRole($companyId: ID!, $roleId: ID!, $skillGroupId: ID!) {
+    removeSkillGroupFromRole(
+      companyId: $companyId
+      roleId: $roleId
+      skillGroupId: $skillGroupId
+    ) {
+      ok
+      error
+      role {
         id
       }
     }
