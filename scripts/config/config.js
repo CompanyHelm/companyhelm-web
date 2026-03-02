@@ -5,6 +5,7 @@ import { frontendConfigSchema } from "./schema.js";
 
 let cachedConfig;
 let cachedEnvironment;
+const DEFAULT_ENVIRONMENT = "local";
 
 export function normalizeEnvironment(environment) {
   const normalizedEnvironment = String(environment || "").trim();
@@ -42,22 +43,21 @@ export function loadConfig(environment) {
   return frontendConfigSchema.parse(parsedConfig);
 }
 
+export function resolveConfigEnvironment(environment) {
+  const rawEnvironment = environment ?? process.env.APP_ENV ?? DEFAULT_ENVIRONMENT;
+  const normalizedEnvironment = String(rawEnvironment).trim();
+  if (!normalizedEnvironment) {
+    return DEFAULT_ENVIRONMENT;
+  }
+  return normalizeEnvironment(normalizedEnvironment);
+}
+
 export function getConfig(environment) {
-  if (environment !== undefined) {
-    const resolvedEnvironment = normalizeEnvironment(environment);
-    if (!cachedConfig || cachedEnvironment !== resolvedEnvironment) {
-      cachedConfig = loadConfig(resolvedEnvironment);
-      cachedEnvironment = resolvedEnvironment;
-    }
-    return cachedConfig;
+  const resolvedEnvironment = resolveConfigEnvironment(environment);
+  if (!cachedConfig || cachedEnvironment !== resolvedEnvironment) {
+    cachedConfig = loadConfig(resolvedEnvironment);
+    cachedEnvironment = resolvedEnvironment;
   }
-
-  if (!cachedConfig || !cachedEnvironment) {
-    throw new Error(
-      "Configuration was not initialized. Pass --environment <name> on CLI startup or call getConfig(<name>) before use."
-    );
-  }
-
   return cachedConfig;
 }
 

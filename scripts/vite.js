@@ -2,7 +2,8 @@ import { spawn } from "node:child_process";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { getConfig } from "./config/config.js";
-import { parseCliEnvironmentArgument, stripEnvironmentArguments } from "./config/cli.js";
+
+const allowedViteCommands = new Set(["dev", "build", "preview"]);
 
 function toWebSocketUrl(graphqlApiUrl) {
   const parsed = new URL(graphqlApiUrl);
@@ -20,18 +21,37 @@ function toGraphQLPath(graphqlApiUrl) {
   return parsed.pathname && parsed.pathname !== "/" ? parsed.pathname : "/graphql";
 }
 
-function startVite(argv) {
-  const environment = parseCliEnvironmentArgument(argv);
-  const viteArgs = stripEnvironmentArguments(argv);
-  const config = getConfig(environment);
+export function resolveViteCommand(argv) {
+  const command = String(argv[0] || "").trim();
+  const extraArgs = argv.slice(1).filter(Boolean);
 
+  if (!command) {
+    throw new Error("Missing Vite command. Expected one of: dev, build, preview.");
+  }
+  if (!allowedViteCommands.has(command)) {
+    throw new Error(`Unsupported Vite command "${command}". Expected one of: dev, build, preview.`);
+  }
+  if (extraArgs.length > 0) {
+    throw new Error(
+      "Vite CLI options are disabled. Configure host/port/API values in config/<environment>.yaml."
+    );
+  }
+
+  return command;
+}
+
+function startVite(argv) {
+  const viteCommand = resolveViteCommand(argv);
+  const config = getConfig();
+
+  process.env.VITE_DEV_SERVER_HOST = config.server.host;
   process.env.VITE_DEV_SERVER_PORT = String(config.server.listeningPort);
   process.env.VITE_GRAPHQL_PROXY_TARGET = toGraphQLProxyTarget(config.api.graphqlApiUrl);
   process.env.VITE_GRAPHQL_URL = toGraphQLPath(config.api.graphqlApiUrl);
   process.env.VITE_GRAPHQL_WS_URL = toWebSocketUrl(config.api.graphqlApiUrl);
 
   const viteBinPath = resolve(process.cwd(), "node_modules", "vite", "bin", "vite.js");
-  const child = spawn(process.execPath, [viteBinPath, ...viteArgs], {
+  const child = spawn(process.execPath, [viteBinPath, viteCommand], {
     env: process.env,
     stdio: "inherit",
   });

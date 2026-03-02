@@ -1,51 +1,40 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-  parseCliEnvironmentArgument,
-  stripEnvironmentArguments,
-} from "../../scripts/config/cli.js";
-import { loadConfig } from "../../scripts/config/config.js";
+import { loadConfig, getConfig, clearConfigCache } from "../../scripts/config/config.js";
+import { resolveViteCommand } from "../../scripts/vite.js";
 
-test("parseCliEnvironmentArgument accepts '--environment <name>'", () => {
-  const environment = parseCliEnvironmentArgument(["dev", "--environment", "local"]);
-  assert.equal(environment, "local");
+test("resolveViteCommand accepts known vite commands", () => {
+  assert.equal(resolveViteCommand(["dev"]), "dev");
+  assert.equal(resolveViteCommand(["build"]), "build");
+  assert.equal(resolveViteCommand(["preview"]), "preview");
 });
 
-test("parseCliEnvironmentArgument accepts '--environment=<name>'", () => {
-  const environment = parseCliEnvironmentArgument(["preview", "--environment=prod"]);
-  assert.equal(environment, "prod");
-});
-
-test("parseCliEnvironmentArgument throws when --environment is missing", () => {
+test("resolveViteCommand rejects extra CLI options", () => {
   assert.throws(
-    () => parseCliEnvironmentArgument(["dev"]),
-    /Missing required --environment <name> CLI argument\./
+    () => resolveViteCommand(["dev", "--host", "0.0.0.0"]),
+    /Vite CLI options are disabled/
   );
-});
-
-test("parseCliEnvironmentArgument throws when --environment has no value", () => {
-  assert.throws(
-    () => parseCliEnvironmentArgument(["build", "--environment"]),
-    /Missing value for --environment\./
-  );
-});
-
-test("stripEnvironmentArguments removes '--environment' argument variants", () => {
-  const stripped = stripEnvironmentArguments([
-    "dev",
-    "--host",
-    "0.0.0.0",
-    "--environment=local",
-    "--environment",
-    "dev",
-    "--open",
-  ]);
-
-  assert.deepEqual(stripped, ["dev", "--host", "0.0.0.0", "--open"]);
 });
 
 test("loadConfig parses local config with expected fields", () => {
   const config = loadConfig("local");
+  assert.equal(config.server.host, "127.0.0.1");
   assert.equal(config.server.listeningPort, 5173);
   assert.equal(config.api.graphqlApiUrl, "http://127.0.0.1:4000/graphql");
+});
+
+test("getConfig defaults to APP_ENV with local fallback", () => {
+  const previous = process.env.APP_ENV;
+  process.env.APP_ENV = "local";
+  clearConfigCache();
+
+  const config = getConfig();
+  assert.equal(config.server.host, "127.0.0.1");
+
+  if (previous === undefined) {
+    delete process.env.APP_ENV;
+  } else {
+    process.env.APP_ENV = previous;
+  }
+  clearConfigCache();
 });
