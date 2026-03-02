@@ -96,7 +96,7 @@ export default function AuthGate({ children }) {
               />
             </label>
           ) : null}
-          {!isSignInMode ? (
+          {!isSignInMode && requiresProfileOnSignUp ? (
             <label htmlFor="auth-last-name">
               Last name
               <input
