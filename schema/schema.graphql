@@ -256,8 +256,8 @@ type Mutation {
   removeSkillFromRole(companyId: ID!, roleId: ID!, skillId: ID!): RoleMutationPayload!
   removeSkillFromSkillGroup(companyId: ID!, skillGroupId: ID!, skillId: ID!): SkillGroupMutationPayload!
   removeSkillGroupFromRole(companyId: ID!, roleId: ID!, skillGroupId: ID!): RoleMutationPayload!
-  signIn(email: String!): AuthPayload!
-  signUp(email: String!, firstName: String!, lastName: String): AuthPayload!
+  signIn(email: String!, password: String!): AuthPayload!
+  signUp(email: String!, firstName: String!, lastName: String, password: String!): AuthPayload!
   steerQueuedUserMessage(queuedMessageId: ID!): QueuedUserMessage!
   updateAgent(agentId: ID!, agentRunnerId: ID!, agentRunnerSdkId: ID!, defaultAdditionalModelInstructions: String, defaultModelId: ID!, defaultReasoningLevel: String, mcpServerIds: [ID!], name: String!, roleIds: [ID!]): Agent!
   updateMcpServer(args: [String!], authType: String, bearerToken: String, command: String, companyId: ID!, customHeaders: [McpHeaderInput!], enabled: Boolean, envVars: [McpEnvVarInput!], id: ID!, name: String!, transportType: String, url: String): McpServerMutationPayload!
@@ -307,8 +307,16 @@ type QueuedUserMessage {
   allowSteer: Boolean!
   company: Company!
   id: ID!
+  sdkTurnId: String
+  status: QueuedUserMessageStatus!
   text: String!
   thread: Thread!
+}
+
+enum QueuedUserMessageStatus {
+  processed
+  queued
+  submitted
 }
 
 type RefreshGithubInstallationRepositoriesPayload {
