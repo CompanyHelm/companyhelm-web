@@ -2317,6 +2317,351 @@ button:disabled {
   margin: 0;
 }
 
+/* ── Role detail hero ─────────────────────────────── */
+
+.role-detail-hero {
+  position: relative;
+  border-left: 3px solid var(--action);
+}
+
+.role-detail-hero-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
+}
+
+.role-detail-hero-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: none;
+  border: none;
+  color: var(--ink-1);
+  font-size: 0.82rem;
+  font-family: "Instrument Sans", sans-serif;
+  cursor: pointer;
+  padding: 0.25rem 0.4rem;
+  border-radius: 6px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.role-detail-hero-back:hover {
+  color: var(--ink-0);
+  background: rgba(26, 32, 38, 0.06);
+}
+
+.role-detail-hero-back svg {
+  width: 1rem;
+  height: 1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.role-detail-hero-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.15rem;
+}
+
+.role-detail-hero-title {
+  margin: 0;
+  font-size: clamp(1.35rem, 2.4vw, 1.8rem);
+  line-height: 1.1;
+}
+
+.role-detail-hero-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+
+.role-detail-hero-edit-btn:hover {
+  color: var(--action);
+  background: rgba(15, 118, 110, 0.08);
+}
+
+.role-detail-hero-edit-btn svg {
+  width: 0.95rem;
+  height: 0.95rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.role-detail-hero-edit-form {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.role-detail-hero-edit-input {
+  font-family: "Syne", sans-serif;
+  font-size: clamp(1.2rem, 2vw, 1.5rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 0.25rem 0.5rem;
+  background: white;
+  color: var(--ink-0);
+  outline: none;
+  min-width: 12rem;
+}
+
+.role-detail-hero-edit-input:focus {
+  border-color: var(--action);
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.role-detail-hero-parent {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--ink-1);
+  font-size: 0.82rem;
+  margin-bottom: 0.75rem;
+}
+
+.role-detail-hero-parent-label {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-2);
+}
+
+.role-detail-hero-parent-select {
+  font-family: "Instrument Sans", sans-serif;
+  font-size: 0.82rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 0.15rem 0.4rem;
+  background: transparent;
+  color: var(--ink-1);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.role-detail-hero-parent-select:hover,
+.role-detail-hero-parent-select:focus {
+  border-color: var(--panel-border);
+  background: rgba(255, 255, 255, 0.6);
+  outline: none;
+}
+
+.role-detail-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.6rem;
+}
+
+.role-detail-stat {
+  background: rgba(15, 118, 110, 0.04);
+  border: 1px solid rgba(15, 118, 110, 0.1);
+  border-radius: 8px;
+  padding: 0.55rem 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.role-detail-stat-value {
+  margin: 0;
+  font-family: "Syne", sans-serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--ink-0);
+}
+
+.role-detail-stat-label {
+  margin: 0;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+/* ── Role detail grid ─────────────────────────────── */
+
+.role-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.8rem;
+  align-items: start;
+}
+
+.role-detail-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.role-detail-card {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  backdrop-filter: blur(6px);
+  box-shadow: var(--shadow);
+}
+
+.role-detail-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.65rem;
+}
+
+.role-detail-card-header svg {
+  width: 1rem;
+  height: 1rem;
+  fill: none;
+  stroke: var(--action);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+}
+
+.role-detail-card-header h3 {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ink-0);
+}
+
+.role-detail-card-count {
+  margin-left: auto;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.7rem;
+  color: var(--ink-2);
+}
+
+.role-detail-card-muted {
+  background: rgba(238, 242, 243, 0.5);
+  border-color: rgba(26, 32, 38, 0.06);
+  box-shadow: none;
+}
+
+.role-detail-card-muted .role-detail-card-header svg {
+  stroke: var(--ink-2);
+}
+
+.role-detail-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.role-detail-pill-inherited {
+  border-radius: 999px;
+  border: 1px dashed rgba(26, 32, 38, 0.18);
+  background: rgba(238, 242, 243, 0.5);
+  color: var(--ink-1);
+  padding: 0.22rem 0.6rem;
+  font-size: 0.76rem;
+  font-family: "IBM Plex Mono", monospace;
+}
+
+.role-detail-inherit-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.74rem;
+  color: var(--ink-2);
+  font-style: italic;
+}
+
+.role-detail-empty {
+  border: 1px dashed rgba(26, 32, 38, 0.15);
+  border-radius: 8px;
+  padding: 0.75rem;
+  color: var(--ink-2);
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+.role-detail-add-row {
+  margin-top: 0.55rem;
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.role-detail-add-select {
+  flex: 1;
+  font-family: "Instrument Sans", sans-serif;
+  font-size: 0.8rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 0.35rem 0.5rem;
+  background: white;
+  color: var(--ink-0);
+  cursor: pointer;
+}
+
+.role-detail-add-select:focus {
+  border-color: var(--action);
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.role-detail-add-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.role-detail-subrole-link {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-size: 0.86rem;
+  color: var(--ink-0);
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-family: "Instrument Sans", sans-serif;
+}
+
+.role-detail-subrole-link:hover {
+  background: rgba(15, 118, 110, 0.06);
+}
+
+.role-detail-subrole-link svg {
+  width: 0.85rem;
+  height: 0.85rem;
+  fill: none;
+  stroke: var(--ink-2);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+}
+
 .skill-content-raw {
   margin: 0;
   padding: 0.6rem 0.8rem;
@@ -3132,5 +3477,18 @@ button:disabled {
 
   .edit-agent-instructions-fullscreen-overlay {
     padding: 0.55rem;
+  }
+
+  .role-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .role-detail-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .role-detail-hero-edit-form {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
