@@ -4,9 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "node scripts/vite.js dev",
+    "build": "node scripts/vite.js build",
+    "preview": "node scripts/vite.js preview",
+    "test": "node --test tests/config/config.test.js"
   },
   "dependencies": {
     "@companyhelm/protos": "^0.4.0",
@@ -15,10 +16,12 @@
     "react-markdown": "^10.1.0",
     "react-relay": "^20.1.1",
     "relay-runtime": "^20.1.1",
-    "remark-gfm": "^4.0.1"
+    "remark-gfm": "^4.0.1",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
-    "vite": "^5.4.10"
+    "vite": "^5.4.10",
+    "yaml": "^2.8.1"
   }
 }
