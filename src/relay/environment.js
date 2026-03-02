@@ -8,6 +8,7 @@ import {
 } from "relay-runtime";
 import { authProvider } from "../auth/runtime.js";
 import { GRAPHQL_URL, GRAPHQL_WS_URL } from "../utils/constants.js";
+import { getActiveCompanyId } from "../utils/company-context.js";
 
 // Keep cache short-lived so live chat/admin views remain fresh while still deduping bursts.
 const QUERY_RESPONSE_CACHE_TTL_MS = 3_000;
@@ -60,6 +61,10 @@ async function performHttpGraphQLRequest(params, variables, operationKind, cache
   const authorization = authProvider.getAuthorizationHeaderValue();
   if (authorization) {
     headers.Authorization = authorization;
+  }
+  const activeCompanyId = getActiveCompanyId();
+  if (activeCompanyId) {
+    headers["x-company-id"] = activeCompanyId;
   }
 
   const response = await fetch(GRAPHQL_URL, {
@@ -160,14 +165,26 @@ function subscribeGraphQL(params, variables) {
 
     const handleOpen = () => {
       const authorization = authProvider.getAuthorizationHeaderValue();
+      const activeCompanyId = getActiveCompanyId();
+      const headers = {};
+      if (authorization) {
+        headers.authorization = authorization;
+      }
+      if (activeCompanyId) {
+        headers["x-company-id"] = activeCompanyId;
+      }
       const payload = authorization
         ? {
           authorization,
-          headers: {
-            authorization,
-          },
+          ...(activeCompanyId ? { "x-company-id": activeCompanyId } : {}),
+          headers,
         }
-        : undefined;
+        : activeCompanyId
+          ? {
+            "x-company-id": activeCompanyId,
+            headers,
+          }
+          : undefined;
       socket.send(JSON.stringify({
         type: "connection_init",
         ...(payload ? { payload } : {}),
