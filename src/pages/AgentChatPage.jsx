@@ -258,7 +258,7 @@ export function AgentChatPage({
       return;
     }
     event.preventDefault();
-    onSendChatMessage(event, "queue");
+    onSendChatMessage(event, "steer");
   }
 
   function handleTranscriptScroll(event) {
