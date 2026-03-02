@@ -169,6 +169,32 @@ export function compareTurnItemsByStartedAt(a, b) {
   return String(a?.id || "").localeCompare(String(b?.id || ""));
 }
 
+export function isSameChatSelection({
+  currentAgentId = "",
+  currentSessionId = "",
+  nextAgentId = "",
+  nextSessionId = "",
+} = {}) {
+  const resolvedCurrentAgentId = String(currentAgentId || "").trim();
+  const resolvedCurrentSessionId = String(currentSessionId || "").trim();
+  const resolvedNextAgentId = String(nextAgentId || "").trim();
+  const resolvedNextSessionId = String(nextSessionId || "").trim();
+
+  if (
+    !resolvedCurrentAgentId
+    || !resolvedCurrentSessionId
+    || !resolvedNextAgentId
+    || !resolvedNextSessionId
+  ) {
+    return false;
+  }
+
+  return (
+    resolvedCurrentAgentId === resolvedNextAgentId
+    && resolvedCurrentSessionId === resolvedNextSessionId
+  );
+}
+
 export function getSortedTurnItems(turn) {
   const turnItems = Array.isArray(turn?.items) ? turn.items : [];
   return [...turnItems].sort(compareTurnItemsByStartedAt);

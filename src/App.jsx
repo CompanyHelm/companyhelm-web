@@ -166,7 +166,12 @@ import {
 
 import { normalizeRunnerStatus, normalizeChatStatus } from "./utils/formatting.js";
 
-import { hasRunningChatTurns, getLatestRunningChatTurn, compareTurnsByTimestamp } from "./utils/chat.js";
+import {
+  hasRunningChatTurns,
+  getLatestRunningChatTurn,
+  compareTurnsByTimestamp,
+  isSameChatSelection,
+} from "./utils/chat.js";
 
 import {
   normalizePathname,
@@ -5951,6 +5956,14 @@ function App() {
     const resolvedAgentId = String(agentId || "").trim();
     const resolvedSessionId = String(sessionId || "").trim();
     if (!resolvedAgentId || !resolvedSessionId) {
+      return;
+    }
+    if (isSameChatSelection({
+      currentAgentId: chatAgentId,
+      currentSessionId: resolvedChatSessionId,
+      nextAgentId: resolvedAgentId,
+      nextSessionId: resolvedSessionId,
+    })) {
       return;
     }
 
