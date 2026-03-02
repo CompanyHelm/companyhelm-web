@@ -202,6 +202,7 @@ import { executeRelayGraphQL } from "./relay/client.js";
 import { Breadcrumbs } from "./components/Breadcrumbs.jsx";
 import { PageActionsProvider } from "./components/PageActionsContext.jsx";
 import { CompanyRequiredPanel } from "./components/CompanyRequiredPanel.jsx";
+import { FirstCompanyOnboardingPage } from "./components/FirstCompanyOnboardingPage.jsx";
 
 import { DashboardPage } from "./pages/DashboardPage.jsx";
 import { TasksPage } from "./pages/TasksPage.jsx";
@@ -6476,123 +6477,140 @@ function App() {
   );
   const activePrimaryNavItemId =
     activePage === "agents" && agentsRoute.view === "chat" ? "chats" : activePage;
+  const showFirstCompanyOnboarding = !isLoadingCompanies && !hasCompanies;
 
   return (
     <PageActionsProvider>
-    <div className={`layout-shell${isSideMenuCollapsed ? " layout-shell-menu-collapsed" : ""}`}>
-      <aside className="side-menu">
-        {isSideMenuCollapsed ? (
-          <button
-            type="button"
-            className="side-menu-icon-btn"
-            onClick={() => setIsSideMenuCollapsed(false)}
-            aria-label="Open menu"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <line x1="3" y1="18" x2="21" y2="18" />
-            </svg>
-          </button>
-        ) : null}
-        <div className="side-brand">
-          <div className="side-brand-lockup">
-            <img className="side-brand-logo" src={logoOnly} alt="CompanyHelm logo" />
-            <div>
-              <p className="side-overline">Control Plane</p>
-              <h2>CompanyHelm</h2>
+      <div
+        className={`layout-shell${isSideMenuCollapsed && !showFirstCompanyOnboarding ? " layout-shell-menu-collapsed" : ""}${showFirstCompanyOnboarding ? " layout-shell-onboarding" : ""}`}
+      >
+        {showFirstCompanyOnboarding ? null : (
+          <aside className="side-menu">
+            {isSideMenuCollapsed ? (
+              <button
+                type="button"
+                className="side-menu-icon-btn"
+                onClick={() => setIsSideMenuCollapsed(false)}
+                aria-label="Open menu"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <line x1="3" y1="12" x2="21" y2="12" />
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <line x1="3" y1="18" x2="21" y2="18" />
+                </svg>
+              </button>
+            ) : null}
+            <div className="side-brand">
+              <div className="side-brand-lockup">
+                <img className="side-brand-logo" src={logoOnly} alt="CompanyHelm logo" />
+                <div>
+                  <p className="side-overline">Control Plane</p>
+                  <h2>CompanyHelm</h2>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-        <button
-          type="button"
-          className="side-menu-icon-btn side-menu-collapse-btn"
-          onClick={() => setIsSideMenuCollapsed(true)}
-          aria-label="Collapse menu"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-        </button>
-
-        <div className="side-company-scope">
-          <select
-            className="side-company-select"
-            value={selectedCompanyId}
-            onChange={(event) => setSelectedCompanyId(event.target.value)}
-            disabled={isLoadingCompanies}
-          >
-            <option value="">
-              {isLoadingCompanies ? "Loading..." : "Select company"}
-            </option>
-            {companies.map((company) => (
-              <option key={company.id} value={company.id}>
-                {company.name}
-              </option>
-            ))}
-          </select>
-          {companyError ? <p className="side-error">{companyError}</p> : null}
-        </div>
-
-        {NAV_SECTIONS.map((section) => (
-          <div key={section.label} className="side-nav-section">
-            <p className="side-nav-label">{section.label}</p>
-            <nav className="side-nav" aria-label={`${section.label} navigation`}>
-              {section.items.map((item) => {
-                const isDisabled = item.requiresCompany && !selectedCompanyId;
-                return (
-                  <a
-                    key={item.id}
-                    href={item.href}
-                    aria-disabled={isDisabled ? "true" : undefined}
-                    onClick={(event) => {
-                      event.preventDefault();
-                      if (isDisabled) {
-                        navigateTo("settings");
-                        collapseSideMenuOnCompactViewport();
-                        return;
-                      }
-                      navigateTo(item.id);
-                      collapseSideMenuOnCompactViewport();
-                    }}
-                    className={`nav-link ${
-                      activePrimaryNavItemId === item.id ? "nav-link-active" : ""
-                    } ${isDisabled ? "nav-link-disabled" : ""}`}
-                  >
-                    {item.label}
-                  </a>
-                );
-              })}
-            </nav>
-          </div>
-        ))}
-
-        <nav className="side-nav side-nav-bottom" aria-label="Utility navigation">
-          {BOTTOM_NAV_ITEMS.map((item) => (
-            <a
-              key={item.id}
-              href={item.href}
-              onClick={(event) => {
-                event.preventDefault();
-                navigateTo(item.id);
-                collapseSideMenuOnCompactViewport();
-              }}
-              className={`nav-link ${
-                activePrimaryNavItemId === item.id ? "nav-link-active" : ""
-              }`}
+            <button
+              type="button"
+              className="side-menu-icon-btn side-menu-collapse-btn"
+              onClick={() => setIsSideMenuCollapsed(true)}
+              aria-label="Collapse menu"
             >
-              {item.label}
-            </a>
-          ))}
-        </nav>
-      </aside>
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
 
-      <main className={`page-shell${isChatConversationRoute ? " page-shell-chat-layout" : ""}`}>
-        <Breadcrumbs items={breadcrumbItems} onNavigate={setBrowserPath} />
+            <div className="side-company-scope">
+              <select
+                className="side-company-select"
+                value={selectedCompanyId}
+                onChange={(event) => setSelectedCompanyId(event.target.value)}
+                disabled={isLoadingCompanies}
+              >
+                <option value="">
+                  {isLoadingCompanies ? "Loading..." : "Select company"}
+                </option>
+                {companies.map((company) => (
+                  <option key={company.id} value={company.id}>
+                    {company.name}
+                  </option>
+                ))}
+              </select>
+              {companyError ? <p className="side-error">{companyError}</p> : null}
+            </div>
 
-        {!selectedCompanyId && activePage !== "settings" && activePage !== "profile" ? (
-          <CompanyRequiredPanel hasCompanies={hasCompanies} />
-        ) : null}
+            {NAV_SECTIONS.map((section) => (
+              <div key={section.label} className="side-nav-section">
+                <p className="side-nav-label">{section.label}</p>
+                <nav className="side-nav" aria-label={`${section.label} navigation`}>
+                  {section.items.map((item) => {
+                    const isDisabled = item.requiresCompany && !selectedCompanyId;
+                    return (
+                      <a
+                        key={item.id}
+                        href={item.href}
+                        aria-disabled={isDisabled ? "true" : undefined}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          if (isDisabled) {
+                            navigateTo("settings");
+                            collapseSideMenuOnCompactViewport();
+                            return;
+                          }
+                          navigateTo(item.id);
+                          collapseSideMenuOnCompactViewport();
+                        }}
+                        className={`nav-link ${
+                          activePrimaryNavItemId === item.id ? "nav-link-active" : ""
+                        } ${isDisabled ? "nav-link-disabled" : ""}`}
+                      >
+                        {item.label}
+                      </a>
+                    );
+                  })}
+                </nav>
+              </div>
+            ))}
+
+            <nav className="side-nav side-nav-bottom" aria-label="Utility navigation">
+              {BOTTOM_NAV_ITEMS.map((item) => (
+                <a
+                  key={item.id}
+                  href={item.href}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    navigateTo(item.id);
+                    collapseSideMenuOnCompactViewport();
+                  }}
+                  className={`nav-link ${
+                    activePrimaryNavItemId === item.id ? "nav-link-active" : ""
+                  }`}
+                >
+                  {item.label}
+                </a>
+              ))}
+            </nav>
+          </aside>
+        )}
+
+        <main
+          className={`page-shell${isChatConversationRoute && !showFirstCompanyOnboarding ? " page-shell-chat-layout" : ""}${showFirstCompanyOnboarding ? " first-company-onboarding-shell" : ""}`}
+        >
+          {showFirstCompanyOnboarding ? (
+            <FirstCompanyOnboardingPage
+              companyError={companyError}
+              newCompanyName={newCompanyName}
+              isCreatingCompany={isCreatingCompany}
+              onNewCompanyNameChange={setNewCompanyName}
+              onCreateCompany={handleCreateCompany}
+            />
+          ) : (
+            <>
+              <Breadcrumbs items={breadcrumbItems} onNavigate={setBrowserPath} />
+
+              {!isLoadingCompanies && !selectedCompanyId && activePage !== "settings" && activePage !== "profile" ? (
+                <CompanyRequiredPanel hasCompanies={hasCompanies} />
+              ) : null}
 
         {selectedCompanyId && activePage === "dashboard" ? (
           <DashboardPage
@@ -7035,6 +7053,8 @@ function App() {
             agentRunners={agentRunners}
           />
         ) : null}
+          </>
+        )}
       </main>
     </div>
     </PageActionsProvider>
