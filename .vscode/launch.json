@@ -7,7 +7,7 @@
       "request": "launch",
       "cwd": "${workspaceFolder}",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": ["run", "dev", "--","--environment", "local"],
       "console": "integratedTerminal",
       "serverReadyAction": {
         "pattern": "Local:\\s+(https?://\\S+)",
