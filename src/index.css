@@ -132,6 +132,10 @@ h3 {
   grid-template-columns: 3.2rem minmax(0, 1fr);
 }
 
+.layout-shell-onboarding {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .layout-shell-menu-collapsed .side-menu {
   padding: 1.25rem 0.4rem 1rem;
   align-items: center;
@@ -303,7 +307,8 @@ h3 {
 }
 
 .side-select,
-.company-create-form input {
+.company-create-form input,
+.first-company-onboarding-form input {
   width: 100%;
   border-radius: 8px;
   border: 1px solid var(--sidebar-border);
@@ -315,7 +320,8 @@ h3 {
 }
 
 .side-select:focus,
-.company-create-form input:focus {
+.company-create-form input:focus,
+.first-company-onboarding-form input:focus {
   outline: none;
   border-color: var(--action);
   box-shadow: 0 0 0 3px var(--ring);
@@ -336,6 +342,32 @@ h3 {
 
 .company-create-form button {
   width: 100%;
+}
+
+.first-company-onboarding-shell {
+  display: grid;
+  align-content: center;
+}
+
+.first-company-onboarding-panel {
+  width: min(35rem, 100%);
+}
+
+.first-company-onboarding-form {
+  margin-top: 0.85rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.first-company-onboarding-form label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink-1);
+}
+
+.first-company-onboarding-form button {
+  width: fit-content;
+  min-width: 10rem;
 }
 
 .side-error {
