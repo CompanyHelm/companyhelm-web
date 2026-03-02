@@ -1,0 +1,5 @@
+server:
+  host: "127.0.0.1"
+  listeningPort: 5173
+api:
+  graphqlApiUrl: "http://127.0.0.1:4000/graphql"

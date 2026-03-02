@@ -7,19 +7,34 @@ React SPA for `companyhelm-api` GraphQL.
 ```bash
 nvm use 22
 npm install
-npm run dev
+npm run dev -- --environment local
 ```
 
 Open `http://localhost:5173`.
 
-By default, `/graphql` is proxied to `http://127.0.0.1:4000` (the `companyhelm-api` local default).
-Override with `VITE_GRAPHQL_PROXY_TARGET` when needed.
+Frontend config is loaded from `config/<environment>.yaml` and validated with `zod`.
+Environment selection requires `--environment <name>` (or `--environment=<name>`).
+
+Current config fields:
+- `server.host`
+- `server.listeningPort`
+- `api.graphqlApiUrl`
+
+`api.graphqlApiUrl` is used to derive:
+- Vite `/graphql` proxy target
+- Relay HTTP GraphQL URL
+- Relay WebSocket GraphQL URL
 
 ## Build
 
 ```bash
-npm run build
-npm run preview
+npm run build -- --environment local
+npm run preview -- --environment local
+```
+
+Example for a non-local environment:
+```bash
+npm run build -- --environment prod
 ```
 
 ## Relay client
