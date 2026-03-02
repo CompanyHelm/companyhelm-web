@@ -1,6 +1,6 @@
 import { DEFAULT_AGENT_SDK, SKILL_TYPE_SKILLSMP } from "./constants.js";
 import {
-  toSelectValue,
+  normalizeUniqueStringList,
   normalizeSkillType,
   normalizeMcpTransportType,
   normalizeMcpAuthType,
@@ -12,8 +12,7 @@ import {
 export function createRelationshipDrafts(tasks) {
   return tasks.reduce((drafts, task) => {
     drafts[task.id] = {
-      parentTaskId: toSelectValue(task.parentTaskId),
-      dependsOnTaskId: toSelectValue(task.dependsOnTaskId),
+      dependencyTaskIds: normalizeUniqueStringList(task.dependencyTaskIds || []),
     };
     return drafts;
   }, {});

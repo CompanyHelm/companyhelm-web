@@ -13,14 +13,12 @@ export function TasksPage({
   deletingTaskId,
   name,
   description,
-  parentTaskId,
-  dependsOnTaskId,
+  dependencyTaskIds,
   relationshipDrafts,
   taskCountLabel,
   onNameChange,
   onDescriptionChange,
-  onParentTaskChange,
-  onDependsOnTaskChange,
+  onDependencyTaskIdsChange,
   onCreateTask,
   onDraftChange,
   onSaveRelationships,
@@ -38,6 +36,13 @@ export function TasksPage({
     const didCreate = await onCreateTask(event);
     if (didCreate) {
       setIsCreateModalOpen(false);
+    }
+  }
+
+  async function handleSaveTaskDependencies(taskId) {
+    const didSave = await onSaveRelationships(taskId);
+    if (didSave) {
+      setEditingTaskId("");
     }
   }
 
@@ -99,11 +104,13 @@ export function TasksPage({
                     <strong>{task.name}</strong>
                     <span className="chat-card-meta">
                       {task.description || "No description provided."}
-                      {task.parentTaskId
-                        ? <> &middot; parent: {renderTaskLink(task.parentTaskId)}</>
-                        : null}
-                      {task.dependsOnTaskId
-                        ? <> &middot; depends on: {renderTaskLink(task.dependsOnTaskId)}</>
+                      {Array.isArray(task.dependencyTaskIds) && task.dependencyTaskIds.length > 0
+                        ? (
+                          <>
+                            {" "}
+                            &middot; depends on: {task.dependencyTaskIds.map(renderTaskLink).join(", ")}
+                          </>
+                        )
                         : null}
                     </span>
                   </div>
@@ -132,6 +139,34 @@ export function TasksPage({
           </ul>
         ) : null}
       </section>
+
+      {tasks.length > 0 ? (
+        <section className="panel list-panel">
+          <h3>Dependency map</h3>
+          <ul className="chat-card-list">
+            {tasks.map((task) => {
+              const dependencyTaskIdsForTask = Array.isArray(task.dependencyTaskIds)
+                ? task.dependencyTaskIds
+                : [];
+              return (
+                <li key={`task-map-${task.id}`} className="chat-card">
+                  <div className="chat-card-content">
+                    <strong>{task.name}</strong>
+                    <span className="chat-card-meta">#{task.id}</span>
+                  </div>
+                  <span className="chat-card-meta">
+                    {dependencyTaskIdsForTask.length === 0
+                      ? "Independent task"
+                      : dependencyTaskIdsForTask
+                          .map((dependencyTaskId) => `\u2192 ${renderTaskLink(dependencyTaskId)}`)
+                          .join("  ")}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
 
       <CreationModal
         modalId="create-task-modal"
@@ -162,35 +197,25 @@ export function TasksPage({
             onChange={(event) => onDescriptionChange(event.target.value)}
           />
 
-          <label htmlFor="task-parent">Parent task</label>
-          <select
-            id="task-parent"
-            name="parentTaskId"
-            value={parentTaskId}
-            onChange={(event) => onParentTaskChange(event.target.value)}
-          >
-            <option value="">None</option>
-            {tasks.map((task) => (
-              <option key={`create-parent-${task.id}`} value={String(task.id)}>
-                #{task.id} {task.name}
-              </option>
-            ))}
-          </select>
-
-          <label htmlFor="task-dependency">Depends on</label>
+          <label htmlFor="task-dependency">Dependencies</label>
           <select
             id="task-dependency"
-            name="dependsOnTaskId"
-            value={dependsOnTaskId}
-            onChange={(event) => onDependsOnTaskChange(event.target.value)}
+            name="dependencyTaskIds"
+            multiple
+            value={Array.isArray(dependencyTaskIds) ? dependencyTaskIds : []}
+            onChange={(event) =>
+              onDependencyTaskIdsChange(
+                Array.from(event.target.selectedOptions).map((option) => option.value),
+              )
+            }
           >
-            <option value="">None</option>
             {tasks.map((task) => (
               <option key={`create-dependency-${task.id}`} value={String(task.id)}>
                 #{task.id} {task.name}
               </option>
             ))}
           </select>
+          <p className="chat-card-meta">Select one or more tasks this task depends on.</p>
 
           <button type="submit" disabled={isSubmittingTask}>
             {isSubmittingTask ? "Creating..." : "Create task"}
@@ -224,41 +249,22 @@ export function TasksPage({
               </div>
 
               <div className="chat-settings-field">
-                <label className="chat-settings-label" htmlFor="edit-parent-task">
-                  Parent task
+                <label className="chat-settings-label" htmlFor="edit-dependency-tasks">
+                  Dependencies
                 </label>
                 <select
-                  id="edit-parent-task"
+                  id="edit-dependency-tasks"
                   className="chat-settings-input"
-                  value={editDraft?.parentTaskId ?? ""}
+                  multiple
+                  value={Array.isArray(editDraft?.dependencyTaskIds) ? editDraft.dependencyTaskIds : []}
                   onChange={(e) =>
-                    onDraftChange(editingTaskId, "parentTaskId", e.target.value)
+                    onDraftChange(
+                      editingTaskId,
+                      "dependencyTaskIds",
+                      Array.from(e.target.selectedOptions).map((option) => option.value),
+                    )
                   }
                 >
-                  <option value="">None</option>
-                  {tasks
-                    .filter((t) => t.id !== editingTaskId)
-                    .map((t) => (
-                      <option key={`edit-parent-${t.id}`} value={String(t.id)}>
-                        #{t.id} {t.name}
-                      </option>
-                    ))}
-                </select>
-              </div>
-
-              <div className="chat-settings-field">
-                <label className="chat-settings-label" htmlFor="edit-depends-on-task">
-                  Depends on
-                </label>
-                <select
-                  id="edit-depends-on-task"
-                  className="chat-settings-input"
-                  value={editDraft?.dependsOnTaskId ?? ""}
-                  onChange={(e) =>
-                    onDraftChange(editingTaskId, "dependsOnTaskId", e.target.value)
-                  }
-                >
-                  <option value="">None</option>
                   {tasks
                     .filter((t) => t.id !== editingTaskId)
                     .map((t) => (
@@ -273,10 +279,7 @@ export function TasksPage({
                 <button
                   type="button"
                   className="secondary-btn"
-                  onClick={() => {
-                    onSaveRelationships(editingTaskId);
-                    setEditingTaskId("");
-                  }}
+                  onClick={() => void handleSaveTaskDependencies(editingTaskId)}
                 >
                   Save
                 </button>
