@@ -556,11 +556,14 @@ h3 {
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.5rem;
+  min-width: 0;
 }
 
 .chat-sidebar-agent-main {
   min-width: 0;
   flex: 1;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .chat-sidebar-agent-name {
@@ -575,21 +578,30 @@ h3 {
 .chat-sidebar-agent-name strong {
   display: block;
   min-width: 0;
+  max-width: 100%;
+  width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .chat-sidebar-agent-meta {
+  display: block;
   margin: 0.1rem 0 0;
   font-size: 0.7rem;
   color: var(--ink-2);
+  min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .chat-sidebar-new-chat-btn {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  min-width: 1.8rem;
+  min-height: 1.8rem;
   width: 1.8rem;
   height: 1.8rem;
   display: inline-flex;
