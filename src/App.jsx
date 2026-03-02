@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import logoOnly from "./assets/logo-only.svg";
 
 import {
@@ -166,7 +166,7 @@ import {
 
 import { normalizeRunnerStatus, normalizeChatStatus } from "./utils/formatting.js";
 
-import { hasRunningChatTurns, getLatestRunningChatTurn } from "./utils/chat.js";
+import { hasRunningChatTurns, getLatestRunningChatTurn, compareTurnsByTimestamp } from "./utils/chat.js";
 
 import {
   normalizePathname,
@@ -211,7 +211,6 @@ import { SkillGroupsPage } from "./pages/SkillGroupsPage.jsx";
 import { RolesPage } from "./pages/RolesPage.jsx";
 import { GitSkillPackagesPage } from "./pages/GitSkillPackagesPage.jsx";
 import { McpServersPage } from "./pages/McpServersPage.jsx";
-import { ChatsOverviewPage } from "./pages/ChatsOverviewPage.jsx";
 import { AgentChatsPage } from "./pages/AgentChatsPage.jsx";
 import { AgentChatPage } from "./pages/AgentChatPage.jsx";
 import { SettingsPage } from "./pages/SettingsPage.jsx";
@@ -265,6 +264,27 @@ function getChatCreateBlockedReason(agent, agentRunnerLookup) {
   }
 
   return "";
+}
+
+function sortAgentsForChatNavigation(agentList) {
+  return [...(Array.isArray(agentList) ? agentList : [])].sort((leftAgent, rightAgent) => {
+    const leftName = String(leftAgent?.name || "");
+    const rightName = String(rightAgent?.name || "");
+    const byName = leftName.localeCompare(rightName);
+    if (byName !== 0) {
+      return byName;
+    }
+    return String(leftAgent?.id || "").localeCompare(String(rightAgent?.id || ""));
+  });
+}
+
+function sortChatSessionsForChatNavigation(sessionList) {
+  return [...(Array.isArray(sessionList) ? sessionList : [])].sort((leftChat, rightChat) =>
+    compareTurnsByTimestamp(
+      { createdAt: leftChat?.updatedAt, id: leftChat?.id },
+      { createdAt: rightChat?.updatedAt, id: rightChat?.id },
+    ),
+  );
 }
 
 function toConnectionNodes(connection) {
@@ -2142,6 +2162,7 @@ function App() {
   const [isSideMenuCollapsed, setIsSideMenuCollapsed] = useState(() =>
     matchesMediaQuery(SIDEBAR_COLLAPSE_MEDIA_QUERY),
   );
+  const isNavigatingToChatsRef = useRef(false);
   const hasCompanies = companies.length > 0;
   const handleChatSessionRenameDraftChange = useCallback((nextTitle) => {
     setChatSessionRenameDraft(String(nextTitle || "").slice(0, THREAD_TITLE_MAX_LENGTH));
@@ -2832,7 +2853,7 @@ function App() {
       setAgentModelReasoningLevel("");
       setAgentDefaultAdditionalModelInstructions("");
       setIsLoadingAgents(false);
-      return;
+      return [];
     }
 
     try {
@@ -2848,8 +2869,10 @@ function App() {
           mergeAgentRunnerPayloadList(currentRunners, nextRunners),
         );
       }
+      return nextAgents;
     } catch (loadError) {
       setAgentError(loadError.message);
+      return [];
     } finally {
       setIsLoadingAgents(false);
     }
@@ -2990,7 +3013,7 @@ function App() {
         setChatSessionsByAgent({});
         setChatIndexError("");
         setIsLoadingChatIndex(false);
-        return;
+        return {};
       }
 
       const agentsToLoad = Array.isArray(agents) ? agents : [];
@@ -3000,7 +3023,7 @@ function App() {
           setChatIndexError("");
           setIsLoadingChatIndex(false);
         }
-        return;
+        return {};
       }
 
       try {
@@ -3043,10 +3066,12 @@ function App() {
           Object.values(nextSessionsByAgent).flatMap((sessionsForAgent) =>
             Array.isArray(sessionsForAgent) ? sessionsForAgent : []),
         );
+        return nextSessionsByAgent;
       } catch (loadError) {
         if (!silently) {
           setChatIndexError(loadError.message);
         }
+        return {};
       } finally {
         if (!silently) {
           setIsLoadingChatIndex(false);
@@ -3541,6 +3566,13 @@ function App() {
     }
     loadChatSessionIndexByAgent();
   }, [activePage, agentsRoute.view, loadChatSessionIndexByAgent, selectedCompanyId]);
+
+  useEffect(() => {
+    if (activePage !== "chats") {
+      return;
+    }
+    void navigateToChatsConversation({ replace: true });
+  }, [activePage]);
 
   useEffect(() => {
     if (!selectedCompanyId) {
@@ -6135,11 +6167,75 @@ function App() {
     }
   }, []);
 
+  async function navigateToChatsConversation({ replace = false } = {}) {
+    if (isNavigatingToChatsRef.current) {
+      return;
+    }
+    isNavigatingToChatsRef.current = true;
+
+    try {
+      if (!selectedCompanyId) {
+        setBrowserPath("/settings", { replace });
+        return;
+      }
+
+      let availableAgents = Array.isArray(agents) ? agents : [];
+      if (availableAgents.length === 0) {
+        availableAgents = await loadAgents();
+      }
+
+      const firstAgent = sortAgentsForChatNavigation(availableAgents)[0] || null;
+      const firstAgentId = String(firstAgent?.id || "").trim();
+      if (!firstAgentId) {
+        setBrowserPath("/agents", { replace });
+        return;
+      }
+
+      let sessionsByAgentSnapshot = chatSessionsByAgent;
+      const hasKnownSessionsForAgent = Array.isArray(sessionsByAgentSnapshot[firstAgentId])
+        && sessionsByAgentSnapshot[firstAgentId].length > 0;
+      if (!hasKnownSessionsForAgent) {
+        sessionsByAgentSnapshot = await loadChatSessionIndexByAgent({ silently: true });
+      }
+
+      const sessionsForFirstAgent = sortChatSessionsForChatNavigation(
+        Array.isArray(sessionsByAgentSnapshot[firstAgentId]) ? sessionsByAgentSnapshot[firstAgentId] : [],
+      );
+      const firstSessionId = String(sessionsForFirstAgent[0]?.id || "").trim();
+
+      if (firstSessionId) {
+        setChatAgentId(firstAgentId);
+        setChatSessionId(firstSessionId);
+        setChatTurns([]);
+        setQueuedChatMessages([]);
+        setChatError("");
+        setBrowserPath(`/agents/${firstAgentId}/chats/${firstSessionId}`, { replace });
+        return;
+      }
+
+      setChatAgentId(firstAgentId);
+      setChatSessionId("");
+      setChatTurns([]);
+      setQueuedChatMessages([]);
+      const createdSessionId = await handleCreateChatSession({ agentId: firstAgentId });
+      if (createdSessionId) {
+        setBrowserPath(`/agents/${firstAgentId}/chats/${createdSessionId}`, { replace });
+        return;
+      }
+
+      setBrowserPath(`/agents/${firstAgentId}/chats`, { replace });
+    } finally {
+      isNavigatingToChatsRef.current = false;
+    }
+  }
+
   function navigateTo(pageId) {
     if (String(pageId || "").trim().toLowerCase() === "chats") {
       setChatSessionId("");
       setChatTurns([]);
       setQueuedChatMessages([]);
+      void navigateToChatsConversation();
+      return;
     }
     setBrowserPath(getPathForPage(pageId));
   }
@@ -6547,67 +6643,6 @@ function App() {
               onRunnerNameChange={setRunnerNameDraft}
               onCreateRunner={handleCreateRunner}
               onDeleteRunner={handleDeleteRunner}
-            />
-          )
-        ) : null}
-
-        {selectedCompanyId && activePage === "chats" ? (
-          resolvedChatSessionId ? (
-            <AgentChatPage
-              selectedCompanyId={selectedCompanyId}
-              agent={agents.find((agent) => agent.id === chatAgentId) || null}
-              agents={agents}
-              session={selectedChatSession}
-              chatSessionsByAgent={chatSessionsByAgent}
-              chatSessionRunningById={chatSessionRunningById}
-              isLoadingChatIndex={isLoadingChatIndex}
-              isCreatingChatSession={isCreatingChatSession}
-              showChatSidebar={false}
-              chatSessionRenameDraft={chatSessionRenameDraft}
-              chatTurns={chatTurns}
-              queuedChatMessages={queuedChatMessages}
-              isLoadingChat={isLoadingChat}
-              chatError={chatError}
-              chatDraftMessage={chatDraftMessage}
-              isSendingChatMessage={isSendingChatMessage}
-              isInterruptingChatTurn={isInterruptingChatTurn}
-              isUpdatingChatTitle={isUpdatingChatTitle}
-              deletingChatSessionKey={deletingChatSessionKey}
-              steeringQueuedMessageId={steeringQueuedMessageId}
-              deletingQueuedMessageId={deletingQueuedMessageId}
-              getCreateChatDisabledReason={getChatCreateBlockedReasonByAgentId}
-              onChatSessionRenameDraftChange={handleChatSessionRenameDraftChange}
-              onChatDraftMessageChange={setChatDraftMessage}
-              onBackToChats={() => {
-                setChatSessionId("");
-                setChatTurns([]);
-                setQueuedChatMessages([]);
-                loadChatSessionIndexByAgent({ silently: true });
-              }}
-              onDeleteChat={handleDeleteChatSession}
-              onSaveChatSessionTitle={handleUpdateChatSessionTitle}
-              onSendChatMessage={handleSendChatMessage}
-              onInterruptChatTurn={handleInterruptChatTurn}
-              onSteerQueuedMessage={handleSteerQueuedChatMessage}
-              onDeleteQueuedMessage={handleDeleteQueuedChatMessage}
-              onCreateChatForAgent={handleCreateChatForAgent}
-              onOpenChatFromList={handleOpenChatFromList}
-            />
-          ) : (
-            <ChatsOverviewPage
-              selectedCompanyId={selectedCompanyId}
-              agents={agents}
-              chatSessionsByAgent={chatSessionsByAgent}
-              chatSessionRunningById={chatSessionRunningById}
-              isLoadingChatIndex={isLoadingChatIndex}
-              chatIndexError={chatIndexError}
-              isCreatingChatSession={isCreatingChatSession}
-              deletingChatSessionKey={deletingChatSessionKey}
-              onRefreshChatLists={() => loadChatSessionIndexByAgent()}
-              onCreateChatForAgent={handleCreateChatForAgent}
-              getCreateChatDisabledReason={getChatCreateBlockedReasonByAgentId}
-              onOpenChat={handleOpenChatFromList}
-              onDeleteChat={handleDeleteChatSession}
             />
           )
         ) : null}
