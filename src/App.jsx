@@ -6738,6 +6738,21 @@ function App() {
             onNewCompanyNameChange={setNewCompanyName}
             onCreateCompany={handleCreateCompany}
             onDeleteCompany={handleDeleteCompany}
+            githubAppInstallUrl={githubAppInstallUrl}
+            isLoadingGithubAppConfig={isLoadingGithubAppConfig}
+            githubAppConfigError={githubAppConfigError}
+            githubInstallations={githubInstallations}
+            githubRepositories={githubRepositories}
+            isLoadingGithubInstallations={isLoadingGithubInstallations}
+            isLoadingGithubRepositories={isLoadingGithubRepositories}
+            githubInstallationError={githubInstallationError}
+            githubInstallationNotice={githubInstallationNotice}
+            isAddingGithubInstallationFromCallback={isAddingGithubInstallationFromCallback}
+            pendingGithubInstallCallback={pendingGithubInstallCallback}
+            deletingGithubInstallationId={deletingGithubInstallationId}
+            refreshingGithubInstallationId={refreshingGithubInstallationId}
+            onDeleteGithubInstallation={handleDeleteGithubInstallation}
+            onRefreshGithubInstallationRepositories={handleRefreshGithubInstallationRepositories}
           />
         ) : null}
 

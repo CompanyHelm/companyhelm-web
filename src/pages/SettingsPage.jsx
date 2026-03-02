@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Page } from "../components/Page.jsx";
 import { CreationModal } from "../components/CreationModal.jsx";
 import { useSetPageActions } from "../components/PageActionsContext.jsx";
+import { formatTimestamp } from "../utils/formatting.js";
 
 export function SettingsPage({
   hasCompanies,
@@ -14,8 +15,36 @@ export function SettingsPage({
   onNewCompanyNameChange,
   onCreateCompany,
   onDeleteCompany,
+  githubAppInstallUrl,
+  isLoadingGithubAppConfig,
+  githubAppConfigError,
+  githubInstallations,
+  githubRepositories,
+  isLoadingGithubInstallations,
+  isLoadingGithubRepositories,
+  githubInstallationError,
+  githubInstallationNotice,
+  isAddingGithubInstallationFromCallback,
+  pendingGithubInstallCallback,
+  deletingGithubInstallationId,
+  refreshingGithubInstallationId,
+  onDeleteGithubInstallation,
+  onRefreshGithubInstallationRepositories,
 }) {
   const [isCreateCompanyModalOpen, setIsCreateCompanyModalOpen] = useState(false);
+  const repositoriesByInstallationId = useMemo(() => (
+    githubRepositories.reduce((grouped, repository) => {
+      const installationId = String(repository.githubInstallationId || "").trim();
+      if (!installationId) {
+        return grouped;
+      }
+      if (!grouped[installationId]) {
+        grouped[installationId] = [];
+      }
+      grouped[installationId].push(repository);
+      return grouped;
+    }, {})
+  ), [githubRepositories]);
 
   async function handleCreateCompanySubmit(event) {
     const didCreate = await onCreateCompany(event);
