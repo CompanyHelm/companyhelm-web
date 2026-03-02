@@ -20,6 +20,17 @@ import {
 
 const CHAT_COMPOSER_MIN_LINES = 2;
 const CHAT_COMPOSER_MAX_LINES = 10;
+const CHAT_SIDEBAR_MIN_WIDTH_PX = 176;
+const CHAT_SIDEBAR_MAX_WIDTH_PX = 480;
+const CHAT_SIDEBAR_DEFAULT_WIDTH_PX = 224;
+const CHAT_SIDEBAR_WIDTH_STORAGE_KEY = "agent-chat-sidebar-width-px";
+
+function clampChatSidebarWidth(value) {
+  if (!Number.isFinite(value)) {
+    return CHAT_SIDEBAR_DEFAULT_WIDTH_PX;
+  }
+  return Math.min(CHAT_SIDEBAR_MAX_WIDTH_PX, Math.max(CHAT_SIDEBAR_MIN_WIDTH_PX, value));
+}
 
 function toItemTypePlaceholder(itemType) {
   switch (itemType) {
@@ -144,9 +155,18 @@ export function AgentChatPage({
   const [isInstructionsExpanded, setIsInstructionsExpanded] = useState(false);
   const [selectedCommandOutputItem, setSelectedCommandOutputItem] = useState(null);
   const [selectedQueuedMessage, setSelectedQueuedMessage] = useState(null);
+  const [chatSidebarWidth, setChatSidebarWidth] = useState(() => {
+    if (typeof window === "undefined") {
+      return CHAT_SIDEBAR_DEFAULT_WIDTH_PX;
+    }
+    const storedWidth = Number.parseFloat(window.localStorage.getItem(CHAT_SIDEBAR_WIDTH_STORAGE_KEY) || "");
+    return clampChatSidebarWidth(storedWidth);
+  });
+  const [isResizingChatSidebar, setIsResizingChatSidebar] = useState(false);
   const [visibleMessageCount, setVisibleMessageCount] = useState(CHAT_MESSAGE_BATCH_SIZE);
   const chatMessageInputRef = useRef(null);
   const transcriptScrollRef = useRef(null);
+  const chatSidebarResizeStartRef = useRef(null);
   const shouldStickTranscriptToBottomRef = useRef(true);
   const isTranscriptNearTopRef = useRef(false);
   const pendingTranscriptScrollRestoreRef = useRef(null);
@@ -334,6 +354,78 @@ export function AgentChatPage({
     }
   }
 
+  const handleSidebarResizeStart = useCallback((event) => {
+    if (event.button !== 0) {
+      return;
+    }
+    chatSidebarResizeStartRef.current = {
+      startX: event.clientX,
+      startWidth: chatSidebarWidth,
+    };
+    setIsResizingChatSidebar(true);
+    if (typeof document !== "undefined") {
+      document.body.classList.add("chat-sidebar-resizing");
+    }
+    event.preventDefault();
+  }, [chatSidebarWidth]);
+
+  useEffect(() => {
+    if (!isResizingChatSidebar) {
+      return undefined;
+    }
+
+    const handleMouseMove = (event) => {
+      const resizeStart = chatSidebarResizeStartRef.current;
+      if (!resizeStart) {
+        return;
+      }
+      const deltaX = event.clientX - resizeStart.startX;
+      setChatSidebarWidth(clampChatSidebarWidth(resizeStart.startWidth + deltaX));
+    };
+
+    const stopResizing = () => {
+      setIsResizingChatSidebar(false);
+      chatSidebarResizeStartRef.current = null;
+      if (typeof document !== "undefined") {
+        document.body.classList.remove("chat-sidebar-resizing");
+      }
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", stopResizing);
+    window.addEventListener("mouseleave", stopResizing);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", stopResizing);
+      window.removeEventListener("mouseleave", stopResizing);
+      if (typeof document !== "undefined") {
+        document.body.classList.remove("chat-sidebar-resizing");
+      }
+    };
+  }, [isResizingChatSidebar]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.localStorage.setItem(CHAT_SIDEBAR_WIDTH_STORAGE_KEY, String(chatSidebarWidth));
+  }, [chatSidebarWidth]);
+
+  useEffect(() => {
+    if (showChatSidebar) {
+      return;
+    }
+    setIsResizingChatSidebar(false);
+    chatSidebarResizeStartRef.current = null;
+    if (typeof document !== "undefined") {
+      document.body.classList.remove("chat-sidebar-resizing");
+    }
+  }, [showChatSidebar]);
+
+  const chatMainLayoutStyle = showChatSidebar
+    ? { "--chat-sidebar-width": `${clampChatSidebarWidth(chatSidebarWidth)}px` }
+    : undefined;
+
   const pageActions = useMemo(() => (
     <>
       {hasRunningTurn ? (
@@ -378,7 +470,7 @@ export function AgentChatPage({
 
   return (
     <div className={`page-stack chat-page-stack${showChatSidebar ? " chat-page-stack-with-sidebar" : ""}`}>
-      <div className="chat-page-main-layout">
+      <div className="chat-page-main-layout" style={chatMainLayoutStyle}>
         {showChatSidebar ? (
           <aside className="panel list-panel chat-sidebar-panel">
             {isLoadingChatIndex ? <p className="empty-hint">Loading chats...</p> : null}
@@ -477,7 +569,7 @@ export function AgentChatPage({
                                   {isRunningSession ? <ChatSessionRunningBadge /> : null}
                                 </div>
                                 <div className="chat-card-main">
-                                  <p className="chat-card-title">
+                                  <p className="chat-card-title chat-sidebar-chat-title">
                                     <strong>{sidebarSession?.title || "Untitled chat"}</strong>
                                   </p>
                                 </div>
@@ -494,6 +586,15 @@ export function AgentChatPage({
               </ul>
             ) : null}
           </aside>
+        ) : null}
+        {showChatSidebar ? (
+          <div
+            className={`chat-sidebar-resizer${isResizingChatSidebar ? " chat-sidebar-resizer-active" : ""}`}
+            role="separator"
+            aria-label="Resize chat list"
+            aria-orientation="vertical"
+            onMouseDown={handleSidebarResizeStart}
+          />
         ) : null}
 
         <section className="panel chat-panel">

@@ -511,10 +511,12 @@ h3 {
   display: grid;
   gap: 0.72rem;
   grid-template-columns: minmax(0, 1fr);
+  --chat-sidebar-width: 224px;
 }
 
 .chat-page-stack-with-sidebar .chat-page-main-layout {
-  grid-template-columns: minmax(12rem, 15rem) minmax(0, 1fr);
+  gap: 0.56rem;
+  grid-template-columns: clamp(11rem, var(--chat-sidebar-width), 30rem) 0.42rem minmax(0, 1fr);
 }
 
 .chat-sidebar-panel {
@@ -644,6 +646,51 @@ h3 {
 .chat-sidebar-chat-list .chat-card-title strong {
   min-width: 0;
   max-width: 100%;
+}
+
+.chat-sidebar-chat-title {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-sidebar-chat-title strong {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-sidebar-resizer {
+  width: 100%;
+  min-height: 0;
+  cursor: col-resize;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    rgba(26, 32, 38, 0.04) 0%,
+    rgba(26, 32, 38, 0.2) 50%,
+    rgba(26, 32, 38, 0.04) 100%
+  );
+  transition: background 0.14s;
+}
+
+.chat-sidebar-resizer:hover,
+.chat-sidebar-resizer-active {
+  background: linear-gradient(
+    to right,
+    rgba(15, 118, 110, 0.14) 0%,
+    rgba(15, 118, 110, 0.62) 50%,
+    rgba(15, 118, 110, 0.14) 100%
+  );
+}
+
+body.chat-sidebar-resizing {
+  cursor: col-resize !important;
+  user-select: none;
 }
 
 .chat-sidebar-empty {
@@ -2795,6 +2842,10 @@ button:disabled {
 
   .chat-page-stack-with-sidebar .chat-page-main-layout {
     grid-template-columns: 1fr;
+  }
+
+  .chat-sidebar-resizer {
+    display: none;
   }
 
   .chat-sidebar-panel {
