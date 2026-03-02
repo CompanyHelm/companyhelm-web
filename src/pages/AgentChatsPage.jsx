@@ -4,8 +4,73 @@ import { CreationModal } from "../components/CreationModal.jsx";
 import { AgentEditModal } from "../components/AgentEditModal.jsx";
 import { ChatSessionRunningBadge } from "../components/ChatSessionRunningBadge.jsx";
 import { isChatSessionRunning } from "../utils/chat.js";
-import { formatTimestamp } from "../utils/formatting.js";
+import { formatRunnerLabel, formatTimestamp } from "../utils/formatting.js";
+import { normalizeUniqueStringList } from "../utils/normalization.js";
 import { useSetPageActions } from "../components/PageActionsContext.jsx";
+
+function collectRoleAndSubroleIds(roleIds, roles) {
+  const normalizedRoleIds = normalizeUniqueStringList(roleIds || []);
+  if (normalizedRoleIds.length === 0) {
+    return [];
+  }
+
+  const childRoleIdsByParentId = new Map();
+  for (const role of Array.isArray(roles) ? roles : []) {
+    const roleId = String(role?.id || "").trim();
+    const parentRoleId = String(role?.parentRole?.id || "").trim();
+    if (!roleId || !parentRoleId) {
+      continue;
+    }
+
+    const existingChildRoleIds = childRoleIdsByParentId.get(parentRoleId);
+    if (existingChildRoleIds) {
+      existingChildRoleIds.push(roleId);
+    } else {
+      childRoleIdsByParentId.set(parentRoleId, [roleId]);
+    }
+  }
+
+  const visitedRoleIds = new Set();
+  const expandedRoleIds = [];
+  const queue = [...normalizedRoleIds];
+
+  while (queue.length > 0) {
+    const nextRoleId = String(queue.shift() || "").trim();
+    if (!nextRoleId || visitedRoleIds.has(nextRoleId)) {
+      continue;
+    }
+
+    visitedRoleIds.add(nextRoleId);
+    expandedRoleIds.push(nextRoleId);
+    const childRoleIds = childRoleIdsByParentId.get(nextRoleId) || [];
+    for (const childRoleId of childRoleIds) {
+      if (!visitedRoleIds.has(childRoleId)) {
+        queue.push(childRoleId);
+      }
+    }
+  }
+
+  return expandedRoleIds;
+}
+
+function resolveEffectiveRoleMcpServerIds(roleIds, roles, roleMcpServerIdsByRoleId) {
+  const expandedRoleIds = collectRoleAndSubroleIds(roleIds, roles);
+  const mcpServerIds = [];
+  const seenMcpServerIds = new Set();
+
+  for (const roleId of expandedRoleIds) {
+    const assignedMcpServerIds = normalizeUniqueStringList(roleMcpServerIdsByRoleId?.[roleId] || []);
+    for (const mcpServerId of assignedMcpServerIds) {
+      if (seenMcpServerIds.has(mcpServerId)) {
+        continue;
+      }
+      seenMcpServerIds.add(mcpServerId);
+      mcpServerIds.push(mcpServerId);
+    }
+  }
+
+  return mcpServerIds;
+}
 
 export function AgentChatsPage({
   selectedCompanyId,
@@ -44,6 +109,87 @@ export function AgentChatsPage({
   const isCreateChatDisabled = !agent || isCreatingChatSession || Boolean(resolvedCreateChatDisabledReason);
   const [isCreateSettingsOpen, setIsCreateSettingsOpen] = useState(false);
   const [isEditAgentModalOpen, setIsEditAgentModalOpen] = useState(false);
+  const runnerLookup = useMemo(() => {
+    return (Array.isArray(agentRunners) ? agentRunners : []).reduce((map, runner) => {
+      const runnerId = String(runner?.id || "").trim();
+      if (runnerId) {
+        map.set(runnerId, runner);
+      }
+      return map;
+    }, new Map());
+  }, [agentRunners]);
+  const roleLookup = useMemo(() => {
+    return (Array.isArray(roles) ? roles : []).reduce((map, role) => {
+      const roleId = String(role?.id || "").trim();
+      if (roleId) {
+        map.set(roleId, role);
+      }
+      return map;
+    }, new Map());
+  }, [roles]);
+  const mcpServerLookup = useMemo(() => {
+    return (Array.isArray(mcpServers) ? mcpServers : []).reduce((map, mcpServer) => {
+      const mcpServerId = String(mcpServer?.id || "").trim();
+      if (mcpServerId) {
+        map.set(mcpServerId, mcpServer);
+      }
+      return map;
+    }, new Map());
+  }, [mcpServers]);
+  const chatCountLabel = useMemo(() => {
+    if (!agent) {
+      return "";
+    }
+    if (chatSessions.length === 0) {
+      return "No chats";
+    }
+    if (chatSessions.length === 1) {
+      return "1 chat";
+    }
+    return `${chatSessions.length} chats`;
+  }, [agent, chatSessions.length]);
+  const agentSummary = useMemo(() => {
+    if (!agent) {
+      return null;
+    }
+
+    const assignedRunner = agent.agentRunnerId
+      ? runnerLookup.get(agent.agentRunnerId) || {
+          id: agent.agentRunnerId,
+          status: "disconnected",
+        }
+      : null;
+    const assignedRunnerLabel = assignedRunner ? formatRunnerLabel(assignedRunner) : "Unassigned";
+    const assignedRoleIds = normalizeUniqueStringList(agent.roleIds || []);
+    const assignedRoleLabels = assignedRoleIds.map((roleId) => {
+      const role = roleLookup.get(roleId);
+      return role ? role.name : roleId;
+    });
+    const assignedRoleSummary = assignedRoleLabels.length > 0 ? assignedRoleLabels.join(", ") : "none";
+    const effectiveMcpServerIds = resolveEffectiveRoleMcpServerIds(
+      assignedRoleIds,
+      roles,
+      roleMcpServerIdsByRoleId,
+    );
+    const effectiveMcpServerLabels = effectiveMcpServerIds.map((mcpServerId) => {
+      const mcpServer = mcpServerLookup.get(mcpServerId);
+      return mcpServer ? mcpServer.name : mcpServerId;
+    });
+    const effectiveMcpServerSummary =
+      effectiveMcpServerLabels.length > 0 ? effectiveMcpServerLabels.join(", ") : "none";
+    const modelLabel = String(agent.model || "").trim() || "n/a";
+    const reasoningLabel = String(agent.modelReasoningLevel || "").trim() || "n/a";
+    const instructions = String(agent.defaultAdditionalModelInstructions || "").trim();
+
+    return {
+      assignedRunnerLabel,
+      assignedRoleSummary,
+      effectiveMcpServerSummary,
+      modelLabel,
+      reasoningLabel,
+      instructions,
+    };
+  }, [agent, mcpServerLookup, roleLookup, roleMcpServerIdsByRoleId, roles, runnerLookup]);
 
   async function handleNewChat() {
     const createdSessionId = await onCreateChatSession({
@@ -76,8 +222,55 @@ export function AgentChatsPage({
   return (
     <Page><div className="page-stack">
       <section className="panel list-panel">
-        {chatError ? <p className="error-banner">Chat error: {chatError}</p> : null}
         {!agent ? <p className="empty-hint">Agent not found.</p> : null}
+        {agent && agentSummary ? (
+          <>
+            <header className="panel-header panel-header-row">
+              <h2>{agent.name}</h2>
+              <button type="button" className="secondary-btn" onClick={onBackToAgents}>Back to agents</button>
+            </header>
+            <section className="skill-detail-section">
+              <h3>Read-only</h3>
+              <p className="chat-card-meta">Agent ID: {agent.id}</p>
+              <div className="skill-detail-info">
+                <p className="chat-card-meta">Runner: {agentSummary.assignedRunnerLabel}</p>
+                <p className="chat-card-meta">SDK: {agent.agentSdk || "n/a"}</p>
+                <p className="chat-card-meta">Model: {agentSummary.modelLabel}</p>
+                <p className="chat-card-meta">Reasoning: {agentSummary.reasoningLabel}</p>
+              </div>
+              <p className="chat-card-meta">Roles: {agentSummary.assignedRoleSummary}</p>
+              <p className="chat-card-meta">MCP servers (effective): {agentSummary.effectiveMcpServerSummary}</p>
+              <p className="chat-card-meta">Default additional instructions:</p>
+              {agentSummary.instructions ? <pre className="skill-content-raw">{agentSummary.instructions}</pre> : (
+                <p className="empty-hint">No default additional instructions.</p>
+              )}
+            </section>
+            <section className="skill-detail-section">
+              <div className="skill-detail-section-header">
+                <h3>Edit</h3>
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={() => setIsEditAgentModalOpen(true)}
+                  aria-label="Edit agent settings"
+                >
+                  Edit agent settings
+                </button>
+              </div>
+              <p className="chat-card-meta">
+                Update runner assignment, model, roles, MCP servers, and default instructions in the editor.
+              </p>
+            </section>
+          </>
+        ) : null}
+      </section>
+
+      <section className="panel list-panel">
+        <header className="panel-header panel-header-row">
+          <h3>Chats</h3>
+          {agent ? <span className="chat-card-meta">{chatCountLabel}</span> : null}
+        </header>
+        {chatError ? <p className="error-banner">Chat error: {chatError}</p> : null}
         {agent && isLoadingChatSessions ? <p className="empty-hint">Loading chats...</p> : null}
         {agent && !isLoadingChatSessions && chatSessions.length === 0 ? (
           <p className="empty-hint">No chats yet. Use the "New chat" card to start one.</p>

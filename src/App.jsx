@@ -6323,6 +6323,8 @@ function App() {
     },
     [taskLookup],
   );
+  const activePrimaryNavItemId =
+    activePage === "agents" && agentsRoute.view === "chat" ? "chats" : activePage;
 
   return (
     <PageActionsProvider>
@@ -6403,7 +6405,7 @@ function App() {
                       collapseSideMenuOnCompactViewport();
                     }}
                     className={`nav-link ${
-                      activePage === item.id ? "nav-link-active" : ""
+                      activePrimaryNavItemId === item.id ? "nav-link-active" : ""
                     } ${isDisabled ? "nav-link-disabled" : ""}`}
                   >
                     {item.label}
@@ -6425,7 +6427,7 @@ function App() {
                 collapseSideMenuOnCompactViewport();
               }}
               className={`nav-link ${
-                activePage === item.id ? "nav-link-active" : ""
+                activePrimaryNavItemId === item.id ? "nav-link-active" : ""
               }`}
             >
               {item.label}
