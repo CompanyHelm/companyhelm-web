@@ -3,7 +3,7 @@ import { Page } from "../components/Page.jsx";
 import { formatTimestamp, normalizeRunnerStatus } from "../utils/formatting.js";
 import { normalizeRunnerAvailableAgentSdks, normalizeRunnerCodexAvailableModels } from "../utils/normalization.js";
 import { DEFAULT_AGENT_SDK } from "../utils/constants.js";
-import { setBrowserPath } from "../utils/path.js";
+import { getChatsPath, setBrowserPath } from "../utils/path.js";
 
 export function AgentRunnerDetailPage({
   runner,
@@ -70,12 +70,12 @@ export function AgentRunnerDetailPage({
                 <li
                   key={agent.id}
                   className="chat-card"
-                  onClick={() => setBrowserPath(`/agents/${agent.id}/chats`)}
+                  onClick={() => setBrowserPath(getChatsPath({ agentId: agent.id }))}
                   role="button"
                   tabIndex={0}
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {
-                      setBrowserPath(`/agents/${agent.id}/chats`);
+                      setBrowserPath(getChatsPath({ agentId: agent.id }));
                     }
                   }}
                 >

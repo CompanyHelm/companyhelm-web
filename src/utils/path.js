@@ -143,12 +143,48 @@ export function getGitSkillPackagesRouteFromPathname(pathname = window.location.
   return { view: "detail", packageId };
 }
 
+export function getChatsRouteFromLocation({
+  pathname = window.location.pathname,
+  search = window.location.search,
+} = {}) {
+  const normalizedPath = normalizePathname(pathname);
+  if (normalizedPath !== "/chats") {
+    return { agentId: "", threadId: "" };
+  }
+
+  const params = new URLSearchParams(String(search || ""));
+  const agentId = String(params.get("agentId") || "").trim();
+  const threadId = String(params.get("threadId") || "").trim();
+  return { agentId, threadId };
+}
+
+export function getChatsPath({ agentId = "", threadId = "" } = {}) {
+  const params = new URLSearchParams();
+  const resolvedAgentId = String(agentId || "").trim();
+  const resolvedThreadId = String(threadId || "").trim();
+  if (resolvedAgentId) {
+    params.set("agentId", resolvedAgentId);
+  }
+  if (resolvedThreadId) {
+    params.set("threadId", resolvedThreadId);
+  }
+  const query = params.toString();
+  return query ? `/chats?${query}` : "/chats";
+}
+
 export function setBrowserPath(pathname, { replace = false } = {}) {
-  const nextPath = normalizePathname(pathname);
-  const currentPath = normalizePathname(window.location.pathname);
-  if (nextPath === currentPath) {
+  const currentUrl = new URL(window.location.href);
+  const nextUrl = new URL(String(pathname || "/"), currentUrl.origin);
+  const nextPathname = normalizePathname(nextUrl.pathname);
+  const currentPathname = normalizePathname(currentUrl.pathname);
+  const nextSearch = String(nextUrl.search || "");
+  const currentSearch = String(currentUrl.search || "");
+
+  if (nextPathname === currentPathname && nextSearch === currentSearch) {
     return;
   }
+
+  const nextPath = `${nextPathname}${nextSearch}`;
   if (replace) {
     window.history.replaceState({}, "", nextPath);
   } else {

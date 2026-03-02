@@ -176,6 +176,8 @@ import {
   getRolesRouteFromPathname,
   getGitSkillPackagesRouteFromPathname,
   getRunnersRouteFromPathname,
+  getChatsRouteFromLocation,
+  getChatsPath,
   setBrowserPath,
   getPathForPage,
   parseGithubInstallCallbackFromLocation,
@@ -2030,6 +2032,7 @@ function App() {
     () => getGitSkillPackagesRouteFromPathname(),
   );
   const [runnersRoute, setRunnersRoute] = useState(() => getRunnersRouteFromPathname());
+  const [chatsRoute, setChatsRoute] = useState(() => getChatsRouteFromLocation());
   const [companies, setCompanies] = useState([]);
   const [isLoadingCompanies, setIsLoadingCompanies] = useState(true);
   const [companyError, setCompanyError] = useState("");
@@ -2238,8 +2241,8 @@ function App() {
   );
 
   const resolvedChatSessionId = useMemo(
-    () => resolveLegacyId(chatSessionId, agentsRoute.sessionId),
-    [chatSessionId, agentsRoute.sessionId],
+    () => resolveLegacyId(chatSessionId, agentsRoute.sessionId, chatsRoute.threadId),
+    [chatSessionId, agentsRoute.sessionId, chatsRoute.threadId],
   );
 
   const selectedChatSession = useMemo(() => {
@@ -2415,7 +2418,10 @@ function App() {
       ];
 
       if (agentsRoute.view === "chat" && agentsRoute.sessionId) {
-        const chatHref = `/agents/${agentsRoute.agentId}/chats/${agentsRoute.sessionId}`;
+        const chatHref = getChatsPath({
+          agentId: agentsRoute.agentId,
+          threadId: agentsRoute.sessionId,
+        });
         return [
           ...items,
           { label: getChatLabel(agentsRoute.sessionId), href: chatHref },
@@ -2428,10 +2434,10 @@ function App() {
     if (activePage === "chats") {
       const items = [{ label: "Chats", href: "/chats" }];
       if (chatAgentId && resolvedChatSessionId) {
-        items.push({ label: getAgentLabel(chatAgentId), href: `/agents/${chatAgentId}/chats` });
+        items.push({ label: getAgentLabel(chatAgentId), href: getChatsPath({ agentId: chatAgentId }) });
         items.push({
           label: getChatLabel(resolvedChatSessionId),
-          href: `/agents/${chatAgentId}/chats/${resolvedChatSessionId}`,
+          href: getChatsPath({ agentId: chatAgentId, threadId: resolvedChatSessionId }),
         });
       }
       return items;
@@ -3572,7 +3578,7 @@ function App() {
       return;
     }
     void navigateToChatsConversation({ replace: true });
-  }, [activePage]);
+  }, [activePage, chatsRoute.agentId, chatsRoute.threadId]);
 
   useEffect(() => {
     if (!selectedCompanyId) {
@@ -3582,13 +3588,19 @@ function App() {
       return;
     }
 
+    const routeAgentId = activePage === "chats" ? String(chatsRoute.agentId || "").trim() : "";
     setChatAgentId((currentAgentId) => {
+      if (routeAgentId) {
+        if (agents.length === 0 || agents.some((agent) => agent.id === routeAgentId)) {
+          return routeAgentId;
+        }
+      }
       if (currentAgentId && agents.some((agent) => agent.id === currentAgentId)) {
         return currentAgentId;
       }
       return agents[0]?.id || "";
     });
-  }, [agents, selectedCompanyId]);
+  }, [activePage, agents, chatsRoute.agentId, selectedCompanyId]);
 
   useEffect(() => {
     if (!chatAgentId) {
@@ -3600,6 +3612,11 @@ function App() {
     }
 
     if (activePage === "chats") {
+      const routeThreadId = String(chatsRoute.threadId || "").trim();
+      if (routeThreadId) {
+        setChatSessionId(routeThreadId);
+        return;
+      }
       setChatSessionId((currentSessionId) => {
         if (!currentSessionId) {
           return "";
@@ -3634,7 +3651,15 @@ function App() {
       }
       return chatSessions[0]?.id || "";
     });
-  }, [activePage, agentsRoute.sessionId, agentsRoute.view, chatAgentId, chatSessionId, chatSessions]);
+  }, [
+    activePage,
+    agentsRoute.sessionId,
+    agentsRoute.view,
+    chatAgentId,
+    chatSessionId,
+    chatSessions,
+    chatsRoute.threadId,
+  ]);
 
   useEffect(() => {
     const legacyHashRoute = String(window.location.hash || "")
@@ -3657,6 +3682,7 @@ function App() {
       setRolesRoute(getRolesRouteFromPathname());
       setGitSkillPackagesRoute(getGitSkillPackagesRouteFromPathname());
       setRunnersRoute(getRunnersRouteFromPathname());
+      setChatsRoute(getChatsRouteFromLocation());
     };
 
     handlePopState();
@@ -3684,6 +3710,26 @@ function App() {
     mediaQueryList.addListener(handleMediaQueryChange);
     return () => mediaQueryList.removeListener(handleMediaQueryChange);
   }, []);
+
+  useEffect(() => {
+    if (activePage !== "agents" || agentsRoute.view !== "chat") {
+      return;
+    }
+
+    const routeAgentId = String(agentsRoute.agentId || "").trim();
+    const routeSessionId = String(agentsRoute.sessionId || "").trim();
+    if (!routeAgentId || !routeSessionId) {
+      return;
+    }
+
+    setBrowserPath(
+      getChatsPath({
+        agentId: routeAgentId,
+        threadId: routeSessionId,
+      }),
+      { replace: true },
+    );
+  }, [activePage, agentsRoute.agentId, agentsRoute.sessionId, agentsRoute.view]);
 
   useEffect(() => {
     if (activePage !== "agents" || !selectedCompanyId) {
@@ -5898,7 +5944,7 @@ function App() {
     setChatTurns([]);
     setQueuedChatMessages([]);
     setChatError("");
-    setBrowserPath(`/agents/${resolvedAgentId}/chats/${resolvedSessionId}`);
+    setBrowserPath(getChatsPath({ agentId: resolvedAgentId, threadId: resolvedSessionId }));
   }
 
   async function handleCreateChatForAgent(agentId) {
@@ -5912,7 +5958,7 @@ function App() {
     setQueuedChatMessages([]);
     const createdSessionId = await handleCreateChatSession({ agentId: resolvedAgentId });
     if (createdSessionId) {
-      setBrowserPath(`/agents/${resolvedAgentId}/chats/${createdSessionId}`);
+      setBrowserPath(getChatsPath({ agentId: resolvedAgentId, threadId: createdSessionId }));
     }
   }
 
@@ -5936,6 +5982,9 @@ function App() {
     const agentSessions = Array.isArray(chatSessionsByAgent[targetAgentId])
       ? chatSessionsByAgent[targetAgentId]
       : [];
+    const remainingSessionsForTargetAgent = agentSessions.filter(
+      (session) => String(session?.id || "").trim() !== targetSessionId,
+    );
     const matchingSession = agentSessions.find((session) => String(session?.id || "").trim() === targetSessionId)
       || chatSessions.find((session) => String(session?.id || "").trim() === targetSessionId)
       || null;
@@ -5982,15 +6031,68 @@ function App() {
       });
 
       if (resolvedChatSessionId === targetSessionId) {
+        const sortedRemainingSessionsForTargetAgent =
+          sortChatSessionsForChatNavigation(remainingSessionsForTargetAgent);
+        const firstRemainingSessionForTargetAgent = sortedRemainingSessionsForTargetAgent[0] || null;
+        let fallbackChatTarget = firstRemainingSessionForTargetAgent
+          ? {
+              agentId: targetAgentId,
+              threadId: String(firstRemainingSessionForTargetAgent?.id || "").trim(),
+            }
+          : null;
+
+        if (!fallbackChatTarget) {
+          const sessionsByAgentAfterDelete = {
+            ...chatSessionsByAgent,
+            [targetAgentId]: remainingSessionsForTargetAgent,
+          };
+          const sortedAgents = sortAgentsForChatNavigation(agents);
+          for (const agentEntry of sortedAgents) {
+            const fallbackAgentId = String(agentEntry?.id || "").trim();
+            if (!fallbackAgentId) {
+              continue;
+            }
+            const fallbackSessionsForAgent = sortChatSessionsForChatNavigation(
+              Array.isArray(sessionsByAgentAfterDelete[fallbackAgentId])
+                ? sessionsByAgentAfterDelete[fallbackAgentId]
+                : [],
+            );
+            const fallbackSession = fallbackSessionsForAgent[0] || null;
+            const fallbackThreadId = String(fallbackSession?.id || "").trim();
+            if (fallbackThreadId) {
+              fallbackChatTarget = {
+                agentId: fallbackAgentId,
+                threadId: fallbackThreadId,
+              };
+              break;
+            }
+          }
+        }
+
         setChatSessionId("");
         setChatTurns([]);
         setQueuedChatMessages([]);
+        if (activePage === "chats") {
+          if (fallbackChatTarget?.agentId && fallbackChatTarget?.threadId) {
+            setChatAgentId(fallbackChatTarget.agentId);
+            setChatSessionId(fallbackChatTarget.threadId);
+            setBrowserPath(
+              getChatsPath({
+                agentId: fallbackChatTarget.agentId,
+                threadId: fallbackChatTarget.threadId,
+              }),
+              { replace: true },
+            );
+          } else {
+            setBrowserPath(getChatsPath({ agentId: targetAgentId }), { replace: true });
+          }
+        }
         if (
           activePage === "agents"
           && agentsRoute.view === "chat"
           && String(agentsRoute.agentId || "").trim() === targetAgentId
         ) {
-          setBrowserPath(`/agents/${targetAgentId}/chats`);
+          setBrowserPath(`/agents/${targetAgentId}`);
         }
       }
 
@@ -6179,51 +6281,85 @@ function App() {
         return;
       }
 
+      const requestedAgentId = String(chatsRoute.agentId || "").trim();
+      const requestedThreadId = String(chatsRoute.threadId || "").trim();
+      if (requestedAgentId && requestedThreadId) {
+        setChatAgentId(requestedAgentId);
+        setChatSessionId(requestedThreadId);
+        setChatTurns([]);
+        setQueuedChatMessages([]);
+        setChatError("");
+        setBrowserPath(
+          getChatsPath({ agentId: requestedAgentId, threadId: requestedThreadId }),
+          { replace },
+        );
+        return;
+      }
+
       let availableAgents = Array.isArray(agents) ? agents : [];
       if (availableAgents.length === 0) {
         availableAgents = await loadAgents();
       }
 
-      const firstAgent = sortAgentsForChatNavigation(availableAgents)[0] || null;
-      const firstAgentId = String(firstAgent?.id || "").trim();
-      if (!firstAgentId) {
+      let targetAgentId = requestedAgentId;
+      if (!targetAgentId) {
+        const firstAgent = sortAgentsForChatNavigation(availableAgents)[0] || null;
+        targetAgentId = String(firstAgent?.id || "").trim();
+      }
+      if (!targetAgentId) {
         setBrowserPath("/agents", { replace });
         return;
       }
 
       let sessionsByAgentSnapshot = chatSessionsByAgent;
-      const hasKnownSessionsForAgent = Array.isArray(sessionsByAgentSnapshot[firstAgentId])
-        && sessionsByAgentSnapshot[firstAgentId].length > 0;
-      if (!hasKnownSessionsForAgent) {
+      const hasLoadedSessionsForAgent = Array.isArray(sessionsByAgentSnapshot[targetAgentId]);
+      if (!hasLoadedSessionsForAgent) {
         sessionsByAgentSnapshot = await loadChatSessionIndexByAgent({ silently: true });
       }
 
-      const sessionsForFirstAgent = sortChatSessionsForChatNavigation(
-        Array.isArray(sessionsByAgentSnapshot[firstAgentId]) ? sessionsByAgentSnapshot[firstAgentId] : [],
+      const sessionsForAgent = sortChatSessionsForChatNavigation(
+        Array.isArray(sessionsByAgentSnapshot[targetAgentId]) ? sessionsByAgentSnapshot[targetAgentId] : [],
       );
-      const firstSessionId = String(sessionsForFirstAgent[0]?.id || "").trim();
+      if (requestedThreadId) {
+        const hasRequestedSession = sessionsForAgent.some(
+          (session) => String(session?.id || "").trim() === requestedThreadId,
+        );
+        if (hasRequestedSession) {
+          setChatAgentId(targetAgentId);
+          setChatSessionId(requestedThreadId);
+          setChatTurns([]);
+          setQueuedChatMessages([]);
+          setChatError("");
+          setBrowserPath(
+            getChatsPath({ agentId: targetAgentId, threadId: requestedThreadId }),
+            { replace },
+          );
+          return;
+        }
+      }
+      const firstSessionId = String(sessionsForAgent[0]?.id || "").trim();
 
       if (firstSessionId) {
-        setChatAgentId(firstAgentId);
+        setChatAgentId(targetAgentId);
         setChatSessionId(firstSessionId);
         setChatTurns([]);
         setQueuedChatMessages([]);
         setChatError("");
-        setBrowserPath(`/agents/${firstAgentId}/chats/${firstSessionId}`, { replace });
+        setBrowserPath(getChatsPath({ agentId: targetAgentId, threadId: firstSessionId }), { replace });
         return;
       }
 
-      setChatAgentId(firstAgentId);
+      setChatAgentId(targetAgentId);
       setChatSessionId("");
       setChatTurns([]);
       setQueuedChatMessages([]);
-      const createdSessionId = await handleCreateChatSession({ agentId: firstAgentId });
+      const createdSessionId = await handleCreateChatSession({ agentId: targetAgentId });
       if (createdSessionId) {
-        setBrowserPath(`/agents/${firstAgentId}/chats/${createdSessionId}`, { replace });
+        setBrowserPath(getChatsPath({ agentId: targetAgentId, threadId: createdSessionId }), { replace });
         return;
       }
 
-      setBrowserPath(`/agents/${firstAgentId}/chats`, { replace });
+      setBrowserPath(getChatsPath({ agentId: targetAgentId }), { replace });
     } finally {
       isNavigatingToChatsRef.current = false;
     }
@@ -6649,6 +6785,44 @@ function App() {
           )
         ) : null}
 
+        {selectedCompanyId && activePage === "chats" ? (
+          <AgentChatPage
+            selectedCompanyId={selectedCompanyId}
+            agent={agents.find((agent) => agent.id === chatAgentId) || null}
+            agents={agents}
+            session={selectedChatSession}
+            chatSessionsByAgent={chatSessionsByAgent}
+            chatSessionRunningById={chatSessionRunningById}
+            isLoadingChatIndex={isLoadingChatIndex}
+            isCreatingChatSession={isCreatingChatSession}
+            showChatSidebar
+            chatSessionRenameDraft={chatSessionRenameDraft}
+            chatTurns={chatTurns}
+            queuedChatMessages={queuedChatMessages}
+            isLoadingChat={isLoadingChat}
+            chatError={chatError}
+            chatDraftMessage={chatDraftMessage}
+            isSendingChatMessage={isSendingChatMessage}
+            isInterruptingChatTurn={isInterruptingChatTurn}
+            isUpdatingChatTitle={isUpdatingChatTitle}
+            deletingChatSessionKey={deletingChatSessionKey}
+            steeringQueuedMessageId={steeringQueuedMessageId}
+            deletingQueuedMessageId={deletingQueuedMessageId}
+            getCreateChatDisabledReason={getChatCreateBlockedReasonByAgentId}
+            onChatSessionRenameDraftChange={handleChatSessionRenameDraftChange}
+            onChatDraftMessageChange={setChatDraftMessage}
+            onBackToChats={() => {}}
+            onDeleteChat={handleDeleteChatSession}
+            onSaveChatSessionTitle={handleUpdateChatSessionTitle}
+            onSendChatMessage={handleSendChatMessage}
+            onInterruptChatTurn={handleInterruptChatTurn}
+            onSteerQueuedMessage={handleSteerQueuedChatMessage}
+            onDeleteQueuedMessage={handleDeleteQueuedChatMessage}
+            onCreateChatForAgent={handleCreateChatForAgent}
+            onOpenChatFromList={handleOpenChatFromList}
+          />
+        ) : null}
+
         {selectedCompanyId && activePage === "agents" ? (
           agentsRoute.view === "agent" || agentsRoute.view === "chats" ? (
             <AgentChatsPage
@@ -6673,7 +6847,7 @@ function App() {
                 if (!chatAgentId || !sessionId) {
                   return;
                 }
-                setBrowserPath(`/agents/${chatAgentId}/chats/${sessionId}`);
+                setBrowserPath(getChatsPath({ agentId: chatAgentId, threadId: sessionId }));
               }}
               onSetChatDraftMessage={setChatDraftMessage}
               onDeleteChat={handleDeleteChatSession}
@@ -6724,7 +6898,7 @@ function App() {
                   navigateTo("agents");
                   return;
                 }
-                setBrowserPath(`/agents/${chatAgentId}`);
+                setBrowserPath(getChatsPath({ agentId: chatAgentId }));
               }}
               onDeleteChat={handleDeleteChatSession}
               onSaveChatSessionTitle={handleUpdateChatSessionTitle}
