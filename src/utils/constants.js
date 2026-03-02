@@ -1,11 +1,16 @@
 // NOTE: GRAPHQL_WS_URL depends on resolveGraphQLWebSocketUrl from media.js
 import { resolveGraphQLWebSocketUrl } from "./media.js";
 
-export const GRAPHQL_URL = import.meta.env.VITE_GRAPHQL_URL || "/graphql";
-export const GRAPHQL_WS_URL = import.meta.env.VITE_GRAPHQL_WS_URL || resolveGraphQLWebSocketUrl(GRAPHQL_URL);
+const viteEnv = import.meta?.env ?? {};
+
+export const GRAPHQL_URL = viteEnv.VITE_GRAPHQL_URL || "/graphql";
+export const GRAPHQL_WS_URL = viteEnv.VITE_GRAPHQL_WS_URL || resolveGraphQLWebSocketUrl(GRAPHQL_URL);
+export const AUTH_PROVIDER = viteEnv.VITE_AUTH_PROVIDER || "companyhelm";
+export const COMPANYHELM_AUTH_TOKEN_STORAGE_KEY =
+  viteEnv.VITE_COMPANYHELM_TOKEN_STORAGE_KEY || "companyhelm.auth.token";
 export const SELECTED_COMPANY_STORAGE_KEY = "companyhelm.selectedCompanyId";
 export const DEFAULT_RUNNER_GRPC_TARGET =
-  import.meta.env.VITE_AGENT_RUNNER_GRPC_TARGET || "localhost:50051";
+  viteEnv.VITE_AGENT_RUNNER_GRPC_TARGET || "localhost:50051";
 export const DEFAULT_GITHUB_APP_INSTALL_URL = "https://github.com/apps/companyhelm";
 export const GITHUB_INSTALL_CALLBACK_PATH = "/github/install";
 export const AVAILABLE_AGENT_SDKS = ["codex"];

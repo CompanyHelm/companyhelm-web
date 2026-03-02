@@ -3,3 +3,7 @@ server:
   listeningPort: 5173
 api:
   graphqlApiUrl: "http://127.0.0.1:4000/graphql"
+authProvider: "companyhelm"
+auth:
+  companyhelm:
+    tokenStorageKey: "companyhelm.auth.token"

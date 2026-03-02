@@ -8,4 +8,10 @@ export const frontendConfigSchema = z.object({
   api: z.object({
     graphqlApiUrl: z.string().url(),
   }),
+  authProvider: z.literal("companyhelm"),
+  auth: z.object({
+    companyhelm: z.object({
+      tokenStorageKey: z.string().min(1),
+    }),
+  }),
 });

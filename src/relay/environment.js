@@ -6,6 +6,7 @@ import {
   RecordSource,
   Store,
 } from "relay-runtime";
+import { authProvider } from "../auth/runtime.js";
 import { GRAPHQL_URL, GRAPHQL_WS_URL } from "../utils/constants.js";
 
 // Keep cache short-lived so live chat/admin views remain fresh while still deduping bursts.
@@ -53,11 +54,17 @@ async function performHttpGraphQLRequest(params, variables, operationKind, cache
     throw new Error(`Relay operation '${String(params?.name || "anonymous")}' is missing GraphQL query text.`);
   }
 
+  const headers = {
+    "Content-Type": "application/json",
+  };
+  const authorization = authProvider.getAuthorizationHeaderValue();
+  if (authorization) {
+    headers.Authorization = authorization;
+  }
+
   const response = await fetch(GRAPHQL_URL, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers,
     body: JSON.stringify({
       query: queryText,
       variables: variables || {},
@@ -152,7 +159,19 @@ function subscribeGraphQL(params, variables) {
     };
 
     const handleOpen = () => {
-      socket.send(JSON.stringify({ type: "connection_init" }));
+      const authorization = authProvider.getAuthorizationHeaderValue();
+      const payload = authorization
+        ? {
+          authorization,
+          headers: {
+            authorization,
+          },
+        }
+        : undefined;
+      socket.send(JSON.stringify({
+        type: "connection_init",
+        ...(payload ? { payload } : {}),
+      }));
     };
 
     const handleMessage = (event) => {
