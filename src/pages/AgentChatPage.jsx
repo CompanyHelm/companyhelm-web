@@ -495,7 +495,6 @@ export function AgentChatPage({
                   ).trim();
                   const isCreateChatDisabled =
                     !onCreateChatForAgent || isCreatingChatSession || Boolean(createChatDisabledReason);
-                  const isSelectedSidebarAgent = sidebarAgentId === selectedAgentId;
                   const sidebarModelLabel = String(
                     sidebarAgent?.model || sidebarAgent?.defaultModelId || "",
                   ).trim() || "n/a";
@@ -503,7 +502,7 @@ export function AgentChatPage({
                   return (
                     <li
                       key={`chat-sidebar-agent-${sidebarAgentId}`}
-                      className={`chat-sidebar-agent-card${isSelectedSidebarAgent ? " chat-sidebar-agent-card-active" : ""}`}
+                      className="chat-sidebar-agent-card"
                     >
                       <div className="chat-sidebar-agent-header">
                         <div className="chat-sidebar-agent-main">
