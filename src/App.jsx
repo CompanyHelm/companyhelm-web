@@ -3140,7 +3140,9 @@ function App() {
   });
 
   useEffect(() => {
-    if (!selectedCompanyId || activePage !== "chats") {
+    const isChatsOverviewRoute = activePage === "chats";
+    const isAgentChatDetailRoute = activePage === "agents" && agentsRoute.view === "chat";
+    if (!selectedCompanyId || (!isChatsOverviewRoute && !isAgentChatDetailRoute)) {
       return undefined;
     }
 
@@ -3182,6 +3184,7 @@ function App() {
     };
   }, [
     activePage,
+    agentsRoute.view,
     agents,
     selectedCompanyId,
     applyChatSessionsSnapshotForAgent,
@@ -3531,11 +3534,13 @@ function App() {
   }, [resolvedChatSessionId, selectedChatSession?.title]);
 
   useEffect(() => {
-    if (!selectedCompanyId || activePage !== "chats") {
+    const isChatsOverviewRoute = activePage === "chats";
+    const isAgentChatDetailRoute = activePage === "agents" && agentsRoute.view === "chat";
+    if (!selectedCompanyId || (!isChatsOverviewRoute && !isAgentChatDetailRoute)) {
       return;
     }
     loadChatSessionIndexByAgent();
-  }, [activePage, loadChatSessionIndexByAgent, selectedCompanyId]);
+  }, [activePage, agentsRoute.view, loadChatSessionIndexByAgent, selectedCompanyId]);
 
   useEffect(() => {
     if (!selectedCompanyId) {
@@ -6551,7 +6556,13 @@ function App() {
             <AgentChatPage
               selectedCompanyId={selectedCompanyId}
               agent={agents.find((agent) => agent.id === chatAgentId) || null}
+              agents={agents}
               session={selectedChatSession}
+              chatSessionsByAgent={chatSessionsByAgent}
+              chatSessionRunningById={chatSessionRunningById}
+              isLoadingChatIndex={isLoadingChatIndex}
+              isCreatingChatSession={isCreatingChatSession}
+              showChatSidebar={false}
               chatSessionRenameDraft={chatSessionRenameDraft}
               chatTurns={chatTurns}
               queuedChatMessages={queuedChatMessages}
@@ -6564,6 +6575,7 @@ function App() {
               deletingChatSessionKey={deletingChatSessionKey}
               steeringQueuedMessageId={steeringQueuedMessageId}
               deletingQueuedMessageId={deletingQueuedMessageId}
+              getCreateChatDisabledReason={getChatCreateBlockedReasonByAgentId}
               onChatSessionRenameDraftChange={handleChatSessionRenameDraftChange}
               onChatDraftMessageChange={setChatDraftMessage}
               onBackToChats={() => {
@@ -6578,6 +6590,8 @@ function App() {
               onInterruptChatTurn={handleInterruptChatTurn}
               onSteerQueuedMessage={handleSteerQueuedChatMessage}
               onDeleteQueuedMessage={handleDeleteQueuedChatMessage}
+              onCreateChatForAgent={handleCreateChatForAgent}
+              onOpenChatFromList={handleOpenChatFromList}
             />
           ) : (
             <ChatsOverviewPage
@@ -6646,7 +6660,13 @@ function App() {
             <AgentChatPage
               selectedCompanyId={selectedCompanyId}
               agent={agents.find((agent) => agent.id === chatAgentId) || null}
+              agents={agents}
               session={selectedChatSession}
+              chatSessionsByAgent={chatSessionsByAgent}
+              chatSessionRunningById={chatSessionRunningById}
+              isLoadingChatIndex={isLoadingChatIndex}
+              isCreatingChatSession={isCreatingChatSession}
+              showChatSidebar
               chatSessionRenameDraft={chatSessionRenameDraft}
               chatTurns={chatTurns}
               queuedChatMessages={queuedChatMessages}
@@ -6659,6 +6679,7 @@ function App() {
               deletingChatSessionKey={deletingChatSessionKey}
               steeringQueuedMessageId={steeringQueuedMessageId}
               deletingQueuedMessageId={deletingQueuedMessageId}
+              getCreateChatDisabledReason={getChatCreateBlockedReasonByAgentId}
               onChatSessionRenameDraftChange={handleChatSessionRenameDraftChange}
               onChatDraftMessageChange={setChatDraftMessage}
               onBackToChats={() => {
@@ -6674,6 +6695,8 @@ function App() {
               onInterruptChatTurn={handleInterruptChatTurn}
               onSteerQueuedMessage={handleSteerQueuedChatMessage}
               onDeleteQueuedMessage={handleDeleteQueuedChatMessage}
+              onCreateChatForAgent={handleCreateChatForAgent}
+              onOpenChatFromList={handleOpenChatFromList}
             />
           ) : (
             <AgentsPage
