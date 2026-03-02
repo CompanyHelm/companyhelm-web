@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { getConfig } from "./config/config.js";
+import { parseCliEnvironmentArgument, stripEnvironmentArguments } from "./config/cli.js";
 
 const allowedViteCommands = new Set(["dev", "build", "preview"]);
 
@@ -24,6 +25,7 @@ function toGraphQLPath(graphqlApiUrl) {
 export function resolveViteCommand(argv) {
   const command = String(argv[0] || "").trim();
   const extraArgs = argv.slice(1).filter(Boolean);
+  const unsupportedArgs = stripEnvironmentArguments(extraArgs);
 
   if (!command) {
     throw new Error("Missing Vite command. Expected one of: dev, build, preview.");
@@ -31,7 +33,7 @@ export function resolveViteCommand(argv) {
   if (!allowedViteCommands.has(command)) {
     throw new Error(`Unsupported Vite command "${command}". Expected one of: dev, build, preview.`);
   }
-  if (extraArgs.length > 0) {
+  if (unsupportedArgs.length > 0) {
     throw new Error(
       "Vite CLI options are disabled. Configure host/port/API values in config/<environment>.yaml."
     );
@@ -42,7 +44,8 @@ export function resolveViteCommand(argv) {
 
 function startVite(argv) {
   const viteCommand = resolveViteCommand(argv);
-  const config = getConfig();
+  const environment = parseCliEnvironmentArgument(argv.slice(1));
+  const config = getConfig(environment);
 
   process.env.VITE_DEV_SERVER_HOST = config.server.host;
   process.env.VITE_DEV_SERVER_PORT = String(config.server.listeningPort);

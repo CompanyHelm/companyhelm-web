@@ -7,13 +7,13 @@ React SPA for `companyhelm-api` GraphQL.
 ```bash
 nvm use 22
 npm install
-npm run dev
+npm run dev -- --environment local
 ```
 
 Open `http://localhost:5173`.
 
 Frontend config is loaded from `config/<environment>.yaml` and validated with `zod`.
-Environment selection uses `APP_ENV` (defaults to `local`).
+Environment selection requires `--environment <name>` (or `--environment=<name>`).
 
 Current config fields:
 - `server.host`
@@ -28,13 +28,13 @@ Current config fields:
 ## Build
 
 ```bash
-npm run build
-npm run preview
+npm run build -- --environment local
+npm run preview -- --environment local
 ```
 
 Example for a non-local environment:
 ```bash
-APP_ENV=prod npm run build
+npm run build -- --environment prod
 ```
 
 ## Relay client
