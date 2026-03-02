@@ -145,6 +145,15 @@ export const LIST_TASKS_QUERY = `
       createdAt
       updatedAt
       dependencyTaskIds
+      comments {
+        id
+        taskId
+        companyId
+        comment
+        authorPrincipalId
+        createdAt
+        updatedAt
+      }
     }
   }
 `;
@@ -749,6 +758,15 @@ export const CREATE_TASK_MUTATION = `
         createdAt
         updatedAt
         dependencyTaskIds
+        comments {
+          id
+          taskId
+          companyId
+          comment
+          authorPrincipalId
+          createdAt
+          updatedAt
+        }
       }
     }
   }
@@ -777,6 +795,15 @@ export const ADD_TASK_DEPENDENCY_MUTATION = `
         createdAt
         updatedAt
         dependencyTaskIds
+        comments {
+          id
+          taskId
+          companyId
+          comment
+          authorPrincipalId
+          createdAt
+          updatedAt
+        }
       }
     }
   }
@@ -805,6 +832,15 @@ export const REMOVE_TASK_DEPENDENCY_MUTATION = `
         createdAt
         updatedAt
         dependencyTaskIds
+        comments {
+          id
+          taskId
+          companyId
+          comment
+          authorPrincipalId
+          createdAt
+          updatedAt
+        }
       }
     }
   }
@@ -816,6 +852,24 @@ export const DELETE_TASK_MUTATION = `
       ok
       error
       deletedTaskId
+    }
+  }
+`;
+
+export const CREATE_TASK_COMMENT_MUTATION = `
+  mutation CreateTaskComment($companyId: ID!, $taskId: ID!, $comment: String!) {
+    createTaskComment(companyId: $companyId, taskId: $taskId, comment: $comment) {
+      ok
+      error
+      taskComment {
+        id
+        taskId
+        companyId
+        comment
+        authorPrincipalId
+        createdAt
+        updatedAt
+      }
     }
   }
 `;
@@ -1631,6 +1685,15 @@ export const COMPANY_API_LIST_TASKS_QUERY = `
       createdAt
       updatedAt
       dependencyTaskIds
+      comments {
+        id
+        taskId
+        companyId
+        comment
+        authorPrincipalId
+        createdAt
+        updatedAt
+      }
       company {
         id
       }
@@ -1668,6 +1731,15 @@ export const COMPANY_API_CREATE_TASK_MUTATION = `
         createdAt
         updatedAt
         dependencyTaskIds
+        comments {
+          id
+          taskId
+          companyId
+          comment
+          authorPrincipalId
+          createdAt
+          updatedAt
+        }
         company {
           id
         }
@@ -1722,6 +1794,24 @@ export const COMPANY_API_DELETE_TASK_MUTATION = `
       ok
       error
       deletedTaskId
+    }
+  }
+`;
+
+export const COMPANY_API_CREATE_TASK_COMMENT_MUTATION = `
+  mutation CompanyApiCreateTaskComment($companyId: ID!, $taskId: ID!, $comment: String!) {
+    createTaskComment(companyId: $companyId, taskId: $taskId, comment: $comment) {
+      ok
+      error
+      taskComment {
+        id
+        taskId
+        companyId
+        comment
+        authorPrincipalId
+        createdAt
+        updatedAt
+      }
     }
   }
 `;

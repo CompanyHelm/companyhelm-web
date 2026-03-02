@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Page } from "../components/Page.jsx";
 import { CreationModal } from "../components/CreationModal.jsx";
 import { useSetPageActions } from "../components/PageActionsContext.jsx";
+import { buildTaskDependencyLanes } from "../utils/task-graph.js";
 
 export function TasksPage({
   selectedCompanyId,
@@ -10,6 +11,7 @@ export function TasksPage({
   taskError,
   isSubmittingTask,
   savingTaskId,
+  commentingTaskId,
   deletingTaskId,
   name,
   description,
@@ -22,14 +24,22 @@ export function TasksPage({
   onCreateTask,
   onDraftChange,
   onSaveRelationships,
+  onCreateTaskComment,
   onDeleteTask,
   renderTaskLink,
 }) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState("");
+  const [commentDraft, setCommentDraft] = useState("");
 
   function openEditTaskModal(taskId) {
     setEditingTaskId(taskId);
+    setCommentDraft("");
+  }
+
+  function closeEditTaskModal() {
+    setEditingTaskId("");
+    setCommentDraft("");
   }
 
   async function handleCreateTaskSubmit(event) {
@@ -42,9 +52,22 @@ export function TasksPage({
   async function handleSaveTaskDependencies(taskId) {
     const didSave = await onSaveRelationships(taskId);
     if (didSave) {
-      setEditingTaskId("");
+      closeEditTaskModal();
     }
   }
+
+  async function handleCreateTaskCommentSubmit(event) {
+    event.preventDefault();
+    if (!editingTaskId) {
+      return;
+    }
+    const didCreateComment = await onCreateTaskComment(editingTaskId, commentDraft);
+    if (didCreateComment) {
+      setCommentDraft("");
+    }
+  }
+
+  const dependencyLanes = useMemo(() => buildTaskDependencyLanes(tasks), [tasks]);
 
   const pageActions = useMemo(() => (
     <>
@@ -112,6 +135,14 @@ export function TasksPage({
                           </>
                         )
                         : null}
+                      {Array.isArray(task.comments) && task.comments.length > 0
+                        ? (
+                          <>
+                            {" "}
+                            &middot; {task.comments.length} comment{task.comments.length === 1 ? "" : "s"}
+                          </>
+                        )
+                        : null}
                     </span>
                   </div>
                   <button
@@ -142,29 +173,56 @@ export function TasksPage({
 
       {tasks.length > 0 ? (
         <section className="panel list-panel">
-          <h3>Dependency map</h3>
-          <ul className="chat-card-list">
-            {tasks.map((task) => {
-              const dependencyTaskIdsForTask = Array.isArray(task.dependencyTaskIds)
-                ? task.dependencyTaskIds
-                : [];
-              return (
-                <li key={`task-map-${task.id}`} className="chat-card">
-                  <div className="chat-card-content">
-                    <strong>{task.name}</strong>
-                    <span className="chat-card-meta">#{task.id}</span>
-                  </div>
-                  <span className="chat-card-meta">
-                    {dependencyTaskIdsForTask.length === 0
-                      ? "Independent task"
-                      : dependencyTaskIdsForTask
-                          .map((dependencyTaskId) => `\u2192 ${renderTaskLink(dependencyTaskId)}`)
-                          .join("  ")}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
+          <div className="task-lane-header">
+            <h3>Dependency lanes</h3>
+            <span className="chat-card-meta">
+              Left to right shows prerequisite flow for all tasks.
+            </span>
+          </div>
+          <div className="task-lane-board">
+            {dependencyLanes.map((lane) => (
+              <section key={`task-lane-${lane.level}`} className="task-lane-column">
+                <header className="task-lane-column-header">
+                  <strong>{lane.title}</strong>
+                  <span className="chat-card-meta">{lane.tasks.length} task{lane.tasks.length === 1 ? "" : "s"}</span>
+                </header>
+                <ul className="task-lane-list">
+                  {lane.tasks.map((task) => (
+                    <li key={`task-lane-node-${task.id}`} className="task-lane-card">
+                      <button
+                        type="button"
+                        className="task-lane-open-btn"
+                        onClick={() => openEditTaskModal(task.id)}
+                      >
+                        <span className="task-lane-title-row">
+                          <strong>{task.name}</strong>
+                          <span className={`task-status-pill task-status-pill-${task.status}`}>
+                            {task.status}
+                          </span>
+                        </span>
+                        <span className="task-lane-meta">#{task.id}</span>
+                        <span className="task-lane-meta">
+                          {task.dependencyTaskIds.length === 0
+                            ? "No blockers"
+                            : `Depends on ${task.dependencyTaskIds.length} task${task.dependencyTaskIds.length === 1 ? "" : "s"}`}
+                        </span>
+                        <span className="task-lane-meta">
+                          {task.dependentTaskIds.length === 0
+                            ? "Terminal item"
+                            : `Unblocks ${task.dependentTaskIds.length} task${task.dependentTaskIds.length === 1 ? "" : "s"}`}
+                        </span>
+                        <span className="task-lane-meta">
+                          {task.commentCount === 0
+                            ? "No comments"
+                            : `${task.commentCount} comment${task.commentCount === 1 ? "" : "s"}`}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
         </section>
       ) : null}
 
@@ -231,9 +289,9 @@ export function TasksPage({
           <CreationModal
             modalId="edit-task-modal"
             title="Edit task"
-            description="Update task relationships."
+            description="Update task dependencies and comments."
             isOpen={!!editingTaskId}
-            onClose={() => setEditingTaskId("")}
+            onClose={closeEditTaskModal}
           >
             <div className="chat-settings-modal-form">
               <div className="chat-settings-field">
@@ -276,6 +334,46 @@ export function TasksPage({
               </div>
 
               <div className="chat-settings-field">
+                <span className="chat-settings-label">Comments</span>
+                {Array.isArray(editTask.comments) && editTask.comments.length > 0 ? (
+                  <ul className="task-comments-list">
+                    {editTask.comments.map((comment) => (
+                      <li key={`task-comment-${comment.id}`} className="task-comment-item">
+                        <p>{comment.comment}</p>
+                        <span className="chat-card-meta">
+                          {comment.authorPrincipalId ? `Author ${comment.authorPrincipalId}` : "Unknown author"}
+                          {comment.createdAt ? ` \u00b7 ${new Date(comment.createdAt).toLocaleString()}` : ""}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="chat-settings-input">No comments yet.</p>
+                )}
+              </div>
+
+              <form className="task-comment-form" onSubmit={handleCreateTaskCommentSubmit}>
+                <label className="chat-settings-label" htmlFor="task-comment-draft">
+                  Add comment
+                </label>
+                <textarea
+                  id="task-comment-draft"
+                  className="chat-settings-input"
+                  rows={3}
+                  placeholder="Document context, blockers, or handoff notes."
+                  value={commentDraft}
+                  onChange={(event) => setCommentDraft(event.target.value)}
+                />
+                <button
+                  type="submit"
+                  className="secondary-btn"
+                  disabled={commentingTaskId === editingTaskId || !commentDraft.trim()}
+                >
+                  {commentingTaskId === editingTaskId ? "Adding comment..." : "Add comment"}
+                </button>
+              </form>
+
+              <div className="chat-settings-field">
                 <button
                   type="button"
                   className="secondary-btn"
@@ -286,7 +384,7 @@ export function TasksPage({
                 <button
                   type="button"
                   className="secondary-btn"
-                  onClick={() => setEditingTaskId("")}
+                  onClick={closeEditTaskModal}
                 >
                   Cancel
                 </button>

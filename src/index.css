@@ -2280,6 +2280,153 @@ button:disabled {
   white-space: nowrap;
 }
 
+.task-lane-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+}
+
+.task-lane-board {
+  margin-top: 0.55rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.65rem;
+}
+
+.task-lane-column {
+  border: 1px solid rgba(26, 32, 38, 0.1);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(244, 248, 250, 0.72));
+  padding: 0.55rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.task-lane-column-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.45rem;
+}
+
+.task-lane-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.42rem;
+}
+
+.task-lane-card {
+  margin: 0;
+}
+
+.task-lane-open-btn {
+  width: 100%;
+  border: 1px solid rgba(26, 32, 38, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.84);
+  color: var(--ink-0);
+  padding: 0.48rem 0.55rem;
+  display: grid;
+  gap: 0.28rem;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.task-lane-open-btn:hover {
+  border-color: rgba(15, 118, 110, 0.45);
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.task-lane-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.task-lane-title-row strong {
+  font-size: 0.86rem;
+  line-height: 1.2;
+}
+
+.task-lane-meta {
+  margin: 0;
+  font-size: 0.73rem;
+  color: var(--ink-2);
+  white-space: normal;
+}
+
+.task-status-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.08rem 0.45rem;
+  font-size: 0.67rem;
+  text-transform: lowercase;
+  border: 1px solid transparent;
+  flex-shrink: 0;
+}
+
+.task-status-pill-draft {
+  color: #334155;
+  background: rgba(71, 85, 105, 0.12);
+  border-color: rgba(71, 85, 105, 0.25);
+}
+
+.task-status-pill-pending {
+  color: #9a3412;
+  background: rgba(194, 65, 12, 0.13);
+  border-color: rgba(194, 65, 12, 0.28);
+}
+
+.task-status-pill-in_progress {
+  color: #1d4ed8;
+  background: rgba(29, 78, 216, 0.13);
+  border-color: rgba(29, 78, 216, 0.3);
+}
+
+.task-status-pill-completed {
+  color: #0f766e;
+  background: rgba(15, 118, 110, 0.14);
+  border-color: rgba(15, 118, 110, 0.3);
+}
+
+.task-comments-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.task-comment-item {
+  border: 1px solid rgba(26, 32, 38, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.75);
+  padding: 0.5rem 0.58rem;
+  display: grid;
+  gap: 0.22rem;
+}
+
+.task-comment-item p {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--ink-0);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.task-comment-form {
+  display: grid;
+  gap: 0.35rem;
+}
+
 .chat-card-actions {
   display: flex;
   align-items: center;

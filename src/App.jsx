@@ -47,6 +47,7 @@ import {
   ADD_TASK_DEPENDENCY_MUTATION,
   REMOVE_TASK_DEPENDENCY_MUTATION,
   DELETE_TASK_MUTATION,
+  CREATE_TASK_COMMENT_MUTATION,
   DELETE_AGENT_RUNNER_MUTATION,
   CREATE_AGENT_MUTATION,
   UPDATE_AGENT_MUTATION,
@@ -102,6 +103,7 @@ import {
   COMPANY_API_ADD_TASK_DEPENDENCY_MUTATION,
   COMPANY_API_REMOVE_TASK_DEPENDENCY_MUTATION,
   COMPANY_API_DELETE_TASK_MUTATION,
+  COMPANY_API_CREATE_TASK_COMMENT_MUTATION,
   COMPANY_API_LIST_SKILLS_QUERY,
   COMPANY_API_LIST_ROLES_QUERY,
   COMPANY_API_LIST_SKILL_GROUPS_QUERY,
@@ -663,6 +665,18 @@ function toMcpServerPayload(mcpServer) {
   };
 }
 
+function toTaskCommentPayload(taskComment) {
+  return {
+    id: resolveLegacyId(taskComment?.id),
+    taskId: resolveLegacyId(taskComment?.taskId),
+    companyId: resolveLegacyId(taskComment?.company?.id, taskComment?.companyId),
+    comment: String(taskComment?.comment || ""),
+    authorPrincipalId: resolveLegacyId(taskComment?.authorPrincipalId) || null,
+    createdAt: resolveLegacyId(taskComment?.createdAt),
+    updatedAt: resolveLegacyId(taskComment?.updatedAt),
+  };
+}
+
 function toTaskPayload(task) {
   return {
     id: resolveLegacyId(task?.id),
@@ -676,6 +690,11 @@ function toTaskPayload(task) {
     createdAt: resolveLegacyId(task?.createdAt),
     updatedAt: resolveLegacyId(task?.updatedAt),
     dependencyTaskIds: normalizeUniqueStringList(task?.dependencyTaskIds || []),
+    comments: Array.isArray(task?.comments)
+      ? task.comments
+          .map((comment) => toTaskCommentPayload(comment))
+          .filter((comment) => comment.id)
+      : [],
   };
 }
 
@@ -1883,6 +1902,22 @@ async function executeGraphQL(query, variables = {}) {
     };
   }
 
+  if (query === CREATE_TASK_COMMENT_MUTATION) {
+    const data = await executeRawGraphQL(COMPANY_API_CREATE_TASK_COMMENT_MUTATION, {
+      companyId: resolveLegacyId(variables?.companyId),
+      taskId: resolveLegacyId(variables?.taskId),
+      comment: String(variables?.comment || "").trim(),
+    });
+    const payload = data?.createTaskComment;
+    return {
+      createTaskComment: {
+        ok: Boolean(payload?.ok),
+        error: payload?.error ? String(payload.error) : null,
+        taskComment: payload?.taskComment ? toTaskCommentPayload(payload.taskComment) : null,
+      },
+    };
+  }
+
   if (query === CREATE_SKILL_MUTATION) {
     return {
       ...unsupportedMutation("createSkill"),
@@ -2166,6 +2201,7 @@ function App() {
   const [isCreatingSkill, setIsCreatingSkill] = useState(false);
   const [isCreatingMcpServer, setIsCreatingMcpServer] = useState(false);
   const [savingTaskId, setSavingTaskId] = useState(null);
+  const [commentingTaskId, setCommentingTaskId] = useState(null);
   const [savingSkillId, setSavingSkillId] = useState(null);
   const [savingMcpServerId, setSavingMcpServerId] = useState(null);
   const [deletingTaskId, setDeletingTaskId] = useState(null);
@@ -4234,6 +4270,45 @@ function App() {
       return false;
     } finally {
       setSavingTaskId(null);
+    }
+  }
+
+  async function handleCreateTaskComment(taskId, comment) {
+    if (!selectedCompanyId) {
+      setTaskError("Select a company before commenting on tasks.");
+      return false;
+    }
+
+    const normalizedTaskId = String(taskId || "").trim();
+    const normalizedComment = String(comment || "").trim();
+    if (!normalizedTaskId) {
+      setTaskError("Task id is required to add a comment.");
+      return false;
+    }
+    if (!normalizedComment) {
+      setTaskError("Comment text is required.");
+      return false;
+    }
+
+    try {
+      setCommentingTaskId(normalizedTaskId);
+      setTaskError("");
+      const data = await executeGraphQL(CREATE_TASK_COMMENT_MUTATION, {
+        companyId: selectedCompanyId,
+        taskId: normalizedTaskId,
+        comment: normalizedComment,
+      });
+      const result = data.createTaskComment;
+      if (!result.ok) {
+        throw new Error(result.error || "Task comment creation failed.");
+      }
+      await loadTasks();
+      return true;
+    } catch (createError) {
+      setTaskError(createError.message);
+      return false;
+    } finally {
+      setCommentingTaskId(null);
     }
   }
 
@@ -6743,6 +6818,7 @@ function App() {
             taskError={taskError}
             isSubmittingTask={isSubmittingTask}
             savingTaskId={savingTaskId}
+            commentingTaskId={commentingTaskId}
             deletingTaskId={deletingTaskId}
             name={name}
             description={description}
@@ -6755,6 +6831,7 @@ function App() {
             onCreateTask={handleCreateTask}
             onDraftChange={handleDraftChange}
             onSaveRelationships={handleRelationshipSave}
+            onCreateTaskComment={handleCreateTaskComment}
             onDeleteTask={handleDeleteTask}
             renderTaskLink={renderTaskLink}
           />
