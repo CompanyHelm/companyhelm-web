@@ -13,9 +13,9 @@ type Agent {
   id: ID!
   mcpServerIds: [ID!]!
   name: String!
+  roleIds: [ID!]!
+  roles: [Role!]!
   runner: AgentRunner!
-  skillGroupIds: [ID!]!
-  skillGroups: [SkillGroup!]!
   status: AgentStatus!
 }
 
@@ -79,6 +79,18 @@ enum AgentStatus {
   ready
 }
 
+type AuthPayload {
+  token: String!
+  user: AuthUser!
+}
+
+type AuthUser {
+  email: String!
+  firstName: String!
+  id: ID!
+  lastName: String
+}
+
 type Company {
   id: ID!
   name: String!
@@ -121,6 +133,12 @@ type DeleteGitSkillPackagePayload {
 
 type DeleteMcpServerPayload {
   deletedMcpServerId: ID
+  error: String
+  ok: Boolean!
+}
+
+type DeleteRolePayload {
+  deletedRoleId: ID
   error: String
   ok: Boolean!
 }
@@ -208,12 +226,16 @@ type McpServerMutationPayload {
 
 type Mutation {
   addGithubInstallation(companyId: ID!, installationId: ID!, setupAction: String): AddGithubInstallationPayload!
+  addMcpServerToRole(companyId: ID!, mcpServerId: ID!, roleId: ID!): RoleMutationPayload!
+  addSkillGroupToRole(companyId: ID!, roleId: ID!, skillGroupId: ID!): RoleMutationPayload!
+  addSkillToRole(companyId: ID!, roleId: ID!, skillId: ID!): RoleMutationPayload!
   addSkillToSkillGroup(companyId: ID!, skillGroupId: ID!, skillId: ID!): SkillGroupMutationPayload!
-  createAgent(agentRunnerId: ID!, agentRunnerSdkId: ID!, companyId: ID!, defaultAdditionalModelInstructions: String, defaultModelId: ID!, defaultReasoningLevel: String, mcpServerIds: [ID!], name: String!, skillGroupIds: [ID!]): Agent!
+  createAgent(agentRunnerId: ID!, agentRunnerSdkId: ID!, companyId: ID!, defaultAdditionalModelInstructions: String, defaultModelId: ID!, defaultReasoningLevel: String, mcpServerIds: [ID!], name: String!, roleIds: [ID!]): Agent!
   createAgentRunner(companyId: ID!, name: String!): AgentRunnerSecretPayload!
   createCompany(name: String!): Company!
   createGitSkillPackage(companyId: ID!, gitReference: String!, gitRepositoryUrl: String!): CreateGitSkillPackagePayload!
   createMcpServer(args: [String!], authType: String, bearerToken: String, command: String, companyId: ID!, customHeaders: [McpHeaderInput!], enabled: Boolean, envVars: [McpEnvVarInput!], name: String!, transportType: String, url: String): McpServerMutationPayload!
+  createRole(companyId: ID!, name: String!, parentRoleId: ID): RoleMutationPayload!
   createSkillGroup(companyId: ID!, name: String!, parentSkillGroupId: ID): SkillGroupMutationPayload!
   createThread(additionalModelInstructions: String, agentId: ID!, companyId: ID!, title: String): Thread!
   deleteAgent(input: DeleteAgentInput!): DeleteAgentPayload!
@@ -222,6 +244,7 @@ type Mutation {
   deleteGitSkillPackage(companyId: ID!, id: ID!): DeleteGitSkillPackagePayload!
   deleteMcpServer(companyId: ID!, id: ID!): DeleteMcpServerPayload!
   deleteQueuedUserMessage(queuedMessageId: ID!): Boolean!
+  deleteRole(companyId: ID!, id: ID!): DeleteRolePayload!
   deleteSkillGroup(companyId: ID!, id: ID!): DeleteSkillGroupPayload!
   deleteThread(threadId: ID!): Boolean!
   interruptTurn(threadId: ID!): Boolean!
@@ -229,10 +252,16 @@ type Mutation {
   queueUserMessage(allowSteer: Boolean!, modelId: ID, reasoningLevel: String, text: String!, threadId: ID!): QueuedUserMessage!
   refreshGithubInstallationRepositories(companyId: ID!, installationId: ID!): RefreshGithubInstallationRepositoriesPayload!
   regenerateAgentRunnerSecret(agentRunnerId: ID!): AgentRunnerSecretPayload!
+  removeMcpServerFromRole(companyId: ID!, mcpServerId: ID!, roleId: ID!): RoleMutationPayload!
+  removeSkillFromRole(companyId: ID!, roleId: ID!, skillId: ID!): RoleMutationPayload!
   removeSkillFromSkillGroup(companyId: ID!, skillGroupId: ID!, skillId: ID!): SkillGroupMutationPayload!
+  removeSkillGroupFromRole(companyId: ID!, roleId: ID!, skillGroupId: ID!): RoleMutationPayload!
+  signIn(email: String!): AuthPayload!
+  signUp(email: String!, firstName: String!, lastName: String): AuthPayload!
   steerQueuedUserMessage(queuedMessageId: ID!): QueuedUserMessage!
-  updateAgent(agentId: ID!, agentRunnerId: ID!, agentRunnerSdkId: ID!, defaultAdditionalModelInstructions: String, defaultModelId: ID!, defaultReasoningLevel: String, mcpServerIds: [ID!], name: String!, skillGroupIds: [ID!]): Agent!
+  updateAgent(agentId: ID!, agentRunnerId: ID!, agentRunnerSdkId: ID!, defaultAdditionalModelInstructions: String, defaultModelId: ID!, defaultReasoningLevel: String, mcpServerIds: [ID!], name: String!, roleIds: [ID!]): Agent!
   updateMcpServer(args: [String!], authType: String, bearerToken: String, command: String, companyId: ID!, customHeaders: [McpHeaderInput!], enabled: Boolean, envVars: [McpEnvVarInput!], id: ID!, name: String!, transportType: String, url: String): McpServerMutationPayload!
+  updateRole(companyId: ID!, id: ID!, name: String!, parentRoleId: ID): RoleMutationPayload!
   updateSkillGroup(companyId: ID!, id: ID!, name: String!, parentSkillGroupId: ID): SkillGroupMutationPayload!
   updateThreadTitle(threadId: ID!, title: String): Thread!
 }
@@ -265,6 +294,7 @@ type Query {
   mcpServers(companyId: ID!): [McpServer!]!
   queuedUserMessages(first: Int = 20, threadId: ID!): [QueuedUserMessage!]!
   repositories(after: String, companyId: ID!, first: Int = 20, githubInstallationId: ID): RepositoryConnection!
+  roles(companyId: ID!): [Role!]!
   skill(id: ID!): Skill
   skillGroups(companyId: ID!): [SkillGroup!]!
   skills(companyId: ID!): [Skill!]!
@@ -313,6 +343,25 @@ type RepositoryEdge {
   node: Repository!
 }
 
+type Role {
+  company: Company!
+  effectiveMcpServers: [McpServer!]!
+  effectiveSkills: [Skill!]!
+  id: ID!
+  mcpServers: [McpServer!]!
+  name: String!
+  parentRole: Role
+  skillGroups: [SkillGroup!]!
+  skills: [Skill!]!
+  subRoles: [Role!]!
+}
+
+type RoleMutationPayload {
+  error: String
+  ok: Boolean!
+  role: Role
+}
+
 type Skill {
   company: Company!
   content: String
@@ -320,9 +369,10 @@ type Skill {
   fileList: [String!]!
   gitSkillPackage: GitSkillPackage
   gitSkillPackagePath: String
-  groups: [SkillGroup!]!
   id: ID!
   name: String!
+  roles: [Role!]!
+  skillGroups: [SkillGroup!]!
 }
 
 type SkillGroup {
