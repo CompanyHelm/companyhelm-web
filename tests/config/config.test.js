@@ -46,7 +46,6 @@ test("loadConfig parses local config with expected fields", () => {
   assert.equal(config.api.graphqlApiUrl, "http://127.0.0.1:4000/graphql");
   assert.equal(config.authProvider, "companyhelm");
   assert.equal(config.auth.companyhelm.tokenStorageKey, "companyhelm.auth.token");
-  assert.equal(config.auth.supabase.tokenStorageKey, "supabase.access.token");
 });
 
 test("getConfig requires explicit environment initialization", () => {

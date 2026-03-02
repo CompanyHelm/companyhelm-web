@@ -9,11 +9,6 @@ test("createAuthProvider returns companyhelm provider", () => {
       companyhelm: {
         tokenStorageKey: "companyhelm.auth.token",
       },
-      supabase: {
-        tokenStorageKey: "supabase.access.token",
-        url: "https://example.supabase.co",
-        anonKey: "anon-key",
-      },
     },
     api: {
       graphqlApiUrl: "http://127.0.0.1:4000/graphql",

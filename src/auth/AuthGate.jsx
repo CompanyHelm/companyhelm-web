@@ -9,7 +9,6 @@ function getInitialFormState() {
     firstName: "",
     lastName: "",
     email: "",
-    password: "",
   };
 }
 
@@ -20,8 +19,6 @@ export default function AuthGate({ children }) {
   const [errorMessage, setErrorMessage] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(() => authProvider.hasSession());
 
-  const providerName = authProvider.name;
-  const requiresPassword = providerName === "supabase";
   const isSignInMode = mode === SIGN_IN_MODE;
   const title = useMemo(
     () => (isSignInMode ? "Sign In" : "Sign Up"),
@@ -48,14 +45,12 @@ export default function AuthGate({ children }) {
       if (isSignInMode) {
         await authProvider.signIn({
           email: formState.email,
-          ...(requiresPassword ? { password: formState.password } : {}),
         });
       } else {
         await authProvider.signUp({
           firstName: formState.firstName,
           lastName: formState.lastName,
           email: formState.email,
-          ...(requiresPassword ? { password: formState.password } : {}),
         });
       }
 
@@ -76,9 +71,6 @@ export default function AuthGate({ children }) {
     <main className="auth-gate">
       <section className="auth-card">
         <h1>{title}</h1>
-        <p className="auth-subtitle">
-          Provider: <strong>{providerName}</strong>
-        </p>
         <form onSubmit={handleSubmit} className="auth-form">
           {!isSignInMode ? (
             <label htmlFor="auth-first-name">
@@ -113,18 +105,6 @@ export default function AuthGate({ children }) {
               required
             />
           </label>
-          {requiresPassword ? (
-            <label htmlFor="auth-password">
-              Password
-              <input
-                id="auth-password"
-                type="password"
-                value={formState.password}
-                onChange={handleChange("password")}
-                required
-              />
-            </label>
-          ) : null}
           <button type="submit" disabled={isSubmitting}>
             {isSubmitting ? "Submitting..." : title}
           </button>
