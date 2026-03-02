@@ -20,13 +20,6 @@ function resolveLegacyId(...values) {
   return "";
 }
 
-export function toGraphQLTaskId(value) {
-  if (value == null || value === "") {
-    return null;
-  }
-  return Number(value);
-}
-
 export function toSelectValue(value) {
   if (value == null) {
     return "";

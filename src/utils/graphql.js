@@ -133,11 +133,27 @@ export const LIST_TASKS_QUERY = `
   query ListTasks($companyId: String!) {
     tasks(companyId: $companyId) {
       id
-      companyId
+      company {
+        id
+      }
       name
       description
-      parentTaskId
-      dependsOnTaskId
+      acceptanceCriteria
+      assigneePrincipalId
+      threadId
+      status
+      createdAt
+      updatedAt
+      dependencyTaskIds
+      comments {
+        id
+        taskId
+        companyId
+        comment
+        authorPrincipalId
+        createdAt
+        updatedAt
+      }
     }
   }
 `;
@@ -714,63 +730,146 @@ export const CREATE_TASK_MUTATION = `
     $companyId: String!
     $name: String!
     $description: String
-    $parentTaskId: Int
-    $dependsOnTaskId: Int
+    $acceptanceCriteria: String
+    $status: TaskStatus
+    $dependencyTaskIds: [ID!]
   ) {
     createTask(
       companyId: $companyId
       name: $name
       description: $description
-      parentTaskId: $parentTaskId
-      dependsOnTaskId: $dependsOnTaskId
+      acceptanceCriteria: $acceptanceCriteria
+      status: $status
+      dependencyTaskIds: $dependencyTaskIds
     ) {
       ok
       error
       task {
         id
-        companyId
+        company {
+          id
+        }
         name
         description
-        parentTaskId
-        dependsOnTaskId
+        acceptanceCriteria
+        assigneePrincipalId
+        threadId
+        status
+        createdAt
+        updatedAt
+        dependencyTaskIds
+        comments {
+          id
+          taskId
+          companyId
+          comment
+          authorPrincipalId
+          createdAt
+          updatedAt
+        }
       }
     }
   }
 `;
 
-export const UPDATE_TASK_MUTATION = `
-  mutation UpdateTask(
-    $companyId: String!
-    $id: Int!
-    $parentTaskId: Int
-    $dependsOnTaskId: Int
-  ) {
-    updateTask(
+export const ADD_TASK_DEPENDENCY_MUTATION = `
+  mutation AddTaskDependency($companyId: ID!, $taskId: ID!, $dependencyTaskId: ID!) {
+    addTaskDependency(
       companyId: $companyId
-      id: $id
-      parentTaskId: $parentTaskId
-      dependsOnTaskId: $dependsOnTaskId
+      taskId: $taskId
+      dependencyTaskId: $dependencyTaskId
     ) {
       ok
       error
       task {
         id
-        companyId
+        company {
+          id
+        }
         name
         description
-        parentTaskId
-        dependsOnTaskId
+        acceptanceCriteria
+        assigneePrincipalId
+        threadId
+        status
+        createdAt
+        updatedAt
+        dependencyTaskIds
+        comments {
+          id
+          taskId
+          companyId
+          comment
+          authorPrincipalId
+          createdAt
+          updatedAt
+        }
+      }
+    }
+  }
+`;
+
+export const REMOVE_TASK_DEPENDENCY_MUTATION = `
+  mutation RemoveTaskDependency($companyId: ID!, $taskId: ID!, $dependencyTaskId: ID!) {
+    removeTaskDependency(
+      companyId: $companyId
+      taskId: $taskId
+      dependencyTaskId: $dependencyTaskId
+    ) {
+      ok
+      error
+      task {
+        id
+        company {
+          id
+        }
+        name
+        description
+        acceptanceCriteria
+        assigneePrincipalId
+        threadId
+        status
+        createdAt
+        updatedAt
+        dependencyTaskIds
+        comments {
+          id
+          taskId
+          companyId
+          comment
+          authorPrincipalId
+          createdAt
+          updatedAt
+        }
       }
     }
   }
 `;
 
 export const DELETE_TASK_MUTATION = `
-  mutation DeleteTask($companyId: String!, $id: Int!) {
+  mutation DeleteTask($companyId: ID!, $id: ID!) {
     deleteTask(companyId: $companyId, id: $id) {
       ok
       error
       deletedTaskId
+    }
+  }
+`;
+
+export const CREATE_TASK_COMMENT_MUTATION = `
+  mutation CreateTaskComment($companyId: ID!, $taskId: ID!, $comment: String!) {
+    createTaskComment(companyId: $companyId, taskId: $taskId, comment: $comment) {
+      ok
+      error
+      taskComment {
+        id
+        taskId
+        companyId
+        comment
+        authorPrincipalId
+        createdAt
+        updatedAt
+      }
     }
   }
 `;
@@ -1568,6 +1667,150 @@ export const COMPANY_API_REFRESH_GITHUB_INSTALLATION_REPOSITORIES_MUTATION = `
         githubInstallation {
           installationId
         }
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_LIST_TASKS_QUERY = `
+  query CompanyApiListTasks($companyId: ID!) {
+    tasks(companyId: $companyId) {
+      id
+      name
+      description
+      acceptanceCriteria
+      assigneePrincipalId
+      threadId
+      status
+      createdAt
+      updatedAt
+      dependencyTaskIds
+      comments {
+        id
+        taskId
+        companyId
+        comment
+        authorPrincipalId
+        createdAt
+        updatedAt
+      }
+      company {
+        id
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_CREATE_TASK_MUTATION = `
+  mutation CompanyApiCreateTask(
+    $companyId: ID!
+    $name: String!
+    $description: String
+    $acceptanceCriteria: String
+    $status: TaskStatus
+    $dependencyTaskIds: [ID!]
+  ) {
+    createTask(
+      companyId: $companyId
+      name: $name
+      description: $description
+      acceptanceCriteria: $acceptanceCriteria
+      status: $status
+      dependencyTaskIds: $dependencyTaskIds
+    ) {
+      ok
+      error
+      task {
+        id
+        name
+        description
+        acceptanceCriteria
+        assigneePrincipalId
+        threadId
+        status
+        createdAt
+        updatedAt
+        dependencyTaskIds
+        comments {
+          id
+          taskId
+          companyId
+          comment
+          authorPrincipalId
+          createdAt
+          updatedAt
+        }
+        company {
+          id
+        }
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_ADD_TASK_DEPENDENCY_MUTATION = `
+  mutation CompanyApiAddTaskDependency(
+    $companyId: ID!
+    $taskId: ID!
+    $dependencyTaskId: ID!
+  ) {
+    addTaskDependency(
+      companyId: $companyId
+      taskId: $taskId
+      dependencyTaskId: $dependencyTaskId
+    ) {
+      ok
+      error
+      task {
+        id
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_REMOVE_TASK_DEPENDENCY_MUTATION = `
+  mutation CompanyApiRemoveTaskDependency(
+    $companyId: ID!
+    $taskId: ID!
+    $dependencyTaskId: ID!
+  ) {
+    removeTaskDependency(
+      companyId: $companyId
+      taskId: $taskId
+      dependencyTaskId: $dependencyTaskId
+    ) {
+      ok
+      error
+      task {
+        id
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_DELETE_TASK_MUTATION = `
+  mutation CompanyApiDeleteTask($companyId: ID!, $id: ID!) {
+    deleteTask(companyId: $companyId, id: $id) {
+      ok
+      error
+      deletedTaskId
+    }
+  }
+`;
+
+export const COMPANY_API_CREATE_TASK_COMMENT_MUTATION = `
+  mutation CompanyApiCreateTaskComment($companyId: ID!, $taskId: ID!, $comment: String!) {
+    createTaskComment(companyId: $companyId, taskId: $taskId, comment: $comment) {
+      ok
+      error
+      taskComment {
+        id
+        taskId
+        companyId
+        comment
+        authorPrincipalId
+        createdAt
+        updatedAt
       }
     }
   }
