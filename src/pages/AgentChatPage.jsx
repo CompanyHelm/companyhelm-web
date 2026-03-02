@@ -480,7 +480,6 @@ export function AgentChatPage({
                                   <p className="chat-card-title">
                                     <strong>{sidebarSession?.title || "Untitled chat"}</strong>
                                   </p>
-                                  <p className="chat-card-meta">{formatTimestamp(sidebarSession?.updatedAt)}</p>
                                 </div>
                               </li>
                             );

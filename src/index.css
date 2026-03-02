@@ -514,7 +514,7 @@ h3 {
 }
 
 .chat-page-stack-with-sidebar .chat-page-main-layout {
-  grid-template-columns: minmax(15.5rem, 20rem) minmax(0, 1fr);
+  grid-template-columns: minmax(12rem, 15rem) minmax(0, 1fr);
 }
 
 .chat-sidebar-panel {
@@ -533,6 +533,7 @@ h3 {
   min-height: 0;
   overflow-y: auto;
   display: grid;
+  grid-template-columns: 1fr;
   gap: 0.5rem;
 }
 
@@ -623,6 +624,7 @@ h3 {
 
 .chat-sidebar-chat-list {
   margin-top: 0;
+  grid-template-columns: 1fr;
   gap: 0.28rem;
 }
 
