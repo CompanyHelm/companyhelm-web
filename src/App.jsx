@@ -198,6 +198,7 @@ import {
 } from "./utils/path.js";
 
 import { getPersistedCompanyId, persistCompanyId } from "./utils/persistence.js";
+import { setActiveCompanyId } from "./utils/company-context.js";
 
 import { buildRunnerStartCommand } from "./utils/shell.js";
 
@@ -3356,6 +3357,7 @@ function App() {
   }, [loadCompanies]);
 
   useEffect(() => {
+    setActiveCompanyId(selectedCompanyId);
     persistCompanyId(selectedCompanyId);
   }, [selectedCompanyId]);
 

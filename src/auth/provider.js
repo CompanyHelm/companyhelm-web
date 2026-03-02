@@ -1,4 +1,5 @@
 import { GRAPHQL_URL } from "../utils/constants.js";
+import { getActiveCompanyId } from "../utils/company-context.js";
 
 function getBrowserStorage() {
   if (typeof window === "undefined" || !window.localStorage) {
@@ -40,11 +41,17 @@ function clearStoredToken(storageKey) {
 }
 
 async function executeGraphQLAuthMutation(query, variables) {
+  const headers = {
+    "content-type": "application/json",
+  };
+  const activeCompanyId = getActiveCompanyId();
+  if (activeCompanyId) {
+    headers["x-company-id"] = activeCompanyId;
+  }
+
   const response = await fetch(GRAPHQL_URL, {
     method: "POST",
-    headers: {
-      "content-type": "application/json",
-    },
+    headers,
     body: JSON.stringify({
       query,
       variables: variables || {},
