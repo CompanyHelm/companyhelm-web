@@ -2779,8 +2779,12 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
-  .chat-sidebar-panel {
-    max-height: min(36vh, 360px);
+  .chat-page-stack-with-sidebar .chat-sidebar-panel {
+    display: none;
+  }
+
+  .chat-sidebar-resizer {
+    display: none;
   }
 
   .runner-summary-grid {
