@@ -2601,6 +2601,8 @@ export const COMPANY_API_LIST_THREAD_TURNS_WITH_QUEUED_QUERY = `
     }
     queuedUserMessages(threadId: $threadId, first: $firstQueuedUserMessages) {
       id
+      status
+      sdkTurnId
       allowSteer
       text
       company {
@@ -2617,6 +2619,8 @@ export const COMPANY_API_LIST_QUEUED_USER_MESSAGES_QUERY = `
   query CompanyApiListQueuedUserMessages($threadId: ID!, $first: Int!) {
     queuedUserMessages(threadId: $threadId, first: $first) {
       id
+      status
+      sdkTurnId
       allowSteer
       text
       company {
@@ -2645,6 +2649,8 @@ export const COMPANY_API_QUEUE_USER_MESSAGE_MUTATION = `
       reasoningLevel: $reasoningLevel
     ) {
       id
+      status
+      sdkTurnId
       allowSteer
       text
       company {
@@ -2661,6 +2667,8 @@ export const COMPANY_API_STEER_QUEUED_USER_MESSAGE_MUTATION = `
   mutation CompanyApiSteerQueuedUserMessage($queuedMessageId: ID!) {
     steerQueuedUserMessage(queuedMessageId: $queuedMessageId) {
       id
+      status
+      sdkTurnId
       allowSteer
       text
       company {

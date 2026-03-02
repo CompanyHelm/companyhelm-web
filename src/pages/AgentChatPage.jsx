@@ -726,6 +726,13 @@ export function AgentChatPage({
             <ul className="chat-queued-list">
               {queuedMessages.map((queuedMessage) => {
                 const queuedMessageId = String(queuedMessage?.id || "").trim();
+                const queuedMessageStatus = String(queuedMessage?.status || "").trim().toLowerCase() === "submitted"
+                  ? "submitted"
+                  : String(queuedMessage?.status || "").trim().toLowerCase() === "processed"
+                    ? "processed"
+                    : "queued";
+                const queuedMessageSdkTurnId = String(queuedMessage?.sdkTurnId || "").trim();
+                const isLockedMessage = queuedMessageStatus === "submitted" || queuedMessageStatus === "processed";
                 const isSteerMode = Boolean(queuedMessage?.allowSteer);
                 const isSteeringThisMessage = steeringQueuedMessageId === queuedMessageId;
                 const isDeletingThisMessage = deletingQueuedMessageId === queuedMessageId;
@@ -735,11 +742,12 @@ export function AgentChatPage({
                   <li key={queuedMessageId} className="chat-queued-item">
                     <div className="chat-queued-header">
                       <div className="chat-queued-meta">
-                        <span className="chat-message-kind">queued</span>
+                        <span className="chat-message-kind">{queuedMessageStatus}</span>
                         <span className={`chat-turn-status ${isSteerMode ? "chat-turn-status-running" : "chat-turn-status-idle"}`}>
                           {isSteerMode ? "steer" : "queue"}
                         </span>
                         <code className="runner-id">{queuedMessageId.slice(0, 8)}</code>
+                        {queuedMessageSdkTurnId ? <code className="runner-id">{queuedMessageSdkTurnId.slice(0, 8)}</code> : null}
                       </div>
                       <button
                         type="button"
@@ -750,10 +758,11 @@ export function AgentChatPage({
                           || isInterruptingChatTurn
                           || isSteeringThisMessage
                           || isDeletingThisMessage
+                          || isLockedMessage
                         }
                         onClick={() => onDeleteQueuedMessage(queuedMessageId)}
                         aria-label="Delete queued message"
-                        title="Delete queued message"
+                        title={isLockedMessage ? "Submitted or processed messages cannot be deleted." : "Delete queued message"}
                       >
                         {isDeletingThisMessage ? "..." : "x"}
                       </button>
@@ -792,6 +801,7 @@ export function AgentChatPage({
                             || isInterruptingChatTurn
                             || isSteeringThisMessage
                             || isDeletingThisMessage
+                            || isLockedMessage
                           }
                           onClick={() => onSteerQueuedMessage(queuedMessageId)}
                         >
