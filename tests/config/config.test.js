@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { loadConfig, getConfig, clearConfigCache } from "../../scripts/config/config.js";
+import { frontendConfigSchema } from "../../scripts/config/schema.js";
 import { resolveViteCommand } from "../../scripts/vite.js";
 import { parseCliEnvironmentArgument, stripEnvironmentArguments } from "../../scripts/config/cli.js";
 
@@ -61,4 +62,30 @@ test("getConfig returns cached config after explicit environment init", () => {
   const config = getConfig("local");
   assert.equal(config.server.host, "127.0.0.1");
   clearConfigCache();
+});
+
+test("frontendConfigSchema accepts supabase auth configuration", () => {
+  const config = frontendConfigSchema.parse({
+    server: {
+      host: "127.0.0.1",
+      listeningPort: 5173,
+    },
+    api: {
+      graphqlApiUrl: "http://127.0.0.1:4000/graphql",
+    },
+    authProvider: "supabase",
+    auth: {
+      companyhelm: {
+        tokenStorageKey: "companyhelm.auth.token",
+      },
+      supabase: {
+        url: "https://example.supabase.co",
+        anonKey: "test-anon-key",
+        tokenStorageKey: "supabase.auth.token",
+      },
+    },
+  });
+
+  assert.equal(config.authProvider, "supabase");
+  assert.equal(config.auth.supabase.url, "https://example.supabase.co");
 });

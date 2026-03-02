@@ -8,6 +8,10 @@ export const GRAPHQL_WS_URL = viteEnv.VITE_GRAPHQL_WS_URL || resolveGraphQLWebSo
 export const AUTH_PROVIDER = viteEnv.VITE_AUTH_PROVIDER || "companyhelm";
 export const COMPANYHELM_AUTH_TOKEN_STORAGE_KEY =
   viteEnv.VITE_COMPANYHELM_TOKEN_STORAGE_KEY || "companyhelm.auth.token";
+export const SUPABASE_URL = viteEnv.VITE_SUPABASE_URL || "";
+export const SUPABASE_ANON_KEY = viteEnv.VITE_SUPABASE_ANON_KEY || "";
+export const SUPABASE_AUTH_TOKEN_STORAGE_KEY =
+  viteEnv.VITE_SUPABASE_TOKEN_STORAGE_KEY || "supabase.auth.token";
 export const SELECTED_COMPANY_STORAGE_KEY = "companyhelm.selectedCompanyId";
 export const DEFAULT_RUNNER_GRPC_TARGET =
   viteEnv.VITE_AGENT_RUNNER_GRPC_TARGET || "localhost:50051";

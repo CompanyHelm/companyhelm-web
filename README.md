@@ -19,8 +19,11 @@ Current config fields:
 - `server.host`
 - `server.listeningPort`
 - `api.graphqlApiUrl`
-- `authProvider` (`companyhelm`)
+- `authProvider` (`companyhelm` or `supabase`)
 - `auth.companyhelm.tokenStorageKey`
+- `auth.supabase.url` (required when `authProvider: supabase`)
+- `auth.supabase.anonKey` (required when `authProvider: supabase`)
+- `auth.supabase.tokenStorageKey` (required when `authProvider: supabase`)
 
 `api.graphqlApiUrl` is used to derive:
 - Vite `/graphql` proxy target

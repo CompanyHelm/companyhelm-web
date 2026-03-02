@@ -2,6 +2,9 @@ import {
   AUTH_PROVIDER,
   COMPANYHELM_AUTH_TOKEN_STORAGE_KEY,
   GRAPHQL_URL,
+  SUPABASE_ANON_KEY,
+  SUPABASE_AUTH_TOKEN_STORAGE_KEY,
+  SUPABASE_URL,
 } from "../utils/constants.js";
 import { createAuthProvider } from "./provider.js";
 
@@ -13,6 +16,11 @@ export const authProvider = createAuthProvider({
   auth: {
     companyhelm: {
       tokenStorageKey: COMPANYHELM_AUTH_TOKEN_STORAGE_KEY,
+    },
+    supabase: {
+      url: SUPABASE_URL,
+      anonKey: SUPABASE_ANON_KEY,
+      tokenStorageKey: SUPABASE_AUTH_TOKEN_STORAGE_KEY,
     },
   },
 });

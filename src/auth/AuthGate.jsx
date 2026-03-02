@@ -9,6 +9,7 @@ function getInitialFormState() {
     firstName: "",
     lastName: "",
     email: "",
+    password: "",
   };
 }
 
@@ -17,7 +18,10 @@ export default function AuthGate({ children }) {
   const [formState, setFormState] = useState(getInitialFormState);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(() => authProvider.hasSession());
+  const requiresPassword = Boolean(authProvider.requiresPassword);
+  const requiresProfileOnSignUp = Boolean(authProvider.requiresProfileOnSignUp);
 
   const isSignInMode = mode === SIGN_IN_MODE;
   const title = useMemo(
@@ -41,21 +45,29 @@ export default function AuthGate({ children }) {
 
     setIsSubmitting(true);
     setErrorMessage("");
+    setSuccessMessage("");
     try {
+      let result;
       if (isSignInMode) {
-        await authProvider.signIn({
+        result = await authProvider.signIn({
           email: formState.email,
+          password: formState.password,
         });
       } else {
-        await authProvider.signUp({
+        result = await authProvider.signUp({
           firstName: formState.firstName,
           lastName: formState.lastName,
           email: formState.email,
+          password: formState.password,
         });
       }
 
-      setIsAuthenticated(true);
+      const hasSession = authProvider.hasSession();
+      setIsAuthenticated(hasSession);
       setFormState(getInitialFormState());
+      if (!hasSession && result?.requiresEmailConfirmation) {
+        setSuccessMessage("Sign up succeeded. Check your email to confirm your account before signing in.");
+      }
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Authentication failed.");
     } finally {
@@ -72,7 +84,7 @@ export default function AuthGate({ children }) {
       <section className="auth-card">
         <h1>{title}</h1>
         <form onSubmit={handleSubmit} className="auth-form">
-          {!isSignInMode ? (
+          {!isSignInMode && requiresProfileOnSignUp ? (
             <label htmlFor="auth-first-name">
               First name
               <input
@@ -105,10 +117,25 @@ export default function AuthGate({ children }) {
               required
             />
           </label>
+          {requiresPassword ? (
+            <label htmlFor="auth-password">
+              Password
+              <input
+                id="auth-password"
+                type="password"
+                value={formState.password}
+                onChange={handleChange("password")}
+                required
+                minLength={8}
+                autoComplete={isSignInMode ? "current-password" : "new-password"}
+              />
+            </label>
+          ) : null}
           <button type="submit" disabled={isSubmitting}>
             {isSubmitting ? "Submitting..." : title}
           </button>
           {errorMessage ? <p className="error-banner">{errorMessage}</p> : null}
+          {successMessage ? <p className="success-banner">{successMessage}</p> : null}
         </form>
         <div className="auth-mode-toggle">
           <button
@@ -116,6 +143,7 @@ export default function AuthGate({ children }) {
             onClick={() => {
               setMode(isSignInMode ? SIGN_UP_MODE : SIGN_IN_MODE);
               setErrorMessage("");
+              setSuccessMessage("");
             }}
           >
             {isSignInMode ? "Need an account? Sign Up" : "Have an account? Sign In"}

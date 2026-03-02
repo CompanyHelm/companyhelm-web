@@ -1,3 +1,4 @@
+import { createClient } from "@supabase/supabase-js";
 import { GRAPHQL_URL } from "../utils/constants.js";
 import { getActiveCompanyId } from "../utils/company-context.js";
 
@@ -73,6 +74,8 @@ async function executeGraphQLAuthMutation(query, variables) {
 class CompanyhelmAuthProvider {
   constructor(config) {
     this.name = "companyhelm";
+    this.requiresPassword = false;
+    this.requiresProfileOnSignUp = true;
     this.config = config;
   }
 
@@ -165,6 +168,150 @@ class CompanyhelmAuthProvider {
   }
 }
 
+class SupabaseAuthProvider {
+  constructor(config) {
+    const url = String(config?.url || "").trim();
+    const anonKey = String(config?.anonKey || "").trim();
+    const tokenStorageKey = String(config?.tokenStorageKey || "").trim();
+
+    if (!url) {
+      throw new Error("Supabase auth requires a configured url.");
+    }
+    if (!anonKey) {
+      throw new Error("Supabase auth requires a configured anonKey.");
+    }
+    if (!tokenStorageKey) {
+      throw new Error("Supabase auth requires a configured tokenStorageKey.");
+    }
+
+    this.name = "supabase";
+    this.requiresPassword = true;
+    this.requiresProfileOnSignUp = false;
+    this.config = {
+      url,
+      anonKey,
+      tokenStorageKey,
+    };
+    this.client = createClient(url, anonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+      },
+    });
+
+    this.client.auth.onAuthStateChange((_event, session) => {
+      setStoredToken(this.config.tokenStorageKey, session?.access_token || "");
+    });
+    void this.syncTokenFromSession();
+  }
+
+  async syncTokenFromSession() {
+    try {
+      const { data, error } = await this.client.auth.getSession();
+      if (error) {
+        throw error;
+      }
+      setStoredToken(this.config.tokenStorageKey, data?.session?.access_token || "");
+    } catch {
+      clearStoredToken(this.config.tokenStorageKey);
+    }
+  }
+
+  getToken() {
+    return getStoredToken(this.config.tokenStorageKey);
+  }
+
+  hasSession() {
+    return Boolean(this.getToken());
+  }
+
+  getAuthorizationHeaderValue() {
+    const token = this.getToken();
+    if (!token) {
+      return null;
+    }
+    return `Bearer ${token}`;
+  }
+
+  async signIn(input) {
+    const email = String(input?.email || "").trim();
+    const password = String(input?.password || "");
+    if (!email || !password) {
+      throw new Error("Email and password are required.");
+    }
+
+    const { data, error } = await this.client.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error) {
+      throw new Error(error.message || "Sign in failed.");
+    }
+
+    const token = String(data?.session?.access_token || "").trim();
+    if (!token) {
+      throw new Error("signIn did not return an auth token.");
+    }
+
+    setStoredToken(this.config.tokenStorageKey, token);
+    return data?.user || null;
+  }
+
+  async signUp(input) {
+    const firstName = String(input?.firstName || "").trim();
+    const lastName = String(input?.lastName || "").trim();
+    const email = String(input?.email || "").trim();
+    const password = String(input?.password || "");
+    if (!email || !password) {
+      throw new Error("Email and password are required.");
+    }
+
+    const metadata = {};
+    if (firstName) {
+      metadata.firstName = firstName;
+    }
+    if (lastName) {
+      metadata.lastName = lastName;
+    }
+
+    const signUpInput = {
+      email,
+      password,
+    };
+    if (Object.keys(metadata).length > 0) {
+      signUpInput.options = {
+        data: metadata,
+      };
+    }
+
+    const { data, error } = await this.client.auth.signUp(signUpInput);
+    if (error) {
+      throw new Error(error.message || "Sign up failed.");
+    }
+
+    const token = String(data?.session?.access_token || "").trim();
+    setStoredToken(this.config.tokenStorageKey, token);
+    return {
+      user: data?.user || null,
+      requiresEmailConfirmation: !token,
+    };
+  }
+
+  signOut() {
+    clearStoredToken(this.config.tokenStorageKey);
+    void this.client.auth.signOut();
+  }
+}
+
 export function createAuthProvider(config) {
-  return new CompanyhelmAuthProvider(config.auth.companyhelm);
+  const providerName = String(config?.authProvider || "").trim().toLowerCase();
+  if (providerName === "companyhelm") {
+    return new CompanyhelmAuthProvider(config.auth.companyhelm);
+  }
+  if (providerName === "supabase") {
+    return new SupabaseAuthProvider(config.auth.supabase);
+  }
+
+  throw new Error(`Unsupported auth provider "${config?.authProvider}".`);
 }
