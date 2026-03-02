@@ -506,6 +506,133 @@ h3 {
   min-width: 0;
 }
 
+.chat-page-main-layout {
+  min-height: 0;
+  display: grid;
+  gap: 0.72rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.chat-page-stack-with-sidebar .chat-page-main-layout {
+  grid-template-columns: minmax(15.5rem, 20rem) minmax(0, 1fr);
+}
+
+.chat-sidebar-panel {
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.72rem;
+}
+
+.chat-sidebar-agent-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.chat-sidebar-agent-card {
+  border: 1px solid rgba(26, 32, 38, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.62);
+  padding: 0.5rem;
+  display: grid;
+  gap: 0.36rem;
+}
+
+.chat-sidebar-agent-card-active {
+  border-color: rgba(15, 118, 110, 0.35);
+  background: rgba(15, 118, 110, 0.08);
+}
+
+.chat-sidebar-agent-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.chat-sidebar-agent-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.chat-sidebar-agent-name {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-sidebar-agent-meta {
+  margin: 0.1rem 0 0;
+  font-size: 0.7rem;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-sidebar-new-chat-btn {
+  width: 1.8rem;
+  height: 1.8rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px dashed rgba(26, 32, 38, 0.2);
+  background: transparent;
+  color: var(--action);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.chat-sidebar-new-chat-btn:hover:not(:disabled) {
+  border-color: var(--action);
+  background: rgba(15, 118, 110, 0.07);
+}
+
+.chat-sidebar-new-chat-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.chat-sidebar-new-chat-btn svg {
+  width: 0.9rem;
+  height: 0.9rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.chat-sidebar-agent-warning {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--danger);
+}
+
+.chat-sidebar-chat-list {
+  margin-top: 0;
+  gap: 0.28rem;
+}
+
+.chat-sidebar-empty {
+  margin: 0;
+  padding: 0.16rem 0.2rem;
+  color: var(--ink-2);
+  font-size: 0.76rem;
+}
+
 .page-stack > *,
 .dashboard-grid > *,
 .runner-summary-grid > * {
@@ -1895,6 +2022,16 @@ button:disabled {
   border-color: rgba(26, 32, 38, 0.16);
 }
 
+.chat-card-active {
+  border-color: rgba(15, 118, 110, 0.38);
+  background: rgba(15, 118, 110, 0.08);
+}
+
+.chat-card-active:hover {
+  border-color: rgba(15, 118, 110, 0.5);
+  background: rgba(15, 118, 110, 0.12);
+}
+
 .chat-card-status {
   width: 0.72rem;
   flex: 0 0 0.72rem;
@@ -2636,6 +2773,14 @@ button:disabled {
     gap: 0.68rem;
   }
 
+  .chat-page-stack-with-sidebar .chat-page-main-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .chat-sidebar-panel {
+    max-height: min(36vh, 360px);
+  }
+
   .runner-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2741,6 +2886,20 @@ button:disabled {
 
   .chat-page-stack {
     gap: 0.56rem;
+  }
+
+  .chat-sidebar-panel {
+    max-height: min(34vh, 320px);
+    padding: 0.62rem;
+  }
+
+  .chat-sidebar-agent-card {
+    padding: 0.44rem;
+  }
+
+  .chat-sidebar-new-chat-btn {
+    width: 2.2rem;
+    height: 2.2rem;
   }
 
   .chat-minimal-header {

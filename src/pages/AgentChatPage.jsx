@@ -2,11 +2,13 @@ import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } fr
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CreationModal } from "../components/CreationModal.jsx";
+import { ChatSessionRunningBadge } from "../components/ChatSessionRunningBadge.jsx";
 import { useSetPageActions } from "../components/PageActionsContext.jsx";
 import { formatTimestamp } from "../utils/formatting.js";
 import {
   compareTurnsByTimestamp,
   getLatestRunningChatTurn,
+  isChatSessionRunning,
   selectVisibleTurnsByMessageCount,
 } from "../utils/chat.js";
 import {
@@ -94,7 +96,13 @@ function clampThreadTitle(value) {
 export function AgentChatPage({
   selectedCompanyId,
   agent,
+  agents,
   session,
+  chatSessionsByAgent,
+  chatSessionRunningById,
+  isLoadingChatIndex,
+  isCreatingChatSession,
+  showChatSidebar = false,
   chatSessionRenameDraft,
   chatTurns,
   queuedChatMessages,
@@ -107,6 +115,7 @@ export function AgentChatPage({
   deletingChatSessionKey,
   steeringQueuedMessageId,
   deletingQueuedMessageId,
+  getCreateChatDisabledReason,
   onChatSessionRenameDraftChange,
   onChatDraftMessageChange,
   onBackToChats,
@@ -116,8 +125,17 @@ export function AgentChatPage({
   onInterruptChatTurn,
   onSteerQueuedMessage,
   onDeleteQueuedMessage,
+  onCreateChatForAgent,
+  onOpenChatFromList,
 }) {
   const canChat = Boolean(agent && session);
+  const selectedAgentId = String(agent?.id || "").trim();
+  const selectedSessionId = String(session?.id || "").trim();
+  const sortedSidebarAgents = useMemo(() => {
+    return [...(Array.isArray(agents) ? agents : [])].sort((leftAgent, rightAgent) =>
+      String(leftAgent?.name || "").localeCompare(String(rightAgent?.name || "")),
+    );
+  }, [agents]);
   const currentChatSessionKey = canChat ? `${agent.id}:${session.id}` : "";
   const isDeletingCurrentChat = Boolean(
     currentChatSessionKey && deletingChatSessionKey === currentChatSessionKey,
@@ -359,8 +377,127 @@ export function AgentChatPage({
   useSetPageActions(pageActions);
 
   return (
-    <div className="page-stack chat-page-stack">
-      <section className="panel chat-panel">
+    <div className={`page-stack chat-page-stack${showChatSidebar ? " chat-page-stack-with-sidebar" : ""}`}>
+      <div className="chat-page-main-layout">
+        {showChatSidebar ? (
+          <aside className="panel list-panel chat-sidebar-panel">
+            {isLoadingChatIndex ? <p className="empty-hint">Loading chats...</p> : null}
+            {!isLoadingChatIndex && sortedSidebarAgents.length === 0 ? (
+              <p className="empty-hint">No agents available yet.</p>
+            ) : null}
+            {!isLoadingChatIndex && sortedSidebarAgents.length > 0 ? (
+              <ul className="chat-sidebar-agent-list">
+                {sortedSidebarAgents.map((sidebarAgent) => {
+                  const sidebarAgentId = String(sidebarAgent?.id || "").trim();
+                  const sidebarSessions = Array.isArray(chatSessionsByAgent?.[sidebarAgentId])
+                    ? chatSessionsByAgent[sidebarAgentId]
+                    : [];
+                  const sortedSidebarSessions = [...sidebarSessions].sort((leftSession, rightSession) =>
+                    compareTurnsByTimestamp(
+                      { createdAt: leftSession?.updatedAt, id: leftSession?.id },
+                      { createdAt: rightSession?.updatedAt, id: rightSession?.id },
+                    ),
+                  );
+                  const createChatDisabledReason = String(
+                    getCreateChatDisabledReason?.(sidebarAgentId) || "",
+                  ).trim();
+                  const isCreateChatDisabled =
+                    !onCreateChatForAgent || isCreatingChatSession || Boolean(createChatDisabledReason);
+                  const isSelectedSidebarAgent = sidebarAgentId === selectedAgentId;
+                  const sidebarModelLabel = String(
+                    sidebarAgent?.model || sidebarAgent?.defaultModelId || "",
+                  ).trim() || "n/a";
+
+                  return (
+                    <li
+                      key={`chat-sidebar-agent-${sidebarAgentId}`}
+                      className={`chat-sidebar-agent-card${isSelectedSidebarAgent ? " chat-sidebar-agent-card-active" : ""}`}
+                    >
+                      <div className="chat-sidebar-agent-header">
+                        <div className="chat-sidebar-agent-main">
+                          <p className="chat-sidebar-agent-name">
+                            <strong>{sidebarAgent?.name || `Agent ${sidebarAgentId.slice(0, 8)}`}</strong>
+                          </p>
+                          <p className="chat-sidebar-agent-meta">
+                            {sidebarAgent?.agentSdk || "n/a"} · {sidebarModelLabel}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          className="chat-sidebar-new-chat-btn"
+                          disabled={isCreateChatDisabled}
+                          onClick={() => {
+                            if (!isCreateChatDisabled) {
+                              void onCreateChatForAgent(sidebarAgentId);
+                            }
+                          }}
+                          aria-label={isCreatingChatSession ? "Creating chat..." : "Start new chat"}
+                          title={createChatDisabledReason || "Start new chat"}
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <line x1="12" y1="5" x2="12" y2="19" />
+                            <line x1="5" y1="12" x2="19" y2="12" />
+                          </svg>
+                        </button>
+                      </div>
+                      {createChatDisabledReason ? (
+                        <p className="chat-sidebar-agent-warning">{createChatDisabledReason}</p>
+                      ) : null}
+                      {sortedSidebarSessions.length > 0 ? (
+                        <ul className="chat-card-list chat-sidebar-chat-list">
+                          {sortedSidebarSessions.map((sidebarSession) => {
+                            const sidebarSessionId = String(sidebarSession?.id || "").trim();
+                            const isRunningSession = isChatSessionRunning(sidebarSession, chatSessionRunningById);
+                            const isSelectedSession =
+                              sidebarAgentId === selectedAgentId && sidebarSessionId === selectedSessionId;
+                            return (
+                              <li
+                                key={`chat-sidebar-session-${sidebarAgentId}-${sidebarSessionId}`}
+                                className={`chat-card${isSelectedSession ? " chat-card-active" : ""}`}
+                                onClick={() =>
+                                  onOpenChatFromList?.({
+                                    agentId: sidebarAgentId,
+                                    sessionId: sidebarSessionId,
+                                    sessionsForAgent: sortedSidebarSessions,
+                                  })
+                                }
+                                role="button"
+                                tabIndex={0}
+                                onKeyDown={(event) => {
+                                  if (event.key === "Enter") {
+                                    onOpenChatFromList?.({
+                                      agentId: sidebarAgentId,
+                                      sessionId: sidebarSessionId,
+                                      sessionsForAgent: sortedSidebarSessions,
+                                    });
+                                  }
+                                }}
+                              >
+                                <div className="chat-card-status">
+                                  {isRunningSession ? <ChatSessionRunningBadge /> : null}
+                                </div>
+                                <div className="chat-card-main">
+                                  <p className="chat-card-title">
+                                    <strong>{sidebarSession?.title || "Untitled chat"}</strong>
+                                  </p>
+                                  <p className="chat-card-meta">{formatTimestamp(sidebarSession?.updatedAt)}</p>
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      ) : (
+                        <p className="chat-sidebar-empty">No chats yet.</p>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : null}
+          </aside>
+        ) : null}
+
+        <section className="panel chat-panel">
         {chatError ? <p className="error-banner">Chat error: {chatError}</p> : null}
         {!agent ? <p className="empty-hint">Agent not found.</p> : null}
         {agent && !session ? <p className="empty-hint">Chat not found.</p> : null}
@@ -569,7 +706,8 @@ export function AgentChatPage({
             </ul>
           </div>
         ) : null}
-      </section>
+        </section>
+      </div>
 
       <CreationModal
         modalId="chat-settings-modal"
