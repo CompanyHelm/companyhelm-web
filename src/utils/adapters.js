@@ -341,10 +341,18 @@ export function toLegacyTurnPayload(turn, { runnerId } = {}) {
 }
 
 export function toLegacyQueuedUserMessagePayload(queuedMessage) {
+  const normalizedStatus = String(queuedMessage?.status || "").trim().toLowerCase();
   return {
     id: resolveLegacyId(queuedMessage?.id),
     companyId: resolveLegacyId(queuedMessage?.company?.id),
     threadId: resolveLegacyId(queuedMessage?.thread?.id),
+    status:
+      normalizedStatus === "processed"
+        ? "processed"
+        : normalizedStatus === "submitted"
+          ? "submitted"
+          : "queued",
+    sdkTurnId: resolveLegacyId(queuedMessage?.sdkTurnId) || null,
     allowSteer: Boolean(queuedMessage?.allowSteer),
     text: resolveLegacyId(queuedMessage?.text),
   };
