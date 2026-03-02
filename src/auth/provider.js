@@ -74,7 +74,7 @@ async function executeGraphQLAuthMutation(query, variables) {
 class CompanyhelmAuthProvider {
   constructor(config) {
     this.name = "companyhelm";
-    this.requiresPassword = false;
+    this.requiresPassword = true;
     this.requiresProfileOnSignUp = true;
     this.config = config;
   }
@@ -97,13 +97,14 @@ class CompanyhelmAuthProvider {
 
   async signIn(input) {
     const email = String(input?.email || "").trim();
-    if (!email) {
-      throw new Error("Email is required.");
+    const password = String(input?.password || "");
+    if (!email || !password) {
+      throw new Error("Email and password are required.");
     }
 
     const data = await executeGraphQLAuthMutation(
-      `mutation SignIn($email: String!) {
-        signIn(email: $email) {
+      `mutation SignIn($email: String!, $password: String!) {
+        signIn(email: $email, password: $password) {
           token
           user {
             id
@@ -115,6 +116,7 @@ class CompanyhelmAuthProvider {
       }`,
       {
         email,
+        password,
       },
     );
 
@@ -131,13 +133,14 @@ class CompanyhelmAuthProvider {
     const firstName = String(input?.firstName || "").trim();
     const lastName = String(input?.lastName || "").trim();
     const email = String(input?.email || "").trim();
-    if (!firstName || !email) {
-      throw new Error("First name and email are required.");
+    const password = String(input?.password || "");
+    if (!firstName || !email || !password) {
+      throw new Error("First name, email, and password are required.");
     }
 
     const data = await executeGraphQLAuthMutation(
-      `mutation SignUp($firstName: String!, $lastName: String, $email: String!) {
-        signUp(firstName: $firstName, lastName: $lastName, email: $email) {
+      `mutation SignUp($firstName: String!, $lastName: String, $email: String!, $password: String!) {
+        signUp(firstName: $firstName, lastName: $lastName, email: $email, password: $password) {
           token
           user {
             id
@@ -151,6 +154,7 @@ class CompanyhelmAuthProvider {
         firstName,
         lastName: lastName || null,
         email,
+        password,
       },
     );
 

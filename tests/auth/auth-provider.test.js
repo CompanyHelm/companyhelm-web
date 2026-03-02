@@ -93,8 +93,50 @@ test("signIn sends active company context header to GraphQL API", async () => {
     },
   });
 
-  await provider.signIn({ email: "user@example.com" });
+  await provider.signIn({ email: "user@example.com", password: "password-123" });
 
   assert.equal(fetchCalls.length, 1);
   assert.equal(fetchCalls[0].options?.headers?.["x-company-id"], "company-123");
+  setActiveCompanyId("");
+});
+
+test("companyhelm signIn requires password", async () => {
+  const provider = createAuthProvider({
+    authProvider: "companyhelm",
+    auth: {
+      companyhelm: {
+        tokenStorageKey: "companyhelm.auth.token",
+      },
+    },
+    api: {
+      graphqlApiUrl: "http://127.0.0.1:4000/graphql",
+    },
+  });
+
+  await assert.rejects(
+    provider.signIn({ email: "user@example.com" }),
+    /Email and password are required\./,
+  );
+});
+
+test("companyhelm signUp requires password", async () => {
+  const provider = createAuthProvider({
+    authProvider: "companyhelm",
+    auth: {
+      companyhelm: {
+        tokenStorageKey: "companyhelm.auth.token",
+      },
+    },
+    api: {
+      graphqlApiUrl: "http://127.0.0.1:4000/graphql",
+    },
+  });
+
+  await assert.rejects(
+    provider.signUp({
+      firstName: "User",
+      email: "user@example.com",
+    }),
+    /First name, email, and password are required\./,
+  );
 });
