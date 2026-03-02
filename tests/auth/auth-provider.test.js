@@ -19,6 +19,27 @@ test("createAuthProvider returns companyhelm provider", () => {
   assert.equal(provider.name, "companyhelm");
 });
 
+test("createAuthProvider returns supabase provider", () => {
+  const provider = createAuthProvider({
+    authProvider: "supabase",
+    auth: {
+      companyhelm: {
+        tokenStorageKey: "companyhelm.auth.token",
+      },
+      supabase: {
+        url: "https://example.supabase.co",
+        anonKey: "test-anon-key",
+        tokenStorageKey: "supabase.auth.token",
+      },
+    },
+    api: {
+      graphqlApiUrl: "http://127.0.0.1:4000/graphql",
+    },
+  });
+
+  assert.equal(provider.name, "supabase");
+});
+
 test("signIn sends active company context header to GraphQL API", async () => {
   const localStorageMap = new Map();
   global.window = {

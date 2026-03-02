@@ -54,6 +54,9 @@ function startVite(argv) {
   process.env.VITE_GRAPHQL_WS_URL = toWebSocketUrl(config.api.graphqlApiUrl);
   process.env.VITE_AUTH_PROVIDER = config.authProvider;
   process.env.VITE_COMPANYHELM_TOKEN_STORAGE_KEY = config.auth.companyhelm.tokenStorageKey;
+  process.env.VITE_SUPABASE_URL = config.auth.supabase?.url || "";
+  process.env.VITE_SUPABASE_ANON_KEY = config.auth.supabase?.anonKey || "";
+  process.env.VITE_SUPABASE_TOKEN_STORAGE_KEY = config.auth.supabase?.tokenStorageKey || "";
 
   const viteBinPath = resolve(process.cwd(), "node_modules", "vite", "bin", "vite.js");
   const child = spawn(process.execPath, [viteBinPath, viteCommand], {
