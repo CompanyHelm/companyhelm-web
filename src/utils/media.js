@@ -25,11 +25,6 @@ export function resolveGraphQLWebSocketUrl(rawUrl) {
     return cleanUrl;
   }
 
-  if (cleanUrl.startsWith("/") && String(window.location.port || "") === "5173") {
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    return `${protocol}//${window.location.hostname}:4000${cleanUrl}`;
-  }
-
   const base = new URL(window.location.href);
   const parsed = new URL(cleanUrl, base);
   parsed.protocol = parsed.protocol === "https:" ? "wss:" : "ws:";

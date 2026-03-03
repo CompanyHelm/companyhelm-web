@@ -15,6 +15,7 @@ export default defineConfig({
       "/graphql": {
         target: graphqlProxyTarget,
         changeOrigin: true,
+        ws: true,
       },
     },
   },
