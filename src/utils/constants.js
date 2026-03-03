@@ -2,8 +2,9 @@
 import { resolveGraphQLWebSocketUrl } from "./media.js";
 
 const viteEnv = import.meta?.env ?? {};
+const DEFAULT_GRAPHQL_API_URL = "http://127.0.0.1:4000/graphql";
 
-export const GRAPHQL_URL = viteEnv.VITE_GRAPHQL_URL || "/graphql";
+export const GRAPHQL_URL = viteEnv.VITE_GRAPHQL_URL || DEFAULT_GRAPHQL_API_URL;
 export const GRAPHQL_WS_URL = viteEnv.VITE_GRAPHQL_WS_URL || resolveGraphQLWebSocketUrl(GRAPHQL_URL);
 export const AUTH_PROVIDER = viteEnv.VITE_AUTH_PROVIDER || "companyhelm";
 export const COMPANYHELM_AUTH_TOKEN_STORAGE_KEY =
