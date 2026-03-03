@@ -7,6 +7,17 @@ export const LIST_COMPANIES_QUERY = `
   }
 `;
 
+export const CURRENT_USER_QUERY = `
+  query CurrentUser {
+    currentUser {
+      id
+      email
+      firstName
+      lastName
+    }
+  }
+`;
+
 export const CREATE_COMPANY_MUTATION = `
   mutation CreateCompany($name: String!, $id: String) {
     createCompany(name: $name, id: $id) {
@@ -1532,6 +1543,17 @@ export const COMPANY_API_LIST_COMPANIES_CONNECTION_QUERY = `
         hasNextPage
         endCursor
       }
+    }
+  }
+`;
+
+export const COMPANY_API_CURRENT_USER_QUERY = `
+  query CompanyApiCurrentUser {
+    currentUser {
+      id
+      email
+      firstName
+      lastName
     }
   }
 `;

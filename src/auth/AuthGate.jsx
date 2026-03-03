@@ -1,8 +1,10 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { authProvider } from "./runtime.js";
+import { normalizePathname, setBrowserPath } from "../utils/path.js";
 
 const SIGN_IN_MODE = "signIn";
 const SIGN_UP_MODE = "signUp";
+const SIGN_IN_PATH = "/sign-in";
 
 function getInitialFormState() {
   return {
@@ -28,6 +30,20 @@ export default function AuthGate({ children }) {
     () => (isSignInMode ? "Sign In" : "Sign Up"),
     [isSignInMode],
   );
+
+  useEffect(() => {
+    const currentPath = normalizePathname(window.location.pathname);
+    if (!isAuthenticated) {
+      if (currentPath !== SIGN_IN_PATH) {
+        setBrowserPath(SIGN_IN_PATH, { replace: true });
+      }
+      return;
+    }
+
+    if (currentPath === SIGN_IN_PATH) {
+      setBrowserPath("/dashboard", { replace: true });
+    }
+  }, [isAuthenticated]);
 
   const handleChange = (fieldName) => (event) => {
     const nextValue = event?.target?.value ?? "";
