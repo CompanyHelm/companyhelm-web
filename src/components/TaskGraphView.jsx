@@ -24,6 +24,7 @@ const ELK_OPTIONS = {
 
 const NODE_WIDTH = 220;
 const NODE_HEIGHT = 90;
+const CHILD_EDGE_COLOR = "rgba(37, 99, 235, 0.82)";
 
 function TaskNode({ data }) {
   return (
@@ -49,13 +50,17 @@ const nodeTypes = { task: TaskNode };
 
 function buildGraphElements(tasks) {
   const taskArray = Array.isArray(tasks) ? tasks : [];
-  const taskIds = new Set(taskArray.map((t) => String(t.id)));
+  const taskIds = new Set(
+    taskArray
+      .map((task) => String(task?.id || "").trim())
+      .filter(Boolean),
+  );
 
   const nodes = taskArray.map((task) => ({
-    id: String(task.id),
+    id: String(task?.id || "").trim(),
     type: "task",
     data: {
-      label: task.name || `Task ${task.id}`,
+      label: task?.name || `Task ${task?.id}`,
       status: task.status || "draft",
       commentCount: Array.isArray(task.comments) ? task.comments.length : 0,
     },
@@ -64,13 +69,19 @@ function buildGraphElements(tasks) {
 
   const edges = [];
   for (const task of taskArray) {
+    const taskId = String(task?.id || "").trim();
+    if (!taskId) {
+      continue;
+    }
+
     const deps = Array.isArray(task.dependencyTaskIds) ? task.dependencyTaskIds : [];
     for (const depId of deps) {
-      if (taskIds.has(String(depId)) && String(depId) !== String(task.id)) {
+      const dependencyTaskId = String(depId || "").trim();
+      if (taskIds.has(dependencyTaskId) && dependencyTaskId !== taskId) {
         edges.push({
-          id: `e-${depId}-${task.id}`,
-          source: String(depId),
-          target: String(task.id),
+          id: `dependency-${dependencyTaskId}-${taskId}`,
+          source: dependencyTaskId,
+          target: taskId,
           label: "blocks",
           type: "smoothstep",
           animated: false,
@@ -78,6 +89,33 @@ function buildGraphElements(tasks) {
         });
       }
     }
+
+    const parentTaskId = String(task?.parentTaskId || "").trim();
+    if (!parentTaskId || parentTaskId === taskId || !taskIds.has(parentTaskId)) {
+      continue;
+    }
+
+    edges.push({
+      id: `child-${parentTaskId}-${taskId}`,
+      source: parentTaskId,
+      target: taskId,
+      label: "child",
+      type: "smoothstep",
+      animated: false,
+      style: {
+        stroke: CHILD_EDGE_COLOR,
+        strokeWidth: 1.6,
+        strokeDasharray: "4 3",
+      },
+      labelStyle: {
+        fill: CHILD_EDGE_COLOR,
+        fontWeight: 600,
+      },
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        color: CHILD_EDGE_COLOR,
+      },
+    });
   }
 
   return { nodes, edges };
