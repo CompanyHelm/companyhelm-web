@@ -3,6 +3,15 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "files": [
+    "config/*.yaml",
+    "public/**",
+    "schema/**",
+    "scripts/**",
+    "src/**",
+    "index.html",
+    "vite.config.js"
+  ],
   "scripts": {
     "dev": "node scripts/vite.js dev",
     "build": "node scripts/vite.js build",

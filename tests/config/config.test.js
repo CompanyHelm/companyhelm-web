@@ -35,6 +35,10 @@ test("parseCliEnvironmentArgument throws when environment is missing", () => {
   );
 });
 
+test("parseCliEnvironmentArgument throws when --environment value is missing", () => {
+  assert.throws(() => parseCliEnvironmentArgument(["--environment"]), /Missing value for --environment\./);
+});
+
 test("stripEnvironmentArguments removes environment flags", () => {
   const stripped = stripEnvironmentArguments(["--environment", "local", "--environment=prod"]);
   assert.deepEqual(stripped, []);
