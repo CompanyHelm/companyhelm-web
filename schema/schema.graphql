@@ -17,6 +17,7 @@ type Agent {
   roles: [Role!]!
   runner: AgentRunner!
   status: AgentStatus!
+  threads(after: String, first: Int = 20): ThreadConnection!
 }
 
 type AgentConnection {
@@ -399,7 +400,7 @@ type SkillGroupMutationPayload {
 
 type Subscription {
   agentRunnersUpdated(after: String, companyId: ID!, first: Int = 20): AgentRunnerConnection!
-  agentThreadsUpdated(after: String, agentId: ID!, companyId: ID!, first: Int = 20): ThreadConnection!
+  agentThreadsUpdated(after: String, agentId: ID, companyId: ID!, first: Int = 20): ThreadConnection!
   agentTurnsUpdated(after: String, agentId: ID!, companyId: ID!, first: Int = 20, threadId: ID!): ThreadTurnConnection!
 }
 

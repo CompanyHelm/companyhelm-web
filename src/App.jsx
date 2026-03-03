@@ -136,6 +136,7 @@ import {
   COMPANY_API_REGENERATE_AGENT_RUNNER_SECRET_MUTATION,
   COMPANY_API_DELETE_AGENT_RUNNER_MUTATION,
   COMPANY_API_LIST_AGENTS_CONNECTION_QUERY,
+  COMPANY_API_LIST_AGENTS_WITH_THREADS_CONNECTION_QUERY,
   COMPANY_API_CREATE_AGENT_MUTATION,
   COMPANY_API_UPDATE_AGENT_MUTATION,
   COMPANY_API_DELETE_AGENT_MUTATION,
@@ -373,6 +374,46 @@ async function loadCompanyApiAgentThreads({
   });
 
   return threadNodes.map((threadNode) => toLegacyThreadPayload(threadNode));
+}
+
+async function loadCompanyApiAgentsWithThreads({
+  companyId,
+  agentLimit = null,
+  threadLimit = 500,
+}) {
+  const agentNodes = await fetchCompanyApiConnectionNodes({
+    query: COMPANY_API_LIST_AGENTS_WITH_THREADS_CONNECTION_QUERY,
+    rootField: "agents",
+    variables: {
+      companyId,
+      firstThreads: threadLimit,
+    },
+    limit: agentLimit,
+  });
+
+  const agentRunnersById = new Map();
+  const sessionsByAgent = {};
+  const legacyAgents = agentNodes.map((agentNode) => {
+    const legacyAgent = toAgentPayload(agentNode);
+    const legacyRunner = agentNode?.runner ? toLegacyRunnerPayload(agentNode.runner) : null;
+    const resolvedRunnerId = resolveLegacyId(legacyRunner?.id);
+    if (resolvedRunnerId) {
+      agentRunnersById.set(resolvedRunnerId, legacyRunner);
+    }
+    const resolvedAgentId = resolveLegacyId(legacyAgent?.id);
+    if (resolvedAgentId) {
+      sessionsByAgent[resolvedAgentId] = toConnectionNodes(agentNode?.threads).map((threadNode) =>
+        toLegacyThreadPayload(threadNode),
+      );
+    }
+    return legacyAgent;
+  });
+
+  return {
+    agents: legacyAgents,
+    agentRunners: [...agentRunnersById.values()],
+    sessionsByAgent,
+  };
 }
 
 async function loadCompanyApiThreadTurns({
@@ -2651,6 +2692,7 @@ function App() {
   const isAgentConversationView =
     activePage === "agents" && agentsRoute.view === "chat" && Boolean(resolvedChatSessionId);
   const isChatConversationRoute = isChatsConversationView || isAgentConversationView;
+  const shouldSubscribeChatIndex = activePage === "chats";
   const shouldSubscribeChatSessions =
     activePage === "agents" && (agentsRoute.view === "agent" || agentsRoute.view === "chats" || agentsRoute.view === "chat");
   const shouldSubscribeChatTurns = isChatConversationRoute;
@@ -2688,7 +2730,6 @@ function App() {
     activePage === "profile";
   const shouldLoadAgentData =
     activePage === "agents" ||
-    activePage === "chats" ||
     activePage === "profile";
   const shouldSubscribeAgentRunners = activePage === "dashboard" || activePage === "agent-runner";
   useEffect(() => {
@@ -3041,6 +3082,82 @@ function App() {
     }
   }, [selectedCompanyId]);
 
+  const loadChatsBootstrapData = useCallback(async ({ silently = false } = {}) => {
+    if (!selectedCompanyId) {
+      setAgentError("");
+      setChatIndexError("");
+      setAgents([]);
+      setAgentDrafts({});
+      setChatSessionsByAgent({});
+      setChatSessions([]);
+      if (!silently) {
+        setIsLoadingAgents(false);
+        setIsLoadingChatIndex(false);
+      }
+      return {
+        agents: [],
+        sessionsByAgent: {},
+      };
+    }
+
+    try {
+      if (!silently) {
+        setAgentError("");
+        setChatIndexError("");
+        setIsLoadingAgents(true);
+        setIsLoadingChatIndex(true);
+      }
+      const bootstrapPayload = await loadCompanyApiAgentsWithThreads({
+        companyId: selectedCompanyId,
+        agentLimit: 500,
+        threadLimit: 500,
+      });
+      const nextAgents = bootstrapPayload.agents || [];
+      const nextSessionsByAgent = bootstrapPayload.sessionsByAgent || {};
+      const nextRunners = bootstrapPayload.agentRunners || [];
+
+      setAgents(nextAgents);
+      setAgentDrafts(createAgentDrafts(nextAgents));
+      if (nextRunners.length > 0) {
+        setAgentRunners((currentRunners) =>
+          mergeAgentRunnerPayloadList(currentRunners, nextRunners),
+        );
+      }
+      setChatSessionsByAgent(nextSessionsByAgent);
+
+      const resolvedActiveAgentId = resolveLegacyId(chatAgentId, nextAgents[0]?.id);
+      const activeSessions = resolvedActiveAgentId
+        ? nextSessionsByAgent[resolvedActiveAgentId]
+        : [];
+      setChatSessions(Array.isArray(activeSessions) ? activeSessions : []);
+      syncChatSessionRunningStateFromSessions(
+        Object.values(nextSessionsByAgent).flatMap((sessionsForAgent) =>
+          Array.isArray(sessionsForAgent) ? sessionsForAgent : [],
+        ),
+      );
+
+      return {
+        agents: nextAgents,
+        sessionsByAgent: nextSessionsByAgent,
+      };
+    } catch (loadError) {
+      if (!silently) {
+        const errorMessage = loadError.message || "Failed to load chats.";
+        setAgentError(errorMessage);
+        setChatIndexError(errorMessage);
+      }
+      return {
+        agents: [],
+        sessionsByAgent: {},
+      };
+    } finally {
+      if (!silently) {
+        setIsLoadingAgents(false);
+        setIsLoadingChatIndex(false);
+      }
+    }
+  }, [selectedCompanyId, chatAgentId, syncChatSessionRunningStateFromSessions]);
+
   const ensureAgentEditorData = useCallback(async () => {
     if (!selectedCompanyId) {
       return;
@@ -3268,11 +3385,56 @@ function App() {
     }
     const nextThreadNodes = toConnectionNodes(payload?.agentThreadsUpdated);
     const nextSessions = nextThreadNodes.map((threadNode) => toLegacyThreadPayload(threadNode));
+    const sessionsByAgentId = {};
+
+    for (const session of nextSessions) {
+      const sessionAgentId = String(session?.agentId || "").trim();
+      if (!sessionAgentId) {
+        continue;
+      }
+      if (!sessionsByAgentId[sessionAgentId]) {
+        sessionsByAgentId[sessionAgentId] = [];
+      }
+      sessionsByAgentId[sessionAgentId].push(session);
+    }
+
+    if (activePage === "chats") {
+      const knownAgentIds = [...new Set(
+        (Array.isArray(agents) ? agents : [])
+          .map((agentEntry) => String(agentEntry?.id || "").trim())
+          .filter(Boolean),
+      )];
+      if (knownAgentIds.length > 0) {
+        setChatSessionsByAgent((currentSessionsByAgent) => {
+          const nextSessionsByAgent = { ...currentSessionsByAgent };
+          for (const agentId of knownAgentIds) {
+            nextSessionsByAgent[agentId] = sessionsByAgentId[agentId] || [];
+          }
+          return nextSessionsByAgent;
+        });
+        if (chatAgentId) {
+          setChatSessions(sessionsByAgentId[chatAgentId] || []);
+        }
+      }
+      syncChatSessionRunningStateFromSessions(nextSessions);
+      setChatIndexError("");
+      setIsLoadingChatIndex(false);
+      setChatError("");
+      setIsLoadingChatSessions(false);
+      return;
+    }
+
     const subscriptionAgentId = resolveLegacyId(nextSessions[0]?.agentId, chatAgentId) || "";
     applyChatSessionsSnapshotForAgent(subscriptionAgentId, nextSessions);
     setChatError("");
     setIsLoadingChatSessions(false);
-  }, [chatAgentId, applyChatSessionsSnapshotForAgent]);
+  }, [
+    activePage,
+    agents,
+    applyChatSessionsSnapshotForAgent,
+    chatAgentId,
+    syncChatSessionRunningStateFromSessions,
+  ]);
 
   const handleAgentChatTurnsSubscriptionData = useCallback((payload) => {
     if (!payload?.agentTurnsUpdated) {
@@ -3317,67 +3479,23 @@ function App() {
   });
 
   useGraphQLSubscription({
-    enabled: Boolean(selectedCompanyId && chatAgentId && shouldSubscribeChatSessions),
+    enabled: Boolean(selectedCompanyId && (shouldSubscribeChatIndex || (chatAgentId && shouldSubscribeChatSessions))),
     query: AGENT_THREADS_SUBSCRIPTION,
     variables:
-      selectedCompanyId && chatAgentId
-        ? { companyId: selectedCompanyId, agentId: chatAgentId, first: 500 }
+      selectedCompanyId
+        ? {
+            companyId: selectedCompanyId,
+            first: 500,
+            ...(shouldSubscribeChatIndex
+              ? {}
+              : chatAgentId
+                ? { agentId: chatAgentId }
+                : {}),
+          }
         : undefined,
     onData: handleAgentChatSessionsSubscriptionData,
     onError: handleAgentChatSubscriptionError,
   });
-
-  useEffect(() => {
-    const isChatsOverviewRoute = activePage === "chats";
-    const isAgentChatDetailRoute = activePage === "agents" && agentsRoute.view === "chat";
-    if (!selectedCompanyId || (!isChatsOverviewRoute && !isAgentChatDetailRoute)) {
-      return undefined;
-    }
-
-    const agentIds = [...new Set(
-      (Array.isArray(agents) ? agents : [])
-        .map((agentEntry) => String(agentEntry?.id || "").trim())
-        .filter(Boolean),
-    )];
-    if (agentIds.length === 0) {
-      return undefined;
-    }
-
-    const unsubscribers = agentIds.map((agentId) =>
-      subscribeGraphQL({
-        query: AGENT_THREADS_SUBSCRIPTION,
-        variables: {
-          companyId: selectedCompanyId,
-          agentId,
-          first: 500,
-        },
-        onData: (payload) => {
-          if (!payload?.agentThreadsUpdated) {
-            return;
-          }
-          const nextThreadNodes = toConnectionNodes(payload?.agentThreadsUpdated);
-          const nextSessions = nextThreadNodes.map((threadNode) => toLegacyThreadPayload(threadNode));
-          applyChatSessionsSnapshotForAgent(agentId, nextSessions);
-          setChatError("");
-          setIsLoadingChatSessions(false);
-        },
-        onError: handleAgentChatSubscriptionError,
-      }),
-    );
-
-    return () => {
-      for (const unsubscribe of unsubscribers) {
-        unsubscribe();
-      }
-    };
-  }, [
-    activePage,
-    agentsRoute.view,
-    agents,
-    selectedCompanyId,
-    applyChatSessionsSnapshotForAgent,
-    handleAgentChatSubscriptionError,
-  ]);
 
   useGraphQLSubscription({
     enabled: Boolean(selectedCompanyId && chatAgentId && resolvedChatSessionId && shouldSubscribeChatTurns),
@@ -3680,14 +3798,21 @@ function App() {
   }, [loadAgents, selectedCompanyId, shouldLoadAgentData]);
 
   useEffect(() => {
+    if (!selectedCompanyId || activePage !== "chats") {
+      return;
+    }
+    void loadChatsBootstrapData();
+  }, [activePage, loadChatsBootstrapData, selectedCompanyId]);
+
+  useEffect(() => {
     if (!selectedCompanyId || activePage !== "chats" || !chatAgentId) {
       return;
     }
-    loadAgentChatSessions({
-      silently: true,
-      agentIdOverride: chatAgentId,
-    });
-  }, [activePage, chatAgentId, loadAgentChatSessions, selectedCompanyId]);
+    const nextSessions = Array.isArray(chatSessionsByAgent[chatAgentId])
+      ? chatSessionsByAgent[chatAgentId]
+      : [];
+    setChatSessions(nextSessions);
+  }, [activePage, chatAgentId, chatSessionsByAgent, selectedCompanyId]);
 
   useEffect(() => {
     if (
@@ -3730,9 +3855,8 @@ function App() {
   }, [resolvedChatSessionId, selectedChatSession?.title]);
 
   useEffect(() => {
-    const isChatsOverviewRoute = activePage === "chats";
     const isAgentChatDetailRoute = activePage === "agents" && agentsRoute.view === "chat";
-    if (!selectedCompanyId || (!isChatsOverviewRoute && !isAgentChatDetailRoute)) {
+    if (!selectedCompanyId || !isAgentChatDetailRoute) {
       return;
     }
     loadChatSessionIndexByAgent();
@@ -6342,7 +6466,11 @@ function App() {
       }
 
       if (isOverviewRoute) {
-        await loadChatSessionIndexByAgent({ silently: true });
+        if (activePage === "chats") {
+          await loadChatsBootstrapData({ silently: true });
+        } else {
+          await loadChatSessionIndexByAgent({ silently: true });
+        }
       } else {
         await loadAgentChatSessions({
           silently: true,
@@ -6549,8 +6677,11 @@ function App() {
       }
 
       let availableAgents = Array.isArray(agents) ? agents : [];
+      let sessionsByAgentSnapshot = chatSessionsByAgent;
       if (availableAgents.length === 0) {
-        availableAgents = await loadAgents();
+        const bootstrapPayload = await loadChatsBootstrapData({ silently: true });
+        availableAgents = Array.isArray(bootstrapPayload.agents) ? bootstrapPayload.agents : [];
+        sessionsByAgentSnapshot = bootstrapPayload.sessionsByAgent || {};
       }
 
       let targetAgentId = requestedAgentId;
@@ -6563,10 +6694,13 @@ function App() {
         return;
       }
 
-      let sessionsByAgentSnapshot = chatSessionsByAgent;
       const hasLoadedSessionsForAgent = Array.isArray(sessionsByAgentSnapshot[targetAgentId]);
       if (!hasLoadedSessionsForAgent) {
-        sessionsByAgentSnapshot = await loadChatSessionIndexByAgent({ silently: true });
+        const bootstrapPayload = await loadChatsBootstrapData({ silently: true });
+        if (availableAgents.length === 0) {
+          availableAgents = Array.isArray(bootstrapPayload.agents) ? bootstrapPayload.agents : [];
+        }
+        sessionsByAgentSnapshot = bootstrapPayload.sessionsByAgent || {};
       }
 
       const sessionsForAgent = sortChatSessionsForChatNavigation(
