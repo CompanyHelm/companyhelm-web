@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import logoOnly from "./assets/logo-only.svg";
 
 import {
   DEFAULT_RUNNER_GRPC_TARGET,
@@ -6872,7 +6871,7 @@ function App() {
             ) : null}
             <div className="side-brand">
               <div className="side-brand-lockup">
-                <img className="side-brand-logo" src={logoOnly} alt="CompanyHelm logo" />
+                <img className="side-brand-logo" src="/logos/logo-only.svg" alt="CompanyHelm logo" />
                 <div>
                   <p className="side-overline">Control Plane</p>
                   <h2>CompanyHelm</h2>
