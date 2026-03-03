@@ -2425,6 +2425,191 @@ button:disabled {
   border-color: rgba(15, 118, 110, 0.3);
 }
 
+/* ── Task view tabs ─────────────────────────────── */
+
+.task-view-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--panel-border);
+  flex-shrink: 0;
+}
+
+.task-view-tab {
+  padding: 0.5rem 1.2rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--ink-1);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.task-view-tab:hover {
+  color: var(--ink-0);
+}
+
+.task-view-tab-active {
+  color: var(--action);
+  border-bottom-color: var(--action);
+}
+
+/* ── Task view container (full viewport) ────────── */
+
+.task-view-container {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.task-view-fullscreen {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 8rem);
+  overflow: hidden;
+}
+
+/* ── React Flow graph nodes ─────────────────────── */
+
+.task-graph-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--ink-2);
+  font-size: 0.85rem;
+}
+
+.task-graph-node {
+  padding: 0.55rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid rgba(26, 32, 38, 0.14);
+  background: rgba(255, 255, 255, 0.92);
+  cursor: pointer;
+  min-width: 180px;
+  max-width: 220px;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+
+.task-graph-node:hover {
+  border-color: rgba(15, 118, 110, 0.45);
+  box-shadow: 0 2px 12px rgba(15, 118, 110, 0.1);
+}
+
+.task-graph-node-draft {
+  border-left: 3px solid rgba(71, 85, 105, 0.5);
+}
+
+.task-graph-node-pending {
+  border-left: 3px solid rgba(194, 65, 12, 0.6);
+}
+
+.task-graph-node-in_progress {
+  border-left: 3px solid rgba(29, 78, 216, 0.6);
+}
+
+.task-graph-node-completed {
+  border-left: 3px solid rgba(15, 118, 110, 0.6);
+}
+
+.task-graph-node-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.25rem;
+}
+
+.task-graph-node-name {
+  font-size: 0.82rem;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.task-graph-node-meta {
+  font-size: 0.7rem;
+  color: var(--ink-2);
+}
+
+/* ── Task table ─────────────────────────────────── */
+
+.task-table-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+.task-table {
+  width: 100%;
+  min-width: 800px;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.task-table th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-base);
+  text-align: left;
+  padding: 0.55rem 0.65rem;
+  font-weight: 600;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-1);
+  border-bottom: 1px solid var(--panel-border);
+  white-space: nowrap;
+}
+
+.task-table-row {
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.task-table-row:hover {
+  background: rgba(15, 118, 110, 0.04);
+}
+
+.task-table-row td {
+  padding: 0.52rem 0.65rem;
+  border-bottom: 1px solid rgba(26, 32, 38, 0.06);
+  vertical-align: middle;
+}
+
+.task-table-name {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.task-table-desc {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-1);
+}
+
+.task-table-deps {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.76rem;
+  color: var(--ink-1);
+}
+
+.task-table-date {
+  white-space: nowrap;
+  color: var(--ink-2);
+  font-size: 0.76rem;
+}
+
 .task-comments-list {
   list-style: none;
   margin: 0;
