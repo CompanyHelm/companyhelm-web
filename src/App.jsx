@@ -25,7 +25,7 @@ import { matchesMediaQuery } from "./utils/media.js";
 
 import {
   LIST_COMPANIES_QUERY,
-  CURRENT_USER_QUERY,
+  ME_QUERY,
   CREATE_COMPANY_MUTATION,
   DELETE_COMPANY_MUTATION,
   LIST_GITHUB_APP_CONFIG_QUERY,
@@ -92,7 +92,7 @@ import {
   COMPANY_API_NOT_IMPLEMENTED_ERROR,
   COMPANY_API_PAGE_SIZE,
   COMPANY_API_LIST_COMPANIES_CONNECTION_QUERY,
-  COMPANY_API_CURRENT_USER_QUERY,
+  COMPANY_API_ME_QUERY,
   COMPANY_API_CREATE_COMPANY_MUTATION,
   COMPANY_API_DELETE_COMPANY_MUTATION,
   COMPANY_API_GITHUB_APP_CONFIG_QUERY,
@@ -925,9 +925,9 @@ async function executeGraphQL(query, variables = {}) {
     };
   }
 
-  if (query === CURRENT_USER_QUERY) {
-    const data = await executeRawGraphQL(COMPANY_API_CURRENT_USER_QUERY);
-    const currentUser = data?.currentUser;
+  if (query === ME_QUERY) {
+    const data = await executeRawGraphQL(COMPANY_API_ME_QUERY);
+    const currentUser = data?.me;
     return {
       currentUser: currentUser
         ? {
@@ -2746,7 +2746,7 @@ function App() {
     try {
       setCurrentUserError("");
       setIsLoadingCurrentUser(true);
-      const data = await executeGraphQL(CURRENT_USER_QUERY);
+      const data = await executeGraphQL(ME_QUERY);
       const nextUser = data?.currentUser || null;
       setCurrentUser(nextUser
         ? {

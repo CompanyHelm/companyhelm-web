@@ -7,9 +7,9 @@ export const LIST_COMPANIES_QUERY = `
   }
 `;
 
-export const CURRENT_USER_QUERY = `
-  query CurrentUser {
-    currentUser {
+export const ME_QUERY = `
+  query Me {
+    me {
       id
       email
       firstName
@@ -1547,9 +1547,9 @@ export const COMPANY_API_LIST_COMPANIES_CONNECTION_QUERY = `
   }
 `;
 
-export const COMPANY_API_CURRENT_USER_QUERY = `
-  query CompanyApiCurrentUser {
-    currentUser {
+export const COMPANY_API_ME_QUERY = `
+  query CompanyApiMe {
+    me {
       id
       email
       firstName
