@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { Page } from "../components/Page.jsx";
 import { CreationModal } from "../components/CreationModal.jsx";
 import { AgentEditModal } from "../components/AgentEditModal.jsx";
@@ -175,12 +175,12 @@ export function AgentsPage({
     setEditingAgentId(agentId);
   }
 
-  function openCreateAgentModal() {
+  const openCreateAgentModal = useCallback(() => {
     if (typeof onEnsureAgentEditorData === "function") {
       void onEnsureAgentEditorData();
     }
     setIsCreateModalOpen(true);
-  }
+  }, [onEnsureAgentEditorData]);
 
   async function handleCreateAgentSubmit(event) {
     const didCreate = await onCreateAgent(event);
