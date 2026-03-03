@@ -4,6 +4,42 @@ export function hasRunningChatTurns(turns) {
   return (Array.isArray(turns) ? turns : []).some((turn) => normalizeChatStatus(turn?.status) === "running");
 }
 
+export function mergeChatSessionsByAgentSnapshot({
+  currentSessionsByAgent,
+  snapshotSessionsByAgent,
+  knownAgentIds,
+} = {}) {
+  const currentByAgent =
+    currentSessionsByAgent && typeof currentSessionsByAgent === "object"
+      ? currentSessionsByAgent
+      : {};
+  const snapshotByAgent =
+    snapshotSessionsByAgent && typeof snapshotSessionsByAgent === "object"
+      ? snapshotSessionsByAgent
+      : {};
+  const nextByAgent = { ...currentByAgent };
+
+  for (const [rawAgentId, sessions] of Object.entries(snapshotByAgent)) {
+    const agentId = String(rawAgentId || "").trim();
+    if (!agentId) {
+      continue;
+    }
+    nextByAgent[agentId] = Array.isArray(sessions) ? sessions : [];
+  }
+
+  for (const rawKnownAgentId of Array.isArray(knownAgentIds) ? knownAgentIds : []) {
+    const knownAgentId = String(rawKnownAgentId || "").trim();
+    if (!knownAgentId) {
+      continue;
+    }
+    if (!Object.prototype.hasOwnProperty.call(nextByAgent, knownAgentId)) {
+      nextByAgent[knownAgentId] = [];
+    }
+  }
+
+  return nextByAgent;
+}
+
 export function getLatestRunningChatTurn(turns) {
   const runningTurns = (Array.isArray(turns) ? turns : []).filter(
     (turn) => normalizeChatStatus(turn?.status) === "running",
@@ -184,6 +220,25 @@ export function getTurnLifecycleSignature(turns) {
       return `${turnId}:${status}:${startedAt}:${endedAt}`;
     })
     .join("|");
+}
+
+export function updateQueuedMessagesFromTurnSubscription({
+  queuedMessages,
+  previousRunningTurnId,
+  nextTurns,
+} = {}) {
+  const queueSnapshot = Array.isArray(queuedMessages) ? queuedMessages : [];
+  const priorRunningTurnId = String(previousRunningTurnId || "").trim();
+  const nextRunningTurnId = String(getLatestRunningChatTurn(nextTurns)?.id || "").trim();
+  const shouldDequeueOldestMessage =
+    queueSnapshot.length > 0
+    && Boolean(nextRunningTurnId)
+    && nextRunningTurnId !== priorRunningTurnId;
+
+  return {
+    nextRunningTurnId,
+    nextQueuedMessages: shouldDequeueOldestMessage ? queueSnapshot.slice(1) : queueSnapshot,
+  };
 }
 
 export function isSameChatSelection({

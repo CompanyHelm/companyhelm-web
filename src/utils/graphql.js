@@ -2969,24 +2969,6 @@ export const COMPANY_API_LIST_THREAD_TURNS_WITH_QUEUED_QUERY = `
   }
 `;
 
-export const COMPANY_API_LIST_QUEUED_USER_MESSAGES_QUERY = `
-  query CompanyApiListQueuedUserMessages($threadId: ID!, $first: Int!) {
-    queuedUserMessages(threadId: $threadId, first: $first) {
-      id
-      status
-      sdkTurnId
-      allowSteer
-      text
-      company {
-        id
-      }
-      thread {
-        id
-      }
-    }
-  }
-`;
-
 export const COMPANY_API_QUEUE_USER_MESSAGE_MUTATION = `
   mutation CompanyApiQueueUserMessage(
     $threadId: ID!
