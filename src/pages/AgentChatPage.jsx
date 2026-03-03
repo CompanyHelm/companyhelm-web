@@ -477,7 +477,7 @@ export function AgentChatPage({
             {!isLoadingChatIndex && sortedSidebarAgents.length === 0 ? (
               <p className="empty-hint">No agents available yet.</p>
             ) : null}
-            {!isLoadingChatIndex && sortedSidebarAgents.length > 0 ? (
+            {sortedSidebarAgents.length > 0 ? (
               <ul className="chat-sidebar-agent-list">
                 {sortedSidebarAgents.map((sidebarAgent) => {
                   const sidebarAgentId = String(sidebarAgent?.id || "").trim();
