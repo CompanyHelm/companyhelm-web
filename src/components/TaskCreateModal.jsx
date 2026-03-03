@@ -62,7 +62,7 @@ export function TaskCreateModal({
           <option value="">No parent task</option>
           {tasks.map((task) => (
             <option key={`create-parent-${task.id}`} value={String(task.id)}>
-              #{task.id} {task.name}
+              {task.name}
             </option>
           ))}
         </select>
@@ -82,7 +82,7 @@ export function TaskCreateModal({
         >
           {tasks.map((task) => (
             <option key={`create-dependency-${task.id}`} value={String(task.id)}>
-              #{task.id} {task.name}
+              {task.name}
             </option>
           ))}
         </select>

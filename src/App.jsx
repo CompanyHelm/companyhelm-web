@@ -4548,6 +4548,30 @@ function App() {
     }
   }
 
+  async function handleAddTaskDependency(taskId, dependencyTaskId) {
+    if (!selectedCompanyId) return;
+    const currentTask = tasks.find((t) => t.id === taskId);
+    if (!currentTask) return;
+    const currentDeps = normalizeUniqueStringList(currentTask.dependencyTaskIds || []);
+    if (currentDeps.includes(dependencyTaskId) || dependencyTaskId === taskId) return;
+    try {
+      setSavingTaskId(taskId);
+      setTaskError("");
+      const addData = await executeGraphQL(ADD_TASK_DEPENDENCY_MUTATION, {
+        companyId: selectedCompanyId,
+        taskId,
+        dependencyTaskId,
+      });
+      const addResult = addData.addTaskDependency;
+      if (!addResult.ok) throw new Error(addResult.error || "Failed to add dependency.");
+      await loadTasks();
+    } catch (err) {
+      setTaskError(err.message);
+    } finally {
+      setSavingTaskId(null);
+    }
+  }
+
   async function handleCreateTaskComment(taskId, comment) {
     if (!selectedCompanyId) {
       setTaskError("Select a company before commenting on tasks.");
@@ -7143,6 +7167,7 @@ function App() {
             onCreateTask={handleCreateTask}
             onDraftChange={handleDraftChange}
             onSaveRelationships={handleRelationshipSave}
+            onAddDependency={handleAddTaskDependency}
             onCreateTaskComment={handleCreateTaskComment}
             onDeleteTask={handleDeleteTask}
             renderTaskLink={renderTaskLink}

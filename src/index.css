@@ -2608,6 +2608,90 @@ button:disabled {
   cursor: not-allowed;
 }
 
+.task-relation-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  min-height: 0;
+}
+
+.task-relation-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.22rem 0.5rem 0.22rem 0.6rem;
+  border: 1px solid rgba(26, 32, 38, 0.15);
+  border-radius: 999px;
+  background: rgba(26, 32, 38, 0.06);
+  font-size: 0.8rem;
+  color: var(--ink-0);
+  max-width: 100%;
+}
+
+.task-relation-pill span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-relation-pill-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.1s, color 0.1s;
+}
+
+.task-relation-pill-remove:hover {
+  background: rgba(158, 29, 36, 0.12);
+  color: var(--danger);
+}
+
+.task-relation-add {
+  font-size: 0.82rem;
+}
+
+.task-parent-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.task-parent-row select {
+  flex: 1;
+  min-width: 0;
+}
+
+.task-parent-clear {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid rgba(26, 32, 38, 0.15);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-1);
+  font-size: 0.8rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.task-parent-clear:hover {
+  background: rgba(158, 29, 36, 0.08);
+  border-color: rgba(158, 29, 36, 0.3);
+  color: var(--danger);
+}
+
 .task-comments-list {
   list-style: none;
   margin: 0;

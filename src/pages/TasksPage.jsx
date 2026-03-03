@@ -28,6 +28,7 @@ export function TasksPage({
   onCreateTask,
   onDraftChange,
   onSaveRelationships,
+  onAddDependency,
   onCreateTaskComment,
   onDeleteTask,
   renderTaskLink,
@@ -111,7 +112,7 @@ export function TasksPage({
         {tasks.length > 0 ? (
           <div className="task-view-container">
             {activeTab === "graph" ? (
-              <TaskGraphView tasks={tasks} onTaskClick={handleTaskClick} />
+              <TaskGraphView tasks={tasks} onTaskClick={handleTaskClick} onAddDependency={onAddDependency} />
             ) : (
               <TaskTableView tasks={tasks} onTaskClick={handleTaskClick} onDeleteTask={onDeleteTask} />
             )}

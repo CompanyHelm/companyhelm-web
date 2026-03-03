@@ -31,20 +31,36 @@ export function TaskEditModal({
     childTaskIds: currentChildTaskIds,
   };
   const selectedChildTaskIds = Array.isArray(draft?.childTaskIds) ? draft.childTaskIds : [];
+  const draftDependencyTaskIds = Array.isArray(draft?.dependencyTaskIds) ? draft.dependencyTaskIds : [];
   const parentTaskId = String(draft?.parentTaskId || "").trim();
-  const parentTaskOptions = tasks.filter((candidateTask) => {
-    if (candidateTask.id === taskId) {
-      return false;
-    }
-    return !selectedChildTaskIds.includes(candidateTask.id);
-  });
-  const childTaskOptions = tasks.filter((candidateTask) => {
-    if (candidateTask.id === taskId) {
-      return false;
-    }
-    return candidateTask.id !== parentTaskId;
-  });
   const isBusy = savingTaskId === taskId || deletingTaskId === taskId;
+
+  function removeDependency(depId) {
+    onDraftChange(taskId, "dependencyTaskIds", draftDependencyTaskIds.filter((id) => id !== depId));
+  }
+  function addDependency(depId) {
+    if (depId && !draftDependencyTaskIds.includes(depId)) {
+      onDraftChange(taskId, "dependencyTaskIds", [...draftDependencyTaskIds, depId]);
+    }
+  }
+  function removeChild(childId) {
+    onDraftChange(taskId, "childTaskIds", selectedChildTaskIds.filter((id) => id !== childId));
+  }
+  function addChild(childId) {
+    if (childId && !selectedChildTaskIds.includes(childId)) {
+      onDraftChange(taskId, "childTaskIds", [...selectedChildTaskIds, childId]);
+    }
+  }
+
+  const availableParentOptions = tasks.filter(
+    (t) => t.id !== taskId && !selectedChildTaskIds.includes(t.id),
+  );
+  const availableChildOptions = tasks.filter(
+    (t) => t.id !== taskId && t.id !== parentTaskId && !selectedChildTaskIds.includes(t.id),
+  );
+  const availableDependencyOptions = tasks.filter(
+    (t) => t.id !== taskId && !draftDependencyTaskIds.includes(t.id),
+  );
 
   async function handleSave() {
     const didSave = await onSaveRelationships(taskId);
@@ -93,60 +109,86 @@ export function TaskEditModal({
         />
 
         <label htmlFor="edit-parent-task">Parent task</label>
-        <select
-          id="edit-parent-task"
-          value={parentTaskId}
-          onChange={(event) => onDraftChange(taskId, "parentTaskId", event.target.value)}
-        >
-          <option value="">No parent task</option>
-          {parentTaskOptions.map((candidateTask) => (
-            <option key={`edit-parent-${candidateTask.id}`} value={String(candidateTask.id)}>
-              #{candidateTask.id} {candidateTask.name}
-            </option>
-          ))}
-        </select>
-
-        <label htmlFor="edit-child-tasks">Child tasks</label>
-        <select
-          id="edit-child-tasks"
-          multiple
-          value={selectedChildTaskIds}
-          onChange={(event) =>
-            onDraftChange(
-              taskId,
-              "childTaskIds",
-              Array.from(event.target.selectedOptions).map((option) => option.value),
-            )
-          }
-        >
-          {childTaskOptions.map((candidateTask) => (
-            <option key={`edit-child-${candidateTask.id}`} value={String(candidateTask.id)}>
-              #{candidateTask.id} {candidateTask.name}
-            </option>
-          ))}
-        </select>
-        <p className="chat-card-meta">Selected tasks will be assigned under this task as children.</p>
-
-        <label htmlFor="edit-dependency-tasks">Dependencies</label>
-        <select
-          id="edit-dependency-tasks"
-          multiple
-          value={Array.isArray(draft?.dependencyTaskIds) ? draft.dependencyTaskIds : []}
-          onChange={(e) =>
-            onDraftChange(
-              taskId,
-              "dependencyTaskIds",
-              Array.from(e.target.selectedOptions).map((option) => option.value),
-            )
-          }
-        >
-          {tasks
-            .filter((t) => t.id !== taskId)
-            .map((t) => (
-              <option key={`edit-depends-${t.id}`} value={String(t.id)}>
-                #{t.id} {t.name}
-              </option>
+        <div className="task-parent-row">
+          <select
+            id="edit-parent-task"
+            value={parentTaskId}
+            onChange={(event) => onDraftChange(taskId, "parentTaskId", event.target.value)}
+          >
+            <option value="">No parent task</option>
+            {availableParentOptions.map((t) => (
+              <option key={`edit-parent-${t.id}`} value={String(t.id)}>{t.name}</option>
             ))}
+          </select>
+          {parentTaskId && (
+            <button
+              type="button"
+              className="task-parent-clear"
+              onClick={() => onDraftChange(taskId, "parentTaskId", "")}
+            >
+              Remove
+            </button>
+          )}
+        </div>
+
+        <label>Child tasks</label>
+        {selectedChildTaskIds.length > 0 && (
+          <div className="task-relation-pills">
+            {selectedChildTaskIds.map((childId) => {
+              const childTask = tasks.find((t) => t.id === childId);
+              return (
+                <span key={childId} className="task-relation-pill">
+                  <span>{childTask?.name || childId}</span>
+                  <button
+                    type="button"
+                    className="task-relation-pill-remove"
+                    onClick={() => removeChild(childId)}
+                    aria-label={`Remove child ${childTask?.name || childId}`}
+                  >×</button>
+                </span>
+              );
+            })}
+          </div>
+        )}
+        <select
+          className="task-relation-add"
+          value=""
+          onChange={(e) => addChild(e.target.value)}
+        >
+          <option value="">Add child task…</option>
+          {availableChildOptions.map((t) => (
+            <option key={`edit-child-${t.id}`} value={String(t.id)}>{t.name}</option>
+          ))}
+        </select>
+
+        <label>Dependencies</label>
+        {draftDependencyTaskIds.length > 0 && (
+          <div className="task-relation-pills">
+            {draftDependencyTaskIds.map((depId) => {
+              const depTask = tasks.find((t) => t.id === depId);
+              return (
+                <span key={depId} className="task-relation-pill">
+                  <span>{depTask?.name || depId}</span>
+                  <button
+                    type="button"
+                    className="task-relation-pill-remove"
+                    onClick={() => removeDependency(depId)}
+                    aria-label={`Remove dependency ${depTask?.name || depId}`}
+                  >×</button>
+                </span>
+              );
+            })}
+          </div>
+        )}
+        <select
+          className="task-relation-add"
+          value=""
+          onChange={(e) => addDependency(e.target.value)}
+        >
+          <option value="">Add dependency…</option>
+          {availableDependencyOptions.map((t) => (
+            <option key={`edit-depends-${t.id}`} value={String(t.id)}>{t.name}</option>
+          ))}
         </select>
 
         <label>Comments</label>
@@ -156,8 +198,7 @@ export function TaskEditModal({
               <li key={`task-comment-${comment.id}`} className="task-comment-item">
                 <p>{comment.comment}</p>
                 <span className="chat-card-meta">
-                  {comment.authorPrincipalId ? `Author ${comment.authorPrincipalId}` : "Unknown author"}
-                  {comment.createdAt ? ` \u00b7 ${new Date(comment.createdAt).toLocaleString()}` : ""}
+                  {comment.createdAt ? new Date(comment.createdAt).toLocaleString() : ""}
                 </span>
               </li>
             ))}
