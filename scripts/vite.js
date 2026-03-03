@@ -6,6 +6,7 @@ import { getConfig } from "./config/config.js";
 import { parseCliEnvironmentArgument, stripEnvironmentArguments } from "./config/cli.js";
 
 const allowedViteCommands = new Set(["dev", "build", "preview"]);
+const VITE_MODE_PREFIX = "companyhelm-";
 
 function toWebSocketUrl(graphqlApiUrl) {
   const parsed = new URL(graphqlApiUrl);
@@ -63,6 +64,10 @@ function writeRuntimeConfigModule(config) {
   }
 }
 
+function toViteMode(environment) {
+  return `${VITE_MODE_PREFIX}${String(environment || "").trim()}`;
+}
+
 export function resolveViteCommand(argv) {
   const command = String(argv[0] || "").trim();
   const extraArgs = argv.slice(1).filter(Boolean);
@@ -88,9 +93,10 @@ function startVite(argv) {
   const environment = parseCliEnvironmentArgument(argv.slice(1));
   const config = getConfig(environment);
   writeRuntimeConfigModule(config);
+  const viteMode = toViteMode(environment);
 
   const viteBinPath = resolve(process.cwd(), "node_modules", "vite", "bin", "vite.js");
-  const child = spawn(process.execPath, [viteBinPath, viteCommand, "--mode", environment], {
+  const child = spawn(process.execPath, [viteBinPath, viteCommand, "--mode", viteMode], {
     stdio: "inherit",
   });
 
