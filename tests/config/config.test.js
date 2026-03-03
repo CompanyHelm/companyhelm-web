@@ -28,9 +28,11 @@ test("parseCliEnvironmentArgument accepts '--environment=<name>'", () => {
   assert.equal(environment, "prod");
 });
 
-test("parseCliEnvironmentArgument defaults to prod when environment is missing", () => {
-  const environment = parseCliEnvironmentArgument([]);
-  assert.equal(environment, "prod");
+test("parseCliEnvironmentArgument throws when environment is missing", () => {
+  assert.throws(
+    () => parseCliEnvironmentArgument([]),
+    /Missing required --environment <name> CLI argument\./
+  );
 });
 
 test("parseCliEnvironmentArgument throws when --environment value is missing", () => {
