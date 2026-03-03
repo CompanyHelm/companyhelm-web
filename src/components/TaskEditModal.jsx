@@ -21,6 +21,29 @@ export function TaskEditModal({
   }
 
   const taskId = task.id;
+  const currentChildTaskIds = tasks
+    .filter((candidateTask) => String(candidateTask?.parentTaskId || "").trim() === taskId)
+    .map((candidateTask) => String(candidateTask?.id || "").trim())
+    .filter(Boolean);
+  const draft = relationshipDraft || {
+    dependencyTaskIds: Array.isArray(task?.dependencyTaskIds) ? task.dependencyTaskIds : [],
+    parentTaskId: String(task?.parentTaskId || "").trim(),
+    childTaskIds: currentChildTaskIds,
+  };
+  const selectedChildTaskIds = Array.isArray(draft?.childTaskIds) ? draft.childTaskIds : [];
+  const parentTaskId = String(draft?.parentTaskId || "").trim();
+  const parentTaskOptions = tasks.filter((candidateTask) => {
+    if (candidateTask.id === taskId) {
+      return false;
+    }
+    return !selectedChildTaskIds.includes(candidateTask.id);
+  });
+  const childTaskOptions = tasks.filter((candidateTask) => {
+    if (candidateTask.id === taskId) {
+      return false;
+    }
+    return candidateTask.id !== parentTaskId;
+  });
   const isBusy = savingTaskId === taskId || deletingTaskId === taskId;
 
   async function handleSave() {
@@ -46,7 +69,7 @@ export function TaskEditModal({
     <CreationModal
       modalId="edit-task-modal"
       title="Edit task"
-      description="Update task dependencies and comments."
+      description="Update parent/child links, dependencies, and comments."
       isOpen
       onClose={onClose}
     >
@@ -69,11 +92,46 @@ export function TaskEditModal({
           placeholder="No description provided."
         />
 
+        <label htmlFor="edit-parent-task">Parent task</label>
+        <select
+          id="edit-parent-task"
+          value={parentTaskId}
+          onChange={(event) => onDraftChange(taskId, "parentTaskId", event.target.value)}
+        >
+          <option value="">No parent task</option>
+          {parentTaskOptions.map((candidateTask) => (
+            <option key={`edit-parent-${candidateTask.id}`} value={String(candidateTask.id)}>
+              #{candidateTask.id} {candidateTask.name}
+            </option>
+          ))}
+        </select>
+
+        <label htmlFor="edit-child-tasks">Child tasks</label>
+        <select
+          id="edit-child-tasks"
+          multiple
+          value={selectedChildTaskIds}
+          onChange={(event) =>
+            onDraftChange(
+              taskId,
+              "childTaskIds",
+              Array.from(event.target.selectedOptions).map((option) => option.value),
+            )
+          }
+        >
+          {childTaskOptions.map((candidateTask) => (
+            <option key={`edit-child-${candidateTask.id}`} value={String(candidateTask.id)}>
+              #{candidateTask.id} {candidateTask.name}
+            </option>
+          ))}
+        </select>
+        <p className="chat-card-meta">Selected tasks will be assigned under this task as children.</p>
+
         <label htmlFor="edit-dependency-tasks">Dependencies</label>
         <select
           id="edit-dependency-tasks"
           multiple
-          value={Array.isArray(relationshipDraft?.dependencyTaskIds) ? relationshipDraft.dependencyTaskIds : []}
+          value={Array.isArray(draft?.dependencyTaskIds) ? draft.dependencyTaskIds : []}
           onChange={(e) =>
             onDraftChange(
               taskId,
