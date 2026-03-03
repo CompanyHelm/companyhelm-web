@@ -1462,7 +1462,7 @@ export const AGENT_RUNNERS_SUBSCRIPTION = `
 `;
 
 export const AGENT_THREADS_SUBSCRIPTION = `
-  subscription AgentThreadsUpdated($companyId: ID!, $agentId: ID!, $first: Int = 500) {
+  subscription AgentThreadsUpdated($companyId: ID!, $agentId: ID, $first: Int = 500) {
     agentThreadsUpdated(companyId: $companyId, agentId: $agentId, first: $first) {
       edges {
         node {
@@ -2563,6 +2563,95 @@ export const COMPANY_API_LIST_AGENTS_CONNECTION_QUERY = `
                 id
                 name
                 reasoning
+              }
+            }
+          }
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_LIST_AGENTS_WITH_THREADS_CONNECTION_QUERY = `
+  query CompanyApiListAgentsWithThreads(
+    $companyId: ID
+    $first: Int!
+    $after: String
+    $firstThreads: Int = 500
+  ) {
+    agents(companyId: $companyId, first: $first, after: $after) {
+      edges {
+        node {
+          id
+          name
+          status
+          roleIds: roleIds
+          mcpServerIds
+          roles: roles {
+            id
+            name
+            parentRole: parentRole {
+              id
+            }
+          }
+          defaultReasoningLevel
+          defaultAdditionalModelInstructions
+          agentRunnerSdk {
+            id
+            name
+            models {
+              id
+              name
+              reasoning
+            }
+          }
+          defaultModel {
+            id
+            name
+            reasoning
+            sdk {
+              id
+            }
+          }
+          company {
+            id
+          }
+          runner {
+            id
+            name
+            status
+            agentSdks {
+              id
+              name
+              models {
+                id
+                name
+                reasoning
+              }
+            }
+          }
+          threads(first: $firstThreads) {
+            edges {
+              node {
+                id
+                title
+                additionalModelInstructions
+                status
+                currentReasoningLevel
+                company {
+                  id
+                }
+                agent {
+                  id
+                }
+                currentModel {
+                  id
+                  name
+                }
               }
             }
           }

@@ -75,20 +75,7 @@ export function getAgentsRouteFromPathname(pathname = window.location.pathname) 
   if (!agentId) {
     return { view: "list", agentId: "", sessionId: "" };
   }
-
-  if (!segments[2]) {
-    return { view: "agent", agentId, sessionId: "" };
-  }
-
-  if (segments[2] !== "chats") {
-    return { view: "list", agentId: "", sessionId: "" };
-  }
-
-  const sessionId = segments[3] || "";
-  if (sessionId) {
-    return { view: "chat", agentId, sessionId };
-  }
-  return { view: "chats", agentId, sessionId: "" };
+  return { view: "agent", agentId, sessionId: "" };
 }
 
 export function getSkillsRouteFromPathname(pathname = window.location.pathname) {
