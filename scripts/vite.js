@@ -12,16 +12,6 @@ function toWebSocketUrl(graphqlApiUrl) {
   return parsed.toString();
 }
 
-function toGraphQLProxyTarget(graphqlApiUrl) {
-  const parsed = new URL(graphqlApiUrl);
-  return `${parsed.protocol}//${parsed.host}`;
-}
-
-function toGraphQLPath(graphqlApiUrl) {
-  const parsed = new URL(graphqlApiUrl);
-  return parsed.pathname && parsed.pathname !== "/" ? parsed.pathname : "/graphql";
-}
-
 export function resolveViteCommand(argv) {
   const command = String(argv[0] || "").trim();
   const extraArgs = argv.slice(1).filter(Boolean);
@@ -49,8 +39,7 @@ function startVite(argv) {
 
   process.env.VITE_DEV_SERVER_HOST = config.server.host;
   process.env.VITE_DEV_SERVER_PORT = String(config.server.listeningPort);
-  process.env.VITE_GRAPHQL_PROXY_TARGET = toGraphQLProxyTarget(config.api.graphqlApiUrl);
-  process.env.VITE_GRAPHQL_URL = toGraphQLPath(config.api.graphqlApiUrl);
+  process.env.VITE_GRAPHQL_URL = config.api.graphqlApiUrl;
   process.env.VITE_GRAPHQL_WS_URL = toWebSocketUrl(config.api.graphqlApiUrl);
   process.env.VITE_AUTH_PROVIDER = config.authProvider;
   process.env.VITE_COMPANYHELM_TOKEN_STORAGE_KEY = config.auth.companyhelm.tokenStorageKey;
