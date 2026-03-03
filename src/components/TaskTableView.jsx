@@ -24,7 +24,7 @@ function buildDependencyMaps(tasks) {
   return { nameById, blocksMap };
 }
 
-export function TaskTableView({ tasks, onTaskClick }) {
+export function TaskTableView({ tasks, onTaskClick, onDeleteTask }) {
   const taskArray = Array.isArray(tasks) ? tasks : [];
 
   const { nameById, blocksMap } = useMemo(
@@ -48,6 +48,7 @@ export function TaskTableView({ tasks, onTaskClick }) {
             <th>Blocked by</th>
             <th>Comments</th>
             <th>Created</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -91,6 +92,26 @@ export function TaskTableView({ tasks, onTaskClick }) {
                   {task.createdAt
                     ? new Date(task.createdAt).toLocaleDateString()
                     : "\u2014"}
+                </td>
+                <td className="task-table-action">
+                  <button
+                    type="button"
+                    className="task-table-delete-btn"
+                    aria-label="Delete task"
+                    title="Delete task"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteTask(taskId, task.name);
+                    }}
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6l-1 14H6L5 6" />
+                      <path d="M10 11v6" />
+                      <path d="M14 11v6" />
+                      <path d="M9 6V4h6v2" />
+                    </svg>
+                  </button>
                 </td>
               </tr>
             );

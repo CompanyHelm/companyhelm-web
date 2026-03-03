@@ -2532,6 +2532,82 @@ button:disabled {
   font-size: 0.76rem;
 }
 
+.task-table-action {
+  width: 2rem;
+  text-align: center;
+}
+
+.task-table-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: color 0.12s, background 0.12s;
+}
+
+.task-table-delete-btn:hover {
+  color: var(--danger);
+  background: rgba(158, 29, 36, 0.08);
+}
+
+.task-table-delete-btn svg {
+  width: 0.88rem;
+  height: 0.88rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ── Task form improvements ─────────────────────── */
+
+.task-form-readonly {
+  background: rgba(26, 32, 38, 0.04);
+  color: var(--ink-1);
+  cursor: default;
+}
+
+.task-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  margin-top: 0.3rem;
+}
+
+.danger-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.42rem 0.85rem;
+  border: 1px solid rgba(158, 29, 36, 0.3);
+  border-radius: 8px;
+  background: rgba(158, 29, 36, 0.08);
+  color: var(--danger);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  margin-left: auto;
+}
+
+.danger-btn:hover {
+  background: rgba(158, 29, 36, 0.14);
+  border-color: rgba(158, 29, 36, 0.45);
+}
+
+.danger-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .task-comments-list {
   list-style: none;
   margin: 0;
