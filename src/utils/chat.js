@@ -169,6 +169,23 @@ export function compareTurnItemsByStartedAt(a, b) {
   return String(a?.id || "").localeCompare(String(b?.id || ""));
 }
 
+export function getTurnLifecycleSignature(turns) {
+  const normalizedTurns = Array.isArray(turns) ? turns : [];
+  if (normalizedTurns.length === 0) {
+    return "";
+  }
+  return [...normalizedTurns]
+    .sort(compareTurnsByTimestamp)
+    .map((turn) => {
+      const turnId = String(turn?.id || "").trim();
+      const status = normalizeChatStatus(turn?.status);
+      const startedAt = String(turn?.startedAt || "").trim();
+      const endedAt = String(turn?.endedAt || "").trim();
+      return `${turnId}:${status}:${startedAt}:${endedAt}`;
+    })
+    .join("|");
+}
+
 export function isSameChatSelection({
   currentAgentId = "",
   currentSessionId = "",
