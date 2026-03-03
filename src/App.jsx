@@ -145,7 +145,6 @@ import {
   COMPANY_API_DELETE_THREAD_MUTATION,
   COMPANY_API_LIST_THREAD_TURNS_CONNECTION_QUERY,
   COMPANY_API_LIST_THREAD_TURNS_WITH_QUEUED_QUERY,
-  COMPANY_API_LIST_QUEUED_USER_MESSAGES_QUERY,
   COMPANY_API_QUEUE_USER_MESSAGE_MUTATION,
   COMPANY_API_STEER_QUEUED_USER_MESSAGE_MUTATION,
   COMPANY_API_DELETE_QUEUED_USER_MESSAGE_MUTATION,
@@ -180,6 +179,8 @@ import {
   getLatestRunningChatTurn,
   compareTurnsByTimestamp,
   getTurnLifecycleSignature,
+  mergeChatSessionsByAgentSnapshot,
+  updateQueuedMessagesFromTurnSubscription,
   isSameChatSelection,
 } from "./utils/chat.js";
 
@@ -2342,9 +2343,8 @@ function App() {
     matchesMediaQuery(SIDEBAR_COLLAPSE_MEDIA_QUERY),
   );
   const isNavigatingToChatsRef = useRef(false);
-  const activeChatSessionIdRef = useRef("");
   const turnLifecycleSignatureBySessionIdRef = useRef(new Map());
-  const queuedRefreshInFlightBySessionIdRef = useRef(new Map());
+  const runningTurnIdBySessionIdRef = useRef(new Map());
   const runCreateChatSessionSingleFlight = useMemo(() => createSingleFlightByKey(), []);
   const hasCompanies = companies.length > 0;
   const handleChatSessionRenameDraftChange = useCallback((nextTitle) => {
@@ -2424,47 +2424,6 @@ function App() {
     () => resolveLegacyId(chatSessionId, agentsRoute.sessionId, chatsRoute.threadId),
     [chatSessionId, agentsRoute.sessionId, chatsRoute.threadId],
   );
-
-  useEffect(() => {
-    activeChatSessionIdRef.current = String(resolvedChatSessionId || "").trim();
-  }, [resolvedChatSessionId]);
-
-  const refreshQueuedChatMessagesForSession = useCallback((sessionId) => {
-    const resolvedSessionId = String(sessionId || "").trim();
-    if (!resolvedSessionId) {
-      return Promise.resolve();
-    }
-
-    const inFlightRequest = queuedRefreshInFlightBySessionIdRef.current.get(resolvedSessionId);
-    if (inFlightRequest) {
-      return inFlightRequest;
-    }
-
-    const requestPromise = executeRawGraphQL(COMPANY_API_LIST_QUEUED_USER_MESSAGES_QUERY, {
-      threadId: resolvedSessionId,
-      first: 200,
-    })
-      .then((queuedUserMessagesPayload) => {
-        if (activeChatSessionIdRef.current !== resolvedSessionId) {
-          return;
-        }
-        const nextQueuedMessages = Array.isArray(queuedUserMessagesPayload?.queuedUserMessages)
-          ? queuedUserMessagesPayload.queuedUserMessages.map((queuedMessage) =>
-              toLegacyQueuedUserMessagePayload(queuedMessage),
-            )
-          : [];
-        setQueuedChatMessages(nextQueuedMessages);
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (queuedRefreshInFlightBySessionIdRef.current.get(resolvedSessionId) === requestPromise) {
-          queuedRefreshInFlightBySessionIdRef.current.delete(resolvedSessionId);
-        }
-      });
-
-    queuedRefreshInFlightBySessionIdRef.current.set(resolvedSessionId, requestPromise);
-    return requestPromise;
-  }, []);
 
   const selectedChatSession = useMemo(() => {
     const existingSession = chatSessions.find((session) => session.id === resolvedChatSessionId);
@@ -3318,10 +3277,11 @@ function App() {
             )
           : [];
         const nextTurnLifecycleSignature = getTurnLifecycleSignature(nextTurns);
+        const nextRunningTurnId = String(getLatestRunningChatTurn(nextTurns)?.id || "").trim();
         setChatTurns(nextTurns);
         setQueuedChatMessages(nextQueuedMessages);
         turnLifecycleSignatureBySessionIdRef.current.set(targetSessionId, nextTurnLifecycleSignature);
-        queuedRefreshInFlightBySessionIdRef.current.delete(targetSessionId);
+        runningTurnIdBySessionIdRef.current.set(targetSessionId, nextRunningTurnId);
         setChatSessionRunningState(targetSessionId, hasRunningChatTurns(nextTurns));
       } catch (loadError) {
         if (!silently) {
@@ -3454,14 +3414,14 @@ function App() {
           .filter(Boolean),
       )];
       if (knownAgentIds.length > 0) {
-        setChatSessionsByAgent((currentSessionsByAgent) => {
-          const nextSessionsByAgent = { ...currentSessionsByAgent };
-          for (const agentId of knownAgentIds) {
-            nextSessionsByAgent[agentId] = sessionsByAgentId[agentId] || [];
-          }
-          return nextSessionsByAgent;
-        });
-        if (chatAgentId) {
+        setChatSessionsByAgent((currentSessionsByAgent) =>
+          mergeChatSessionsByAgentSnapshot({
+            currentSessionsByAgent,
+            snapshotSessionsByAgent: sessionsByAgentId,
+            knownAgentIds,
+          }),
+        );
+        if (chatAgentId && Object.prototype.hasOwnProperty.call(sessionsByAgentId, chatAgentId)) {
           setChatSessions(sessionsByAgentId[chatAgentId] || []);
         }
       }
@@ -3502,13 +3462,26 @@ function App() {
         turnLifecycleSignatureBySessionIdRef.current.get(targetSessionId) || "";
       if (nextTurnLifecycleSignature !== previousTurnLifecycleSignature) {
         turnLifecycleSignatureBySessionIdRef.current.set(targetSessionId, nextTurnLifecycleSignature);
-        void refreshQueuedChatMessagesForSession(targetSessionId);
       }
+      const previousRunningTurnId = runningTurnIdBySessionIdRef.current.get(targetSessionId) || "";
+      const { nextRunningTurnId } = updateQueuedMessagesFromTurnSubscription({
+        queuedMessages: [],
+        previousRunningTurnId,
+        nextTurns,
+      });
+      runningTurnIdBySessionIdRef.current.set(targetSessionId, nextRunningTurnId);
+      setQueuedChatMessages((currentQueuedMessages) =>
+        updateQueuedMessagesFromTurnSubscription({
+          queuedMessages: currentQueuedMessages,
+          previousRunningTurnId,
+          nextTurns,
+        }).nextQueuedMessages,
+      );
       setChatSessionRunningState(targetSessionId, hasRunningChatTurns(nextTurns));
     }
     setChatError("");
     setIsLoadingChat(false);
-  }, [refreshQueuedChatMessagesForSession, resolvedChatSessionId, setChatSessionRunningState]);
+  }, [resolvedChatSessionId, setChatSessionRunningState]);
 
   const handleAgentChatSubscriptionError = useCallback((error) => {
     setChatError(error.message);
@@ -3566,9 +3539,8 @@ function App() {
   useEffect(() => {
     setActiveCompanyId(selectedCompanyId);
     persistCompanyId(selectedCompanyId);
-    activeChatSessionIdRef.current = "";
     turnLifecycleSignatureBySessionIdRef.current.clear();
-    queuedRefreshInFlightBySessionIdRef.current.clear();
+    runningTurnIdBySessionIdRef.current.clear();
   }, [selectedCompanyId]);
 
   useEffect(() => {
