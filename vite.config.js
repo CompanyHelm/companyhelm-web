@@ -1,18 +1,28 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { getConfig } from "./scripts/config/config.js";
 
-const serverHost = process.env.VITE_DEV_SERVER_HOST || "127.0.0.1";
-const parsedServerPort = Number.parseInt(process.env.VITE_DEV_SERVER_PORT || "5173", 10);
-const serverPort = Number.isInteger(parsedServerPort) && parsedServerPort > 0 ? parsedServerPort : 5173;
+function resolveEnvironmentMode(mode) {
+  const normalizedMode = String(mode || "").trim();
+  if (!normalizedMode) {
+    throw new Error("Missing Vite mode/environment. Start Vite via scripts/vite.js --environment <name>.");
+  }
+  return normalizedMode;
+}
 
-export default defineConfig({
-  plugins: [react()],
-  server: {
-    host: serverHost,
-    port: serverPort,
-  },
-  preview: {
-    host: serverHost,
-    port: serverPort,
-  },
+export default defineConfig(({ mode }) => {
+  const environment = resolveEnvironmentMode(mode);
+  const config = getConfig(environment);
+
+  return {
+    plugins: [react()],
+    server: {
+      host: config.server.host,
+      port: config.server.listeningPort,
+    },
+    preview: {
+      host: config.server.host,
+      port: config.server.listeningPort,
+    },
+  };
 });

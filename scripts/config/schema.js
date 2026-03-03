@@ -7,6 +7,7 @@ export const frontendConfigSchema = z.object({
   }),
   api: z.object({
     graphqlApiUrl: z.string().url(),
+    runnerGrpcTarget: z.string().min(1),
   }),
   authProvider: z.enum(["companyhelm", "supabase"]),
   auth: z.object({

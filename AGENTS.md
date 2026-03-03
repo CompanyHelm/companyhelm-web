@@ -30,3 +30,12 @@
 - Use nested GraphQL selections to return complete page payloads.
 - Reuse already-loaded state instead of re-fetching identical data.
 - Load per-item details lazily only when the user opens a detail/edit flow.
+
+## Configuration Source of Truth
+
+- Runtime/frontend configuration must come only from `config/<environment>.yaml` selected by `--environment`.
+- Do not read runtime config from `import.meta.env`, `VITE_*`, or other environment variables.
+- If new frontend config values are introduced, add them to:
+  - `scripts/config/schema.js`
+  - `config/local.yaml`, `config/dev.yaml`, `config/prod.yaml`
+  - `src/generated/runtime-config.js` generation path in `scripts/vite.js`

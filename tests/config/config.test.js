@@ -45,6 +45,7 @@ test("loadConfig parses local config with expected fields", () => {
   assert.equal(config.server.host, "127.0.0.1");
   assert.equal(config.server.listeningPort, 5173);
   assert.equal(config.api.graphqlApiUrl, "http://127.0.0.1:4000/graphql");
+  assert.equal(config.api.runnerGrpcTarget, "localhost:50051");
   assert.equal(config.authProvider, "companyhelm");
   assert.equal(config.auth.companyhelm.tokenStorageKey, "companyhelm.auth.token");
 });
@@ -72,6 +73,7 @@ test("frontendConfigSchema accepts supabase auth configuration", () => {
     },
     api: {
       graphqlApiUrl: "http://127.0.0.1:4000/graphql",
+      runnerGrpcTarget: "localhost:50051",
     },
     authProvider: "supabase",
     auth: {
