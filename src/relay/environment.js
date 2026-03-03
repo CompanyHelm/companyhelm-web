@@ -23,12 +23,14 @@ const inFlightQueryRequests = new Map();
 const JWT_EXPIRED_PATTERN = /\bjwt\b.*\bexpired\b/i;
 const SUBSCRIPTION_RECONNECT_BASE_DELAY_MS = 300;
 const SUBSCRIPTION_RECONNECT_MAX_DELAY_MS = 5000;
+const SUBSCRIPTION_IDLE_CLOSE_DELAY_MS = 250;
 
 let sharedSubscriptionSocket = null;
 let sharedSubscriptionSocketEndpoint = "";
 let sharedSubscriptionSocketAcked = false;
 let sharedSubscriptionReconnectAttempt = 0;
 let sharedSubscriptionReconnectTimerId = null;
+let sharedSubscriptionIdleCloseTimerId = null;
 let sharedSubscriptionClosedByClient = false;
 let nextSubscriptionOperationId = 0;
 const activeSubscriptionOperations = new Map();
@@ -196,7 +198,28 @@ function clearSubscriptionReconnectTimer() {
   }
 }
 
+function clearSubscriptionIdleCloseTimer() {
+  if (sharedSubscriptionIdleCloseTimerId !== null) {
+    clearTimeout(sharedSubscriptionIdleCloseTimerId);
+    sharedSubscriptionIdleCloseTimerId = null;
+  }
+}
+
+function scheduleSubscriptionIdleClose() {
+  if (sharedSubscriptionIdleCloseTimerId !== null) {
+    return;
+  }
+  sharedSubscriptionIdleCloseTimerId = setTimeout(() => {
+    sharedSubscriptionIdleCloseTimerId = null;
+    if (activeSubscriptionOperations.size > 0) {
+      return;
+    }
+    closeSharedSubscriptionSocket();
+  }, SUBSCRIPTION_IDLE_CLOSE_DELAY_MS);
+}
+
 function closeSharedSubscriptionSocket({ closeCode = 1000 } = {}) {
+  clearSubscriptionIdleCloseTimer();
   clearSubscriptionReconnectTimer();
   sharedSubscriptionSocketAcked = false;
 
@@ -314,7 +337,7 @@ function handleSocketPayload(payload) {
       operation.sink.error(operationError);
       activeSubscriptionOperations.delete(operationId);
       if (activeSubscriptionOperations.size === 0) {
-        closeSharedSubscriptionSocket();
+        scheduleSubscriptionIdleClose();
       }
       return;
     }
@@ -327,7 +350,7 @@ function handleSocketPayload(payload) {
       operation.sink.complete();
       activeSubscriptionOperations.delete(operationId);
       if (activeSubscriptionOperations.size === 0) {
-        closeSharedSubscriptionSocket();
+        scheduleSubscriptionIdleClose();
       }
       return;
     }
@@ -454,6 +477,7 @@ function subscribeGraphQL(params, variables) {
       variables: variables || {},
       started: false,
     });
+    clearSubscriptionIdleCloseTimer();
 
     ensureSharedSubscriptionSocket(endpoint);
     const activeOperation = activeSubscriptionOperations.get(operationId);
@@ -484,7 +508,7 @@ function subscribeGraphQL(params, variables) {
       }
 
       if (activeSubscriptionOperations.size === 0) {
-        closeSharedSubscriptionSocket();
+        scheduleSubscriptionIdleClose();
       }
     };
   });
