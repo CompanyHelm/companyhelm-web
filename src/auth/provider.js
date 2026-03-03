@@ -71,8 +71,36 @@ async function executeGraphQLAuthMutation(query, variables) {
   return payload?.data || {};
 }
 
-class CompanyhelmAuthProvider {
+class AuthProviderBase {
+  constructor() {
+    this.authStateListeners = new Set();
+  }
+
+  subscribeAuthStateChange(listener) {
+    if (typeof listener !== "function") {
+      return () => {};
+    }
+    this.authStateListeners.add(listener);
+    return () => {
+      this.authStateListeners.delete(listener);
+    };
+  }
+
+  notifyAuthStateChange() {
+    const hasSession = this.hasSession();
+    for (const listener of this.authStateListeners) {
+      try {
+        listener(hasSession);
+      } catch {
+        // Ignore listener errors to avoid breaking auth flows.
+      }
+    }
+  }
+}
+
+class CompanyhelmAuthProvider extends AuthProviderBase {
   constructor(config) {
+    super();
     this.name = "companyhelm";
     this.requiresPassword = true;
     this.requiresProfileOnSignUp = true;
@@ -126,6 +154,7 @@ class CompanyhelmAuthProvider {
     }
 
     setStoredToken(this.config.tokenStorageKey, token);
+    this.notifyAuthStateChange();
     return data.signIn.user;
   }
 
@@ -164,16 +193,19 @@ class CompanyhelmAuthProvider {
     }
 
     setStoredToken(this.config.tokenStorageKey, token);
+    this.notifyAuthStateChange();
     return data.signUp.user;
   }
 
   signOut() {
     clearStoredToken(this.config.tokenStorageKey);
+    this.notifyAuthStateChange();
   }
 }
 
-class SupabaseAuthProvider {
+class SupabaseAuthProvider extends AuthProviderBase {
   constructor(config) {
+    super();
     const url = String(config?.url || "").trim();
     const anonKey = String(config?.anonKey || "").trim();
     const tokenStorageKey = String(config?.tokenStorageKey || "").trim();
@@ -206,6 +238,7 @@ class SupabaseAuthProvider {
 
     this.client.auth.onAuthStateChange((_event, session) => {
       setStoredToken(this.config.tokenStorageKey, session?.access_token || "");
+      this.notifyAuthStateChange();
     });
     void this.syncTokenFromSession();
   }
@@ -217,8 +250,10 @@ class SupabaseAuthProvider {
         throw error;
       }
       setStoredToken(this.config.tokenStorageKey, data?.session?.access_token || "");
+      this.notifyAuthStateChange();
     } catch {
       clearStoredToken(this.config.tokenStorageKey);
+      this.notifyAuthStateChange();
     }
   }
 
@@ -259,6 +294,7 @@ class SupabaseAuthProvider {
     }
 
     setStoredToken(this.config.tokenStorageKey, token);
+    this.notifyAuthStateChange();
     return data?.user || null;
   }
 
@@ -296,6 +332,7 @@ class SupabaseAuthProvider {
 
     const token = String(data?.session?.access_token || "").trim();
     setStoredToken(this.config.tokenStorageKey, token);
+    this.notifyAuthStateChange();
     return {
       user: data?.user || null,
       requiresEmailConfirmation: !token,
@@ -304,6 +341,7 @@ class SupabaseAuthProvider {
 
   signOut() {
     clearStoredToken(this.config.tokenStorageKey);
+    this.notifyAuthStateChange();
     void this.client.auth.signOut();
   }
 }

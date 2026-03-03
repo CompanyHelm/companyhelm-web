@@ -140,3 +140,77 @@ test("companyhelm signUp requires password", async () => {
     /First name, email, and password are required\./,
   );
 });
+
+test("companyhelm provider emits auth state updates on sign in and sign out", async () => {
+  const originalWindow = global.window;
+  const originalFetch = global.fetch;
+  const localStorageMap = new Map();
+  try {
+    global.window = {
+      localStorage: {
+        getItem(key) {
+          return localStorageMap.has(key) ? localStorageMap.get(key) : null;
+        },
+        setItem(key, value) {
+          localStorageMap.set(key, String(value));
+        },
+        removeItem(key) {
+          localStorageMap.delete(key);
+        },
+      },
+    };
+
+    global.fetch = async () => ({
+      ok: true,
+      async json() {
+        return {
+          data: {
+            signIn: {
+              token: "token-1",
+              user: {
+                id: "user-1",
+                email: "user@example.com",
+                firstName: "User",
+                lastName: "Example",
+              },
+            },
+          },
+        };
+      },
+    });
+
+    const provider = createAuthProvider({
+      authProvider: "companyhelm",
+      auth: {
+        companyhelm: {
+          tokenStorageKey: "companyhelm.auth.token",
+        },
+      },
+      api: {
+        graphqlApiUrl: "http://127.0.0.1:4000/graphql",
+      },
+    });
+
+    const authStateUpdates = [];
+    const unsubscribe = provider.subscribeAuthStateChange((hasSession) => {
+      authStateUpdates.push(Boolean(hasSession));
+    });
+
+    await provider.signIn({ email: "user@example.com", password: "password-123" });
+    provider.signOut();
+    unsubscribe();
+
+    assert.deepEqual(authStateUpdates, [true, false]);
+  } finally {
+    if (typeof originalWindow === "undefined") {
+      delete global.window;
+    } else {
+      global.window = originalWindow;
+    }
+    if (typeof originalFetch === "undefined") {
+      delete global.fetch;
+    } else {
+      global.fetch = originalFetch;
+    }
+  }
+});

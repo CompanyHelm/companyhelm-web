@@ -20,6 +20,7 @@ const queryResponseCache = new QueryResponseCache({
 });
 
 const inFlightQueryRequests = new Map();
+const JWT_EXPIRED_PATTERN = /\bjwt\b.*\bexpired\b/i;
 
 function resolveOperationCacheKey(params) {
   return String(params?.id || params?.cacheID || params?.text || params?.name || "anonymous");
@@ -39,6 +40,31 @@ function toGraphQLErrorMessage(payload, fallbackMessage) {
     ? firstError.message.trim()
     : "";
   return firstMessage || fallbackMessage;
+}
+
+function getGraphQLErrorMessages(payload) {
+  const errors = Array.isArray(payload?.errors) ? payload.errors : [];
+  return errors
+    .map((errorItem) => {
+      const message = errorItem?.message;
+      return typeof message === "string" ? message.trim() : "";
+    })
+    .filter(Boolean);
+}
+
+function isJwtExpiredErrorMessage(message) {
+  return JWT_EXPIRED_PATTERN.test(String(message || ""));
+}
+
+function isJwtExpiredPayload(payload) {
+  return getGraphQLErrorMessages(payload).some((message) => isJwtExpiredErrorMessage(message));
+}
+
+function handleAuthenticationFailure() {
+  queryResponseCache.clear();
+  if (typeof authProvider?.signOut === "function") {
+    authProvider.signOut();
+  }
 }
 
 function normalizeOperationKind(rawKind) {
@@ -76,9 +102,22 @@ async function performHttpGraphQLRequest(params, variables, operationKind, cache
     }),
   });
 
-  const payload = await response.json();
+  let payload = null;
+  try {
+    payload = await response.json();
+  } catch {
+    payload = null;
+  }
+
+  if (response.status === 401 || isJwtExpiredPayload(payload)) {
+    handleAuthenticationFailure();
+  }
+
   if (!response.ok) {
     throw new Error(toGraphQLErrorMessage(payload, `GraphQL request failed (${response.status}).`));
+  }
+  if (!payload || typeof payload !== "object") {
+    throw new Error("GraphQL request failed: invalid response payload.");
   }
 
   if (operationKind === "query" && !Array.isArray(payload?.errors)) {
@@ -218,7 +257,11 @@ function subscribeGraphQL(params, variables) {
             return;
           case "error":
             if (payload?.id === operationId) {
-              sink.error(toError(payload?.payload));
+              const error = toError(payload?.payload);
+              if (isJwtExpiredErrorMessage(error.message)) {
+                handleAuthenticationFailure();
+              }
+              sink.error(error);
             }
             return;
           case "ping":

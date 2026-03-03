@@ -45,6 +45,12 @@ export default function AuthGate({ children }) {
     }
   }, [isAuthenticated]);
 
+  useEffect(() => {
+    return authProvider.subscribeAuthStateChange((hasSession) => {
+      setIsAuthenticated(Boolean(hasSession));
+    });
+  }, []);
+
   const handleChange = (fieldName) => (event) => {
     const nextValue = event?.target?.value ?? "";
     setFormState((previous) => ({
