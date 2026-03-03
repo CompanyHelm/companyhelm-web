@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Page } from "../components/Page.jsx";
 import { CreationModal } from "../components/CreationModal.jsx";
 import { useSetPageActions } from "../components/PageActionsContext.jsx";
-import { buildTaskDependencyLanes } from "../utils/task-graph.js";
+import { TaskGraphView } from "../components/TaskGraphView.jsx";
+import { TaskTableView } from "../components/TaskTableView.jsx";
 
 export function TasksPage({
   selectedCompanyId,
@@ -31,6 +32,7 @@ export function TasksPage({
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState("");
   const [commentDraft, setCommentDraft] = useState("");
+  const [activeTab, setActiveTab] = useState("graph");
 
   function openEditTaskModal(taskId) {
     setEditingTaskId(taskId);
@@ -67,7 +69,9 @@ export function TasksPage({
     }
   }
 
-  const dependencyLanes = useMemo(() => buildTaskDependencyLanes(tasks), [tasks]);
+  const handleTaskClick = useCallback((taskId) => {
+    openEditTaskModal(taskId);
+  }, []);
 
   const pageActions = useMemo(() => (
     <>
@@ -89,12 +93,28 @@ export function TasksPage({
   useSetPageActions(pageActions);
 
   return (
-    <Page><div className="page-stack">
-
-      <section className="panel list-panel">
+    <Page>
+      <div className="task-view-fullscreen">
+        <div className="task-view-tabs">
+          <button
+            type="button"
+            className={`task-view-tab${activeTab === "graph" ? " task-view-tab-active" : ""}`}
+            onClick={() => setActiveTab("graph")}
+          >
+            Graph
+          </button>
+          <button
+            type="button"
+            className={`task-view-tab${activeTab === "table" ? " task-view-tab-active" : ""}`}
+            onClick={() => setActiveTab("table")}
+          >
+            Table
+          </button>
+        </div>
 
         {taskError ? <p className="error-banner">{taskError}</p> : null}
         {isLoadingTasks ? <p className="empty-hint">Loading tasks...</p> : null}
+
         {!isLoadingTasks && tasks.length === 0 ? (
           <div className="empty-state">
             <p className="empty-hint">Create your first task to populate this board.</p>
@@ -109,122 +129,15 @@ export function TasksPage({
         ) : null}
 
         {tasks.length > 0 ? (
-          <ul className="chat-card-list">
-            {tasks.map((task) => {
-              const isBusy = savingTaskId === task.id || deletingTaskId === task.id;
-              return (
-                <li
-                  key={task.id}
-                  className="chat-card"
-                  onClick={() => openEditTaskModal(task.id)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") openEditTaskModal(task.id);
-                  }}
-                >
-                  <div className="chat-card-content">
-                    <strong>{task.name}</strong>
-                    <span className="chat-card-meta">
-                      {task.description || "No description provided."}
-                      {Array.isArray(task.dependencyTaskIds) && task.dependencyTaskIds.length > 0
-                        ? (
-                          <>
-                            {" "}
-                            &middot; depends on: {task.dependencyTaskIds.map(renderTaskLink).join(", ")}
-                          </>
-                        )
-                        : null}
-                      {Array.isArray(task.comments) && task.comments.length > 0
-                        ? (
-                          <>
-                            {" "}
-                            &middot; {task.comments.length} comment{task.comments.length === 1 ? "" : "s"}
-                          </>
-                        )
-                        : null}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    className="chat-card-icon-btn"
-                    aria-label="Delete task"
-                    title="Delete task"
-                    disabled={isBusy}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteTask(task.id, task.name);
-                    }}
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                      <polyline points="3 6 5 6 21 6" />
-                      <path d="M19 6l-1 14H6L5 6" />
-                      <path d="M10 11v6" />
-                      <path d="M14 11v6" />
-                      <path d="M9 6V4h6v2" />
-                    </svg>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+          <div className="task-view-container">
+            {activeTab === "graph" ? (
+              <TaskGraphView tasks={tasks} onTaskClick={handleTaskClick} />
+            ) : (
+              <TaskTableView tasks={tasks} onTaskClick={handleTaskClick} />
+            )}
+          </div>
         ) : null}
-      </section>
-
-      {tasks.length > 0 ? (
-        <section className="panel list-panel">
-          <div className="task-lane-header">
-            <h3>Dependency lanes</h3>
-            <span className="chat-card-meta">
-              Left to right shows prerequisite flow for all tasks.
-            </span>
-          </div>
-          <div className="task-lane-board">
-            {dependencyLanes.map((lane) => (
-              <section key={`task-lane-${lane.level}`} className="task-lane-column">
-                <header className="task-lane-column-header">
-                  <strong>{lane.title}</strong>
-                  <span className="chat-card-meta">{lane.tasks.length} task{lane.tasks.length === 1 ? "" : "s"}</span>
-                </header>
-                <ul className="task-lane-list">
-                  {lane.tasks.map((task) => (
-                    <li key={`task-lane-node-${task.id}`} className="task-lane-card">
-                      <button
-                        type="button"
-                        className="task-lane-open-btn"
-                        onClick={() => openEditTaskModal(task.id)}
-                      >
-                        <span className="task-lane-title-row">
-                          <strong>{task.name}</strong>
-                          <span className={`task-status-pill task-status-pill-${task.status}`}>
-                            {task.status}
-                          </span>
-                        </span>
-                        <span className="task-lane-meta">#{task.id}</span>
-                        <span className="task-lane-meta">
-                          {task.dependencyTaskIds.length === 0
-                            ? "No blockers"
-                            : `Depends on ${task.dependencyTaskIds.length} task${task.dependencyTaskIds.length === 1 ? "" : "s"}`}
-                        </span>
-                        <span className="task-lane-meta">
-                          {task.dependentTaskIds.length === 0
-                            ? "Terminal item"
-                            : `Unblocks ${task.dependentTaskIds.length} task${task.dependentTaskIds.length === 1 ? "" : "s"}`}
-                        </span>
-                        <span className="task-lane-meta">
-                          {task.commentCount === 0
-                            ? "No comments"
-                            : `${task.commentCount} comment${task.commentCount === 1 ? "" : "s"}`}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ))}
-          </div>
-        </section>
-      ) : null}
+      </div>
 
       <CreationModal
         modalId="create-task-modal"
@@ -393,6 +306,6 @@ export function TasksPage({
           </CreationModal>
         );
       })() : null}
-    </div></Page>
+    </Page>
   );
 }
