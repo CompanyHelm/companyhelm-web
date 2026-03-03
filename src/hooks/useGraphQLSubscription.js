@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { subscribeRelayGraphQL } from "../relay/client.js";
 
 export function subscribeGraphQL({
@@ -23,6 +23,13 @@ export function useGraphQLSubscription({
   onError,
 }) {
   const serializedVariables = useMemo(() => JSON.stringify(variables || {}), [variables]);
+  const onDataRef = useRef(onData);
+  const onErrorRef = useRef(onError);
+
+  useEffect(() => {
+    onDataRef.current = onData;
+    onErrorRef.current = onError;
+  }, [onData, onError]);
 
   useEffect(() => {
     if (!enabled) {
@@ -31,11 +38,15 @@ export function useGraphQLSubscription({
     const unsubscribe = subscribeGraphQL({
       query,
       variables: JSON.parse(serializedVariables),
-      onData,
-      onError,
+      onData: (payload) => {
+        onDataRef.current?.(payload);
+      },
+      onError: (error) => {
+        onErrorRef.current?.(error);
+      },
     });
     return () => {
       unsubscribe();
     };
-  }, [enabled, onData, onError, query, serializedVariables]);
+  }, [enabled, query, serializedVariables]);
 }
