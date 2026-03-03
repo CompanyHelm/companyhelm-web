@@ -142,6 +142,9 @@ export function AgentChatPage({
   const canChat = Boolean(agent && session);
   const selectedAgentId = String(agent?.id || "").trim();
   const selectedSessionId = String(session?.id || "").trim();
+  const sessionStatus = String(session?.status || "").trim().toLowerCase();
+  const isSessionError = canChat && sessionStatus === "error";
+  const sessionErrorMessage = String(session?.errorMessage || "").trim();
   const sortedSidebarAgents = useMemo(() => {
     return [...(Array.isArray(agents) ? agents : [])].sort((leftAgent, rightAgent) =>
       String(leftAgent?.name || "").localeCompare(String(rightAgent?.name || "")),
@@ -539,6 +542,8 @@ export function AgentChatPage({
                           {sortedSidebarSessions.map((sidebarSession) => {
                             const sidebarSessionId = String(sidebarSession?.id || "").trim();
                             const isRunningSession = isChatSessionRunning(sidebarSession, chatSessionRunningById);
+                            const sidebarSessionStatus = String(sidebarSession?.status || "").trim().toLowerCase();
+                            const isErrorSession = sidebarSessionStatus === "error";
                             const isSelectedSession =
                               sidebarAgentId === selectedAgentId && sidebarSessionId === selectedSessionId;
                             return (
@@ -566,6 +571,9 @@ export function AgentChatPage({
                               >
                                 <div className="chat-card-status">
                                   {isRunningSession ? <ChatSessionRunningBadge /> : null}
+                                  {!isRunningSession && isErrorSession ? (
+                                    <span className="chat-thread-status chat-thread-status-error">error</span>
+                                  ) : null}
                                 </div>
                                 <div className="chat-card-main">
                                   <p className="chat-card-title chat-sidebar-chat-title">
@@ -598,6 +606,12 @@ export function AgentChatPage({
 
         <section className="panel chat-panel">
         {chatError ? <p className="error-banner">Chat error: {chatError}</p> : null}
+        {isSessionError ? (
+          <p className="error-banner">
+            Thread status is error.
+            {sessionErrorMessage ? ` ${sessionErrorMessage}` : ""}
+          </p>
+        ) : null}
         {!agent ? <p className="empty-hint">Agent not found.</p> : null}
         {agent && !session ? <p className="empty-hint">Chat not found.</p> : null}
         {canChat && isLoadingChat ? <p className="empty-hint">Loading chat messages...</p> : null}
@@ -872,6 +886,16 @@ export function AgentChatPage({
               <span className="chat-settings-info-label">Reasoning</span>
               <span>{session?.currentReasoningLevel || "n/a"}</span>
             </p>
+            <p className="chat-settings-info-row">
+              <span className="chat-settings-info-label">Status</span>
+              <span>{session?.status || "n/a"}</span>
+            </p>
+            {sessionErrorMessage ? (
+              <p className="chat-settings-info-row">
+                <span className="chat-settings-info-label">Error</span>
+                <span>{sessionErrorMessage}</span>
+              </p>
+            ) : null}
           </div>
           <div className="chat-settings-actions">
             <button type="submit" disabled={isUpdatingChatTitle}>

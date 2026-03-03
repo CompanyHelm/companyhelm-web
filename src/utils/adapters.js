@@ -244,6 +244,21 @@ export function toLegacyThreadPayload(thread, { metadataOverride } = {}) {
     explicitAdditionalModelInstructions === undefined
       ? normalizeOptionalInstructions(currentMetadata.additionalModelInstructions)
       : normalizeOptionalInstructions(explicitAdditionalModelInstructions);
+  const overrideProvidesErrorMessage = Boolean(
+    metadataOverride && Object.prototype.hasOwnProperty.call(metadataOverride, "errorMessage"),
+  );
+  const threadProvidesErrorMessage = Boolean(
+    thread && Object.prototype.hasOwnProperty.call(thread, "errorMessage"),
+  );
+  const explicitErrorMessage = overrideProvidesErrorMessage
+    ? metadataOverride.errorMessage
+    : threadProvidesErrorMessage
+      ? thread.errorMessage
+      : undefined;
+  const resolvedErrorMessage =
+    explicitErrorMessage === undefined
+      ? normalizeOptionalInstructions(currentMetadata.errorMessage)
+      : normalizeOptionalInstructions(explicitErrorMessage);
   const nextMetadata = {
     createdAt: currentMetadata.createdAt || nowIso,
     updatedAt: nowIso,
@@ -253,6 +268,7 @@ export function toLegacyThreadPayload(thread, { metadataOverride } = {}) {
     currentModelName: resolvedCurrentModelName,
     currentReasoningLevel: resolvedCurrentReasoningLevel,
     additionalModelInstructions: resolvedAdditionalModelInstructions,
+    errorMessage: resolvedErrorMessage,
   };
   if (threadId) {
     companyApiThreadMetadataById.set(threadId, nextMetadata);
@@ -266,6 +282,7 @@ export function toLegacyThreadPayload(thread, { metadataOverride } = {}) {
     runnerId: nextMetadata.runnerId,
     title: nextMetadata.title,
     status: resolveLegacyId(thread?.status) || "pending",
+    errorMessage: nextMetadata.errorMessage,
     currentModelId: nextMetadata.currentModelId,
     currentModelName: nextMetadata.currentModelName,
     currentReasoningLevel: nextMetadata.currentReasoningLevel,

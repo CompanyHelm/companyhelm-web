@@ -410,6 +410,7 @@ type Thread {
   company: Company!
   currentModel: AgentRunnerSdkModel!
   currentReasoningLevel: String
+  errorMessage: String
   id: ID!
   status: ThreadStatus!
   title: String
@@ -427,6 +428,7 @@ type ThreadEdge {
 
 enum ThreadStatus {
   deleting
+  error
   pending
   ready
   running
