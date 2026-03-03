@@ -17,11 +17,13 @@ export function TasksPage({
   deletingTaskId,
   name,
   description,
+  parentTaskId,
   dependencyTaskIds,
   relationshipDrafts,
   taskCountLabel,
   onNameChange,
   onDescriptionChange,
+  onParentTaskIdChange,
   onDependencyTaskIdsChange,
   onCreateTask,
   onDraftChange,
@@ -123,10 +125,12 @@ export function TasksPage({
         tasks={tasks}
         name={name}
         description={description}
+        parentTaskId={parentTaskId}
         dependencyTaskIds={dependencyTaskIds}
         isSubmittingTask={isSubmittingTask}
         onNameChange={onNameChange}
         onDescriptionChange={onDescriptionChange}
+        onParentTaskIdChange={onParentTaskIdChange}
         onDependencyTaskIdsChange={onDependencyTaskIdsChange}
         onCreateTask={onCreateTask}
       />

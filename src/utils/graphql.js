@@ -152,6 +152,7 @@ export const LIST_TASKS_QUERY = `
       acceptanceCriteria
       assigneePrincipalId
       threadId
+      parentTaskId
       status
       createdAt
       updatedAt
@@ -743,6 +744,7 @@ export const CREATE_TASK_MUTATION = `
     $description: String
     $acceptanceCriteria: String
     $status: TaskStatus
+    $parentTaskId: ID
     $dependencyTaskIds: [ID!]
   ) {
     createTask(
@@ -751,6 +753,7 @@ export const CREATE_TASK_MUTATION = `
       description: $description
       acceptanceCriteria: $acceptanceCriteria
       status: $status
+      parentTaskId: $parentTaskId
       dependencyTaskIds: $dependencyTaskIds
     ) {
       ok
@@ -765,6 +768,7 @@ export const CREATE_TASK_MUTATION = `
         acceptanceCriteria
         assigneePrincipalId
         threadId
+        parentTaskId
         status
         createdAt
         updatedAt
@@ -802,6 +806,7 @@ export const ADD_TASK_DEPENDENCY_MUTATION = `
         acceptanceCriteria
         assigneePrincipalId
         threadId
+        parentTaskId
         status
         createdAt
         updatedAt
@@ -839,6 +844,45 @@ export const REMOVE_TASK_DEPENDENCY_MUTATION = `
         acceptanceCriteria
         assigneePrincipalId
         threadId
+        parentTaskId
+        status
+        createdAt
+        updatedAt
+        dependencyTaskIds
+        comments {
+          id
+          taskId
+          companyId
+          comment
+          authorPrincipalId
+          createdAt
+          updatedAt
+        }
+      }
+    }
+  }
+`;
+
+export const SET_TASK_PARENT_MUTATION = `
+  mutation SetTaskParent($companyId: ID!, $taskId: ID!, $parentTaskId: ID) {
+    setTaskParent(
+      companyId: $companyId
+      taskId: $taskId
+      parentTaskId: $parentTaskId
+    ) {
+      ok
+      error
+      task {
+        id
+        company {
+          id
+        }
+        name
+        description
+        acceptanceCriteria
+        assigneePrincipalId
+        threadId
+        parentTaskId
         status
         createdAt
         updatedAt
@@ -1703,6 +1747,7 @@ export const COMPANY_API_LIST_TASKS_QUERY = `
       acceptanceCriteria
       assigneePrincipalId
       threadId
+      parentTaskId
       status
       createdAt
       updatedAt
@@ -1730,6 +1775,7 @@ export const COMPANY_API_CREATE_TASK_MUTATION = `
     $description: String
     $acceptanceCriteria: String
     $status: TaskStatus
+    $parentTaskId: ID
     $dependencyTaskIds: [ID!]
   ) {
     createTask(
@@ -1738,6 +1784,7 @@ export const COMPANY_API_CREATE_TASK_MUTATION = `
       description: $description
       acceptanceCriteria: $acceptanceCriteria
       status: $status
+      parentTaskId: $parentTaskId
       dependencyTaskIds: $dependencyTaskIds
     ) {
       ok
@@ -1749,6 +1796,7 @@ export const COMPANY_API_CREATE_TASK_MUTATION = `
         acceptanceCriteria
         assigneePrincipalId
         threadId
+        parentTaskId
         status
         createdAt
         updatedAt
@@ -1805,6 +1853,44 @@ export const COMPANY_API_REMOVE_TASK_DEPENDENCY_MUTATION = `
       error
       task {
         id
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_SET_TASK_PARENT_MUTATION = `
+  mutation CompanyApiSetTaskParent($companyId: ID!, $taskId: ID!, $parentTaskId: ID) {
+    setTaskParent(
+      companyId: $companyId
+      taskId: $taskId
+      parentTaskId: $parentTaskId
+    ) {
+      ok
+      error
+      task {
+        id
+        name
+        description
+        acceptanceCriteria
+        assigneePrincipalId
+        threadId
+        parentTaskId
+        status
+        createdAt
+        updatedAt
+        dependencyTaskIds
+        comments {
+          id
+          taskId
+          companyId
+          comment
+          authorPrincipalId
+          createdAt
+          updatedAt
+        }
+        company {
+          id
+        }
       }
     }
   }

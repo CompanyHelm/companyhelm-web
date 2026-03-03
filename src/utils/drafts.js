@@ -10,9 +10,34 @@ import {
 } from "./normalization.js";
 
 export function createRelationshipDrafts(tasks) {
-  return tasks.reduce((drafts, task) => {
-    drafts[task.id] = {
-      dependencyTaskIds: normalizeUniqueStringList(task.dependencyTaskIds || []),
+  const taskList = Array.isArray(tasks) ? tasks : [];
+  const childTaskIdsByParentTaskId = new Map();
+
+  for (const task of taskList) {
+    const taskId = String(task?.id || "").trim();
+    const parentTaskId = String(task?.parentTaskId || "").trim();
+    if (!taskId || !parentTaskId || parentTaskId === taskId) {
+      continue;
+    }
+    const existingChildTaskIds = childTaskIdsByParentTaskId.get(parentTaskId);
+    if (existingChildTaskIds) {
+      existingChildTaskIds.push(taskId);
+    } else {
+      childTaskIdsByParentTaskId.set(parentTaskId, [taskId]);
+    }
+  }
+
+  return taskList.reduce((drafts, task) => {
+    const taskId = String(task?.id || "").trim();
+    if (!taskId) {
+      return drafts;
+    }
+
+    drafts[taskId] = {
+      dependencyTaskIds: normalizeUniqueStringList(task?.dependencyTaskIds || [])
+        .filter((dependencyTaskId) => dependencyTaskId !== taskId),
+      parentTaskId: String(task?.parentTaskId || "").trim(),
+      childTaskIds: normalizeUniqueStringList(childTaskIdsByParentTaskId.get(taskId) || []),
     };
     return drafts;
   }, {});

@@ -46,6 +46,7 @@ import {
   CREATE_TASK_MUTATION,
   ADD_TASK_DEPENDENCY_MUTATION,
   REMOVE_TASK_DEPENDENCY_MUTATION,
+  SET_TASK_PARENT_MUTATION,
   DELETE_TASK_MUTATION,
   CREATE_TASK_COMMENT_MUTATION,
   DELETE_AGENT_RUNNER_MUTATION,
@@ -103,6 +104,7 @@ import {
   COMPANY_API_CREATE_TASK_MUTATION,
   COMPANY_API_ADD_TASK_DEPENDENCY_MUTATION,
   COMPANY_API_REMOVE_TASK_DEPENDENCY_MUTATION,
+  COMPANY_API_SET_TASK_PARENT_MUTATION,
   COMPANY_API_DELETE_TASK_MUTATION,
   COMPANY_API_CREATE_TASK_COMMENT_MUTATION,
   COMPANY_API_LIST_SKILLS_QUERY,
@@ -732,6 +734,7 @@ function toTaskPayload(task) {
     acceptanceCriteria: String(task?.acceptanceCriteria || ""),
     assigneePrincipalId: resolveLegacyId(task?.assigneePrincipalId) || null,
     threadId: resolveLegacyId(task?.threadId) || null,
+    parentTaskId: resolveLegacyId(task?.parentTaskId) || null,
     status: resolveLegacyId(task?.status) || "draft",
     createdAt: resolveLegacyId(task?.createdAt),
     updatedAt: resolveLegacyId(task?.updatedAt),
@@ -1904,11 +1907,28 @@ async function executeGraphQL(query, variables = {}) {
       description: String(variables?.description || "").trim() || null,
       acceptanceCriteria: String(variables?.acceptanceCriteria || "").trim() || null,
       status: resolveLegacyId(variables?.status) || null,
+      parentTaskId: resolveLegacyId(variables?.parentTaskId) || null,
       dependencyTaskIds: normalizeUniqueStringList(variables?.dependencyTaskIds || []),
     });
     const payload = data?.createTask;
     return {
       createTask: {
+        ok: Boolean(payload?.ok),
+        error: payload?.error ? String(payload.error) : null,
+        task: payload?.task ? toTaskPayload(payload.task) : null,
+      },
+    };
+  }
+
+  if (query === SET_TASK_PARENT_MUTATION) {
+    const data = await executeRawGraphQL(COMPANY_API_SET_TASK_PARENT_MUTATION, {
+      companyId: resolveLegacyId(variables?.companyId),
+      taskId: resolveLegacyId(variables?.taskId),
+      parentTaskId: resolveLegacyId(variables?.parentTaskId) || null,
+    });
+    const payload = data?.setTaskParent;
+    return {
+      setTaskParent: {
         ok: Boolean(payload?.ok),
         error: payload?.error ? String(payload.error) : null,
         task: payload?.task ? toTaskPayload(payload.task) : null,
@@ -2283,6 +2303,7 @@ function App() {
   const [retryingAgentSkillInstallKey, setRetryingAgentSkillInstallKey] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [parentTaskId, setParentTaskId] = useState("");
   const [dependencyTaskIds, setDependencyTaskIds] = useState([]);
   const [relationshipDrafts, setRelationshipDrafts] = useState({});
   const [skillName, setSkillName] = useState("");
@@ -4357,6 +4378,7 @@ function App() {
         companyId: selectedCompanyId,
         name: name.trim(),
         description: description.trim() || null,
+        parentTaskId: String(parentTaskId || "").trim() || null,
         dependencyTaskIds: normalizeUniqueStringList(dependencyTaskIds),
       });
 
@@ -4367,6 +4389,7 @@ function App() {
 
       setName("");
       setDescription("");
+      setParentTaskId("");
       setDependencyTaskIds([]);
       await loadTasks();
       return true;
@@ -4420,6 +4443,8 @@ function App() {
     }
     const draft = relationshipDrafts[taskId] || {
       dependencyTaskIds: [],
+      parentTaskId: String(currentTask.parentTaskId || "").trim(),
+      childTaskIds: [],
     };
 
     try {
@@ -4435,6 +4460,23 @@ function App() {
         .filter((dependencyTaskId) => !currentDependencyTaskIds.includes(dependencyTaskId));
       const dependencyTaskIdsToRemove = currentDependencyTaskIds
         .filter((dependencyTaskId) => !draftDependencyTaskIdSet.has(dependencyTaskId));
+      const currentParentTaskId = String(currentTask.parentTaskId || "").trim();
+      const draftParentTaskId = String(draft.parentTaskId || "").trim();
+      const nextParentTaskId = draftParentTaskId && draftParentTaskId !== taskId
+        ? draftParentTaskId
+        : "";
+      const currentChildTaskIds = normalizeUniqueStringList(
+        tasks
+          .filter((task) => String(task?.parentTaskId || "").trim() === taskId)
+          .map((task) => String(task?.id || "").trim()),
+      );
+      const draftChildTaskIds = normalizeUniqueStringList(draft.childTaskIds || [])
+        .filter((childTaskId) => childTaskId !== taskId && childTaskId !== nextParentTaskId);
+      const draftChildTaskIdSet = new Set(draftChildTaskIds);
+      const childTaskIdsToClearParent = currentChildTaskIds
+        .filter((childTaskId) => !draftChildTaskIdSet.has(childTaskId));
+      const childTaskIdsToAssign = draftChildTaskIds
+        .filter((childTaskId) => !currentChildTaskIds.includes(childTaskId));
 
       for (const dependencyTaskId of dependencyTaskIdsToAdd) {
         const addData = await executeGraphQL(ADD_TASK_DEPENDENCY_MUTATION, {
@@ -4457,6 +4499,42 @@ function App() {
         const removeResult = removeData.removeTaskDependency;
         if (!removeResult.ok) {
           throw new Error(removeResult.error || "Task dependency update failed.");
+        }
+      }
+
+      for (const childTaskId of childTaskIdsToClearParent) {
+        const clearParentData = await executeGraphQL(SET_TASK_PARENT_MUTATION, {
+          companyId: selectedCompanyId,
+          taskId: childTaskId,
+          parentTaskId: null,
+        });
+        const clearParentResult = clearParentData.setTaskParent;
+        if (!clearParentResult.ok) {
+          throw new Error(clearParentResult.error || "Task parent update failed.");
+        }
+      }
+
+      if (currentParentTaskId !== nextParentTaskId) {
+        const setParentData = await executeGraphQL(SET_TASK_PARENT_MUTATION, {
+          companyId: selectedCompanyId,
+          taskId,
+          parentTaskId: nextParentTaskId || null,
+        });
+        const setParentResult = setParentData.setTaskParent;
+        if (!setParentResult.ok) {
+          throw new Error(setParentResult.error || "Task parent update failed.");
+        }
+      }
+
+      for (const childTaskId of childTaskIdsToAssign) {
+        const assignChildData = await executeGraphQL(SET_TASK_PARENT_MUTATION, {
+          companyId: selectedCompanyId,
+          taskId: childTaskId,
+          parentTaskId: taskId,
+        });
+        const assignChildResult = assignChildData.setTaskParent;
+        if (!assignChildResult.ok) {
+          throw new Error(assignChildResult.error || "Task parent update failed.");
         }
       }
 
@@ -6519,7 +6597,11 @@ function App() {
 
   function handleDraftChange(taskId, field, value) {
     setRelationshipDrafts((currentDrafts) => {
-      const currentDraft = currentDrafts[taskId] || { dependencyTaskIds: [] };
+      const currentDraft = currentDrafts[taskId] || {
+        dependencyTaskIds: [],
+        parentTaskId: "",
+        childTaskIds: [],
+      };
       const nextDraft = {
         ...currentDraft,
         [field]: value,
@@ -6527,6 +6609,26 @@ function App() {
       if (field === "dependencyTaskIds") {
         nextDraft.dependencyTaskIds = normalizeUniqueStringList(value || []);
       }
+      if (field === "parentTaskId") {
+        nextDraft.parentTaskId = String(value || "").trim();
+        if (nextDraft.parentTaskId === String(taskId || "").trim()) {
+          nextDraft.parentTaskId = "";
+        }
+      }
+      if (field === "childTaskIds") {
+        nextDraft.childTaskIds = normalizeUniqueStringList(value || [])
+          .filter((childTaskId) => childTaskId !== String(taskId || "").trim());
+      }
+
+      const normalizedTaskId = String(taskId || "").trim();
+      if (nextDraft.parentTaskId === normalizedTaskId) {
+        nextDraft.parentTaskId = "";
+      }
+      if (nextDraft.parentTaskId) {
+        nextDraft.childTaskIds = normalizeUniqueStringList(nextDraft.childTaskIds || [])
+          .filter((childTaskId) => childTaskId !== nextDraft.parentTaskId);
+      }
+
       return {
         ...currentDrafts,
         [taskId]: nextDraft,
@@ -7030,11 +7132,13 @@ function App() {
             deletingTaskId={deletingTaskId}
             name={name}
             description={description}
+            parentTaskId={parentTaskId}
             dependencyTaskIds={dependencyTaskIds}
             relationshipDrafts={relationshipDrafts}
             taskCountLabel={taskCountLabel}
             onNameChange={setName}
             onDescriptionChange={setDescription}
+            onParentTaskIdChange={setParentTaskId}
             onDependencyTaskIdsChange={setDependencyTaskIds}
             onCreateTask={handleCreateTask}
             onDraftChange={handleDraftChange}

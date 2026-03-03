@@ -6,10 +6,12 @@ export function TaskCreateModal({
   tasks,
   name,
   description,
+  parentTaskId,
   dependencyTaskIds,
   isSubmittingTask,
   onNameChange,
   onDescriptionChange,
+  onParentTaskIdChange,
   onDependencyTaskIdsChange,
   onCreateTask,
 }) {
@@ -49,6 +51,22 @@ export function TaskCreateModal({
           value={description}
           onChange={(event) => onDescriptionChange(event.target.value)}
         />
+
+        <label htmlFor="task-parent">Parent task</label>
+        <select
+          id="task-parent"
+          name="parentTaskId"
+          value={String(parentTaskId || "")}
+          onChange={(event) => onParentTaskIdChange(event.target.value)}
+        >
+          <option value="">No parent task</option>
+          {tasks.map((task) => (
+            <option key={`create-parent-${task.id}`} value={String(task.id)}>
+              #{task.id} {task.name}
+            </option>
+          ))}
+        </select>
+        <p className="chat-card-meta">Optional: assign this task under an existing parent task.</p>
 
         <label htmlFor="task-dependency">Dependencies</label>
         <select
