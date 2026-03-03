@@ -1,6 +1,6 @@
 server:
-  host: "127.0.0.1"
-  listeningPort: 5173
+  host: "0.0.0.0"
+  listeningPort: 4173
 api:
   graphqlApiUrl: "http://127.0.0.1:4000/graphql"
   runnerGrpcTarget: "localhost:50051"

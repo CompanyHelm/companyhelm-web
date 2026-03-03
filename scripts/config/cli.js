@@ -29,7 +29,7 @@ export function parseCliEnvironmentArgument(argv) {
   }
 
   if (!environment) {
-    throw new Error("Missing required --environment <name> CLI argument.");
+    return normalizeEnvironment("prod");
   }
 
   return normalizeEnvironment(environment);
