@@ -2727,6 +2727,7 @@ export const COMPANY_API_LIST_AGENTS_WITH_THREADS_CONNECTION_QUERY = `
                 title
                 additionalModelInstructions
                 status
+                errorMessage
                 currentReasoningLevel
                 company {
                   id
@@ -2865,6 +2866,7 @@ export const COMPANY_API_LIST_THREADS_CONNECTION_QUERY = `
           title
           additionalModelInstructions
           status
+          errorMessage
           currentReasoningLevel
           company {
             id
@@ -2903,6 +2905,7 @@ export const COMPANY_API_CREATE_THREAD_MUTATION = `
       title
       additionalModelInstructions
       status
+      errorMessage
       currentReasoningLevel
       company {
         id
@@ -2925,6 +2928,7 @@ export const COMPANY_API_UPDATE_THREAD_TITLE_MUTATION = `
       title
       additionalModelInstructions
       status
+      errorMessage
       currentReasoningLevel
       company {
         id

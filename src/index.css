@@ -2270,6 +2270,22 @@ button:disabled {
   justify-content: center;
 }
 
+.chat-thread-status {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(185, 28, 28, 0.35);
+  padding: 0.02rem 0.34rem;
+  font-size: 0.58rem;
+  line-height: 1.2;
+  text-transform: lowercase;
+}
+
+.chat-thread-status-error {
+  color: #991b1b;
+  background: rgba(220, 38, 38, 0.12);
+}
+
 .chat-card-main {
   min-width: 0;
   flex: 1;
@@ -2307,6 +2323,15 @@ button:disabled {
   margin: 0.12rem 0 0;
   font-size: 0.72rem;
   color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-thread-error-text {
+  margin: 0.16rem 0 0;
+  font-size: 0.68rem;
+  color: #b42318;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

@@ -81,6 +81,9 @@ export function ChatsOverviewPage({
                     </li>
                     {sortedChats.map((chatSession) => {
                         const isRunning = isChatSessionRunning(chatSession, chatSessionRunningById);
+                        const sessionStatus = String(chatSession?.status || "").trim().toLowerCase();
+                        const isError = sessionStatus === "error";
+                        const threadErrorMessage = String(chatSession?.errorMessage || "").trim();
                         const chatSessionKey = `${agent.id}:${chatSession.id}`;
                         const isDeletingChat = deletingChatSessionKey === chatSessionKey;
                         const sessionModelLabel =
@@ -111,6 +114,7 @@ export function ChatsOverviewPage({
                           >
                             <div className="chat-card-status">
                               {isRunning ? <ChatSessionRunningBadge /> : null}
+                              {!isRunning && isError ? <span className="chat-thread-status chat-thread-status-error">error</span> : null}
                             </div>
                             <div className="chat-card-main">
                               <p className="chat-card-title">
@@ -119,6 +123,9 @@ export function ChatsOverviewPage({
                               <p className="chat-card-meta">
                                 {formatTimestamp(chatSession.updatedAt)} · {sessionModelLabel} · {reasoningLabel}
                               </p>
+                              {isError && threadErrorMessage ? (
+                                <p className="chat-thread-error-text">{threadErrorMessage}</p>
+                              ) : null}
                             </div>
                             <div className="chat-card-actions">
                               <button

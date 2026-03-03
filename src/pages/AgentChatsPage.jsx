@@ -410,6 +410,9 @@ export function AgentChatsPage({
                   <div style={{ marginTop: "0.5rem", display: "flex", flexDirection: "column", gap: "0.15rem" }}>
                     {chatSessions.map((session) => {
                       const isRunning = isChatSessionRunning(session, chatSessionRunningById);
+                      const sessionStatus = String(session?.status || "").trim().toLowerCase();
+                      const isError = sessionStatus === "error";
+                      const threadErrorMessage = String(session?.errorMessage || "").trim();
                       const chatSessionKey = `${agent.id}:${session.id}`;
                       const isDeletingChat = deletingChatSessionKey === chatSessionKey;
                       const modelLabel = String(session?.currentModelName || session?.currentModelId || "").trim() || "n/a";
@@ -430,10 +433,14 @@ export function AgentChatsPage({
                           <div className="agent-detail-chat-item-main">
                             <p className="agent-detail-chat-item-title">
                               {isRunning ? "● " : ""}{session.title || "Untitled chat"}
+                              {isError ? <span className="chat-thread-status chat-thread-status-error">error</span> : null}
                             </p>
                             <p className="agent-detail-chat-item-meta">
                               {formatTimestamp(session.updatedAt)} · {modelLabel} · {reasoningLabel}
                             </p>
+                            {isError && threadErrorMessage ? (
+                              <p className="chat-thread-error-text">{threadErrorMessage}</p>
+                            ) : null}
                           </div>
                           <div className="agent-detail-chat-item-actions">
                             <button
