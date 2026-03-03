@@ -6746,12 +6746,7 @@ function App() {
       setChatSessionId("");
       setChatTurns([]);
       setQueuedChatMessages([]);
-      const createdSessionId = await handleCreateChatSession({ agentId: targetAgentId });
-      if (createdSessionId) {
-        setBrowserPath(getChatsPath({ agentId: targetAgentId, threadId: createdSessionId }), { replace });
-        return;
-      }
-
+      setChatError("");
       setBrowserPath(getChatsPath({ agentId: targetAgentId }), { replace });
     } finally {
       isNavigatingToChatsRef.current = false;
