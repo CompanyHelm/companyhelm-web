@@ -201,6 +201,7 @@ import {
 
 import { getPersistedCompanyId, persistCompanyId } from "./utils/persistence.js";
 import { setActiveCompanyId } from "./utils/company-context.js";
+import { createSingleFlightByKey } from "./utils/single-flight.js";
 
 import { buildRunnerStartCommand } from "./utils/shell.js";
 
@@ -2340,6 +2341,7 @@ function App() {
     matchesMediaQuery(SIDEBAR_COLLAPSE_MEDIA_QUERY),
   );
   const isNavigatingToChatsRef = useRef(false);
+  const runCreateChatSessionSingleFlight = useMemo(() => createSingleFlightByKey(), []);
   const hasCompanies = companies.length > 0;
   const handleChatSessionRenameDraftChange = useCallback((nextTitle) => {
     setChatSessionRenameDraft(String(nextTitle || "").slice(0, THREAD_TITLE_MAX_LENGTH));
@@ -6141,88 +6143,94 @@ function App() {
         (session) => String(session?.id || "").trim(),
       ),
     );
+    const createChatSessionKey = `${selectedCompanyId}:${targetAgentId}`;
 
-    try {
-      setIsCreatingChatSession(true);
-      setChatError("");
-      const data = await executeGraphQL(CREATE_AGENT_THREAD_MUTATION, {
-        companyId: selectedCompanyId,
-        agentId: targetAgentId,
-        title: title ? title.trim() : null,
-        additionalModelInstructions: normalizedAdditionalModelInstructions,
-        runnerId: preferredRunnerId || selectedAgentForChat?.agentRunnerId || null,
-      });
-      const result = data.createAgentThread;
-      if (!result.ok || !result.thread) {
-        throw new Error(result.error || "Failed to create chat.");
-      }
-
-      let canonicalThread = result.thread;
-      if (String(canonicalThread?.status || "").trim().toLowerCase() !== "ready") {
-        const resolvedThread = await waitForCanonicalThreadViaSubscription({
+    return runCreateChatSessionSingleFlight(createChatSessionKey, async () => {
+      try {
+        setIsCreatingChatSession(true);
+        setChatError("");
+        const data = await executeGraphQL(CREATE_AGENT_THREAD_MUTATION, {
           companyId: selectedCompanyId,
           agentId: targetAgentId,
-          requestedThreadId: canonicalThread.id,
-          knownThreadIds: [...knownThreadIds],
-          timeoutMs: 15000,
+          title: title ? title.trim() : null,
+          additionalModelInstructions: normalizedAdditionalModelInstructions,
+          runnerId: preferredRunnerId || selectedAgentForChat?.agentRunnerId || null,
         });
-        if (resolvedThread) {
-          canonicalThread = {
-            ...canonicalThread,
-            ...resolvedThread,
-            title: canonicalThread.title || resolvedThread.title,
-            additionalModelInstructions:
-              canonicalThread.additionalModelInstructions
-                || resolvedThread.additionalModelInstructions
-                || normalizedAdditionalModelInstructions,
-            runnerId: canonicalThread.runnerId || resolvedThread.runnerId || null,
-          };
+        const result = data.createAgentThread;
+        if (!result.ok || !result.thread) {
+          throw new Error(result.error || "Failed to create chat.");
         }
+
+        let canonicalThread = result.thread;
+        if (String(canonicalThread?.status || "").trim().toLowerCase() !== "ready") {
+          const resolvedThread = await waitForCanonicalThreadViaSubscription({
+            companyId: selectedCompanyId,
+            agentId: targetAgentId,
+            requestedThreadId: canonicalThread.id,
+            knownThreadIds: [...knownThreadIds],
+            timeoutMs: 15000,
+          });
+          if (resolvedThread) {
+            canonicalThread = {
+              ...canonicalThread,
+              ...resolvedThread,
+              title: canonicalThread.title || resolvedThread.title,
+              additionalModelInstructions:
+                canonicalThread.additionalModelInstructions
+                  || resolvedThread.additionalModelInstructions
+                  || normalizedAdditionalModelInstructions,
+              runnerId: canonicalThread.runnerId || resolvedThread.runnerId || null,
+            };
+          }
+        }
+
+        const sessionsForAgent = await loadCompanyApiAgentThreads({
+          companyId: selectedCompanyId,
+          agentId: targetAgentId,
+          limit: 200,
+        });
+        const requestedThreadId = String(canonicalThread?.id || result.thread.id || "").trim();
+
+        const isReadySession = (session) => String(session?.status || "").trim().toLowerCase() === "ready";
+        const isNewSession = (session) => !knownThreadIds.has(String(session?.id || "").trim());
+        const requestedSession = sessionsForAgent.find(
+          (session) => String(session?.id || "").trim() === requestedThreadId,
+        );
+        const readyRequestedSession = requestedSession && isReadySession(requestedSession) ? requestedSession : null;
+        const readyNewSession = sessionsForAgent.find((session) => isNewSession(session) && isReadySession(session));
+        const remappedSession = sessionsForAgent.find(
+          (session) =>
+            isNewSession(session) && String(session?.id || "").trim() !== requestedThreadId,
+        );
+        const resolvedThread =
+          readyRequestedSession || readyNewSession || remappedSession || requestedSession || canonicalThread;
+        const resolvedThreadId = String(resolvedThread?.id || requestedThreadId || "").trim();
+
+        let nextSessionsForAgent = sessionsForAgent;
+        if (
+          resolvedThreadId
+          && !sessionsForAgent.some((session) => String(session?.id || "").trim() === resolvedThreadId)
+        ) {
+          nextSessionsForAgent = [resolvedThread, ...sessionsForAgent];
+        }
+
+        setChatAgentId(targetAgentId);
+        setChatSessions(nextSessionsForAgent);
+        setChatSessionsByAgent((currentSessionsByAgent) => ({
+          ...currentSessionsByAgent,
+          [targetAgentId]: nextSessionsForAgent,
+        }));
+        setChatSessionTitleDraft("");
+        setChatSessionAdditionalModelInstructionsDraft("");
+        setChatSessionId(resolvedThreadId);
+        return resolvedThreadId;
+      } catch (createError) {
+        setChatError(createError.message);
+        return null;
+      } finally {
+        setIsCreatingChatSession(false);
       }
-
-      const sessionsForAgent = await loadCompanyApiAgentThreads({
-        companyId: selectedCompanyId,
-        agentId: targetAgentId,
-        limit: 200,
-      });
-      const requestedThreadId = String(canonicalThread?.id || result.thread.id || "").trim();
-
-      const isReadySession = (session) => String(session?.status || "").trim().toLowerCase() === "ready";
-      const isNewSession = (session) => !knownThreadIds.has(String(session?.id || "").trim());
-      const requestedSession = sessionsForAgent.find(
-        (session) => String(session?.id || "").trim() === requestedThreadId,
-      );
-      const readyRequestedSession = requestedSession && isReadySession(requestedSession) ? requestedSession : null;
-      const readyNewSession = sessionsForAgent.find((session) => isNewSession(session) && isReadySession(session));
-      const remappedSession = sessionsForAgent.find(
-        (session) =>
-          isNewSession(session) && String(session?.id || "").trim() !== requestedThreadId,
-      );
-      const resolvedThread =
-        readyRequestedSession || readyNewSession || remappedSession || requestedSession || canonicalThread;
-      const resolvedThreadId = String(resolvedThread?.id || requestedThreadId || "").trim();
-
-      let nextSessionsForAgent = sessionsForAgent;
-      if (resolvedThreadId && !sessionsForAgent.some((session) => String(session?.id || "").trim() === resolvedThreadId)) {
-        nextSessionsForAgent = [resolvedThread, ...sessionsForAgent];
-      }
-
-      setChatAgentId(targetAgentId);
-      setChatSessions(nextSessionsForAgent);
-      setChatSessionsByAgent((currentSessionsByAgent) => ({
-        ...currentSessionsByAgent,
-        [targetAgentId]: nextSessionsForAgent,
-      }));
-      setChatSessionTitleDraft("");
-      setChatSessionAdditionalModelInstructionsDraft("");
-      setChatSessionId(resolvedThreadId);
-      return resolvedThreadId;
-    } catch (createError) {
-      setChatError(createError.message);
-      return null;
-    } finally {
-      setIsCreatingChatSession(false);
-    }
+    });
   }
 
   async function handleUpdateChatSessionTitle(event) {
