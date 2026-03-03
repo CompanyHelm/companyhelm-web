@@ -25,16 +25,6 @@ const SUBSCRIPTION_RECONNECT_BASE_DELAY_MS = 300;
 const SUBSCRIPTION_RECONNECT_MAX_DELAY_MS = 5000;
 const SUBSCRIPTION_IDLE_CLOSE_DELAY_MS = 250;
 
-let sharedSubscriptionSocket = null;
-let sharedSubscriptionSocketEndpoint = "";
-let sharedSubscriptionSocketAcked = false;
-let sharedSubscriptionReconnectAttempt = 0;
-let sharedSubscriptionReconnectTimerId = null;
-let sharedSubscriptionIdleCloseTimerId = null;
-let sharedSubscriptionClosedByClient = false;
-let nextSubscriptionOperationId = 0;
-const activeSubscriptionOperations = new Map();
-
 function resolveOperationCacheKey(params) {
   return String(params?.id || params?.cacheID || params?.text || params?.name || "anonymous");
 }
@@ -191,50 +181,6 @@ function toSubscriptionError(rawError) {
   return new Error(message);
 }
 
-function clearSubscriptionReconnectTimer() {
-  if (sharedSubscriptionReconnectTimerId !== null) {
-    clearTimeout(sharedSubscriptionReconnectTimerId);
-    sharedSubscriptionReconnectTimerId = null;
-  }
-}
-
-function clearSubscriptionIdleCloseTimer() {
-  if (sharedSubscriptionIdleCloseTimerId !== null) {
-    clearTimeout(sharedSubscriptionIdleCloseTimerId);
-    sharedSubscriptionIdleCloseTimerId = null;
-  }
-}
-
-function scheduleSubscriptionIdleClose() {
-  if (sharedSubscriptionIdleCloseTimerId !== null) {
-    return;
-  }
-  sharedSubscriptionIdleCloseTimerId = setTimeout(() => {
-    sharedSubscriptionIdleCloseTimerId = null;
-    if (activeSubscriptionOperations.size > 0) {
-      return;
-    }
-    closeSharedSubscriptionSocket();
-  }, SUBSCRIPTION_IDLE_CLOSE_DELAY_MS);
-}
-
-function closeSharedSubscriptionSocket({ closeCode = 1000 } = {}) {
-  clearSubscriptionIdleCloseTimer();
-  clearSubscriptionReconnectTimer();
-  sharedSubscriptionSocketAcked = false;
-
-  const socket = sharedSubscriptionSocket;
-  sharedSubscriptionSocket = null;
-  sharedSubscriptionSocketEndpoint = "";
-  if (!socket) {
-    return;
-  }
-  sharedSubscriptionClosedByClient = true;
-  if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
-    socket.close(closeCode);
-  }
-}
-
 function buildConnectionInitPayload() {
   const authorization = authProvider.getAuthorizationHeaderValue();
   const activeCompanyId = getActiveCompanyId();
@@ -259,196 +205,314 @@ function buildConnectionInitPayload() {
         headers,
       };
 }
+let graphQLSubscriptionServiceSingleton = null;
 
-function sendSubscriptionStart(operation) {
-  if (!sharedSubscriptionSocket || sharedSubscriptionSocket.readyState !== WebSocket.OPEN || !sharedSubscriptionSocketAcked) {
-    return;
+class GraphQLSubscriptionService {
+  static getInstance() {
+    if (!graphQLSubscriptionServiceSingleton) {
+      graphQLSubscriptionServiceSingleton = new GraphQLSubscriptionService();
+    }
+    return graphQLSubscriptionServiceSingleton;
   }
-  sharedSubscriptionSocket.send(
-    JSON.stringify({
-      id: operation.id,
-      type: "subscribe",
-      payload: {
-        query: operation.queryText,
-        variables: operation.variables,
-      },
-    }),
-  );
-  operation.started = true;
-}
 
-function sendPendingSubscriptionStarts() {
-  for (const operation of activeSubscriptionOperations.values()) {
-    if (!operation.started) {
-      sendSubscriptionStart(operation);
+  constructor() {
+    this.socket = null;
+    this.socketEndpoint = "";
+    this.socketAcked = false;
+    this.reconnectAttempt = 0;
+    this.reconnectTimerId = null;
+    this.idleCloseTimerId = null;
+    this.closedByClient = false;
+    this.nextOperationId = 0;
+    this.activeOperations = new Map();
+  }
+
+  clearReconnectTimer() {
+    if (this.reconnectTimerId !== null) {
+      clearTimeout(this.reconnectTimerId);
+      this.reconnectTimerId = null;
     }
   }
-}
 
-function scheduleSubscriptionReconnect(endpoint) {
-  if (activeSubscriptionOperations.size === 0 || sharedSubscriptionReconnectTimerId !== null) {
-    return;
+  clearIdleCloseTimer() {
+    if (this.idleCloseTimerId !== null) {
+      clearTimeout(this.idleCloseTimerId);
+      this.idleCloseTimerId = null;
+    }
   }
 
-  const reconnectDelay = Math.min(
-    SUBSCRIPTION_RECONNECT_BASE_DELAY_MS * (2 ** sharedSubscriptionReconnectAttempt),
-    SUBSCRIPTION_RECONNECT_MAX_DELAY_MS,
-  );
-  sharedSubscriptionReconnectTimerId = setTimeout(() => {
-    sharedSubscriptionReconnectTimerId = null;
-    ensureSharedSubscriptionSocket(endpoint);
-  }, reconnectDelay);
-  sharedSubscriptionReconnectAttempt += 1;
-}
-
-function handleSocketPayload(payload) {
-  switch (payload?.type) {
-    case "connection_ack":
-      sharedSubscriptionSocketAcked = true;
-      sharedSubscriptionReconnectAttempt = 0;
-      sendPendingSubscriptionStarts();
+  scheduleIdleClose() {
+    if (this.idleCloseTimerId !== null) {
       return;
-    case "next": {
-      const operation = activeSubscriptionOperations.get(String(payload?.id || ""));
-      if (operation) {
-        operation.sink.next(payload?.payload || {});
+    }
+    this.idleCloseTimerId = setTimeout(() => {
+      this.idleCloseTimerId = null;
+      if (this.activeOperations.size > 0) {
+        return;
       }
+      this.closeSocket();
+    }, SUBSCRIPTION_IDLE_CLOSE_DELAY_MS);
+  }
+
+  closeSocket({ closeCode = 1000 } = {}) {
+    this.clearIdleCloseTimer();
+    this.clearReconnectTimer();
+    this.socketAcked = false;
+
+    const socket = this.socket;
+    this.socket = null;
+    this.socketEndpoint = "";
+    if (!socket) {
       return;
     }
-    case "error": {
-      const operationId = String(payload?.id || "");
-      if (!operationId) {
-        const socketError = toSubscriptionError(payload?.payload);
-        for (const operation of activeSubscriptionOperations.values()) {
-          operation.sink.error(socketError);
+    this.closedByClient = true;
+    if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+      socket.close(closeCode);
+    }
+  }
+
+  sendSubscriptionStart(operation) {
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN || !this.socketAcked) {
+      return;
+    }
+    this.socket.send(
+      JSON.stringify({
+        id: operation.id,
+        type: "subscribe",
+        payload: {
+          query: operation.queryText,
+          variables: operation.variables,
+        },
+      }),
+    );
+    operation.started = true;
+  }
+
+  sendPendingSubscriptionStarts() {
+    for (const operation of this.activeOperations.values()) {
+      if (!operation.started) {
+        this.sendSubscriptionStart(operation);
+      }
+    }
+  }
+
+  scheduleReconnect(endpoint) {
+    if (this.activeOperations.size === 0 || this.reconnectTimerId !== null) {
+      return;
+    }
+
+    const reconnectDelay = Math.min(
+      SUBSCRIPTION_RECONNECT_BASE_DELAY_MS * (2 ** this.reconnectAttempt),
+      SUBSCRIPTION_RECONNECT_MAX_DELAY_MS,
+    );
+    this.reconnectTimerId = setTimeout(() => {
+      this.reconnectTimerId = null;
+      this.ensureSocket(endpoint);
+    }, reconnectDelay);
+    this.reconnectAttempt += 1;
+  }
+
+  handleSocketPayload(payload) {
+    switch (payload?.type) {
+      case "connection_ack":
+        this.socketAcked = true;
+        this.reconnectAttempt = 0;
+        this.sendPendingSubscriptionStarts();
+        return;
+      case "next": {
+        const operation = this.activeOperations.get(String(payload?.id || ""));
+        if (operation) {
+          operation.sink.next(payload?.payload || {});
         }
-        activeSubscriptionOperations.clear();
-        closeSharedSubscriptionSocket();
         return;
       }
-      const operation = activeSubscriptionOperations.get(operationId);
+      case "error": {
+        const operationId = String(payload?.id || "");
+        if (!operationId) {
+          const socketError = toSubscriptionError(payload?.payload);
+          for (const operation of this.activeOperations.values()) {
+            operation.sink.error(socketError);
+          }
+          this.activeOperations.clear();
+          this.closeSocket();
+          return;
+        }
+        const operation = this.activeOperations.get(operationId);
+        if (!operation) {
+          return;
+        }
+        const operationError = toSubscriptionError(payload?.payload);
+        if (isJwtExpiredErrorMessage(operationError.message)) {
+          handleAuthenticationFailure();
+        }
+        operation.sink.error(operationError);
+        this.activeOperations.delete(operationId);
+        if (this.activeOperations.size === 0) {
+          this.scheduleIdleClose();
+        }
+        return;
+      }
+      case "complete": {
+        const operationId = String(payload?.id || "");
+        const operation = this.activeOperations.get(operationId);
+        if (!operation) {
+          return;
+        }
+        operation.sink.complete();
+        this.activeOperations.delete(operationId);
+        if (this.activeOperations.size === 0) {
+          this.scheduleIdleClose();
+        }
+        return;
+      }
+      case "ping":
+        if (this.socket?.readyState === WebSocket.OPEN) {
+          this.socket.send(JSON.stringify({ type: "pong" }));
+        }
+        return;
+      default:
+        return;
+    }
+  }
+
+  ensureSocket(endpoint) {
+    if (typeof window === "undefined" || typeof WebSocket === "undefined") {
+      return;
+    }
+
+    if (this.socket) {
+      if (
+        this.socketEndpoint === endpoint
+        && (
+          this.socket.readyState === WebSocket.CONNECTING
+          || this.socket.readyState === WebSocket.OPEN
+        )
+      ) {
+        return;
+      }
+      this.closeSocket({ closeCode: 1012 });
+    }
+
+    this.closedByClient = false;
+    this.socketEndpoint = endpoint;
+    this.socketAcked = false;
+
+    const socket = new WebSocket(endpoint, "graphql-transport-ws");
+    this.socket = socket;
+
+    socket.addEventListener("open", () => {
+      if (this.socket !== socket) {
+        return;
+      }
+      const payload = buildConnectionInitPayload();
+      socket.send(JSON.stringify({
+        type: "connection_init",
+        ...(payload ? { payload } : {}),
+      }));
+    });
+
+    socket.addEventListener("message", (event) => {
+      if (this.socket !== socket) {
+        return;
+      }
+      try {
+        const payload = JSON.parse(event.data);
+        this.handleSocketPayload(payload);
+      } catch (error) {
+        const parseError = toSubscriptionError(error);
+        for (const operation of this.activeOperations.values()) {
+          operation.sink.error(parseError);
+        }
+        this.activeOperations.clear();
+        this.closeSocket({ closeCode: 1002 });
+      }
+    });
+
+    socket.addEventListener("error", () => {
+      if (this.socket !== socket) {
+        return;
+      }
+      // The close handler drives reconnect behavior.
+    });
+
+    socket.addEventListener("close", () => {
+      const wasClosedByClient = this.closedByClient;
+      if (wasClosedByClient) {
+        this.closedByClient = false;
+      }
+
+      if (this.socket === socket) {
+        this.socket = null;
+        this.socketAcked = false;
+        this.socketEndpoint = "";
+      } else if (this.socket) {
+        // Ignore close events from stale sockets after a newer socket is active.
+        return;
+      }
+
+      if (wasClosedByClient) {
+        return;
+      }
+
+      for (const operation of this.activeOperations.values()) {
+        operation.started = false;
+      }
+      this.scheduleReconnect(endpoint);
+    });
+  }
+
+  subscribe({
+    endpoint,
+    queryText,
+    variables,
+    sink,
+  }) {
+    const operationId = `sub-${Date.now()}-${this.nextOperationId++}`;
+    this.activeOperations.set(operationId, {
+      id: operationId,
+      sink,
+      queryText,
+      variables: variables || {},
+      started: false,
+    });
+    this.clearIdleCloseTimer();
+
+    this.ensureSocket(endpoint);
+    const activeOperation = this.activeOperations.get(operationId);
+    if (activeOperation) {
+      this.sendSubscriptionStart(activeOperation);
+    }
+
+    return () => {
+      const operation = this.activeOperations.get(operationId);
       if (!operation) {
         return;
       }
-      const operationError = toSubscriptionError(payload?.payload);
-      if (isJwtExpiredErrorMessage(operationError.message)) {
-        handleAuthenticationFailure();
+
+      this.activeOperations.delete(operationId);
+
+      if (
+        this.socket
+        && this.socket.readyState === WebSocket.OPEN
+        && this.socketAcked
+        && operation.started
+      ) {
+        this.socket.send(
+          JSON.stringify({
+            id: operationId,
+            type: "complete",
+          }),
+        );
       }
-      operation.sink.error(operationError);
-      activeSubscriptionOperations.delete(operationId);
-      if (activeSubscriptionOperations.size === 0) {
-        scheduleSubscriptionIdleClose();
+
+      if (this.activeOperations.size === 0) {
+        this.scheduleIdleClose();
       }
-      return;
-    }
-    case "complete": {
-      const operationId = String(payload?.id || "");
-      const operation = activeSubscriptionOperations.get(operationId);
-      if (!operation) {
-        return;
-      }
-      operation.sink.complete();
-      activeSubscriptionOperations.delete(operationId);
-      if (activeSubscriptionOperations.size === 0) {
-        scheduleSubscriptionIdleClose();
-      }
-      return;
-    }
-    case "ping":
-      if (sharedSubscriptionSocket?.readyState === WebSocket.OPEN) {
-        sharedSubscriptionSocket.send(JSON.stringify({ type: "pong" }));
-      }
-      return;
-    default:
-      return;
+    };
   }
 }
 
-function ensureSharedSubscriptionSocket(endpoint) {
-  if (typeof window === "undefined" || typeof WebSocket === "undefined") {
-    return;
-  }
-
-  if (sharedSubscriptionSocket) {
-    if (
-      sharedSubscriptionSocketEndpoint === endpoint
-      && (
-        sharedSubscriptionSocket.readyState === WebSocket.CONNECTING
-        || sharedSubscriptionSocket.readyState === WebSocket.OPEN
-      )
-    ) {
-      return;
-    }
-    closeSharedSubscriptionSocket({ closeCode: 1012 });
-  }
-
-  sharedSubscriptionClosedByClient = false;
-  sharedSubscriptionSocketEndpoint = endpoint;
-  sharedSubscriptionSocketAcked = false;
-
-  const socket = new WebSocket(endpoint, "graphql-transport-ws");
-  sharedSubscriptionSocket = socket;
-
-  socket.addEventListener("open", () => {
-    if (sharedSubscriptionSocket !== socket) {
-      return;
-    }
-    const payload = buildConnectionInitPayload();
-    socket.send(JSON.stringify({
-      type: "connection_init",
-      ...(payload ? { payload } : {}),
-    }));
-  });
-
-  socket.addEventListener("message", (event) => {
-    if (sharedSubscriptionSocket !== socket) {
-      return;
-    }
-    try {
-      const payload = JSON.parse(event.data);
-      handleSocketPayload(payload);
-    } catch (error) {
-      const parseError = toSubscriptionError(error);
-      for (const operation of activeSubscriptionOperations.values()) {
-        operation.sink.error(parseError);
-      }
-      activeSubscriptionOperations.clear();
-      closeSharedSubscriptionSocket({ closeCode: 1002 });
-    }
-  });
-
-  socket.addEventListener("error", () => {
-    if (sharedSubscriptionSocket !== socket) {
-      return;
-    }
-    // The close handler drives reconnect behavior.
-  });
-
-  socket.addEventListener("close", () => {
-    const wasClosedByClient = sharedSubscriptionClosedByClient;
-    if (wasClosedByClient) {
-      sharedSubscriptionClosedByClient = false;
-    }
-
-    if (sharedSubscriptionSocket === socket) {
-      sharedSubscriptionSocket = null;
-      sharedSubscriptionSocketAcked = false;
-      sharedSubscriptionSocketEndpoint = "";
-    } else if (sharedSubscriptionSocket) {
-      // Ignore close events from stale sockets after a newer socket is active.
-      return;
-    }
-
-    if (wasClosedByClient) {
-      return;
-    }
-
-    for (const operation of activeSubscriptionOperations.values()) {
-      operation.started = false;
-    }
-    scheduleSubscriptionReconnect(endpoint);
-  });
-}
+const graphQLSubscriptionService = GraphQLSubscriptionService.getInstance();
 
 function subscribeGraphQL(params, variables) {
   return Observable.create((sink) => {
@@ -469,48 +533,12 @@ function subscribeGraphQL(params, variables) {
       return () => {};
     }
 
-    const operationId = `sub-${Date.now()}-${nextSubscriptionOperationId++}`;
-    activeSubscriptionOperations.set(operationId, {
-      id: operationId,
-      sink,
+    return graphQLSubscriptionService.subscribe({
+      endpoint,
       queryText,
       variables: variables || {},
-      started: false,
+      sink,
     });
-    clearSubscriptionIdleCloseTimer();
-
-    ensureSharedSubscriptionSocket(endpoint);
-    const activeOperation = activeSubscriptionOperations.get(operationId);
-    if (activeOperation) {
-      sendSubscriptionStart(activeOperation);
-    }
-
-    return () => {
-      const operation = activeSubscriptionOperations.get(operationId);
-      if (!operation) {
-        return;
-      }
-
-      activeSubscriptionOperations.delete(operationId);
-
-      if (
-        sharedSubscriptionSocket
-        && sharedSubscriptionSocket.readyState === WebSocket.OPEN
-        && sharedSubscriptionSocketAcked
-        && operation.started
-      ) {
-        sharedSubscriptionSocket.send(
-          JSON.stringify({
-            id: operationId,
-            type: "complete",
-          }),
-        );
-      }
-
-      if (activeSubscriptionOperations.size === 0) {
-        scheduleSubscriptionIdleClose();
-      }
-    };
   });
 }
 
