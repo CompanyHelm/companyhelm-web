@@ -93,7 +93,7 @@ export function TasksPage({
   useSetPageActions(pageActions);
 
   return (
-    <Page>
+    <Page className="page-container-full">
       <div className="task-view-fullscreen">
         <div className="task-view-tabs">
           <button

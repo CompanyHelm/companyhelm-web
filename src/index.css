@@ -594,6 +594,10 @@ h3 {
   margin: 0 auto;
 }
 
+.page-container-full {
+  max-width: none;
+}
+
 .page-stack {
   display: grid;
   gap: 0.85rem;
