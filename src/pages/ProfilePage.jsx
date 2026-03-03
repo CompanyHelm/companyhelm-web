@@ -1,8 +1,45 @@
 import { Page } from "../components/Page.jsx";
 
-export function ProfilePage({ selectedCompany, tasks, skills, agents, agentRunners }) {
+export function ProfilePage({
+  currentUser,
+  currentUserError,
+  isLoadingCurrentUser,
+  selectedCompany,
+  tasks,
+  skills,
+  agents,
+  agentRunners,
+}) {
+  const firstName = String(currentUser?.firstName || "").trim();
+  const lastName = String(currentUser?.lastName || "").trim();
+  const email = String(currentUser?.email || "").trim();
+  const displayName = `${firstName} ${lastName}`.trim() || firstName || "Unknown user";
+
   return (
     <Page><div className="page-stack">
+      <section className="panel profile-user-panel">
+        <header className="panel-header">
+          <h2>User Profile</h2>
+        </header>
+        {isLoadingCurrentUser ? <p className="empty-hint">Loading profile...</p> : null}
+        {currentUserError ? <p className="error-banner">{currentUserError}</p> : null}
+        {!isLoadingCurrentUser && !currentUserError && currentUser ? (
+          <dl className="profile-user-details">
+            <div>
+              <dt>Name</dt>
+              <dd>{displayName}</dd>
+            </div>
+            <div>
+              <dt>Email</dt>
+              <dd>{email || "Not set"}</dd>
+            </div>
+            <div>
+              <dt>Company</dt>
+              <dd>{selectedCompany?.name || "No company selected"}</dd>
+            </div>
+          </dl>
+        ) : null}
+      </section>
       <section className="runner-summary-grid">
         <article className="panel stat-panel">
           <p className="stat-label">Tasks</p>

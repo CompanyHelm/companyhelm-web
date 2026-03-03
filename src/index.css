@@ -935,6 +935,34 @@ h2 {
   font-size: 0.86rem;
 }
 
+.profile-user-panel {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.profile-user-details {
+  margin: 0;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.profile-user-details > div {
+  display: grid;
+  gap: 0.12rem;
+}
+
+.profile-user-details dt {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.8rem;
+  color: var(--ink-1);
+}
+
+.profile-user-details dd {
+  margin: 0;
+  font-size: 0.96rem;
+  color: var(--ink-0);
+}
+
 .panel-header {
   margin-bottom: 0.85rem;
 }

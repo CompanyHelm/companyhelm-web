@@ -25,6 +25,7 @@ import { matchesMediaQuery } from "./utils/media.js";
 
 import {
   LIST_COMPANIES_QUERY,
+  CURRENT_USER_QUERY,
   CREATE_COMPANY_MUTATION,
   DELETE_COMPANY_MUTATION,
   LIST_GITHUB_APP_CONFIG_QUERY,
@@ -91,6 +92,7 @@ import {
   COMPANY_API_NOT_IMPLEMENTED_ERROR,
   COMPANY_API_PAGE_SIZE,
   COMPANY_API_LIST_COMPANIES_CONNECTION_QUERY,
+  COMPANY_API_CURRENT_USER_QUERY,
   COMPANY_API_CREATE_COMPANY_MUTATION,
   COMPANY_API_DELETE_COMPANY_MUTATION,
   COMPANY_API_GITHUB_APP_CONFIG_QUERY,
@@ -920,6 +922,21 @@ async function executeGraphQL(query, variables = {}) {
         id: resolveLegacyId(company?.id),
         name: resolveLegacyId(company?.name),
       })),
+    };
+  }
+
+  if (query === CURRENT_USER_QUERY) {
+    const data = await executeRawGraphQL(COMPANY_API_CURRENT_USER_QUERY);
+    const currentUser = data?.currentUser;
+    return {
+      currentUser: currentUser
+        ? {
+          id: resolveLegacyId(currentUser.id),
+          email: resolveLegacyId(currentUser.email),
+          firstName: resolveLegacyId(currentUser.firstName),
+          lastName: resolveLegacyId(currentUser.lastName) || null,
+        }
+        : null,
     };
   }
 
@@ -2172,6 +2189,9 @@ function App() {
   const [pendingGithubInstallCallback, setPendingGithubInstallCallback] = useState(
     () => parseGithubInstallCallbackFromLocation(),
   );
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isLoadingCurrentUser, setIsLoadingCurrentUser] = useState(false);
+  const [currentUserError, setCurrentUserError] = useState("");
   const [tasks, setTasks] = useState([]);
   const [skills, setSkills] = useState([]);
   const [roles, setRoles] = useState([]);
@@ -2635,6 +2655,7 @@ function App() {
     activePage === "agents" && (agentsRoute.view === "agent" || agentsRoute.view === "chats" || agentsRoute.view === "chat");
   const shouldSubscribeChatTurns = isChatConversationRoute;
   const shouldLoadGithubData = activePage === "settings" || activePage === "repos";
+  const shouldLoadCurrentUserData = activePage === "profile";
   const shouldLoadTaskData = activePage === "dashboard" || activePage === "tasks" || activePage === "profile";
   const shouldLoadSkillData =
     activePage === "skills"
@@ -2718,6 +2739,28 @@ function App() {
       setCompanyError(loadError.message);
     } finally {
       setIsLoadingCompanies(false);
+    }
+  }, []);
+
+  const loadCurrentUser = useCallback(async () => {
+    try {
+      setCurrentUserError("");
+      setIsLoadingCurrentUser(true);
+      const data = await executeGraphQL(CURRENT_USER_QUERY);
+      const nextUser = data?.currentUser || null;
+      setCurrentUser(nextUser
+        ? {
+          id: resolveLegacyId(nextUser.id),
+          email: resolveLegacyId(nextUser.email),
+          firstName: resolveLegacyId(nextUser.firstName),
+          lastName: resolveLegacyId(nextUser.lastName) || null,
+        }
+        : null);
+    } catch (loadError) {
+      setCurrentUser(null);
+      setCurrentUserError(loadError.message);
+    } finally {
+      setIsLoadingCurrentUser(false);
     }
   }, []);
 
@@ -3572,6 +3615,13 @@ function App() {
     selectedCompanyId,
     shouldLoadGithubData,
   ]);
+
+  useEffect(() => {
+    if (!shouldLoadCurrentUserData) {
+      return;
+    }
+    loadCurrentUser();
+  }, [loadCurrentUser, shouldLoadCurrentUserData]);
 
   useEffect(() => {
     if (!selectedCompanyId || !shouldLoadTaskData) {
@@ -7232,6 +7282,9 @@ function App() {
 
         {activePage === "profile" ? (
           <ProfilePage
+            currentUser={currentUser}
+            currentUserError={currentUserError}
+            isLoadingCurrentUser={isLoadingCurrentUser}
             selectedCompany={selectedCompany}
             tasks={tasks}
             skills={skills}
