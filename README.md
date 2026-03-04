@@ -15,7 +15,7 @@ Open `http://localhost:4173`.
 ## Runtime config generation
 
 Runtime config is generated from YAML files under `config/` and written to
-`public/config.json` before Vite starts.
+`src/generated/config.js` before Vite starts.
 
 - source files:
   - `config/local.yaml`
@@ -23,7 +23,7 @@ Runtime config is generated from YAML files under `config/` and written to
   - `config/prod.yaml`
 - generator: `scripts/config/generate-runtime-config.js`
 - validation schema: `src/config/schema.ts` (Zod)
-- generated file: `public/config.json` (gitignored)
+- generated file: `src/generated/config.js` (gitignored)
 
 The script takes `--environment <local|dev|prod>` and hard-fails when:
 - `--environment` is missing/invalid
@@ -40,8 +40,7 @@ You can run the generator directly:
 npm run config:generate -- --environment local
 ```
 
-The app bootstraps by fetching `/config.json` at startup. If the file cannot be
-loaded, startup fails immediately with an error screen.
+The app bootstraps by importing `src/generated/config.js` at startup.
 
 Current config fields:
 - `api.graphqlApiUrl`

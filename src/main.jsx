@@ -1,16 +1,10 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { clearConfigCache } from "./config/config.ts";
+import runtimeConfig from "./generated/config.js";
 import "./index.css";
 
-async function loadRuntimeConfig() {
-  const response = await fetch("/config.json", { cache: "no-store" });
-  if (!response.ok) {
-    throw new Error(
-      `Failed to load runtime config from /config.json (HTTP ${response.status}).`
-    );
-  }
-  const runtimeConfig = await response.json();
+function loadRuntimeConfig() {
   window.__COMPANYHELM_CONFIG__ = runtimeConfig;
   clearConfigCache();
 }
@@ -43,7 +37,7 @@ function renderFatalBootstrapError(error) {
 }
 
 async function bootstrap() {
-  await loadRuntimeConfig();
+  loadRuntimeConfig();
 
   const [{ RelayEnvironmentProvider }, { default: App }, { default: AuthGate }, { relayEnvironment }] =
     await Promise.all([

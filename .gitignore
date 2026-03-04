@@ -1,4 +1,4 @@
 node_modules
 dist
 .DS_Store
-public/config.json
+src/generated/config.js
