@@ -4,7 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "files": [
+    "config/**",
     "public/**",
+    "scripts/**",
     "schema/**",
     "src/**",
     "index.html",
