@@ -1,8 +1,44 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+} from "react";
 import { Page } from "../components/Page.tsx";
 import { CreationModal } from "../components/CreationModal.tsx";
 import { normalizeUniqueStringList } from "../utils/normalization.ts";
 import { useSetPageActions } from "../components/PageActionsContext.tsx";
+import type {
+  McpServer,
+  Role,
+  Skill,
+  SkillGroup,
+  StringArrayById,
+} from "../types/domain.ts";
+
+interface RolesPageProps {
+  roles: Role[];
+  skills: Skill[];
+  skillGroups: SkillGroup[];
+  mcpServers: McpServer[];
+  roleSkillGroupIdsByRoleId: StringArrayById;
+  roleMcpServerIdsByRoleId: StringArrayById;
+  activeRole: Role | null;
+  isLoadingRoles: boolean;
+  roleError: string;
+  onOpenRole: (roleId: string) => void;
+  onBackToRoles: () => void;
+  onCreateRole: (input: { name: string; parentRoleId: string | null }) => Promise<void> | void;
+  onUpdateRole: (input: { id: string; name: string; parentRoleId: string | null }) => Promise<void> | void;
+  onDeleteRole: (roleId: string, roleName: string) => void;
+  onAddSkillToRole: (roleId: string, skillId: string) => Promise<void> | void;
+  onRemoveSkillFromRole: (roleId: string, skillId: string) => Promise<void> | void;
+  onRoleSkillGroupIdsChange: (roleId: string, skillGroupIds: string[]) => void;
+  onRoleMcpServerIdsChange: (roleId: string, mcpServerIds: string[]) => void;
+}
 
 export function RolesPage({
   roles,
@@ -23,16 +59,16 @@ export function RolesPage({
   onRemoveSkillFromRole,
   onRoleSkillGroupIdsChange,
   onRoleMcpServerIdsChange,
-}: any) {
-  const [newRoleName, setNewRoleName] = useState<any>("");
-  const [newRoleParentId, setNewRoleParentId] = useState<any>("");
-  const [isCreatingRole, setIsCreatingRole] = useState<any>(false);
-  const [isCreateRoleModalOpen, setIsCreateRoleModalOpen] = useState<any>(false);
-  const [localError, setLocalError] = useState<any>("");
-  const [nameDraft, setNameDraft] = useState<any>("");
-  const [parentRoleIdDraft, setParentRoleIdDraft] = useState<any>("");
-  const [isSavingRole, setIsSavingRole] = useState<any>(false);
-  const [isEditingName, setIsEditingName] = useState<any>(false);
+}: RolesPageProps) {
+  const [newRoleName, setNewRoleName] = useState("");
+  const [newRoleParentId, setNewRoleParentId] = useState("");
+  const [isCreatingRole, setIsCreatingRole] = useState(false);
+  const [isCreateRoleModalOpen, setIsCreateRoleModalOpen] = useState(false);
+  const [localError, setLocalError] = useState("");
+  const [nameDraft, setNameDraft] = useState("");
+  const [parentRoleIdDraft, setParentRoleIdDraft] = useState("");
+  const [isSavingRole, setIsSavingRole] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
 
   const assignedMcpServerIds = useMemo(() => {
     if (!activeRole) {
@@ -42,7 +78,7 @@ export function RolesPage({
   }, [activeRole, roleMcpServerIdsByRoleId]);
 
   const availableMcpServers = useMemo(() => {
-    return mcpServers.filter((mcpServer: any) => !assignedMcpServerIds.includes(mcpServer.id));
+    return mcpServers.filter((mcpServer) => !assignedMcpServerIds.includes(mcpServer.id));
   }, [assignedMcpServerIds, mcpServers]);
 
   const assignedSkillGroupIds = useMemo(() => {
@@ -53,7 +89,7 @@ export function RolesPage({
   }, [activeRole, roleSkillGroupIdsByRoleId]);
 
   const availableSkillGroups = useMemo(() => {
-    return skillGroups.filter((skillGroup: any) => !assignedSkillGroupIds.includes(skillGroup.id));
+    return skillGroups.filter((skillGroup) => !assignedSkillGroupIds.includes(skillGroup.id));
   }, [assignedSkillGroupIds, skillGroups]);
 
   const activeRoleSkills = useMemo(() => {
@@ -69,15 +105,15 @@ export function RolesPage({
   }, [activeRole]);
 
   const availableSkills = useMemo(() => {
-    const activeSkillIds = new Set(activeRoleSkills.map((skill: any) => skill.id));
-    return skills.filter((skill: any) => !activeSkillIds.has(skill.id));
+    const activeSkillIds = new Set(activeRoleSkills.map((skill) => skill.id));
+    return skills.filter((skill) => !activeSkillIds.has(skill.id));
   }, [activeRoleSkills, skills]);
 
   const parentRoleOptions = useMemo(() => {
     if (!activeRole) {
       return [];
     }
-    return roles.filter((role: any) => role.id !== activeRole.id);
+    return roles.filter((role) => role.id !== activeRole.id);
   }, [activeRole, roles]);
 
   const pageActions = useMemo(() => (
@@ -104,7 +140,7 @@ export function RolesPage({
     setParentRoleIdDraft(activeRole.parentRole?.id || "");
   }, [activeRole]);
 
-  async function handleCreateRole(event: any) {
+  async function handleCreateRole(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     try {
       setIsCreatingRole(true);
@@ -116,8 +152,8 @@ export function RolesPage({
       setNewRoleName("");
       setNewRoleParentId("");
       setIsCreateRoleModalOpen(false);
-    } catch (error: any) {
-      setLocalError(error.message);
+    } catch (error: unknown) {
+      setLocalError(error instanceof Error ? error.message : "Failed to create role.");
     } finally {
       setIsCreatingRole(false);
     }
@@ -135,8 +171,8 @@ export function RolesPage({
         name: nameDraft || activeRole.name,
         parentRoleId: parentRoleIdDraft || null,
       });
-    } catch (error: any) {
-      setLocalError(error.message);
+    } catch (error: unknown) {
+      setLocalError(error instanceof Error ? error.message : "Failed to update role.");
     } finally {
       setIsSavingRole(false);
     }
@@ -155,7 +191,7 @@ export function RolesPage({
               <span className="chat-card-meta">{roles.length} roles</span>
             </header>
             <ul className="chat-card-list">
-              {roles.map((role: any) => {
+              {roles.map((role) => {
                 const skillCount = (role.skills || []).length;
                 const skillGroupCount = (role.skillGroups || []).length;
                 const subRoleCount = (role.subRoles || []).length;
@@ -167,7 +203,7 @@ export function RolesPage({
                     onClick={() => onOpenRole(role.id)}
                     role="button"
                     tabIndex={0}
-                    onKeyDown={(event: any) => {
+                    onKeyDown={(event: KeyboardEvent<HTMLLIElement>) => {
                       if (event.key === "Enter") {
                         onOpenRole(role.id);
                       }
@@ -186,7 +222,7 @@ export function RolesPage({
                       <button
                         type="button"
                         className="chat-card-icon-btn chat-card-icon-btn-danger"
-                        onClick={(event: any) => {
+                        onClick={(event: MouseEvent<HTMLButtonElement>) => {
                           event.stopPropagation();
                           onDeleteRole(role.id, role.name);
                         }}
@@ -227,7 +263,7 @@ export function RolesPage({
                 id="new-role-name"
                 className="chat-settings-input"
                 value={newRoleName}
-                onChange={(event: any) => setNewRoleName(event.target.value)}
+                onChange={(event: ChangeEvent<HTMLInputElement>) => setNewRoleName(event.target.value)}
                 required
                 autoFocus
               />
@@ -238,10 +274,10 @@ export function RolesPage({
                 id="new-role-parent"
                 className="chat-settings-input"
                 value={newRoleParentId}
-                onChange={(event: any) => setNewRoleParentId(event.target.value)}
+                onChange={(event: ChangeEvent<HTMLSelectElement>) => setNewRoleParentId(event.target.value)}
               >
                 <option value="">None</option>
-                {roles.map((role: any) => (
+                {roles.map((role) => (
                   <option key={`parent-role-${role.id}`} value={role.id}>
                     {role.name}
                   </option>
@@ -288,9 +324,9 @@ export function RolesPage({
             <input
               className="role-detail-hero-edit-input"
               value={nameDraft}
-              onChange={(event: any) => setNameDraft(event.target.value)}
+              onChange={(event: ChangeEvent<HTMLInputElement>) => setNameDraft(event.target.value)}
               autoFocus
-              onKeyDown={(event: any) => {
+              onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {
                 if (event.key === "Enter") {
                   void handleSaveRole();
                   setIsEditingName(false);
@@ -339,7 +375,7 @@ export function RolesPage({
           <select
             className="role-detail-hero-parent-select"
             value={parentRoleIdDraft}
-            onChange={(event: any) => {
+            onChange={(event: ChangeEvent<HTMLSelectElement>) => {
               setParentRoleIdDraft(event.target.value);
               void onUpdateRole({
                 id: activeRole.id,
@@ -349,7 +385,7 @@ export function RolesPage({
             }}
           >
             <option value="">None</option>
-            {parentRoleOptions.map((role: any) => (
+            {parentRoleOptions.map((role) => (
               <option key={`role-parent-option-${role.id}`} value={role.id}>{role.name}</option>
             ))}
           </select>
@@ -387,19 +423,19 @@ export function RolesPage({
               <h3>MCP Servers</h3>
               <span className="role-detail-card-count">{assignedMcpServerIds.length}</span>
             </div>
-            {assignedMcpServerIds.length === 0 ? (
-              <div className="role-detail-empty">No MCP servers assigned yet</div>
-            ) : (
-              <div className="role-detail-pills">
-                {assignedMcpServerIds.map((mcpServerId: any) => {
-                  const mcpServer = mcpServers.find((s: any) => s.id === mcpServerId);
+              {assignedMcpServerIds.length === 0 ? (
+                <div className="role-detail-empty">No MCP servers assigned yet</div>
+              ) : (
+                <div className="role-detail-pills">
+                {assignedMcpServerIds.map((mcpServerId) => {
+                  const mcpServer = mcpServers.find((server) => server.id === mcpServerId);
                   const label = mcpServer ? mcpServer.name : mcpServerId;
                   return (
                     <button
                       key={`rm-mcp-${mcpServerId}`}
                       type="button"
                       className="tag-remove-btn"
-                      onClick={() => onRoleMcpServerIdsChange(activeRole.id, assignedMcpServerIds.filter((id: any) => id !== mcpServerId))}
+                      onClick={() => onRoleMcpServerIdsChange(activeRole.id, assignedMcpServerIds.filter((id) => id !== mcpServerId))}
                       title={`Remove ${label}`}
                     >
                       {label} ×
@@ -412,15 +448,15 @@ export function RolesPage({
               <select
                 className="role-detail-add-select"
                 value=""
-                onChange={(event: any) => {
+                onChange={(event: ChangeEvent<HTMLSelectElement>) => {
                   const id = String(event.target.value || "").trim();
                   if (id) onRoleMcpServerIdsChange(activeRole.id, [...assignedMcpServerIds, id]);
                 }}
                 disabled={availableMcpServers.length === 0}
               >
                 <option value="">{availableMcpServers.length === 0 ? "All assigned" : "+ Add server"}</option>
-                {availableMcpServers.map((s: any) => (
-                  <option key={`add-mcp-${s.id}`} value={s.id}>{s.name}</option>
+                {availableMcpServers.map((server) => (
+                  <option key={`add-mcp-${server.id}`} value={server.id}>{server.name}</option>
                 ))}
               </select>
             </div>
@@ -433,19 +469,19 @@ export function RolesPage({
               <h3>Skill Groups</h3>
               <span className="role-detail-card-count">{assignedSkillGroupIds.length}</span>
             </div>
-            {assignedSkillGroupIds.length === 0 ? (
-              <div className="role-detail-empty">No skill groups assigned yet</div>
-            ) : (
-              <div className="role-detail-pills">
-                {assignedSkillGroupIds.map((groupId: any) => {
-                  const group = skillGroups.find((g: any) => g.id === groupId);
+              {assignedSkillGroupIds.length === 0 ? (
+                <div className="role-detail-empty">No skill groups assigned yet</div>
+              ) : (
+                <div className="role-detail-pills">
+                {assignedSkillGroupIds.map((groupId) => {
+                  const group = skillGroups.find((skillGroup) => skillGroup.id === groupId);
                   const label = group ? group.name : groupId;
                   return (
                     <button
                       key={`rm-sg-${groupId}`}
                       type="button"
                       className="tag-remove-btn"
-                      onClick={() => onRoleSkillGroupIdsChange(activeRole.id, assignedSkillGroupIds.filter((id: any) => id !== groupId))}
+                      onClick={() => onRoleSkillGroupIdsChange(activeRole.id, assignedSkillGroupIds.filter((id) => id !== groupId))}
                       title={`Remove ${label}`}
                     >
                       {label} ×
@@ -458,15 +494,15 @@ export function RolesPage({
               <select
                 className="role-detail-add-select"
                 value=""
-                onChange={(event: any) => {
+                onChange={(event: ChangeEvent<HTMLSelectElement>) => {
                   const id = String(event.target.value || "").trim();
                   if (id) onRoleSkillGroupIdsChange(activeRole.id, [...assignedSkillGroupIds, id]);
                 }}
                 disabled={availableSkillGroups.length === 0}
               >
                 <option value="">{availableSkillGroups.length === 0 ? "All assigned" : "+ Add group"}</option>
-                {availableSkillGroups.map((g: any) => (
-                  <option key={`add-sg-${g.id}`} value={g.id}>{g.name}</option>
+                {availableSkillGroups.map((skillGroup) => (
+                  <option key={`add-sg-${skillGroup.id}`} value={skillGroup.id}>{skillGroup.name}</option>
                 ))}
               </select>
             </div>
@@ -479,11 +515,11 @@ export function RolesPage({
               <h3>Skills</h3>
               <span className="role-detail-card-count">{activeRoleSkills.length}</span>
             </div>
-            {activeRoleSkills.length === 0 ? (
-              <div className="role-detail-empty">No skills assigned yet</div>
-            ) : (
-              <div className="role-detail-pills">
-                {activeRoleSkills.map((skill: any) => (
+              {activeRoleSkills.length === 0 ? (
+                <div className="role-detail-empty">No skills assigned yet</div>
+              ) : (
+                <div className="role-detail-pills">
+                {activeRoleSkills.map((skill) => (
                   <button
                     key={`rm-skill-${skill.id}`}
                     type="button"
@@ -500,15 +536,15 @@ export function RolesPage({
               <select
                 className="role-detail-add-select"
                 value=""
-                onChange={(event: any) => {
+                onChange={(event: ChangeEvent<HTMLSelectElement>) => {
                   const id = String(event.target.value || "").trim();
                   if (id) void onAddSkillToRole(activeRole.id, id);
                 }}
                 disabled={availableSkills.length === 0}
               >
                 <option value="">{availableSkills.length === 0 ? "All assigned" : "+ Add skill"}</option>
-                {availableSkills.map((s: any) => (
-                  <option key={`add-skill-${s.id}`} value={s.id}>{s.name}</option>
+                {availableSkills.map((skill) => (
+                  <option key={`add-skill-${skill.id}`} value={skill.id}>{skill.name}</option>
                 ))}
               </select>
             </div>
@@ -530,8 +566,8 @@ export function RolesPage({
             ) : (
               <>
                 <div className="role-detail-pills">
-                  {activeRoleEffectiveSkills.map((skill: any) => {
-                    const isDirect = activeRoleSkills.some((s: any) => s.id === skill.id);
+                  {activeRoleEffectiveSkills.map((skill) => {
+                    const isDirect = activeRoleSkills.some((roleSkill) => roleSkill.id === skill.id);
                     return (
                       <span key={`eff-skill-${skill.id}`} className={isDirect ? "tag-pill" : "role-detail-pill-inherited"}>
                         {skill.name}
@@ -560,7 +596,7 @@ export function RolesPage({
             ) : (
               <>
                 <div className="role-detail-pills">
-                  {activeRoleEffectiveMcpServers.map((server: any) => {
+                  {activeRoleEffectiveMcpServers.map((server) => {
                     const isDirect = assignedMcpServerIds.includes(server.id);
                     return (
                       <span key={`eff-mcp-${server.id}`} className={isDirect ? "tag-pill" : "role-detail-pill-inherited"}>
@@ -589,7 +625,7 @@ export function RolesPage({
               <div className="role-detail-empty">No sub-roles</div>
             ) : (
               <div>
-                {(activeRole.subRoles || []).map((subRole: any) => (
+                {(activeRole.subRoles || []).map((subRole) => (
                   <button
                     key={`sub-${subRole.id}`}
                     type="button"

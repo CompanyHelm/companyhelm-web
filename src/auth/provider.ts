@@ -1,15 +1,92 @@
-import { createClient } from "@supabase/supabase-js";
+import {
+  createClient,
+  type AuthChangeEvent,
+  type Session,
+  type SupabaseClient,
+  type User,
+} from "@supabase/supabase-js";
 import { GRAPHQL_URL } from "../utils/constants.ts";
 import { getActiveCompanyId } from "../utils/company-context.ts";
 
-function getBrowserStorage() {
+export interface SignInInput {
+  email?: string;
+  password?: string;
+}
+
+export interface SignUpInput {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  password?: string;
+}
+
+export interface CompanyhelmAuthConfig {
+  tokenStorageKey: string;
+}
+
+export interface SupabaseAuthConfig {
+  url: string;
+  anonKey: string;
+  tokenStorageKey: string;
+}
+
+export interface CreateAuthProviderConfig {
+  authProvider: string;
+  api?: {
+    graphqlApiUrl?: string;
+  };
+  auth: {
+    companyhelm: CompanyhelmAuthConfig;
+    supabase?: SupabaseAuthConfig;
+  };
+}
+
+export interface SupabaseSignUpResult {
+  user: User | null;
+  requiresEmailConfirmation: boolean;
+}
+
+export type AuthProviderSignInResult = Record<string, unknown> | User | null;
+export type AuthProviderSignUpResult = Record<string, unknown> | SupabaseSignUpResult;
+export type AuthStateListener = (hasSession: boolean) => void;
+
+export interface AuthProviderContract {
+  name: "companyhelm" | "supabase";
+  requiresPassword: boolean;
+  requiresProfileOnSignUp: boolean;
+  hasSession(): boolean;
+  getAuthorizationHeaderValue(): string | null;
+  signIn(input: SignInInput): Promise<AuthProviderSignInResult>;
+  signUp(input: SignUpInput): Promise<AuthProviderSignUpResult>;
+  signOut(): void;
+  subscribeAuthStateChange(listener: AuthStateListener): () => void;
+}
+
+interface GraphQLPayloadError {
+  message?: string;
+}
+
+interface GraphQLPayload {
+  data?: Record<string, unknown>;
+  errors?: GraphQLPayloadError[];
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object";
+}
+
+function toRecord(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {};
+}
+
+function getBrowserStorage(): Storage | null {
   if (typeof window === "undefined" || !window.localStorage) {
     return null;
   }
   return window.localStorage;
 }
 
-function getStoredToken(storageKey: any) {
+function getStoredToken(storageKey: string): string {
   const storage = getBrowserStorage();
   if (!storage) {
     return "";
@@ -18,7 +95,7 @@ function getStoredToken(storageKey: any) {
   return String(storage.getItem(storageKey) || "").trim();
 }
 
-function setStoredToken(storageKey: any, token: any) {
+function setStoredToken(storageKey: string, token: string): void {
   const storage = getBrowserStorage();
   if (!storage) {
     return;
@@ -32,7 +109,7 @@ function setStoredToken(storageKey: any, token: any) {
   storage.setItem(storageKey, normalizedToken);
 }
 
-function clearStoredToken(storageKey: any) {
+function clearStoredToken(storageKey: string): void {
   const storage = getBrowserStorage();
   if (!storage) {
     return;
@@ -41,8 +118,11 @@ function clearStoredToken(storageKey: any) {
   storage.removeItem(storageKey);
 }
 
-async function executeGraphQLAuthMutation(query: any, variables: any) {
-  const headers: any = {
+async function executeGraphQLAuthMutation(
+  query: string,
+  variables: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const headers: Record<string, string> = {
     "content-type": "application/json",
   };
   const activeCompanyId = getActiveCompanyId();
@@ -55,33 +135,41 @@ async function executeGraphQLAuthMutation(query: any, variables: any) {
     headers,
     body: JSON.stringify({
       query,
-      variables: variables || {},
+      variables,
     }),
   });
 
-  const payload = await response.json();
+  const rawPayload = await response.json();
+  const payload: GraphQLPayload = isRecord(rawPayload) ? (rawPayload as GraphQLPayload) : {};
   if (!response.ok) {
-    const message = payload?.errors?.[0]?.message || `GraphQL request failed with status ${response.status}.`;
+    const message = payload.errors?.[0]?.message || `GraphQL request failed with status ${response.status}.`;
     throw new Error(message);
   }
-  if (Array.isArray(payload?.errors) && payload.errors.length > 0) {
+  if (Array.isArray(payload.errors) && payload.errors.length > 0) {
     throw new Error(payload.errors[0]?.message || "GraphQL auth mutation failed.");
   }
 
-  return payload?.data || {};
+  return toRecord(payload.data);
 }
 
-class AuthProviderBase {
-  authStateListeners: any;
+abstract class AuthProviderBase implements AuthProviderContract {
+  abstract name: "companyhelm" | "supabase";
+  abstract requiresPassword: boolean;
+  abstract requiresProfileOnSignUp: boolean;
+
+  private authStateListeners: Set<AuthStateListener>;
+
   constructor() {
-    this.authStateListeners = new Set<any>();
+    this.authStateListeners = new Set<AuthStateListener>();
   }
 
-  hasSession() {
-    return false;
-  }
+  abstract hasSession(): boolean;
+  abstract getAuthorizationHeaderValue(): string | null;
+  abstract signIn(input: SignInInput): Promise<AuthProviderSignInResult>;
+  abstract signUp(input: SignUpInput): Promise<AuthProviderSignUpResult>;
+  abstract signOut(): void;
 
-  subscribeAuthStateChange(listener: any) {
+  subscribeAuthStateChange(listener: AuthStateListener): () => void {
     if (typeof listener !== "function") {
       return () => {};
     }
@@ -91,7 +179,7 @@ class AuthProviderBase {
     };
   }
 
-  notifyAuthStateChange() {
+  protected notifyAuthStateChange(): void {
     const hasSession = this.hasSession();
     for (const listener of this.authStateListeners) {
       try {
@@ -104,11 +192,12 @@ class AuthProviderBase {
 }
 
 class CompanyhelmAuthProvider extends AuthProviderBase {
-  config: any;
-  name: any;
-  requiresPassword: any;
-  requiresProfileOnSignUp: any;
-  constructor(config: any) {
+  name: "companyhelm";
+  requiresPassword: boolean;
+  requiresProfileOnSignUp: boolean;
+  private config: CompanyhelmAuthConfig;
+
+  constructor(config: CompanyhelmAuthConfig) {
     super();
     this.name = "companyhelm";
     this.requiresPassword = true;
@@ -116,15 +205,15 @@ class CompanyhelmAuthProvider extends AuthProviderBase {
     this.config = config;
   }
 
-  getToken() {
+  private getToken(): string {
     return getStoredToken(this.config.tokenStorageKey);
   }
 
-  hasSession() {
+  hasSession(): boolean {
     return Boolean(this.getToken());
   }
 
-  getAuthorizationHeaderValue() {
+  getAuthorizationHeaderValue(): string | null {
     const token = this.getToken();
     if (!token) {
       return null;
@@ -132,7 +221,7 @@ class CompanyhelmAuthProvider extends AuthProviderBase {
     return `Bearer ${token}`;
   }
 
-  async signIn(input: any) {
+  async signIn(input: SignInInput): Promise<Record<string, unknown>> {
     const email = String(input?.email || "").trim();
     const password = String(input?.password || "");
     if (!email || !password) {
@@ -157,17 +246,18 @@ class CompanyhelmAuthProvider extends AuthProviderBase {
       },
     );
 
-    const token = String(data?.signIn?.token || "").trim();
+    const signInPayload = toRecord(data.signIn);
+    const token = String(signInPayload.token || "").trim();
     if (!token) {
       throw new Error("signIn did not return an auth token.");
     }
 
     setStoredToken(this.config.tokenStorageKey, token);
     this.notifyAuthStateChange();
-    return data.signIn.user;
+    return toRecord(signInPayload.user);
   }
 
-  async signUp(input: any) {
+  async signUp(input: SignUpInput): Promise<Record<string, unknown>> {
     const firstName = String(input?.firstName || "").trim();
     const lastName = String(input?.lastName || "").trim();
     const email = String(input?.email || "").trim();
@@ -196,29 +286,33 @@ class CompanyhelmAuthProvider extends AuthProviderBase {
       },
     );
 
-    const token = String(data?.signUp?.token || "").trim();
+    const signUpPayload = toRecord(data.signUp);
+    const token = String(signUpPayload.token || "").trim();
     if (!token) {
       throw new Error("signUp did not return an auth token.");
     }
 
     setStoredToken(this.config.tokenStorageKey, token);
     this.notifyAuthStateChange();
-    return data.signUp.user;
+    return toRecord(signUpPayload.user);
   }
 
-  signOut() {
+  signOut(): void {
     clearStoredToken(this.config.tokenStorageKey);
     this.notifyAuthStateChange();
   }
 }
 
+type SupabaseSignUpPayload = Parameters<SupabaseClient["auth"]["signUp"]>[0];
+
 class SupabaseAuthProvider extends AuthProviderBase {
-  client: any;
-  config: any;
-  name: any;
-  requiresPassword: any;
-  requiresProfileOnSignUp: any;
-  constructor(config: any) {
+  name: "supabase";
+  requiresPassword: boolean;
+  requiresProfileOnSignUp: boolean;
+  private client: SupabaseClient;
+  private config: SupabaseAuthConfig;
+
+  constructor(config: SupabaseAuthConfig) {
     super();
     const url = String(config?.url || "").trim();
     const anonKey = String(config?.anonKey || "").trim();
@@ -250,14 +344,14 @@ class SupabaseAuthProvider extends AuthProviderBase {
       },
     });
 
-    this.client.auth.onAuthStateChange((_event: any, session: any) => {
+    this.client.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
       setStoredToken(this.config.tokenStorageKey, session?.access_token || "");
       this.notifyAuthStateChange();
     });
     void this.syncTokenFromSession();
   }
 
-  async syncTokenFromSession() {
+  private async syncTokenFromSession(): Promise<void> {
     try {
       const { data, error } = await this.client.auth.getSession();
       if (error) {
@@ -271,15 +365,15 @@ class SupabaseAuthProvider extends AuthProviderBase {
     }
   }
 
-  getToken() {
+  private getToken(): string {
     return getStoredToken(this.config.tokenStorageKey);
   }
 
-  hasSession() {
+  hasSession(): boolean {
     return Boolean(this.getToken());
   }
 
-  getAuthorizationHeaderValue() {
+  getAuthorizationHeaderValue(): string | null {
     const token = this.getToken();
     if (!token) {
       return null;
@@ -287,7 +381,7 @@ class SupabaseAuthProvider extends AuthProviderBase {
     return `Bearer ${token}`;
   }
 
-  async signIn(input: any) {
+  async signIn(input: SignInInput): Promise<User | null> {
     const email = String(input?.email || "").trim();
     const password = String(input?.password || "");
     if (!email || !password) {
@@ -312,7 +406,7 @@ class SupabaseAuthProvider extends AuthProviderBase {
     return data?.user || null;
   }
 
-  async signUp(input: any) {
+  async signUp(input: SignUpInput): Promise<SupabaseSignUpResult> {
     const firstName = String(input?.firstName || "").trim();
     const lastName = String(input?.lastName || "").trim();
     const email = String(input?.email || "").trim();
@@ -321,7 +415,7 @@ class SupabaseAuthProvider extends AuthProviderBase {
       throw new Error("Email and password are required.");
     }
 
-    const metadata: any = {};
+    const metadata: Record<string, string> = {};
     if (firstName) {
       metadata.firstName = firstName;
     }
@@ -329,7 +423,7 @@ class SupabaseAuthProvider extends AuthProviderBase {
       metadata.lastName = lastName;
     }
 
-    const signUpInput: any = {
+    const signUpInput: SupabaseSignUpPayload = {
       email,
       password,
     };
@@ -353,19 +447,22 @@ class SupabaseAuthProvider extends AuthProviderBase {
     };
   }
 
-  signOut() {
+  signOut(): void {
     clearStoredToken(this.config.tokenStorageKey);
     this.notifyAuthStateChange();
     void this.client.auth.signOut();
   }
 }
 
-export function createAuthProvider(config: any) {
+export function createAuthProvider(config: CreateAuthProviderConfig): AuthProviderContract {
   const providerName = String(config?.authProvider || "").trim().toLowerCase();
   if (providerName === "companyhelm") {
     return new CompanyhelmAuthProvider(config.auth.companyhelm);
   }
   if (providerName === "supabase") {
+    if (!config.auth.supabase) {
+      throw new Error("Supabase auth provider requires auth.supabase configuration.");
+    }
     return new SupabaseAuthProvider(config.auth.supabase);
   }
 

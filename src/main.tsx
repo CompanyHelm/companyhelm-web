@@ -9,7 +9,7 @@ function loadRuntimeConfig() {
   clearConfigCache();
 }
 
-function renderFatalBootstrapError(error: any) {
+function renderFatalBootstrapError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   const rootNode = document.getElementById("root");
   if (!rootNode) {
@@ -47,7 +47,12 @@ async function bootstrap() {
       import("./relay/environment.ts"),
     ]);
 
-  ReactDOM.createRoot(document.getElementById("root")).render(
+  const rootNode = document.getElementById("root");
+  if (!rootNode) {
+    throw new Error("Missing #root element.");
+  }
+
+  ReactDOM.createRoot(rootNode).render(
     <React.StrictMode>
       <RelayEnvironmentProvider environment={relayEnvironment}>
         <AuthGate>
@@ -58,7 +63,7 @@ async function bootstrap() {
   );
 }
 
-bootstrap().catch((error: any) => {
+bootstrap().catch((error: unknown) => {
   console.error(error);
   renderFatalBootstrapError(error);
 });

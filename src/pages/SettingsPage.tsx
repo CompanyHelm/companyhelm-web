@@ -1,8 +1,48 @@
-import { useMemo, useState } from "react";
+import {
+  useMemo,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+  type MouseEvent,
+} from "react";
 import { Page } from "../components/Page.tsx";
 import { CreationModal } from "../components/CreationModal.tsx";
 import { useSetPageActions } from "../components/PageActionsContext.tsx";
 import { formatTimestamp } from "../utils/formatting.ts";
+import type {
+  Company,
+  GithubInstallCallback,
+  GithubInstallation,
+  GithubRepository,
+} from "../types/domain.ts";
+
+interface SettingsPageProps {
+  hasCompanies: boolean;
+  selectedCompanyId: string;
+  selectedCompany: Company | null;
+  companyError: string;
+  newCompanyName: string;
+  isCreatingCompany: boolean;
+  isDeletingCompany: boolean;
+  onNewCompanyNameChange: (name: string) => void;
+  onCreateCompany: (event: FormEvent<HTMLFormElement>) => Promise<boolean> | boolean;
+  onDeleteCompany: () => void;
+  githubAppInstallUrl: string;
+  isLoadingGithubAppConfig: boolean;
+  githubAppConfigError: string;
+  githubInstallations: GithubInstallation[];
+  githubRepositories: GithubRepository[];
+  isLoadingGithubInstallations: boolean;
+  isLoadingGithubRepositories: boolean;
+  githubInstallationError: string;
+  githubInstallationNotice: string;
+  isAddingGithubInstallationFromCallback: boolean;
+  pendingGithubInstallCallback: GithubInstallCallback | null;
+  deletingGithubInstallationId: string;
+  refreshingGithubInstallationId: string;
+  onDeleteGithubInstallation: (installationId: string) => void;
+  onRefreshGithubInstallationRepositories: (installationId: string) => void;
+}
 
 export function SettingsPage({
   hasCompanies,
@@ -30,10 +70,10 @@ export function SettingsPage({
   refreshingGithubInstallationId,
   onDeleteGithubInstallation,
   onRefreshGithubInstallationRepositories,
-}: any) {
-  const [isCreateCompanyModalOpen, setIsCreateCompanyModalOpen] = useState<any>(false);
+}: SettingsPageProps) {
+  const [isCreateCompanyModalOpen, setIsCreateCompanyModalOpen] = useState(false);
   const repositoriesByInstallationId = useMemo(() => (
-    githubRepositories.reduce((grouped: any, repository: any) => {
+    githubRepositories.reduce<Record<string, GithubRepository[]>>((grouped, repository) => {
       const installationId = String(repository.githubInstallationId || "").trim();
       if (!installationId) {
         return grouped;
@@ -46,7 +86,7 @@ export function SettingsPage({
     }, {})
   ), [githubRepositories]);
 
-  async function handleCreateCompanySubmit(event: any) {
+  async function handleCreateCompanySubmit(event: FormEvent<HTMLFormElement>) {
     const didCreate = await onCreateCompany(event);
     if (didCreate) {
       setIsCreateCompanyModalOpen(false);
@@ -89,7 +129,7 @@ export function SettingsPage({
               className="chat-settings-input"
               id="settings-company-name"
               value={newCompanyName}
-              onChange={(event: any) => onNewCompanyNameChange(event.target.value)}
+              onChange={(event: ChangeEvent<HTMLInputElement>) => onNewCompanyNameChange(event.target.value)}
               placeholder="e.g. Acme Labs"
               disabled={isCreatingCompany}
             />
@@ -144,7 +184,7 @@ export function SettingsPage({
           ) : null}
           {githubInstallations.length > 0 ? (
             <ul className="chat-card-list">
-              {githubInstallations.map((installation: any) => {
+              {githubInstallations.map((installation) => {
                 const isBusy =
                   refreshingGithubInstallationId === installation.installationId ||
                   deletingGithubInstallationId === installation.installationId;
@@ -162,7 +202,7 @@ export function SettingsPage({
                       aria-label="Refresh repos"
                       title={refreshingGithubInstallationId === installation.installationId ? "Refreshing..." : "Refresh repos"}
                       disabled={isBusy}
-                      onClick={(event: any) => {
+                      onClick={(event: MouseEvent<HTMLButtonElement>) => {
                         event.stopPropagation();
                         onRefreshGithubInstallationRepositories(installation.installationId);
                       }}
@@ -180,7 +220,7 @@ export function SettingsPage({
                       aria-label="Delete installation"
                       title={deletingGithubInstallationId === installation.installationId ? "Deleting..." : "Delete installation"}
                       disabled={isBusy}
-                      onClick={(event: any) => {
+                      onClick={(event: MouseEvent<HTMLButtonElement>) => {
                         event.stopPropagation();
                         onDeleteGithubInstallation(installation.installationId);
                       }}
@@ -215,7 +255,7 @@ export function SettingsPage({
           ) : null}
           {githubInstallations.length > 0 ? (
             <ul className="chat-card-list">
-              {githubInstallations.map((installation: any) => {
+              {githubInstallations.map((installation) => {
                 const installationRepositories =
                   repositoriesByInstallationId[installation.installationId] || [];
                 const isRefreshing = refreshingGithubInstallationId === installation.installationId;
@@ -234,7 +274,7 @@ export function SettingsPage({
                       aria-label="Refresh repos"
                       title={isRefreshing ? "Refreshing..." : "Refresh repos"}
                       disabled={isRefreshing}
-                      onClick={(event: any) => {
+                      onClick={(event: MouseEvent<HTMLButtonElement>) => {
                         event.stopPropagation();
                         onRefreshGithubInstallationRepositories(installation.installationId);
                       }}
@@ -250,7 +290,7 @@ export function SettingsPage({
                       <p className="empty-hint">No repos cached for this installation.</p>
                     ) : (
                       <ul className="repo-list">
-                        {installationRepositories.map((repository: any) => (
+                        {installationRepositories.map((repository) => (
                           <li key={repository.id} className="repo-list-item">
                             <a
                               href={repository.htmlUrl || undefined}

@@ -1,4 +1,13 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import {
+  useState,
+  useMemo,
+  useEffect,
+  useCallback,
+  type ChangeEvent,
+  type FormEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+} from "react";
 import { Page } from "../components/Page.tsx";
 import { CreationModal } from "../components/CreationModal.tsx";
 import { AgentEditModal } from "../components/AgentEditModal.tsx";
@@ -12,11 +21,21 @@ import {
 import { formatRunnerLabel } from "../utils/formatting.ts";
 import { setBrowserPath } from "../utils/path.ts";
 import { useSetPageActions } from "../components/PageActionsContext.tsx";
+import type {
+  Agent,
+  AgentDraft,
+  AgentDraftById,
+  AgentRunner,
+  McpServer,
+  Role,
+  RunnerCodexModelEntriesById,
+  StringArrayById,
+} from "../types/domain.ts";
 
-function collectRoleAndSubroleIds(roleIds: any, roleChildrenByParentId: any) {
+function collectRoleAndSubroleIds(roleIds: string[], roleChildrenByParentId: Map<string, string[]>) {
   const normalizedRoleIds = normalizeUniqueStringList(roleIds);
-  const visitedRoleIds = new Set<any>();
-  const expandedRoleIds: any[] = [];
+  const visitedRoleIds = new Set<string>();
+  const expandedRoleIds: string[] = [];
   const queue = [...normalizedRoleIds];
 
   while (queue.length > 0) {
@@ -38,9 +57,9 @@ function collectRoleAndSubroleIds(roleIds: any, roleChildrenByParentId: any) {
   return expandedRoleIds;
 }
 
-function resolveEffectiveRoleMcpServerIds(expandedRoleIds: any, roleMcpServerIdsByRoleId: any) {
-  const effectiveMcpServerIds: any[] = [];
-  const seenMcpServerIds = new Set<any>();
+function resolveEffectiveRoleMcpServerIds(expandedRoleIds: string[], roleMcpServerIdsByRoleId: StringArrayById) {
+  const effectiveMcpServerIds: string[] = [];
+  const seenMcpServerIds = new Set<string>();
 
   for (const roleId of expandedRoleIds) {
     const roleMcpServerIds = normalizeUniqueStringList(roleMcpServerIdsByRoleId?.[roleId] || []);
@@ -54,6 +73,51 @@ function resolveEffectiveRoleMcpServerIds(expandedRoleIds: any, roleMcpServerIds
   }
 
   return effectiveMcpServerIds;
+}
+
+type AgentDraftField = keyof AgentDraft;
+
+interface AgentsPageProps {
+  selectedCompanyId: string;
+  agents: Agent[];
+  skills: Array<{ id: string; name: string }>;
+  roles: Role[];
+  mcpServers: McpServer[];
+  roleMcpServerIdsByRoleId: StringArrayById;
+  agentRunners: AgentRunner[];
+  agentRunnerLookup: Map<string, AgentRunner>;
+  runnerCodexModelEntriesById: RunnerCodexModelEntriesById;
+  isLoadingAgents: boolean;
+  agentError: string;
+  isCreatingAgent: boolean;
+  savingAgentId: string | null;
+  deletingAgentId: string | null;
+  initializingAgentId: string | null;
+  hasLoadedAgentRunners: boolean;
+  agentRunnerId: string;
+  agentRoleIds: string[];
+  agentName: string;
+  agentSdk: string;
+  agentModel: string;
+  agentModelReasoningLevel: string;
+  agentDefaultAdditionalModelInstructions: string;
+  agentDrafts: AgentDraftById;
+  agentCountLabel: string;
+  onAgentRunnerChange: (runnerId: string) => void;
+  onAgentRoleIdsChange: (roleIds: string[]) => void;
+  onAgentNameChange: (name: string) => void;
+  onAgentSdkChange: (sdk: string) => void;
+  onAgentModelChange: (model: string) => void;
+  onAgentModelReasoningLevelChange: (reasoningLevel: string) => void;
+  onAgentDefaultAdditionalModelInstructionsChange: (instructions: string) => void;
+  onCreateAgent: (event: FormEvent<HTMLFormElement>) => Promise<boolean> | boolean;
+  onAgentDraftChange: (agentId: string, field: AgentDraftField, value: string | string[]) => void;
+  onEnsureAgentEditorData: () => Promise<void> | void;
+  onSaveAgent: (agentId: string) => Promise<boolean> | boolean;
+  onOpenAgentSessions: (agentId: string) => void;
+  onDeleteAgent: (agentId: string, agentName: string, forceDelete: boolean) => Promise<boolean> | boolean;
+  pendingEditAgentId: string;
+  onClearPendingEditAgentId: () => void;
 }
 
 export function AgentsPage({
@@ -97,19 +161,19 @@ export function AgentsPage({
   onDeleteAgent,
   pendingEditAgentId,
   onClearPendingEditAgentId,
-}: any) {
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState<any>(false);
-  const [editingAgentId, setEditingAgentId] = useState<any>("");
-  const [pendingDeleteAgent, setPendingDeleteAgent] = useState<any>(null);
-  const [forceDeleteAgent, setForceDeleteAgent] = useState<any>(false);
+}: AgentsPageProps) {
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingAgentId, setEditingAgentId] = useState("");
+  const [pendingDeleteAgent, setPendingDeleteAgent] = useState<{ id: string; name: string } | null>(null);
+  const [forceDeleteAgent, setForceDeleteAgent] = useState(false);
   const roleLookup = useMemo(() => {
-    return roles.reduce((map: any, role: any) => {
+    return roles.reduce((map, role) => {
       map.set(role.id, role);
       return map;
-    }, new Map<any, any>());
+    }, new Map<string, Role>());
   }, [roles]);
   const roleChildrenByParentId = useMemo(() => {
-    const childrenByParentId = new Map<any, any>();
+    const childrenByParentId = new Map<string, string[]>();
     for (const role of roles) {
       const roleId = String(role?.id || "").trim();
       const parentRoleId = String(role?.parentRole?.id || "").trim();
@@ -126,10 +190,10 @@ export function AgentsPage({
     return childrenByParentId;
   }, [roles]);
   const mcpServerLookup = useMemo(() => {
-    return mcpServers.reduce((map: any, mcpServer: any) => {
+    return mcpServers.reduce((map, mcpServer) => {
       map.set(mcpServer.id, mcpServer);
       return map;
-    }, new Map<any, any>());
+    }, new Map<string, McpServer>());
   }, [mcpServers]);
   const createRunnerCodexModelEntries = useMemo(() => {
     return getRunnerCodexModelEntriesForRunner(runnerCodexModelEntriesById, agentRunnerId);
@@ -154,7 +218,7 @@ export function AgentsPage({
   );
   const createAvailableRoles = useMemo(
     () =>
-      roles.filter((role: any) => !createAssignedRoleIds.includes(role.id)),
+      roles.filter((role) => !createAssignedRoleIds.includes(role.id)),
     [createAssignedRoleIds, roles],
   );
   const hasRegisteredRunners = agentRunners.length > 0;
@@ -165,31 +229,27 @@ export function AgentsPage({
   useEffect(() => {
     if (pendingEditAgentId) {
       setEditingAgentId(pendingEditAgentId);
-      if (typeof onClearPendingEditAgentId === "function") {
-        onClearPendingEditAgentId();
-      }
+      onClearPendingEditAgentId();
     }
-  }, [pendingEditAgentId]);
+  }, [pendingEditAgentId, onClearPendingEditAgentId]);
 
-  function openEditAgentModal(agentId: any) {
+  function openEditAgentModal(agentId: string) {
     setEditingAgentId(agentId);
   }
 
   const openCreateAgentModal = useCallback(() => {
-    if (typeof onEnsureAgentEditorData === "function") {
-      void onEnsureAgentEditorData();
-    }
+    void onEnsureAgentEditorData();
     setIsCreateModalOpen(true);
   }, [onEnsureAgentEditorData]);
 
-  async function handleCreateAgentSubmit(event: any) {
+  async function handleCreateAgentSubmit(event: FormEvent<HTMLFormElement>) {
     const didCreate = await onCreateAgent(event);
     if (didCreate) {
       setIsCreateModalOpen(false);
     }
   }
 
-  function openDeleteAgentModal(agentId: any, agentName: any) {
+  function openDeleteAgentModal(agentId: string, agentName: string) {
     setPendingDeleteAgent({
       id: agentId,
       name: agentName,
@@ -202,7 +262,7 @@ export function AgentsPage({
     setForceDeleteAgent(false);
   }
 
-  async function handleDeleteAgentSubmit(event: any) {
+  async function handleDeleteAgentSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!pendingDeleteAgent) {
       return;
@@ -264,7 +324,7 @@ export function AgentsPage({
 
         {agents.length > 0 ? (
           <ul className="chat-card-list">
-            {agents.map((agent: any) => {
+            {agents.map((agent) => {
               const assignedRunner = agent.agentRunnerId
                 ? agentRunnerLookup.get(agent.agentRunnerId) || {
                     id: agent.agentRunnerId,
@@ -275,7 +335,7 @@ export function AgentsPage({
                 ? formatRunnerLabel(assignedRunner)
                 : "Unassigned";
               const assignedRoleIds = normalizeUniqueStringList(agent.roleIds || []);
-              const assignedRoleLabels = assignedRoleIds.map((roleId: any) => {
+              const assignedRoleLabels = assignedRoleIds.map((roleId) => {
                 const role = roleLookup.get(roleId);
                 return role ? role.name : roleId;
               });
@@ -286,7 +346,7 @@ export function AgentsPage({
                 expandedRoleIds,
                 roleMcpServerIdsByRoleId,
               );
-              const assignedMcpServerLabels = effectiveMcpServerIds.map((mcpServerId: any) => {
+              const assignedMcpServerLabels = effectiveMcpServerIds.map((mcpServerId) => {
                 const mcpServer = mcpServerLookup.get(mcpServerId);
                 return mcpServer ? mcpServer.name : mcpServerId;
               });
@@ -305,7 +365,7 @@ export function AgentsPage({
                   onClick={() => !isBusy && setBrowserPath(`/agents/${agent.id}`)}
                   role="button"
                   tabIndex={0}
-                  onKeyDown={(event: any) => {
+                  onKeyDown={(event: KeyboardEvent<HTMLLIElement>) => {
                     if (event.key === "Enter" && !isBusy) {
                       setBrowserPath(`/agents/${agent.id}`);
                     }
@@ -325,7 +385,7 @@ export function AgentsPage({
                     <button
                       type="button"
                       className="chat-card-icon-btn"
-                      onClick={(event: any) => {
+                      onClick={(event: MouseEvent<HTMLButtonElement>) => {
                         event.stopPropagation();
                         openEditAgentModal(agent.id);
                       }}
@@ -341,7 +401,7 @@ export function AgentsPage({
                     <button
                       type="button"
                       className="chat-card-icon-btn chat-card-icon-btn-danger"
-                      onClick={(event: any) => {
+                      onClick={(event: MouseEvent<HTMLButtonElement>) => {
                         event.stopPropagation();
                         openDeleteAgentModal(agent.id, agent.name);
                       }}
@@ -378,7 +438,7 @@ export function AgentsPage({
             id="agent-runner-id"
             name="agentRunnerId"
             value={agentRunnerId}
-            onChange={(event: any) => onAgentRunnerChange(event.target.value)}
+            onChange={(event: ChangeEvent<HTMLSelectElement>) => onAgentRunnerChange(event.target.value)}
             required
             disabled={!hasLoadedAgentRunners || !hasRegisteredRunners}
           >
@@ -389,7 +449,7 @@ export function AgentsPage({
             ) : (
               <>
                 <option value="">Select runner</option>
-                {agentRunners.map((runner: any) => (
+                {agentRunners.map((runner) => (
                   <option key={runner.id} value={runner.id}>
                     {formatRunnerLabel(runner)}
                   </option>
@@ -403,7 +463,7 @@ export function AgentsPage({
             {createAssignedRoleIds.length === 0 ? (
               <span className="empty-hint">No roles assigned.</span>
             ) : (
-              createAssignedRoleIds.map((roleId: any) => {
+              createAssignedRoleIds.map((roleId) => {
                 const role = roleLookup.get(roleId);
                 const roleLabel = role ? role.name : roleId;
                 return (
@@ -414,7 +474,7 @@ export function AgentsPage({
                     onClick={() =>
                       onAgentRoleIdsChange(
                         createAssignedRoleIds.filter(
-                          (candidateId: any) => candidateId !== roleId,
+                          (candidateId) => candidateId !== roleId,
                         ),
                       )
                     }
@@ -431,7 +491,7 @@ export function AgentsPage({
           <select
             id="create-agent-skill-add"
             value=""
-            onChange={(event: any) => {
+            onChange={(event: ChangeEvent<HTMLSelectElement>) => {
               const nextRoleId = String(event.target.value || "").trim();
               if (!nextRoleId) {
                 return;
@@ -445,7 +505,7 @@ export function AgentsPage({
                 ? "All roles already assigned"
                 : "Select role to assign"}
             </option>
-            {createAvailableRoles.map((role: any) => (
+            {createAvailableRoles.map((role) => (
               <option key={`create-agent-skill-${role.id}`} value={role.id}>
                 {role.name}
               </option>
@@ -457,7 +517,7 @@ export function AgentsPage({
             {createEffectiveMcpServerIds.length === 0 ? (
               <span className="empty-hint">No MCP servers inherited from assigned roles.</span>
             ) : (
-              createEffectiveMcpServerIds.map((mcpServerId: any) => {
+              createEffectiveMcpServerIds.map((mcpServerId) => {
                 const mcpServer = mcpServerLookup.get(mcpServerId);
                 const mcpServerLabel = mcpServer ? mcpServer.name : mcpServerId;
                 return (
@@ -475,7 +535,7 @@ export function AgentsPage({
             name="name"
             placeholder="e.g. CEO Agent"
             value={agentName}
-            onChange={(event: any) => onAgentNameChange(event.target.value)}
+            onChange={(event: ChangeEvent<HTMLInputElement>) => onAgentNameChange(event.target.value)}
             required
             autoFocus
           />
@@ -485,10 +545,10 @@ export function AgentsPage({
             id="agent-sdk"
             name="agentSdk"
             value={agentSdk}
-            onChange={(event: any) => onAgentSdkChange(event.target.value)}
+            onChange={(event: ChangeEvent<HTMLSelectElement>) => onAgentSdkChange(event.target.value)}
             required
           >
-            {AVAILABLE_AGENT_SDKS.map((sdkName: any) => (
+            {AVAILABLE_AGENT_SDKS.map((sdkName) => (
               <option key={`create-agent-sdk-${sdkName}`} value={sdkName}>
                 {sdkName}
               </option>
@@ -500,7 +560,7 @@ export function AgentsPage({
             id="agent-model"
             name="defaultModel"
             value={agentModel}
-            onChange={(event: any) => onAgentModelChange(event.target.value)}
+            onChange={(event: ChangeEvent<HTMLSelectElement>) => onAgentModelChange(event.target.value)}
             required
             disabled={!agentRunnerId}
           >
@@ -511,7 +571,7 @@ export function AgentsPage({
             ) : (
               <>
                 <option value="">Select default model</option>
-                {createRunnerModelNames.map((modelName: any) => (
+                {createRunnerModelNames.map((modelName) => (
                   <option key={`create-agent-model-${modelName}`} value={modelName}>
                     {modelName}
                   </option>
@@ -525,7 +585,7 @@ export function AgentsPage({
             id="agent-reasoning-level"
             name="defaultReasoningLevel"
             value={agentModelReasoningLevel}
-            onChange={(event: any) => onAgentModelReasoningLevelChange(event.target.value)}
+            onChange={(event: ChangeEvent<HTMLSelectElement>) => onAgentModelReasoningLevelChange(event.target.value)}
             required
             disabled={!agentRunnerId || !agentModel}
           >
@@ -538,7 +598,7 @@ export function AgentsPage({
             ) : (
               <>
                 <option value="">Select default reasoning level</option>
-                {createRunnerReasoningLevels.map((reasoningLevel: any) => (
+                {createRunnerReasoningLevels.map((reasoningLevel) => (
                   <option key={`create-agent-reasoning-${reasoningLevel}`} value={reasoningLevel}>
                     {reasoningLevel}
                   </option>
@@ -554,7 +614,7 @@ export function AgentsPage({
             id="agent-default-additional-model-instructions"
             name="defaultAdditionalModelInstructions"
             value={agentDefaultAdditionalModelInstructions}
-            onChange={(event: any) =>
+            onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
               onAgentDefaultAdditionalModelInstructionsChange(event.target.value)
             }
             rows={4}
@@ -604,7 +664,7 @@ export function AgentsPage({
               id="delete-agent-force"
               type="checkbox"
               checked={forceDeleteAgent}
-              onChange={(event: any) => setForceDeleteAgent(event.target.checked)}
+              onChange={(event: ChangeEvent<HTMLInputElement>) => setForceDeleteAgent(event.target.checked)}
               disabled={!pendingDeleteAgent || deletingAgentId === pendingDeleteAgent.id}
             />{" "}
             Force deletion
@@ -623,7 +683,7 @@ export function AgentsPage({
               type="button"
               className="secondary-btn"
               onClick={closeDeleteAgentModal}
-              disabled={pendingDeleteAgent && deletingAgentId === pendingDeleteAgent.id}
+              disabled={Boolean(pendingDeleteAgent && deletingAgentId === pendingDeleteAgent.id)}
             >
               Cancel
             </button>

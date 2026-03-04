@@ -1,4 +1,14 @@
-import { useEffect } from "react";
+import { useEffect, type MouseEvent, type ReactNode } from "react";
+
+interface CreationModalProps {
+  modalId: string;
+  title: string;
+  description?: string;
+  isOpen: boolean;
+  onClose: () => void;
+  children: ReactNode;
+  cardClassName?: string;
+}
 
 export function CreationModal({
   modalId,
@@ -8,13 +18,13 @@ export function CreationModal({
   onClose,
   children,
   cardClassName = "",
-}: any) {
+}: CreationModalProps) {
   useEffect(() => {
     if (!isOpen) {
       return undefined;
     }
 
-    const handleKeyDown = (event: any) => {
+    const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         onClose();
       }
@@ -36,7 +46,7 @@ export function CreationModal({
         aria-modal="true"
         aria-labelledby={`${modalId}-title`}
         aria-describedby={description ? `${modalId}-description` : undefined}
-        onClick={(event: any) => event.stopPropagation()}
+        onClick={(event: MouseEvent<HTMLElement>) => event.stopPropagation()}
       >
         <header className="panel-header panel-header-row modal-header">
           <div>

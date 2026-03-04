@@ -1,9 +1,32 @@
-import { useMemo, useState } from "react";
+import {
+  useMemo,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+} from "react";
 import { Page } from "../components/Page.tsx";
 import { CreationModal } from "../components/CreationModal.tsx";
 import { formatTimestamp, normalizeRunnerStatus, toSortableTimestamp } from "../utils/formatting.ts";
 import { setBrowserPath } from "../utils/path.ts";
 import { useSetPageActions } from "../components/PageActionsContext.tsx";
+import type { AgentRunner } from "../types/domain.ts";
+
+interface AgentRunnerPageProps {
+  selectedCompanyId: string;
+  agentRunners: AgentRunner[];
+  isLoadingRunners: boolean;
+  runnerError: string;
+  isCreatingRunner: boolean;
+  runnerNameDraft: string;
+  regeneratingRunnerId: string | null;
+  deletingRunnerId: string | null;
+  runnerCountLabel: string;
+  onRunnerNameChange: (nextName: string) => void;
+  onCreateRunner: (event: FormEvent<HTMLFormElement>) => Promise<boolean> | boolean;
+  onDeleteRunner: (runnerId: string) => void;
+}
 
 export function AgentRunnerPage({
   selectedCompanyId,
@@ -18,11 +41,11 @@ export function AgentRunnerPage({
   onRunnerNameChange,
   onCreateRunner,
   onDeleteRunner,
-}: any) {
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState<any>(false);
+}: AgentRunnerPageProps) {
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const readyRunnerCount = useMemo(() => {
-    return agentRunners.filter((runner: any) => normalizeRunnerStatus(runner.status) === "ready")
+    return agentRunners.filter((runner) => normalizeRunnerStatus(runner.status) === "ready")
       .length;
   }, [agentRunners]);
 
@@ -30,7 +53,7 @@ export function AgentRunnerPage({
     return agentRunners.length - readyRunnerCount;
   }, [agentRunners.length, readyRunnerCount]);
 
-  async function handleCreateRunnerSubmit(event: any) {
+  async function handleCreateRunnerSubmit(event: FormEvent<HTMLFormElement>) {
     const didCreate = await onCreateRunner(event);
     if (didCreate) {
       setIsCreateModalOpen(false);
@@ -96,8 +119,8 @@ export function AgentRunnerPage({
         {agentRunners.length > 0 ? (
           <ul className="chat-card-list">
             {[...agentRunners]
-              .sort((a: any, b: any) => toSortableTimestamp(b.lastSeenAt) - toSortableTimestamp(a.lastSeenAt))
-              .map((runner: any) => {
+              .sort((a, b) => toSortableTimestamp(b.lastSeenAt) - toSortableTimestamp(a.lastSeenAt))
+              .map((runner) => {
                 const runnerStatus = normalizeRunnerStatus(runner.status);
                 const isBusy =
                   deletingRunnerId === runner.id || regeneratingRunnerId === runner.id;
@@ -109,7 +132,7 @@ export function AgentRunnerPage({
                     onClick={() => !isBusy && setBrowserPath(`/agent-runner/${runner.id}`)}
                     role="button"
                     tabIndex={0}
-                    onKeyDown={(event: any) => {
+                    onKeyDown={(event: KeyboardEvent<HTMLLIElement>) => {
                       if (event.key === "Enter" && !isBusy) {
                         setBrowserPath(`/agent-runner/${runner.id}`);
                       }
@@ -129,12 +152,12 @@ export function AgentRunnerPage({
                     </div>
                     <div className="chat-card-actions">
                       <button
-                        type="button"
-                        className="chat-card-icon-btn chat-card-icon-btn-danger"
-                        onClick={(event: any) => {
-                          event.stopPropagation();
-                          onDeleteRunner(runner.id);
-                        }}
+                      type="button"
+                      className="chat-card-icon-btn chat-card-icon-btn-danger"
+                      onClick={(event: MouseEvent<HTMLButtonElement>) => {
+                        event.stopPropagation();
+                        onDeleteRunner(runner.id);
+                      }}
                         disabled={isBusy}
                         aria-label={deletingRunnerId === runner.id ? "Deleting..." : "Delete runner"}
                         title={deletingRunnerId === runner.id ? "Deleting..." : "Delete runner"}
@@ -169,7 +192,7 @@ export function AgentRunnerPage({
             name="runnerName"
             placeholder="Example: Production runner"
             value={runnerNameDraft}
-            onChange={(event: any) => onRunnerNameChange(event.target.value)}
+            onChange={(event: ChangeEvent<HTMLInputElement>) => onRunnerNameChange(event.target.value)}
             autoFocus
             required
           />

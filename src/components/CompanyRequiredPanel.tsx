@@ -1,4 +1,8 @@
-export function CompanyRequiredPanel({ hasCompanies }: any) {
+interface CompanyRequiredPanelProps {
+  hasCompanies: boolean;
+}
+
+export function CompanyRequiredPanel({ hasCompanies }: CompanyRequiredPanelProps) {
   return (
     <section className="panel hero-panel">
       <p className="eyebrow">Company Scope</p>

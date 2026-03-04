@@ -1,7 +1,29 @@
-import { useMemo, useState } from "react";
+import {
+  useMemo,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+} from "react";
 import { Page } from "../components/Page.tsx";
 import { CreationModal } from "../components/CreationModal.tsx";
 import { useSetPageActions } from "../components/PageActionsContext.tsx";
+import type { Skill, SkillGroup } from "../types/domain.ts";
+
+interface SkillGroupsPageProps {
+  skillGroups: SkillGroup[];
+  skills: Skill[];
+  isLoadingSkillGroups: boolean;
+  isLoadingSkills: boolean;
+  skillError: string;
+  onCreateSkillGroup: (input: { name: string; parentSkillGroupId: string | null }) => Promise<void> | void;
+  onUpdateSkillGroup: (input: { id: string; name: string; parentSkillGroupId: string | null }) => Promise<void> | void;
+  onDeleteSkillGroup: (groupId: string, groupName: string) => void;
+  onAddSkillToGroup: (groupId: string, skillId: string) => Promise<void> | void;
+  onRemoveSkillFromGroup: (groupId: string, skillId: string) => Promise<void> | void;
+  onOpenSkill: (skillId: string) => void;
+}
 
 export function SkillGroupsPage({
   skillGroups,
@@ -15,27 +37,27 @@ export function SkillGroupsPage({
   onAddSkillToGroup,
   onRemoveSkillFromGroup,
   onOpenSkill,
-}: any) {
-  const [newGroupName, setNewGroupName] = useState<any>("");
-  const [newGroupParentId, setNewGroupParentId] = useState<any>("");
-  const [isCreatingGroup, setIsCreatingGroup] = useState<any>(false);
-  const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState<any>(false);
-  const [editingGroupId, setEditingGroupId] = useState<any>("");
-  const [nameDraft, setNameDraft] = useState<any>("");
-  const [parentGroupIdDraft, setParentGroupIdDraft] = useState<any>("");
-  const [isSavingGroup, setIsSavingGroup] = useState<any>(false);
-  const [localError, setLocalError] = useState<any>("");
+}: SkillGroupsPageProps) {
+  const [newGroupName, setNewGroupName] = useState("");
+  const [newGroupParentId, setNewGroupParentId] = useState("");
+  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
+  const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false);
+  const [editingGroupId, setEditingGroupId] = useState("");
+  const [nameDraft, setNameDraft] = useState("");
+  const [parentGroupIdDraft, setParentGroupIdDraft] = useState("");
+  const [isSavingGroup, setIsSavingGroup] = useState(false);
+  const [localError, setLocalError] = useState("");
 
   const activeSkillGroup = useMemo(() => {
     const resolvedGroupId = String(editingGroupId || "").trim();
     if (!resolvedGroupId) {
       return null;
     }
-    return skillGroups.find((group: any) => group.id === resolvedGroupId) || null;
+    return skillGroups.find((group) => group.id === resolvedGroupId) || null;
   }, [editingGroupId, skillGroups]);
 
   const groupedSkillIds = useMemo(() => {
-    const ids = new Set<any>();
+    const ids = new Set<string>();
     for (const group of skillGroups) {
       for (const skill of group.skills || []) {
         if (skill?.id) {
@@ -47,14 +69,14 @@ export function SkillGroupsPage({
   }, [skillGroups]);
 
   const ungroupedSkills = useMemo(() => {
-    return skills.filter((skill: any) => !groupedSkillIds.has(skill.id));
+    return skills.filter((skill) => !groupedSkillIds.has(skill.id));
   }, [groupedSkillIds, skills]);
 
   const parentGroupOptions = useMemo(() => {
     if (!activeSkillGroup) {
       return [];
     }
-    return skillGroups.filter((group: any) => group.id !== activeSkillGroup.id);
+    return skillGroups.filter((group) => group.id !== activeSkillGroup.id);
   }, [activeSkillGroup, skillGroups]);
 
   const activeGroupSkills = useMemo(() => {
@@ -62,8 +84,8 @@ export function SkillGroupsPage({
   }, [activeSkillGroup]);
 
   const availableSkills = useMemo(() => {
-    const activeSkillIds = new Set(activeGroupSkills.map((skill: any) => skill.id));
-    return skills.filter((skill: any) => !activeSkillIds.has(skill.id));
+    const activeSkillIds = new Set(activeGroupSkills.map((skill) => skill.id));
+    return skills.filter((skill) => !activeSkillIds.has(skill.id));
   }, [activeGroupSkills, skills]);
 
   const pageActions = useMemo(() => (
@@ -82,13 +104,13 @@ export function SkillGroupsPage({
   ), []);
   useSetPageActions(pageActions);
 
-  function openSkillGroup(group: any) {
+  function openSkillGroup(group: SkillGroup) {
     setEditingGroupId(group.id);
     setNameDraft(group.name || "");
     setParentGroupIdDraft(group.parentSkillGroup?.id || "");
   }
 
-  async function handleCreateSkillGroup(event: any) {
+  async function handleCreateSkillGroup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     try {
       setIsCreatingGroup(true);
@@ -100,8 +122,8 @@ export function SkillGroupsPage({
       setNewGroupName("");
       setNewGroupParentId("");
       setIsCreateGroupModalOpen(false);
-    } catch (error: any) {
-      setLocalError(error.message);
+    } catch (error: unknown) {
+      setLocalError(error instanceof Error ? error.message : "Failed to create skill group.");
     } finally {
       setIsCreatingGroup(false);
     }
@@ -119,8 +141,8 @@ export function SkillGroupsPage({
         name: nameDraft || activeSkillGroup.name,
         parentSkillGroupId: parentGroupIdDraft || null,
       });
-    } catch (error: any) {
-      setLocalError(error.message);
+    } catch (error: unknown) {
+      setLocalError(error instanceof Error ? error.message : "Failed to update skill group.");
     } finally {
       setIsSavingGroup(false);
     }
@@ -141,7 +163,7 @@ export function SkillGroupsPage({
           <p className="empty-hint">No skill groups yet.</p>
         ) : (
           <ul className="chat-card-list">
-            {skillGroups.map((group: any) => {
+            {skillGroups.map((group) => {
               const skillCount = (group.skills || []).length;
               const parentLabel = group.parentSkillGroup?.name || null;
               return (
@@ -151,7 +173,7 @@ export function SkillGroupsPage({
                   onClick={() => openSkillGroup(group)}
                   role="button"
                   tabIndex={0}
-                  onKeyDown={(event: any) => {
+                  onKeyDown={(event: KeyboardEvent<HTMLLIElement>) => {
                     if (event.key === "Enter") {
                       openSkillGroup(group);
                     }
@@ -170,7 +192,7 @@ export function SkillGroupsPage({
                     <button
                       type="button"
                       className="chat-card-icon-btn chat-card-icon-btn-danger"
-                      onClick={(event: any) => {
+                      onClick={(event: MouseEvent<HTMLButtonElement>) => {
                         event.stopPropagation();
                         onDeleteSkillGroup(group.id, group.name);
                       }}
@@ -202,14 +224,14 @@ export function SkillGroupsPage({
           <p className="empty-hint">All skills are assigned to at least one group.</p>
         ) : (
           <ul className="chat-card-list">
-            {ungroupedSkills.map((skill: any) => (
+            {ungroupedSkills.map((skill) => (
               <li
                 key={`ungrouped-skill-${skill.id}`}
                 className="chat-card"
                 onClick={() => onOpenSkill(skill.id)}
                 role="button"
                 tabIndex={0}
-                onKeyDown={(event: any) => {
+                onKeyDown={(event: KeyboardEvent<HTMLLIElement>) => {
                   if (event.key === "Enter") {
                     onOpenSkill(skill.id);
                   }
@@ -240,7 +262,7 @@ export function SkillGroupsPage({
               id="new-skill-group-name"
               className="chat-settings-input"
               value={newGroupName}
-              onChange={(event: any) => setNewGroupName(event.target.value)}
+              onChange={(event: ChangeEvent<HTMLInputElement>) => setNewGroupName(event.target.value)}
               required
               autoFocus
             />
@@ -251,10 +273,10 @@ export function SkillGroupsPage({
               id="new-skill-group-parent"
               className="chat-settings-input"
               value={newGroupParentId}
-              onChange={(event: any) => setNewGroupParentId(event.target.value)}
+              onChange={(event: ChangeEvent<HTMLSelectElement>) => setNewGroupParentId(event.target.value)}
             >
               <option value="">None</option>
-              {skillGroups.map((group: any) => (
+              {skillGroups.map((group) => (
                 <option key={`new-parent-group-${group.id}`} value={group.id}>
                   {group.name}
                 </option>
@@ -287,7 +309,7 @@ export function SkillGroupsPage({
                 id={`skill-group-name-${activeSkillGroup.id}`}
                 className="chat-settings-input"
                 value={nameDraft}
-                onChange={(event: any) => setNameDraft(event.target.value)}
+                onChange={(event: ChangeEvent<HTMLInputElement>) => setNameDraft(event.target.value)}
               />
             </div>
             <div className="chat-settings-field">
@@ -298,10 +320,10 @@ export function SkillGroupsPage({
                 id={`skill-group-parent-${activeSkillGroup.id}`}
                 className="chat-settings-input"
                 value={parentGroupIdDraft}
-                onChange={(event: any) => setParentGroupIdDraft(event.target.value)}
+                onChange={(event: ChangeEvent<HTMLSelectElement>) => setParentGroupIdDraft(event.target.value)}
               >
                 <option value="">None</option>
-                {parentGroupOptions.map((group: any) => (
+                {parentGroupOptions.map((group) => (
                   <option key={`parent-group-option-${activeSkillGroup.id}-${group.id}`} value={group.id}>
                     {group.name}
                   </option>
@@ -320,7 +342,7 @@ export function SkillGroupsPage({
                 <p className="empty-hint">No skills in this group.</p>
               ) : (
                 <ul className="chat-card-list">
-                  {activeGroupSkills.map((skill: any) => (
+                  {activeGroupSkills.map((skill) => (
                     <li key={`group-skill-${activeSkillGroup.id}-${skill.id}`} className="chat-card">
                       <div className="chat-card-main">
                         <p className="chat-card-title">
@@ -366,7 +388,7 @@ export function SkillGroupsPage({
                 id={`skill-group-add-skill-${activeSkillGroup.id}`}
                 className="chat-settings-input"
                 value=""
-                onChange={(event: any) => {
+                onChange={(event: ChangeEvent<HTMLSelectElement>) => {
                   const skillId = String(event.target.value || "").trim();
                   if (!skillId) {
                     return;
@@ -378,7 +400,7 @@ export function SkillGroupsPage({
                 <option value="">
                   {availableSkills.length === 0 ? "All skills already assigned" : "Select skill"}
                 </option>
-                {availableSkills.map((skill: any) => (
+                {availableSkills.map((skill) => (
                   <option key={`group-skill-option-${activeSkillGroup.id}-${skill.id}`} value={skill.id}>
                     {skill.name}
                   </option>

@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+} from "react";
 import { CreationModal } from "./CreationModal.tsx";
 import { AVAILABLE_AGENT_SDKS, DEFAULT_AGENT_SDK } from "../utils/constants.ts";
 import {
@@ -8,11 +16,21 @@ import {
   getRunnerReasoningLevels,
 } from "../utils/normalization.ts";
 import { formatRunnerLabel } from "../utils/formatting.ts";
+import type {
+  Agent,
+  AgentDraft,
+  AgentDraftById,
+  AgentRunner,
+  McpServer,
+  Role,
+  RunnerCodexModelEntriesById,
+  StringArrayById,
+} from "../types/domain.ts";
 
-function collectRoleAndSubroleIds(roleIds: any, roleChildrenByParentId: any) {
+function collectRoleAndSubroleIds(roleIds: string[], roleChildrenByParentId: Map<string, string[]>) {
   const normalizedRoleIds = normalizeUniqueStringList(roleIds);
-  const visitedRoleIds = new Set<any>();
-  const expandedRoleIds: any[] = [];
+  const visitedRoleIds = new Set<string>();
+  const expandedRoleIds: string[] = [];
   const queue = [...normalizedRoleIds];
 
   while (queue.length > 0) {
@@ -34,9 +52,9 @@ function collectRoleAndSubroleIds(roleIds: any, roleChildrenByParentId: any) {
   return expandedRoleIds;
 }
 
-function resolveEffectiveRoleMcpServerIds(expandedRoleIds: any, roleMcpServerIdsByRoleId: any) {
-  const effectiveMcpServerIds: any[] = [];
-  const seenMcpServerIds = new Set<any>();
+function resolveEffectiveRoleMcpServerIds(expandedRoleIds: string[], roleMcpServerIdsByRoleId: StringArrayById) {
+  const effectiveMcpServerIds: string[] = [];
+  const seenMcpServerIds = new Set<string>();
 
   for (const roleId of expandedRoleIds) {
     const roleMcpServerIds = normalizeUniqueStringList(roleMcpServerIdsByRoleId?.[roleId] || []);
@@ -52,9 +70,9 @@ function resolveEffectiveRoleMcpServerIds(expandedRoleIds: any, roleMcpServerIds
   return effectiveMcpServerIds;
 }
 
-function resolveEffectiveRoleSkills(expandedRoleIds: any, roleLookup: any) {
-  const effectiveSkills: any[] = [];
-  const seenSkillIds = new Set<any>();
+function resolveEffectiveRoleSkills(expandedRoleIds: string[], roleLookup: Map<string, Role>) {
+  const effectiveSkills: Array<{ id: string; name: string }> = [];
+  const seenSkillIds = new Set<string>();
 
   for (const roleId of expandedRoleIds) {
     const role = roleLookup.get(roleId);
@@ -77,6 +95,37 @@ function resolveEffectiveRoleSkills(expandedRoleIds: any, roleLookup: any) {
   return effectiveSkills;
 }
 
+type AgentDraftField = keyof AgentDraft;
+
+interface AgentEditModalProps {
+  agents: Agent[];
+  agentRunners: AgentRunner[];
+  roles: Role[];
+  mcpServers: McpServer[];
+  roleMcpServerIdsByRoleId: StringArrayById;
+  runnerCodexModelEntriesById: RunnerCodexModelEntriesById;
+  agentDrafts: AgentDraftById;
+  savingAgentId: string | null;
+  deletingAgentId: string | null;
+  initializingAgentId: string | null;
+  onAgentDraftChange: (agentId: string, field: AgentDraftField, value: string | string[]) => void;
+  onSaveAgent: (agentId: string) => Promise<boolean> | boolean;
+  onEnsureAgentEditorData: () => Promise<void> | void;
+  editingAgentId: string;
+  onClose: () => void;
+}
+
+const EMPTY_AGENT_DRAFT: AgentDraft = {
+  agentRunnerId: "",
+  roleIds: [],
+  mcpServerIds: [],
+  name: "",
+  agentSdk: DEFAULT_AGENT_SDK,
+  model: "",
+  modelReasoningLevel: "",
+  defaultAdditionalModelInstructions: "",
+};
+
 export function AgentEditModal({
   agents,
   agentRunners,
@@ -93,39 +142,31 @@ export function AgentEditModal({
   onEnsureAgentEditorData,
   editingAgentId,
   onClose,
-}: any) {
-  const [isEditInstructionsFullscreen, setIsEditInstructionsFullscreen] = useState<any>(false);
+}: AgentEditModalProps) {
+  const [isEditInstructionsFullscreen, setIsEditInstructionsFullscreen] = useState(false);
 
-  const editingAgent = agents.find((agent: any) => agent.id === editingAgentId) || null;
+  const editingAgent = agents.find((agent) => agent.id === editingAgentId) || null;
   const isEditModalOpen = Boolean(editingAgent);
 
   const roleLookup = useMemo(() => {
-    return roles.reduce((map: any, role: any) => {
+    return roles.reduce((map, role) => {
       map.set(role.id, role);
       return map;
-    }, new Map<any, any>());
+    }, new Map<string, Role>());
   }, [roles]);
 
   const mcpServerLookup = useMemo(() => {
-    return mcpServers.reduce((map: any, mcpServer: any) => {
+    return mcpServers.reduce((map, mcpServer) => {
       map.set(mcpServer.id, mcpServer);
       return map;
-    }, new Map<any, any>());
+    }, new Map<string, McpServer>());
   }, [mcpServers]);
 
-  function getAgentDraft(agentId: any) {
-    return (
-      agentDrafts[agentId] || {
-        agentRunnerId: "",
-        roleIds: [],
-        mcpServerIds: [],
-        name: "",
-        agentSdk: DEFAULT_AGENT_SDK,
-        model: "",
-        modelReasoningLevel: "",
-        defaultAdditionalModelInstructions: "",
-      }
-    );
+  function getAgentDraft(agentId: string): AgentDraft {
+    return {
+      ...EMPTY_AGENT_DRAFT,
+      ...(agentDrafts[agentId] || {}),
+    };
   }
 
   const editingDraft = editingAgent ? getAgentDraft(editingAgentId) : null;
@@ -133,20 +174,19 @@ export function AgentEditModal({
     ? normalizeUniqueStringList(editingDraft.roleIds)
     : [];
   const editingAvailableRoles = editingDraft
-    ? roles.filter((role: any) => !editingRoleIds.includes(role.id))
+    ? roles.filter((role) => !editingRoleIds.includes(role.id))
     : [];
 
   const roleChildrenByParentId = useMemo(() => {
-    const map = new Map<any, any>();
+    const map = new Map<string, string[]>();
     for (const role of roles) {
-      const parentId = String(role.parentId || "").trim();
+      const parentId = String(role.parentId || role.parentRole?.id || "").trim();
       if (!parentId) {
         continue;
       }
-      if (!map.has(parentId)) {
-        map.set(parentId, []);
-      }
-      map.get(parentId).push(role.id);
+      const existingChildren = map.get(parentId) || [];
+      existingChildren.push(role.id);
+      map.set(parentId, existingChildren);
     }
     return map;
   }, [roles]);
@@ -184,12 +224,12 @@ export function AgentEditModal({
   }, [isEditModalOpen]);
 
   useEffect(() => {
-    if (editingAgentId && typeof onEnsureAgentEditorData === "function") {
+    if (editingAgentId) {
       void onEnsureAgentEditorData();
     }
-  }, [editingAgentId]);
+  }, [editingAgentId, onEnsureAgentEditorData]);
 
-  async function handleEditAgentSubmit(event: any) {
+  async function handleEditAgentSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!editingAgent) {
       return;
@@ -200,7 +240,7 @@ export function AgentEditModal({
     }
   }
 
-  function handleEditInstructionsChange(value: any) {
+  function handleEditInstructionsChange(value: string) {
     if (!editingAgent) {
       return;
     }
@@ -218,7 +258,7 @@ export function AgentEditModal({
       onClose={onClose}
       cardClassName="modal-card-wide"
     >
-      {editingDraft ? (
+      {editingAgent && editingDraft ? (
         <form className="task-form" onSubmit={handleEditAgentSubmit}>
           <div className="agent-edit-grid">
             <label className="relationship-field" htmlFor={`edit-agent-runner-${editingAgent.id}`}>
@@ -227,13 +267,13 @@ export function AgentEditModal({
             <select
               id={`edit-agent-runner-${editingAgent.id}`}
               value={editingDraft.agentRunnerId}
-              onChange={(event: any) =>
+              onChange={(event: ChangeEvent<HTMLSelectElement>) =>
                 onAgentDraftChange(editingAgent.id, "agentRunnerId", event.target.value)
               }
               disabled={isEditingDisabled}
             >
               <option value="">Unassigned</option>
-              {agentRunners.map((runner: any) => (
+              {agentRunners.map((runner) => (
                 <option key={runner.id} value={runner.id}>
                   {formatRunnerLabel(runner)}
                 </option>
@@ -246,7 +286,7 @@ export function AgentEditModal({
             <input
               id={`edit-agent-name-${editingAgent.id}`}
               value={editingDraft.name}
-              onChange={(event: any) =>
+              onChange={(event: ChangeEvent<HTMLInputElement>) =>
                 onAgentDraftChange(editingAgent.id, "name", event.target.value)
               }
               disabled={isEditingDisabled}
@@ -258,12 +298,12 @@ export function AgentEditModal({
             <select
               id={`edit-agent-sdk-${editingAgent.id}`}
               value={editingDraft.agentSdk}
-              onChange={(event: any) =>
+              onChange={(event: ChangeEvent<HTMLSelectElement>) =>
                 onAgentDraftChange(editingAgent.id, "agentSdk", event.target.value)
               }
               disabled={isEditingDisabled}
             >
-              {AVAILABLE_AGENT_SDKS.map((sdkName: any) => (
+              {AVAILABLE_AGENT_SDKS.map((sdkName) => (
                 <option key={`${editingAgent.id}-sdk-${sdkName}`} value={sdkName}>
                   {sdkName}
                 </option>
@@ -276,7 +316,7 @@ export function AgentEditModal({
             <select
               id={`edit-agent-model-${editingAgent.id}`}
               value={editingDraft.model}
-              onChange={(event: any) =>
+              onChange={(event: ChangeEvent<HTMLSelectElement>) =>
                 onAgentDraftChange(editingAgent.id, "model", event.target.value)
               }
               disabled={isEditingDisabled || !editingDraft.agentRunnerId}
@@ -288,7 +328,7 @@ export function AgentEditModal({
               ) : (
                 <>
                   <option value="">Select model</option>
-                  {editingRunnerModelNames.map((modelName: any) => (
+                  {editingRunnerModelNames.map((modelName) => (
                     <option key={`${editingAgent.id}-model-${modelName}`} value={modelName}>
                       {modelName}
                     </option>
@@ -306,7 +346,7 @@ export function AgentEditModal({
             <select
               id={`edit-agent-reasoning-${editingAgent.id}`}
               value={editingDraft.modelReasoningLevel}
-              onChange={(event: any) =>
+              onChange={(event: ChangeEvent<HTMLSelectElement>) =>
                 onAgentDraftChange(editingAgent.id, "modelReasoningLevel", event.target.value)
               }
               disabled={isEditingDisabled || !editingDraft.agentRunnerId || !editingDraft.model}
@@ -320,7 +360,7 @@ export function AgentEditModal({
               ) : (
                 <>
                   <option value="">Select reasoning</option>
-                  {editingRunnerReasoningLevels.map((reasoningLevel: any) => (
+                  {editingRunnerReasoningLevels.map((reasoningLevel) => (
                     <option
                       key={`${editingAgent.id}-reasoning-${reasoningLevel}`}
                       value={reasoningLevel}
@@ -353,7 +393,7 @@ export function AgentEditModal({
                 id={`edit-agent-default-additional-model-instructions-${editingAgent.id}`}
                 className="edit-agent-instructions-textarea"
                 value={editingDraft.defaultAdditionalModelInstructions || ""}
-                onChange={(event: any) => handleEditInstructionsChange(event.target.value)}
+                onChange={(event: ChangeEvent<HTMLTextAreaElement>) => handleEditInstructionsChange(event.target.value)}
                 rows={8}
                 placeholder="Optional. Applied to new chats unless thread-specific instructions are provided."
                 disabled={isEditingDisabled}
@@ -373,7 +413,7 @@ export function AgentEditModal({
               {editingRoleIds.length === 0 ? (
                 <span className="empty-hint">No roles assigned.</span>
               ) : (
-                editingRoleIds.map((roleId: any) => {
+                editingRoleIds.map((roleId) => {
                   const role = roleLookup.get(roleId);
                   const roleLabel = role ? role.name : roleId;
                   return (
@@ -386,7 +426,7 @@ export function AgentEditModal({
                           editingAgent.id,
                           "roleIds",
                           editingRoleIds.filter(
-                            (candidateId: any) => candidateId !== roleId,
+                            (candidateId) => candidateId !== roleId,
                           ),
                         )
                       }
@@ -406,7 +446,7 @@ export function AgentEditModal({
             <select
               id={`edit-agent-skills-add-${editingAgent.id}`}
               value=""
-              onChange={(event: any) => {
+              onChange={(event: ChangeEvent<HTMLSelectElement>) => {
                 const nextRoleId = String(event.target.value || "").trim();
                 if (!nextRoleId) {
                   return;
@@ -423,7 +463,7 @@ export function AgentEditModal({
                   ? "All roles already assigned"
                   : "Select role to assign"}
               </option>
-              {editingAvailableRoles.map((role: any) => (
+              {editingAvailableRoles.map((role) => (
                 <option
                   key={`edit-agent-skill-option-${editingAgent.id}-${role.id}`}
                   value={role.id}
@@ -446,7 +486,7 @@ export function AgentEditModal({
               {editingEffectiveSkills.length === 0 ? (
                 <span className="empty-hint">No skills inherited from assigned roles.</span>
               ) : (
-                editingEffectiveSkills.map((skill: any) => (
+                editingEffectiveSkills.map((skill) => (
                   <span
                     key={`edit-agent-effective-skill-${editingAgent.id}-${skill.id}`}
                     className="tag-pill"
@@ -470,7 +510,7 @@ export function AgentEditModal({
               {editingEffectiveMcpServerIds.length === 0 ? (
                 <span className="empty-hint">No MCP servers inherited from assigned roles.</span>
               ) : (
-                editingEffectiveMcpServerIds.map((mcpServerId: any) => {
+                editingEffectiveMcpServerIds.map((mcpServerId) => {
                   const mcpServer = mcpServerLookup.get(mcpServerId);
                   const mcpServerLabel = mcpServer ? mcpServer.name : mcpServerId;
                   return (
@@ -508,8 +548,8 @@ export function AgentEditModal({
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby={`edit-agent-instructions-fullscreen-title-${editingAgent.id}`}
-                onClick={(event: any) => event.stopPropagation()}
-                onKeyDown={(event: any) => {
+                onClick={(event: MouseEvent<HTMLElement>) => event.stopPropagation()}
+                onKeyDown={(event: KeyboardEvent<HTMLElement>) => {
                   if (event.key === "Escape") {
                     event.stopPropagation();
                     setIsEditInstructionsFullscreen(false);
@@ -531,7 +571,7 @@ export function AgentEditModal({
                 <textarea
                   className="edit-agent-instructions-textarea edit-agent-instructions-textarea-fullscreen"
                   value={editingDraft.defaultAdditionalModelInstructions || ""}
-                  onChange={(event: any) => handleEditInstructionsChange(event.target.value)}
+                  onChange={(event: ChangeEvent<HTMLTextAreaElement>) => handleEditInstructionsChange(event.target.value)}
                   placeholder="Optional. Applied to new chats unless thread-specific instructions are provided."
                   disabled={isEditingDisabled}
                   autoFocus

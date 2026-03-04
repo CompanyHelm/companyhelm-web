@@ -1,4 +1,13 @@
+import type { ChangeEvent, FormEvent } from "react";
 import { Page } from "./Page.tsx";
+
+interface FirstCompanyOnboardingPageProps {
+  companyError: string;
+  newCompanyName: string;
+  isCreatingCompany: boolean;
+  onNewCompanyNameChange: (value: string) => void;
+  onCreateCompany: (event: FormEvent<HTMLFormElement>) => void | Promise<void>;
+}
 
 export function FirstCompanyOnboardingPage({
   companyError,
@@ -6,7 +15,7 @@ export function FirstCompanyOnboardingPage({
   isCreatingCompany,
   onNewCompanyNameChange,
   onCreateCompany,
-}: any) {
+}: FirstCompanyOnboardingPageProps) {
   return (
     <Page>
       <div className="page-stack">
@@ -19,13 +28,14 @@ export function FirstCompanyOnboardingPage({
           </p>
           <form className="first-company-onboarding-form" onSubmit={onCreateCompany}>
             <label htmlFor="first-company-name">Company name</label>
-            <input
-              id="first-company-name"
-              value={newCompanyName}
-              onChange={(event: any) => onNewCompanyNameChange(event.target.value)}
-              placeholder="e.g. Acme Labs"
-              disabled={isCreatingCompany}
-              autoComplete="organization"
+              <input
+                id="first-company-name"
+                value={newCompanyName}
+                onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                  onNewCompanyNameChange(event.target.value)}
+                placeholder="e.g. Acme Labs"
+                disabled={isCreatingCompany}
+                autoComplete="organization"
             />
             <button type="submit" disabled={isCreatingCompany}>
               {isCreatingCompany ? "Creating..." : "Create company"}

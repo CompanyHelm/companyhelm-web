@@ -1,4 +1,26 @@
+import type { ChangeEvent, FormEvent } from "react";
 import { CreationModal } from "./CreationModal.tsx";
+
+interface TaskOption {
+  id: string | number;
+  name: string;
+}
+
+interface TaskCreateModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  tasks: TaskOption[];
+  name: string;
+  description: string;
+  parentTaskId: string;
+  dependencyTaskIds: string[];
+  isSubmittingTask: boolean;
+  onNameChange: (value: string) => void;
+  onDescriptionChange: (value: string) => void;
+  onParentTaskIdChange: (value: string) => void;
+  onDependencyTaskIdsChange: (value: string[]) => void;
+  onCreateTask: (event: FormEvent<HTMLFormElement>) => Promise<boolean> | boolean;
+}
 
 export function TaskCreateModal({
   isOpen,
@@ -14,8 +36,8 @@ export function TaskCreateModal({
   onParentTaskIdChange,
   onDependencyTaskIdsChange,
   onCreateTask,
-}: any) {
-  async function handleSubmit(event: any) {
+}: TaskCreateModalProps) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     const didCreate = await onCreateTask(event);
     if (didCreate) {
       onClose();
@@ -37,7 +59,7 @@ export function TaskCreateModal({
           name="name"
           placeholder="e.g. Build API docs"
           value={name}
-          onChange={(event: any) => onNameChange(event.target.value)}
+          onChange={(event: ChangeEvent<HTMLInputElement>) => onNameChange(event.target.value)}
           required
           autoFocus
         />
@@ -49,7 +71,7 @@ export function TaskCreateModal({
           rows={3}
           placeholder="Optional details..."
           value={description}
-          onChange={(event: any) => onDescriptionChange(event.target.value)}
+          onChange={(event: ChangeEvent<HTMLTextAreaElement>) => onDescriptionChange(event.target.value)}
         />
 
         <label htmlFor="task-parent">Parent task</label>
@@ -57,10 +79,10 @@ export function TaskCreateModal({
           id="task-parent"
           name="parentTaskId"
           value={String(parentTaskId || "")}
-          onChange={(event: any) => onParentTaskIdChange(event.target.value)}
+          onChange={(event: ChangeEvent<HTMLSelectElement>) => onParentTaskIdChange(event.target.value)}
         >
           <option value="">No parent task</option>
-          {tasks.map((task: any) => (
+          {tasks.map((task) => (
             <option key={`create-parent-${task.id}`} value={String(task.id)}>
               {task.name}
             </option>
@@ -74,13 +96,13 @@ export function TaskCreateModal({
           name="dependencyTaskIds"
           multiple
           value={Array.isArray(dependencyTaskIds) ? dependencyTaskIds : []}
-          onChange={(event: any) =>
+          onChange={(event: ChangeEvent<HTMLSelectElement>) =>
             onDependencyTaskIdsChange(
-              Array.from(event.target.selectedOptions).map((option: any) => option.value),
+              Array.from(event.target.selectedOptions).map((option) => option.value),
             )
           }
         >
-          {tasks.map((task: any) => (
+          {tasks.map((task) => (
             <option key={`create-dependency-${task.id}`} value={String(task.id)}>
               {task.name}
             </option>

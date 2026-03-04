@@ -8,11 +8,25 @@ import {
   Handle,
   Position,
   MarkerType,
+  type Connection,
+  type Edge,
+  type IsValidConnection,
+  type Node,
+  type NodeMouseHandler,
+  type NodeProps,
+  type NodeTypes,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import ELK from "elkjs/lib/elk.bundled.js";
 
-const elk: any = new (ELK as any)();
+import type { TaskItem } from "../types/domain.ts";
+
+type ElkInstance = {
+  layout: (graph: unknown) => Promise<unknown>;
+};
+
+const ElkConstructor = ELK as unknown as { new (): ElkInstance };
+const elk = new ElkConstructor();
 
 const ELK_OPTIONS = {
   "elk.algorithm": "layered",
@@ -31,7 +45,37 @@ const BLOCK_VERTICAL_GAP = 46;
 const BLOCK_EDGE_ROUTE_BASE_OFFSET = 30;
 const BLOCK_EDGE_ROUTE_LANE_GAP = 24;
 
-function TaskNode({ data }: any) {
+type TaskGraphNodeData = {
+  label: string;
+  status: string;
+  commentCount: number;
+  onClick: () => void;
+};
+
+type TaskGraphNode = Node<TaskGraphNodeData, "task">;
+type TaskGraphEdge = Edge & {
+  pathOptions?: {
+    borderRadius?: number;
+    offset?: number;
+  };
+};
+
+type XYPosition = {
+  x: number;
+  y: number;
+};
+
+type ElkLayoutNode = {
+  id?: string;
+  x?: number;
+  y?: number;
+};
+
+type ElkLayoutResult = {
+  children?: ElkLayoutNode[];
+};
+
+function TaskNode({ data }: NodeProps<TaskGraphNode>) {
   return (
     <div className={`task-graph-node task-graph-node-${data.status}`} onClick={data.onClick}>
       <Handle type="target" id="left" position={Position.Left} />
@@ -53,30 +97,31 @@ function TaskNode({ data }: any) {
   );
 }
 
-const nodeTypes = { task: TaskNode };
+const nodeTypes: NodeTypes = { task: TaskNode };
 
-function buildGraphElements(tasks: any) {
+function buildGraphElements(tasks: TaskItem[]) {
   const taskArray = Array.isArray(tasks) ? tasks : [];
   const taskIds = new Set(
     taskArray
-      .map((task: any) => String(task?.id || "").trim())
+      .map((task) => String(task.id || "").trim())
       .filter(Boolean),
   );
 
-  const nodes = taskArray.map((task: any) => ({
-    id: String(task?.id || "").trim(),
+  const nodes: TaskGraphNode[] = taskArray.map((task) => ({
+    id: String(task.id || "").trim(),
     type: "task",
     data: {
-      label: task?.name || `Task ${task?.id}`,
+      label: task.name || `Task ${task.id}`,
       status: task.status || "draft",
       commentCount: Array.isArray(task.comments) ? task.comments.length : 0,
+      onClick: () => undefined,
     },
     position: { x: 0, y: 0 },
   }));
 
-  const edges: any[] = [];
+  const edges: TaskGraphEdge[] = [];
   for (const task of taskArray) {
-    const taskId = String(task?.id || "").trim();
+    const taskId = String(task.id || "").trim();
     if (!taskId) {
       continue;
     }
@@ -99,7 +144,7 @@ function buildGraphElements(tasks: any) {
       }
     }
 
-    const parentTaskId = String(task?.parentTaskId || "").trim();
+    const parentTaskId = String(task.parentTaskId || "").trim();
     if (!parentTaskId || parentTaskId === taskId || !taskIds.has(parentTaskId)) {
       continue;
     }
@@ -132,57 +177,77 @@ function buildGraphElements(tasks: any) {
   return { nodes, edges };
 }
 
-function computeParentChildLevels(nodes: any, edges: any) {
-  const parentById = new Map<any, any>();
+function computeParentChildLevels(nodes: TaskGraphNode[], edges: TaskGraphEdge[]) {
+  const parentById = new Map<string, string>();
   for (const edge of edges) {
     if (edge.id.startsWith("child-")) {
       parentById.set(edge.target, edge.source);
     }
   }
 
-  const levelById = new Map<any, any>();
-  function getLevel(nodeId: any, visited: any = new Set<any>()): any {
-    if (levelById.has(nodeId)) return levelById.get(nodeId);
-    if (visited.has(nodeId)) return 0;
+  const levelById = new Map<string, number>();
+  function getLevel(nodeId: string, visited: Set<string> = new Set<string>()): number {
+    if (levelById.has(nodeId)) {
+      return levelById.get(nodeId) || 0;
+    }
+    if (visited.has(nodeId)) {
+      return 0;
+    }
     visited.add(nodeId);
     const parentId = parentById.get(nodeId);
-    const level: any = parentId ? getLevel(parentId, visited) + 1 : 0;
+    const level = parentId ? getLevel(parentId, visited) + 1 : 0;
     levelById.set(nodeId, level);
     return level;
   }
-  for (const node of nodes) getLevel(node.id);
+  for (const node of nodes) {
+    getLevel(node.id);
+  }
   return levelById;
 }
 
-function assignPositions(nodes: any, edges: any, xById: any, yById: any, levelById: any) {
-  const parentById = new Map<any, any>();
-  const childrenByParent = new Map<any, any>();
+function assignPositions(
+  nodes: TaskGraphNode[],
+  edges: TaskGraphEdge[],
+  xById: Map<string, number>,
+  yById: Map<string, number>,
+  levelById: Map<string, number>,
+) {
+  const parentById = new Map<string, string>();
+  const childrenByParent = new Map<string, string[]>();
   for (const edge of edges) {
-    if (!edge.id.startsWith("child-")) continue;
+    if (!edge.id.startsWith("child-")) {
+      continue;
+    }
     parentById.set(edge.target, edge.source);
-    if (!childrenByParent.has(edge.source)) childrenByParent.set(edge.source, []);
-    childrenByParent.get(edge.source).push(edge.target);
+    if (!childrenByParent.has(edge.source)) {
+      childrenByParent.set(edge.source, []);
+    }
+    childrenByParent.get(edge.source)?.push(edge.target);
   }
 
-  const orderedChildrenByParent = new Map<any, any>();
+  const orderedChildrenByParent = new Map<string, string[]>();
   for (const [parentId, childIds] of childrenByParent.entries()) {
     orderedChildrenByParent.set(
       parentId,
-      [...childIds].sort((a: any, b: any) => (xById.get(a) || 0) - (xById.get(b) || 0)),
+      [...childIds].sort((leftId, rightId) => (xById.get(leftId) || 0) - (xById.get(rightId) || 0)),
     );
   }
 
-  const subtreeWidthById = new Map<any, any>();
-  function getSubtreeWidth(nodeId: any, visiting: any = new Set<any>()) {
-    if (subtreeWidthById.has(nodeId)) return subtreeWidthById.get(nodeId);
-    if (visiting.has(nodeId)) return NODE_WIDTH;
+  const subtreeWidthById = new Map<string, number>();
+  function getSubtreeWidth(nodeId: string, visiting: Set<string> = new Set<string>()) {
+    if (subtreeWidthById.has(nodeId)) {
+      return subtreeWidthById.get(nodeId) || NODE_WIDTH;
+    }
+    if (visiting.has(nodeId)) {
+      return NODE_WIDTH;
+    }
     visiting.add(nodeId);
 
     const childIds = orderedChildrenByParent.get(nodeId) || [];
     let width = NODE_WIDTH;
     if (childIds.length > 0) {
       const childrenTotalWidth = childIds.reduce(
-        (sum: any, childId: any) => sum + getSubtreeWidth(childId, visiting),
+        (sum, childId) => sum + getSubtreeWidth(childId, visiting),
         0,
       ) + (childIds.length - 1) * HORIZONTAL_GAP;
       width = Math.max(NODE_WIDTH, childrenTotalWidth);
@@ -197,10 +262,17 @@ function assignPositions(nodes: any, edges: any, xById: any, yById: any, levelBy
     getSubtreeWidth(node.id);
   }
 
-  const positionById = new Map<any, any>();
+  const positionById = new Map<string, XYPosition>();
 
-  function placeSubtree(nodeId: any, leftX: any, fallbackLevel: any = 0, visiting: any = new Set<any>()) {
-    if (visiting.has(nodeId)) return;
+  function placeSubtree(
+    nodeId: string,
+    leftX: number,
+    fallbackLevel = 0,
+    visiting: Set<string> = new Set<string>(),
+  ) {
+    if (visiting.has(nodeId)) {
+      return;
+    }
     visiting.add(nodeId);
 
     const width = subtreeWidthById.get(nodeId) || NODE_WIDTH;
@@ -213,7 +285,7 @@ function assignPositions(nodes: any, edges: any, xById: any, yById: any, levelBy
     const childIds = orderedChildrenByParent.get(nodeId) || [];
     if (childIds.length > 0) {
       const childrenTotalWidth = childIds.reduce(
-        (sum: any, childId: any) => sum + (subtreeWidthById.get(childId) || NODE_WIDTH),
+        (sum, childId) => sum + (subtreeWidthById.get(childId) || NODE_WIDTH),
         0,
       ) + (childIds.length - 1) * HORIZONTAL_GAP;
       let childLeft = leftX + (width - childrenTotalWidth) / 2;
@@ -229,8 +301,8 @@ function assignPositions(nodes: any, edges: any, xById: any, yById: any, levelBy
   }
 
   const roots = nodes
-    .filter((node: any) => !parentById.has(node.id))
-    .sort((a: any, b: any) => (xById.get(a.id) || 0) - (xById.get(b.id) || 0));
+    .filter((node) => !parentById.has(node.id))
+    .sort((leftNode, rightNode) => (xById.get(leftNode.id) || 0) - (xById.get(rightNode.id) || 0));
 
   let nextRootLeft = 0;
   for (const root of roots) {
@@ -239,11 +311,13 @@ function assignPositions(nodes: any, edges: any, xById: any, yById: any, levelBy
   }
 
   const remainingNodes = nodes
-    .filter((node: any) => !positionById.has(node.id))
-    .sort((a: any, b: any) => {
-      const levelDiff = (levelById.get(a.id) || 0) - (levelById.get(b.id) || 0);
-      if (levelDiff !== 0) return levelDiff;
-      return (xById.get(a.id) || 0) - (xById.get(b.id) || 0);
+    .filter((node) => !positionById.has(node.id))
+    .sort((leftNode, rightNode) => {
+      const levelDiff = (levelById.get(leftNode.id) || 0) - (levelById.get(rightNode.id) || 0);
+      if (levelDiff !== 0) {
+        return levelDiff;
+      }
+      return (xById.get(leftNode.id) || 0) - (xById.get(rightNode.id) || 0);
     });
 
   let fallbackX = nextRootLeft;
@@ -255,16 +329,22 @@ function assignPositions(nodes: any, edges: any, xById: any, yById: any, levelBy
     fallbackX += NODE_WIDTH + HORIZONTAL_GAP;
   }
 
-  const dependencySourcesByTarget = new Map<any, any>();
+  const dependencySourcesByTarget = new Map<string, string[]>();
   for (const edge of edges) {
-    if (!edge.id.startsWith("dependency-")) continue;
-    if (!dependencySourcesByTarget.has(edge.target)) dependencySourcesByTarget.set(edge.target, []);
-    dependencySourcesByTarget.get(edge.target).push(edge.source);
+    if (!edge.id.startsWith("dependency-")) {
+      continue;
+    }
+    if (!dependencySourcesByTarget.has(edge.target)) {
+      dependencySourcesByTarget.set(edge.target, []);
+    }
+    dependencySourcesByTarget.get(edge.target)?.push(edge.source);
   }
 
-  const blockedBySource = new Map<any, any>();
+  const blockedBySource = new Map<string, string[]>();
   for (const [targetId, sourceIds] of dependencySourcesByTarget.entries()) {
-    if (sourceIds.length === 0 || !positionById.has(targetId)) continue;
+    if (sourceIds.length === 0 || !positionById.has(targetId)) {
+      continue;
+    }
 
     const targetCenterX = (positionById.get(targetId)?.x ?? 0) + NODE_WIDTH / 2;
     let chosenSourceId = sourceIds[0];
@@ -272,7 +352,9 @@ function assignPositions(nodes: any, edges: any, xById: any, yById: any, levelBy
 
     for (const sourceId of sourceIds) {
       const sourcePos = positionById.get(sourceId);
-      if (!sourcePos) continue;
+      if (!sourcePos) {
+        continue;
+      }
       const sourceCenterX = sourcePos.x + NODE_WIDTH / 2;
       const horizontalDistance = targetCenterX - sourceCenterX;
       const distance =
@@ -285,12 +367,16 @@ function assignPositions(nodes: any, edges: any, xById: any, yById: any, levelBy
       }
     }
 
-    if (!blockedBySource.has(chosenSourceId)) blockedBySource.set(chosenSourceId, []);
-    blockedBySource.get(chosenSourceId).push(targetId);
+    if (!blockedBySource.has(chosenSourceId)) {
+      blockedBySource.set(chosenSourceId, []);
+    }
+    blockedBySource.get(chosenSourceId)?.push(targetId);
   }
 
-  function shiftSubtreeY(nodeId: any, deltaY: any, visiting: any = new Set<any>()) {
-    if (visiting.has(nodeId)) return;
+  function shiftSubtreeY(nodeId: string, deltaY: number, visiting: Set<string> = new Set<string>()) {
+    if (visiting.has(nodeId)) {
+      return;
+    }
     visiting.add(nodeId);
 
     const nodePos = positionById.get(nodeId);
@@ -307,30 +393,38 @@ function assignPositions(nodes: any, edges: any, xById: any, yById: any, levelBy
   }
 
   const blockers = [...blockedBySource.keys()].sort(
-    (a: any, b: any) => (positionById.get(a)?.x ?? 0) - (positionById.get(b)?.x ?? 0),
+    (leftId, rightId) => (positionById.get(leftId)?.x ?? 0) - (positionById.get(rightId)?.x ?? 0),
   );
 
   for (const blockerId of blockers) {
-    const blockedTargets = [...(blockedBySource.get(blockerId) || [])].sort((a: any, b: any) => {
-      const yDiff = (yById.get(a) || 0) - (yById.get(b) || 0);
-      if (yDiff !== 0) return yDiff;
-      return (xById.get(a) || 0) - (xById.get(b) || 0);
+    const blockedTargets = [...(blockedBySource.get(blockerId) || [])].sort((leftId, rightId) => {
+      const yDiff = (yById.get(leftId) || 0) - (yById.get(rightId) || 0);
+      if (yDiff !== 0) {
+        return yDiff;
+      }
+      return (xById.get(leftId) || 0) - (xById.get(rightId) || 0);
     });
 
     const blockerPos = positionById.get(blockerId);
-    if (!blockerPos || blockedTargets.length === 0) continue;
+    if (!blockerPos || blockedTargets.length === 0) {
+      continue;
+    }
 
     const blockerCenterY = blockerPos.y + NODE_HEIGHT / 2;
-    for (let index = 0; index < blockedTargets.length; index++) {
+    for (let index = 0; index < blockedTargets.length; index += 1) {
       const targetId = blockedTargets[index];
       const targetPos = positionById.get(targetId);
-      if (!targetPos) continue;
+      if (!targetPos) {
+        continue;
+      }
 
       const centeredLane = index - (blockedTargets.length - 1) / 2;
       const desiredCenterY = blockerCenterY + centeredLane * (NODE_HEIGHT + BLOCK_VERTICAL_GAP);
       const desiredY = desiredCenterY - NODE_HEIGHT / 2;
       const deltaY = desiredY - targetPos.y;
-      if (Math.abs(deltaY) < 0.5) continue;
+      if (Math.abs(deltaY) < 0.5) {
+        continue;
+      }
 
       shiftSubtreeY(targetId, deltaY);
     }
@@ -339,29 +433,35 @@ function assignPositions(nodes: any, edges: any, xById: any, yById: any, levelBy
   return positionById;
 }
 
-function routeDependencyEdges(edges: any, nodesWithPositions: any) {
-  const positionById = new Map(
-    nodesWithPositions.map((node: any) => [node.id, node.position]),
+function routeDependencyEdges(edges: TaskGraphEdge[], nodesWithPositions: TaskGraphNode[]) {
+  const positionById = new Map<string, XYPosition>(
+    nodesWithPositions.map((node) => [node.id, node.position]),
   );
-  const dependencyEdgesBySource = new Map<any, any>();
+  const dependencyEdgesBySource = new Map<string, TaskGraphEdge[]>();
 
   for (const edge of edges) {
-    if (!edge.id.startsWith("dependency-")) continue;
-    if (!dependencyEdgesBySource.has(edge.source)) dependencyEdgesBySource.set(edge.source, []);
-    dependencyEdgesBySource.get(edge.source).push(edge);
+    if (!edge.id.startsWith("dependency-")) {
+      continue;
+    }
+    if (!dependencyEdgesBySource.has(edge.source)) {
+      dependencyEdgesBySource.set(edge.source, []);
+    }
+    dependencyEdgesBySource.get(edge.source)?.push(edge);
   }
 
-  const centeredLaneByEdgeId = new Map<any, any>();
+  const centeredLaneByEdgeId = new Map<string, number>();
   for (const sourceEdges of dependencyEdgesBySource.values()) {
-    const sortedEdges = [...sourceEdges].sort((a: any, b: any) => {
-      const centerAY = ((positionById.get(a.target) as any)?.y ?? 0) + NODE_HEIGHT / 2;
-      const centerBY = ((positionById.get(b.target) as any)?.y ?? 0) + NODE_HEIGHT / 2;
+    const sortedEdges = [...sourceEdges].sort((leftEdge, rightEdge) => {
+      const centerAY = (positionById.get(leftEdge.target)?.y ?? 0) + NODE_HEIGHT / 2;
+      const centerBY = (positionById.get(rightEdge.target)?.y ?? 0) + NODE_HEIGHT / 2;
       const yDiff = centerAY - centerBY;
-      if (yDiff !== 0) return yDiff;
-      return a.target.localeCompare(b.target);
+      if (yDiff !== 0) {
+        return yDiff;
+      }
+      return leftEdge.target.localeCompare(rightEdge.target);
     });
 
-    for (let index = 0; index < sortedEdges.length; index++) {
+    for (let index = 0; index < sortedEdges.length; index += 1) {
       centeredLaneByEdgeId.set(
         sortedEdges[index].id,
         index - (sortedEdges.length - 1) / 2,
@@ -369,8 +469,10 @@ function routeDependencyEdges(edges: any, nodesWithPositions: any) {
     }
   }
 
-  return edges.map((edge: any) => {
-    if (!edge.id.startsWith("dependency-")) return edge;
+  return edges.map((edge) => {
+    if (!edge.id.startsWith("dependency-")) {
+      return edge;
+    }
     const centeredLane = centeredLaneByEdgeId.get(edge.id) || 0;
     const laneOffset = BLOCK_EDGE_ROUTE_BASE_OFFSET + Math.abs(centeredLane) * BLOCK_EDGE_ROUTE_LANE_GAP;
 
@@ -385,37 +487,47 @@ function routeDependencyEdges(edges: any, nodesWithPositions: any) {
   });
 }
 
-async function computeElkLayout(nodes: any, edges: any) {
-  const depEdges = edges.filter((e: any) => e.id.startsWith("dependency-"));
+async function computeElkLayout(nodes: TaskGraphNode[], edges: TaskGraphEdge[]) {
+  const depEdges = edges.filter((edge) => edge.id.startsWith("dependency-"));
   const levelById = computeParentChildLevels(nodes, edges);
 
   const graph = {
     id: "root",
     layoutOptions: ELK_OPTIONS,
-    children: nodes.map((node: any) => ({ id: node.id, width: NODE_WIDTH, height: NODE_HEIGHT })),
-    edges: depEdges.map((edge: any) => ({ id: edge.id, sources: [edge.source], targets: [edge.target] })),
+    children: nodes.map((node) => ({ id: node.id, width: NODE_WIDTH, height: NODE_HEIGHT })),
+    edges: depEdges.map((edge) => ({ id: edge.id, sources: [edge.source], targets: [edge.target] })),
   };
 
-  const layoutResult = await elk.layout(graph);
-  const xById = new Map<any, any>();
-  const yById = new Map<any, any>();
+  const layoutResult = await elk.layout(graph) as ElkLayoutResult;
+  const xById = new Map<string, number>();
+  const yById = new Map<string, number>();
   for (const child of layoutResult.children || []) {
-    xById.set(child.id, child.x || 0);
-    yById.set(child.id, child.y || 0);
+    const childId = String(child.id || "").trim();
+    if (!childId) {
+      continue;
+    }
+    xById.set(childId, child.x || 0);
+    yById.set(childId, child.y || 0);
   }
 
   const positionById = assignPositions(nodes, edges, xById, yById, levelById);
 
-  return nodes.map((node: any) => ({
+  return nodes.map((node) => ({
     ...node,
     position: positionById.get(node.id) || node.position,
   }));
 }
 
-export function TaskGraphView({ tasks, onTaskClick, onAddDependency }: any) {
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const [isLayoutReady, setIsLayoutReady] = useState<any>(false);
+interface TaskGraphViewProps {
+  tasks: TaskItem[];
+  onTaskClick: (taskId: string) => void;
+  onAddDependency?: (taskId: string, dependencyTaskId: string) => void;
+}
+
+export function TaskGraphView({ tasks, onTaskClick, onAddDependency }: TaskGraphViewProps) {
+  const [nodes, setNodes, onNodesChange] = useNodesState<TaskGraphNode>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<TaskGraphEdge>([]);
+  const [isLayoutReady, setIsLayoutReady] = useState(false);
 
   const { nodes: rawNodes, edges: rawEdges } = useMemo(
     () => buildGraphElements(tasks),
@@ -431,8 +543,8 @@ export function TaskGraphView({ tasks, onTaskClick, onAddDependency }: any) {
     }
 
     setIsLayoutReady(false);
-    computeElkLayout(rawNodes, rawEdges).then((layoutNodes: any) => {
-      const nodesWithHandlers = layoutNodes.map((node: any) => ({
+    computeElkLayout(rawNodes, rawEdges).then((layoutNodes) => {
+      const nodesWithHandlers: TaskGraphNode[] = layoutNodes.map((node) => ({
         ...node,
         data: {
           ...node.data,
@@ -446,25 +558,31 @@ export function TaskGraphView({ tasks, onTaskClick, onAddDependency }: any) {
     });
   }, [rawNodes, rawEdges, onTaskClick, setNodes, setEdges]);
 
-  const handleNodeClick = useCallback(
-    (_event: any, node: any) => {
+  const handleNodeClick = useCallback<NodeMouseHandler<TaskGraphNode>>(
+    (_event, node) => {
       onTaskClick(node.id);
     },
     [onTaskClick],
   );
 
   const handleConnect = useCallback(
-    (connection: any) => {
-      if (onAddDependency) {
-        // source = blocker (dependency), target = the task that depends on it
-        onAddDependency(connection.target, connection.source);
+    (connection: Connection) => {
+      if (!onAddDependency) {
+        return;
       }
+      const targetTaskId = String(connection.target || "").trim();
+      const dependencyTaskId = String(connection.source || "").trim();
+      if (!targetTaskId || !dependencyTaskId) {
+        return;
+      }
+      // source = blocker (dependency), target = the task that depends on it
+      onAddDependency(targetTaskId, dependencyTaskId);
     },
     [onAddDependency],
   );
 
-  const isValidConnection = useCallback(
-    (connection: any) => connection.sourceHandle === "right" && connection.targetHandle === "left",
+  const isValidConnection = useCallback<IsValidConnection>(
+    (connection) => connection.sourceHandle === "right" && connection.targetHandle === "left",
     [],
   );
 

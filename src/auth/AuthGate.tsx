@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { ChangeEvent, FormEvent, ReactNode } from "react";
 import { authProvider } from "./runtime.ts";
 import { normalizePathname, setBrowserPath } from "../utils/path.ts";
 
@@ -6,7 +7,20 @@ const SIGN_IN_MODE = "signIn";
 const SIGN_UP_MODE = "signUp";
 const SIGN_IN_PATH = "/sign-in";
 
-function getInitialFormState() {
+type AuthMode = typeof SIGN_IN_MODE | typeof SIGN_UP_MODE;
+
+interface AuthFormState {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+}
+
+interface AuthGateProps {
+  children: ReactNode;
+}
+
+function getInitialFormState(): AuthFormState {
   return {
     firstName: "",
     lastName: "",
@@ -15,13 +29,13 @@ function getInitialFormState() {
   };
 }
 
-export default function AuthGate({ children }: any) {
-  const [mode, setMode] = useState<any>(SIGN_IN_MODE);
-  const [formState, setFormState] = useState<any>(getInitialFormState);
-  const [isSubmitting, setIsSubmitting] = useState<any>(false);
-  const [errorMessage, setErrorMessage] = useState<any>("");
-  const [successMessage, setSuccessMessage] = useState<any>("");
-  const [isAuthenticated, setIsAuthenticated] = useState<any>(() => authProvider.hasSession());
+export default function AuthGate({ children }: AuthGateProps) {
+  const [mode, setMode] = useState<AuthMode>(SIGN_IN_MODE);
+  const [formState, setFormState] = useState<AuthFormState>(getInitialFormState);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [isAuthenticated, setIsAuthenticated] = useState(() => authProvider.hasSession());
   const requiresPassword = Boolean(authProvider.requiresPassword);
   const requiresProfileOnSignUp = Boolean(authProvider.requiresProfileOnSignUp);
 
@@ -46,20 +60,20 @@ export default function AuthGate({ children }: any) {
   }, [isAuthenticated]);
 
   useEffect(() => {
-    return authProvider.subscribeAuthStateChange((hasSession: any) => {
+    return authProvider.subscribeAuthStateChange((hasSession: boolean) => {
       setIsAuthenticated(Boolean(hasSession));
     });
   }, []);
 
-  const handleChange = (fieldName: any) => (event: any) => {
+  const handleChange = (fieldName: keyof AuthFormState) => (event: ChangeEvent<HTMLInputElement>) => {
     const nextValue = event?.target?.value ?? "";
-    setFormState((previous: any) => ({
+    setFormState((previous) => ({
       ...previous,
       [fieldName]: nextValue,
     }));
   };
 
-  const handleSubmit = async (event: any) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (isSubmitting) {
       return;
@@ -87,10 +101,16 @@ export default function AuthGate({ children }: any) {
       const hasSession = authProvider.hasSession();
       setIsAuthenticated(hasSession);
       setFormState(getInitialFormState());
-      if (!hasSession && result?.requiresEmailConfirmation) {
+      const requiresEmailConfirmation = Boolean(
+        result
+        && typeof result === "object"
+        && "requiresEmailConfirmation" in result
+        && (result as { requiresEmailConfirmation?: boolean }).requiresEmailConfirmation,
+      );
+      if (!hasSession && requiresEmailConfirmation) {
         setSuccessMessage("Sign up succeeded. Check your email to confirm your account before signing in.");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       setErrorMessage(error instanceof Error ? error.message : "Authentication failed.");
     } finally {
       setIsSubmitting(false);

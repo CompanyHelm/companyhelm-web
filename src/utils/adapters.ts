@@ -1,26 +1,52 @@
 import { AVAILABLE_AGENT_SDKS, DEFAULT_AGENT_SDK } from "./constants.ts";
 
-const companyApiRunnerMetadataById = new Map<any, any>();
-const companyApiAgentMetadataById = new Map<any, any>();
-const companyApiThreadMetadataById = new Map<any, any>();
+type LooseRecord = Record<string, unknown>;
+type RunnerModelEntry = {
+  id: string;
+  name: string;
+  reasoningLevels: string[];
+};
 
-function normalizeAgentSdkValue(value: any) {
+type RunnerSdkEntry = {
+  id: string;
+  name: string;
+  availableModels: RunnerModelEntry[];
+};
+
+type RunnerLike = {
+  availableAgentSdks?: unknown;
+  agentSdks?: unknown;
+  [key: string]: unknown;
+};
+
+const companyApiRunnerMetadataById = new Map<string, LooseRecord>();
+const companyApiAgentMetadataById = new Map<string, LooseRecord>();
+const companyApiThreadMetadataById = new Map<string, LooseRecord>();
+
+function toRecord(value: unknown): LooseRecord {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  return value as LooseRecord;
+}
+
+function normalizeAgentSdkValue(value: unknown): string {
   return String(value || "")
     .trim()
     .toLowerCase();
 }
 
-function isAvailableAgentSdk(value: any) {
+function isAvailableAgentSdk(value: unknown): boolean {
   return AVAILABLE_AGENT_SDKS.includes(normalizeAgentSdkValue(value));
 }
 
-function normalizeUniqueStringList(values: any) {
+function normalizeUniqueStringList(values: unknown): string[] {
   if (!Array.isArray(values)) {
     return [];
   }
 
-  const normalizedValues: any[] = [];
-  const seenValues = new Set<any>();
+  const normalizedValues: string[] = [];
+  const seenValues = new Set<string>();
   for (const rawValue of values) {
     const cleanValue = String(rawValue || "").trim();
     if (!cleanValue || seenValues.has(cleanValue)) {
@@ -32,7 +58,7 @@ function normalizeUniqueStringList(values: any) {
   return normalizedValues;
 }
 
-function normalizeOptionalInstructions(value: any) {
+function normalizeOptionalInstructions(value: unknown): string | null {
   if (value === undefined || value === null) {
     return null;
   }
@@ -40,7 +66,7 @@ function normalizeOptionalInstructions(value: any) {
   return normalizedValue || null;
 }
 
-function normalizeRunnerAvailableAgentSdks(runner: any) {
+function normalizeRunnerAvailableAgentSdks(runner: RunnerLike): RunnerSdkEntry[] {
   const runnerSdks = Array.isArray(runner?.availableAgentSdks)
     ? runner.availableAgentSdks
     : Array.isArray(runner?.agentSdks)
@@ -48,45 +74,50 @@ function normalizeRunnerAvailableAgentSdks(runner: any) {
       : [];
 
   return runnerSdks
-    .map((sdkEntry: any) => ({
-      id: resolveLegacyId(sdkEntry?.id),
-      name: normalizeAgentSdkValue(sdkEntry?.name),
+    .map((sdkEntry) => {
+      const sdkRecord = toRecord(sdkEntry);
+      return {
+      id: resolveLegacyId(sdkRecord.id),
+      name: normalizeAgentSdkValue(sdkRecord.name),
       availableModels: (
-        Array.isArray(sdkEntry?.availableModels)
-          ? sdkEntry.availableModels
-          : Array.isArray(sdkEntry?.models)
-            ? sdkEntry.models
+        Array.isArray(sdkRecord.availableModels)
+          ? sdkRecord.availableModels
+          : Array.isArray(sdkRecord.models)
+            ? sdkRecord.models
             : []
       )
-        .map((modelEntry: any) => ({
-          id: resolveLegacyId(modelEntry?.id),
-          name: String(modelEntry?.name || "").trim(),
+        .map((modelEntry) => {
+          const modelRecord = toRecord(modelEntry);
+          const rawReasoningLevels = Array.isArray(modelRecord.reasoningLevels)
+            ? modelRecord.reasoningLevels
+            : Array.isArray(modelRecord.reasoning)
+              ? modelRecord.reasoning
+              : [modelRecord.reasoningLevels, modelRecord.reasoning];
+          return {
+          id: resolveLegacyId(modelRecord.id),
+          name: String(modelRecord.name || "").trim(),
           reasoningLevels: [
             ...new Set(
-              (
-                Array.isArray(modelEntry?.reasoningLevels)
-                  ? modelEntry.reasoningLevels
-                  : Array.isArray(modelEntry?.reasoning)
-                    ? modelEntry.reasoning
-                    : [modelEntry?.reasoningLevels, modelEntry?.reasoning]
-              )
-                .map((value: any) => String(value || "").trim())
+              rawReasoningLevels
+                .map((value) => String(value || "").trim())
                 .filter(Boolean),
             ),
-          ].sort((a: any, b: any) => a.localeCompare(b)),
-        }))
-        .filter((modelEntry: any) => Boolean(modelEntry.name))
-        .sort((leftModel: any, rightModel: any) => leftModel.name.localeCompare(rightModel.name)),
-    }))
-    .filter((sdkEntry: any) => Boolean(sdkEntry.name))
-    .sort((leftSdk: any, rightSdk: any) => leftSdk.name.localeCompare(rightSdk.name));
+          ].sort((leftLevel, rightLevel) => leftLevel.localeCompare(rightLevel)),
+          };
+        })
+        .filter((modelEntry) => Boolean(modelEntry.name))
+        .sort((leftModel, rightModel) => leftModel.name.localeCompare(rightModel.name)),
+      };
+    })
+    .filter((sdkEntry) => Boolean(sdkEntry.name))
+    .sort((leftSdk, rightSdk) => leftSdk.name.localeCompare(rightSdk.name));
 }
 
-export function normalizeCompanyApiRunnerStatus(value: any) {
+export function normalizeCompanyApiRunnerStatus(value: unknown): "ready" | "disconnected" {
   return String(value || "").trim().toLowerCase() === "connected" ? "ready" : "disconnected";
 }
 
-export function resolveLegacyId(...values: any) {
+export function resolveLegacyId(...values: unknown[]): string {
   for (const value of values) {
     const resolved = String(value || "").trim();
     if (resolved) {
@@ -96,37 +127,44 @@ export function resolveLegacyId(...values: any) {
   return "";
 }
 
-export function toConnectionNodes(connection: any) {
-  if (!connection || !Array.isArray(connection.edges)) {
+export function toConnectionNodes(connection: unknown): unknown[] {
+  const connectionRecord = toRecord(connection);
+  const edges = connectionRecord.edges;
+  if (!Array.isArray(edges)) {
     return [];
   }
-  return connection.edges.map((edge: any) => edge?.node).filter(Boolean);
+  return edges
+    .map((edge) => toRecord(edge).node)
+    .filter(Boolean);
 }
 
-export function toLegacyRunnerPayload(agentRunner: any) {
-  const runnerId = resolveLegacyId(agentRunner?.id);
-  const runnerName = resolveLegacyId(agentRunner?.name);
+export function toLegacyRunnerPayload(agentRunner: LooseRecord | null | undefined) {
+  const runnerRecord = toRecord(agentRunner);
+  const runnerId = resolveLegacyId(runnerRecord.id);
+  const runnerName = resolveLegacyId(runnerRecord.name);
   const nowIso = new Date().toISOString();
-  const currentMetadata = companyApiRunnerMetadataById.get(runnerId) || {};
-  const runnerStatus = normalizeCompanyApiRunnerStatus(agentRunner?.status);
-  const availableAgentSdks = normalizeRunnerAvailableAgentSdks(agentRunner);
+  const currentMetadata: LooseRecord = companyApiRunnerMetadataById.get(runnerId) || {};
+  const runnerStatus = normalizeCompanyApiRunnerStatus(runnerRecord.status);
+  const availableAgentSdks = normalizeRunnerAvailableAgentSdks(runnerRecord);
 
-  const nextMetadata = {
-    name: runnerName || currentMetadata.name || runnerId,
-    createdAt: currentMetadata.createdAt || nowIso,
+  const nextMetadata: LooseRecord = {
+    name: runnerName || resolveLegacyId(currentMetadata.name) || runnerId,
+    createdAt: resolveLegacyId(currentMetadata.createdAt) || nowIso,
     updatedAt: nowIso,
-    lastSeenAt: runnerStatus === "ready" ? nowIso : currentMetadata.lastSeenAt || null,
+    lastSeenAt: runnerStatus === "ready" ? nowIso : (currentMetadata.lastSeenAt as string | null) || null,
     lastHealthCheckAt:
-      runnerStatus === "ready" ? nowIso : currentMetadata.lastHealthCheckAt || null,
+      runnerStatus === "ready" ? nowIso : (currentMetadata.lastHealthCheckAt as string | null) || null,
     availableAgentSdks,
   };
   if (runnerId) {
     companyApiRunnerMetadataById.set(runnerId, nextMetadata);
   }
 
+  const companyRecord = toRecord(runnerRecord.company);
+
   return {
     id: runnerId,
-    companyId: resolveLegacyId(agentRunner?.company?.id),
+    companyId: resolveLegacyId(companyRecord.id),
     name: nextMetadata.name,
     callbackUrl: null,
     hasAuthSecret: true,
@@ -139,28 +177,31 @@ export function toLegacyRunnerPayload(agentRunner: any) {
   };
 }
 
-export function toLegacyAgentPayload(agent: any, {
-  metadataOverride
-}: any = {}) {
-  const agentId = resolveLegacyId(agent?.id);
-  const currentMetadata = companyApiAgentMetadataById.get(agentId) || {};
+export function toLegacyAgentPayload(agent: LooseRecord | null | undefined, {
+  metadataOverride,
+}: {
+  metadataOverride?: LooseRecord;
+} = {}) {
+  const agentRecord = toRecord(agent);
+  const agentId = resolveLegacyId(agentRecord.id);
+  const currentMetadata: LooseRecord = companyApiAgentMetadataById.get(agentId) || {};
   const overrideProvidesDefaultAdditionalModelInstructions = Boolean(
     metadataOverride
       && Object.prototype.hasOwnProperty.call(metadataOverride, "defaultAdditionalModelInstructions"),
   );
   const agentProvidesDefaultAdditionalModelInstructions = Boolean(
-    agent && Object.prototype.hasOwnProperty.call(agent, "defaultAdditionalModelInstructions"),
+    agentRecord && Object.prototype.hasOwnProperty.call(agentRecord, "defaultAdditionalModelInstructions"),
   );
   const explicitDefaultAdditionalModelInstructions = overrideProvidesDefaultAdditionalModelInstructions
-    ? metadataOverride.defaultAdditionalModelInstructions
+    ? metadataOverride?.defaultAdditionalModelInstructions
     : agentProvidesDefaultAdditionalModelInstructions
-      ? agent.defaultAdditionalModelInstructions
+      ? agentRecord.defaultAdditionalModelInstructions
       : undefined;
   const resolvedDefaultAdditionalModelInstructions =
     explicitDefaultAdditionalModelInstructions === undefined
       ? normalizeOptionalInstructions(currentMetadata.defaultAdditionalModelInstructions)
       : normalizeOptionalInstructions(explicitDefaultAdditionalModelInstructions);
-  const nextMetadata = {
+  const nextMetadata: LooseRecord = {
     ...currentMetadata,
     ...(metadataOverride || {}),
     defaultAdditionalModelInstructions: resolvedDefaultAdditionalModelInstructions,
@@ -172,20 +213,22 @@ export function toLegacyAgentPayload(agent: any, {
   const resolvedSdk = isAvailableAgentSdk(nextMetadata.agentSdk)
     ? normalizeAgentSdkValue(nextMetadata.agentSdk)
     : DEFAULT_AGENT_SDK;
-  const resolvedModel = resolveLegacyId(nextMetadata.model, agent?.model);
+  const resolvedModel = resolveLegacyId(nextMetadata.model, agentRecord.model);
   const resolvedReasoning = resolveLegacyId(
     nextMetadata.modelReasoningLevel,
-    agent?.modelReasoningLevel,
+    agentRecord.modelReasoningLevel,
   );
+  const companyRecord = toRecord(agentRecord.company);
+  const runnerRecord = toRecord(agentRecord.runner);
 
   return {
     id: agentId,
-    companyId: resolveLegacyId(agent?.company?.id),
-    name: resolveLegacyId(nextMetadata.name, agent?.name),
-    status: resolveLegacyId(agent?.status) || "pending",
+    companyId: resolveLegacyId(companyRecord.id),
+    name: resolveLegacyId(nextMetadata.name, agentRecord.name),
+    status: resolveLegacyId(agentRecord.status) || "pending",
     agentRunnerId: resolveLegacyId(
       nextMetadata.agentRunnerId,
-      agent?.runner?.id,
+      runnerRecord.id,
     ),
     skillIds: normalizeUniqueStringList(nextMetadata.skillIds || []),
     mcpServerIds: normalizeUniqueStringList(nextMetadata.mcpServerIds || []),
@@ -197,38 +240,44 @@ export function toLegacyAgentPayload(agent: any, {
   };
 }
 
-export function toLegacyThreadPayload(thread: any, {
-  metadataOverride
-}: any = {}) {
-  const threadId = resolveLegacyId(thread?.id);
+export function toLegacyThreadPayload(thread: LooseRecord | null | undefined, {
+  metadataOverride,
+}: {
+  metadataOverride?: LooseRecord;
+} = {}) {
+  const threadRecord = toRecord(thread);
+  const threadId = resolveLegacyId(threadRecord.id);
   const nowIso = new Date().toISOString();
-  const currentMetadata = companyApiThreadMetadataById.get(threadId) || {};
+  const currentMetadata: LooseRecord = companyApiThreadMetadataById.get(threadId) || {};
+  const overrideRecord = toRecord(metadataOverride);
+  const threadCurrentModelRecord = toRecord(threadRecord.currentModel);
+
   const resolvedCurrentModelId = resolveLegacyId(
-    metadataOverride?.currentModelId,
-    metadataOverride?.currentModel?.id,
-    thread?.currentModel?.id,
+    overrideRecord.currentModelId,
+    toRecord(overrideRecord.currentModel).id,
+    threadCurrentModelRecord.id,
     currentMetadata.currentModelId,
   ) || null;
   const resolvedCurrentModelName = resolveLegacyId(
-    metadataOverride?.currentModelName,
-    metadataOverride?.currentModel?.name,
-    thread?.currentModelName,
-    thread?.currentModel?.name,
+    overrideRecord.currentModelName,
+    toRecord(overrideRecord.currentModel).name,
+    threadRecord.currentModelName,
+    threadCurrentModelRecord.name,
     currentMetadata.currentModelName,
   ) || null;
   const resolvedCurrentReasoningLevel = resolveLegacyId(
-    metadataOverride?.currentReasoningLevel,
-    thread?.currentReasoningLevel,
+    overrideRecord.currentReasoningLevel,
+    threadRecord.currentReasoningLevel,
     currentMetadata.currentReasoningLevel,
   ) || null;
   const overrideProvidesTitle = Boolean(
     metadataOverride && Object.prototype.hasOwnProperty.call(metadataOverride, "title"),
   );
-  const threadProvidesTitle = Boolean(thread && Object.prototype.hasOwnProperty.call(thread, "title"));
+  const threadProvidesTitle = Boolean(threadRecord && Object.prototype.hasOwnProperty.call(threadRecord, "title"));
   const explicitTitleValue = overrideProvidesTitle
-    ? metadataOverride.title
+    ? metadataOverride?.title
     : threadProvidesTitle
-      ? thread.title
+      ? threadRecord.title
       : undefined;
   const normalizedExplicitTitle = typeof explicitTitleValue === "string" ? explicitTitleValue.trim() : "";
   const fallbackTitle = explicitTitleValue === undefined ? resolveLegacyId(currentMetadata.title) : "";
@@ -237,12 +286,12 @@ export function toLegacyThreadPayload(thread: any, {
     metadataOverride && Object.prototype.hasOwnProperty.call(metadataOverride, "additionalModelInstructions"),
   );
   const threadProvidesAdditionalModelInstructions = Boolean(
-    thread && Object.prototype.hasOwnProperty.call(thread, "additionalModelInstructions"),
+    threadRecord && Object.prototype.hasOwnProperty.call(threadRecord, "additionalModelInstructions"),
   );
   const explicitAdditionalModelInstructions = overrideProvidesAdditionalModelInstructions
-    ? metadataOverride.additionalModelInstructions
+    ? metadataOverride?.additionalModelInstructions
     : threadProvidesAdditionalModelInstructions
-      ? thread.additionalModelInstructions
+      ? threadRecord.additionalModelInstructions
       : undefined;
   const resolvedAdditionalModelInstructions =
     explicitAdditionalModelInstructions === undefined
@@ -252,22 +301,22 @@ export function toLegacyThreadPayload(thread: any, {
     metadataOverride && Object.prototype.hasOwnProperty.call(metadataOverride, "errorMessage"),
   );
   const threadProvidesErrorMessage = Boolean(
-    thread && Object.prototype.hasOwnProperty.call(thread, "errorMessage"),
+    threadRecord && Object.prototype.hasOwnProperty.call(threadRecord, "errorMessage"),
   );
   const explicitErrorMessage = overrideProvidesErrorMessage
-    ? metadataOverride.errorMessage
+    ? metadataOverride?.errorMessage
     : threadProvidesErrorMessage
-      ? thread.errorMessage
+      ? threadRecord.errorMessage
       : undefined;
   const resolvedErrorMessage =
     explicitErrorMessage === undefined
       ? normalizeOptionalInstructions(currentMetadata.errorMessage)
       : normalizeOptionalInstructions(explicitErrorMessage);
-  const nextMetadata = {
-    createdAt: currentMetadata.createdAt || nowIso,
+  const nextMetadata: LooseRecord = {
+    createdAt: resolveLegacyId(currentMetadata.createdAt) || nowIso,
     updatedAt: nowIso,
     title: resolvedTitle,
-    runnerId: resolveLegacyId(metadataOverride?.runnerId, currentMetadata.runnerId) || null,
+    runnerId: resolveLegacyId(overrideRecord.runnerId, currentMetadata.runnerId) || null,
     currentModelId: resolvedCurrentModelId,
     currentModelName: resolvedCurrentModelName,
     currentReasoningLevel: resolvedCurrentReasoningLevel,
@@ -281,11 +330,11 @@ export function toLegacyThreadPayload(thread: any, {
   return {
     id: threadId,
     threadId,
-    companyId: resolveLegacyId(thread?.company?.id),
-    agentId: resolveLegacyId(thread?.agent?.id),
+    companyId: resolveLegacyId(toRecord(threadRecord.company).id),
+    agentId: resolveLegacyId(toRecord(threadRecord.agent).id),
     runnerId: nextMetadata.runnerId,
     title: nextMetadata.title,
-    status: resolveLegacyId(thread?.status) || "pending",
+    status: resolveLegacyId(threadRecord.status) || "pending",
     errorMessage: nextMetadata.errorMessage,
     currentModelId: nextMetadata.currentModelId,
     currentModelName: nextMetadata.currentModelName,
@@ -296,7 +345,7 @@ export function toLegacyThreadPayload(thread: any, {
   };
 }
 
-export function toLegacyTurnItemRole(itemType: any) {
+export function toLegacyTurnItemRole(itemType: unknown) {
   const normalizedType = String(itemType || "").trim().toLowerCase();
   if (normalizedType === "user_message") {
     return "user";
@@ -307,38 +356,44 @@ export function toLegacyTurnItemRole(itemType: any) {
   return "system";
 }
 
-export function toLegacyTurnPayload(turn: any, {
-  runnerId
-}: any = {}) {
-  const resolvedTurnId = resolveLegacyId(turn?.id);
-  const resolvedThreadId = resolveLegacyId(turn?.thread?.id);
-  const resolvedCompanyId = resolveLegacyId(turn?.company?.id);
-  const resolvedAgentId = resolveLegacyId(turn?.agent?.id);
+export function toLegacyTurnPayload(turn: LooseRecord | null | undefined, {
+  runnerId,
+}: {
+  runnerId?: string;
+} = {}) {
+  const turnRecord = toRecord(turn);
+  const resolvedTurnId = resolveLegacyId(turnRecord.id);
+  const resolvedThreadId = resolveLegacyId(toRecord(turnRecord.thread).id);
+  const resolvedCompanyId = resolveLegacyId(toRecord(turnRecord.company).id);
+  const resolvedAgentId = resolveLegacyId(toRecord(turnRecord.agent).id);
   const resolvedRunnerId = resolveLegacyId(runnerId) || null;
-  const resolvedStartedAt = resolveLegacyId(turn?.startedAt) || null;
-  const resolvedEndedAt = resolveLegacyId(turn?.endedAt) || null;
+  const resolvedStartedAt = resolveLegacyId(turnRecord.startedAt) || null;
+  const resolvedEndedAt = resolveLegacyId(turnRecord.endedAt) || null;
   const fallbackTimestamp = resolvedStartedAt || resolvedEndedAt || new Date().toISOString();
 
-  const items = (Array.isArray(turn?.items) ? turn.items : []).map((item: any) => {
-    const resolvedItemType = resolveLegacyId(item?.type) || "unknown";
-    const itemStartedAt = resolveLegacyId(item?.startedAt) || null;
-    const itemEndedAt = resolveLegacyId(item?.completedAt) || null;
+  const items = (Array.isArray(turnRecord.items) ? turnRecord.items : []).map((item) => {
+    const itemRecord = toRecord(item);
+    const resolvedItemType = resolveLegacyId(itemRecord.type) || "unknown";
+    const itemStartedAt = resolveLegacyId(itemRecord.startedAt) || null;
+    const itemEndedAt = resolveLegacyId(itemRecord.completedAt) || null;
     const itemTimestamp = itemStartedAt || itemEndedAt || fallbackTimestamp;
+    const itemTurnRecord = toRecord(itemRecord.turn);
+    const itemCompanyRecord = toRecord(itemRecord.company);
 
     return {
-      id: resolveLegacyId(item?.id),
-      turnId: resolveLegacyId(item?.turn?.id, resolvedTurnId),
-      threadId: resolveLegacyId(item?.turn?.thread?.id, resolvedThreadId),
-      companyId: resolveLegacyId(item?.company?.id, resolvedCompanyId),
+      id: resolveLegacyId(itemRecord.id),
+      turnId: resolveLegacyId(itemTurnRecord.id, resolvedTurnId),
+      threadId: resolveLegacyId(toRecord(itemTurnRecord.thread).id, resolvedThreadId),
+      companyId: resolveLegacyId(itemCompanyRecord.id, resolvedCompanyId),
       agentId: resolvedAgentId,
       runnerId: resolvedRunnerId,
-      providerItemId: resolveLegacyId(item?.sdkItemId),
+      providerItemId: resolveLegacyId(itemRecord.sdkItemId),
       role: toLegacyTurnItemRole(resolvedItemType),
       itemType: resolvedItemType,
-      text: resolveLegacyId(item?.text),
-      command: resolveLegacyId(item?.commandOutput),
-      output: resolveLegacyId(item?.consoleOutput),
-      status: resolveLegacyId(item?.status) || "running",
+      text: resolveLegacyId(itemRecord.text),
+      command: resolveLegacyId(itemRecord.commandOutput),
+      output: resolveLegacyId(itemRecord.consoleOutput),
+      status: resolveLegacyId(itemRecord.status) || "running",
       startedAt: itemStartedAt,
       endedAt: itemEndedAt,
       error: null,
@@ -353,8 +408,8 @@ export function toLegacyTurnPayload(turn: any, {
     companyId: resolvedCompanyId,
     agentId: resolvedAgentId,
     runnerId: resolvedRunnerId,
-    status: resolveLegacyId(turn?.status) || "running",
-    reasoningText: resolveLegacyId(turn?.reasoningText),
+    status: resolveLegacyId(turnRecord.status) || "running",
+    reasoningText: resolveLegacyId(turnRecord.reasoningText),
     startedAt: resolvedStartedAt,
     endedAt: resolvedEndedAt,
     createdAt: fallbackTimestamp,
@@ -363,20 +418,21 @@ export function toLegacyTurnPayload(turn: any, {
   };
 }
 
-export function toLegacyQueuedUserMessagePayload(queuedMessage: any) {
-  const normalizedStatus = String(queuedMessage?.status || "").trim().toLowerCase();
+export function toLegacyQueuedUserMessagePayload(queuedMessage: LooseRecord | null | undefined) {
+  const queuedMessageRecord = toRecord(queuedMessage);
+  const normalizedStatus = String(queuedMessageRecord.status || "").trim().toLowerCase();
   return {
-    id: resolveLegacyId(queuedMessage?.id),
-    companyId: resolveLegacyId(queuedMessage?.company?.id),
-    threadId: resolveLegacyId(queuedMessage?.thread?.id),
+    id: resolveLegacyId(queuedMessageRecord.id),
+    companyId: resolveLegacyId(toRecord(queuedMessageRecord.company).id),
+    threadId: resolveLegacyId(toRecord(queuedMessageRecord.thread).id),
     status:
       normalizedStatus === "processed"
         ? "processed"
         : normalizedStatus === "submitted"
           ? "submitted"
           : "queued",
-    sdkTurnId: resolveLegacyId(queuedMessage?.sdkTurnId) || null,
-    allowSteer: Boolean(queuedMessage?.allowSteer),
-    text: resolveLegacyId(queuedMessage?.text),
+    sdkTurnId: resolveLegacyId(queuedMessageRecord.sdkTurnId) || null,
+    allowSteer: Boolean(queuedMessageRecord.allowSteer),
+    text: resolveLegacyId(queuedMessageRecord.text),
   };
 }

@@ -2,6 +2,19 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { buildTaskDependencyLanes } from "../../src/utils/task-graph.ts";
 
+interface TaskLaneEntry {
+  id: string;
+  commentCount?: number;
+  dependentTaskIds?: string[];
+  dependencyTaskIds?: string[];
+}
+
+interface TaskLane {
+  level: number;
+  title: string;
+  tasks: TaskLaneEntry[];
+}
+
 test("buildTaskDependencyLanes groups tasks by prerequisite depth", () => {
   const lanes = buildTaskDependencyLanes([
     {
@@ -41,11 +54,12 @@ test("buildTaskDependencyLanes groups tasks by prerequisite depth", () => {
     },
   ]);
 
+  const typedLanes = lanes as TaskLane[];
   assert.deepEqual(
-    lanes.map((lane: any) => ({
+    typedLanes.map((lane) => ({
       level: lane.level,
       title: lane.title,
-      taskIds: lane.tasks.map((task: any) => task.id),
+      taskIds: lane.tasks.map((task) => task.id),
     })),
     [
       { level: 0, title: "Foundations", taskIds: ["task-5", "task-1"] },
@@ -54,8 +68,8 @@ test("buildTaskDependencyLanes groups tasks by prerequisite depth", () => {
     ],
   );
 
-  const task1 = lanes[0].tasks.find((task: any) => task.id === "task-1");
-  const task4 = lanes[2].tasks.find((task: any) => task.id === "task-4");
+  const task1 = typedLanes[0]?.tasks.find((task) => task.id === "task-1");
+  const task4 = typedLanes[2]?.tasks.find((task) => task.id === "task-4");
   assert.equal(task1?.commentCount, 2);
   assert.deepEqual(task1?.dependentTaskIds, ["task-2", "task-3"]);
   assert.deepEqual(task4?.dependencyTaskIds, ["task-2", "task-3"]);
@@ -75,8 +89,6 @@ test("buildTaskDependencyLanes falls back safely when input has a cycle", () => 
     },
   ]);
 
-  assert.deepEqual(
-    lanes.map((lane: any) => lane.tasks.map((task: any) => task.id)),
-    [["task-1", "task-2"]],
-  );
+  const typedLanes = lanes as TaskLane[];
+  assert.deepEqual(typedLanes.map((lane) => lane.tasks.map((task) => task.id)), [["task-1", "task-2"]]);
 });

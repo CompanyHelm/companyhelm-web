@@ -1,5 +1,20 @@
-import { useState } from "react";
+import { useState, type ChangeEvent, type FormEvent } from "react";
 import { CreationModal } from "./CreationModal.tsx";
+import type { TaskItem, TaskRelationshipDraft } from "../types/domain.ts";
+
+interface TaskEditModalProps {
+  task: TaskItem | null;
+  tasks: TaskItem[];
+  relationshipDraft?: TaskRelationshipDraft;
+  savingTaskId: string | null;
+  commentingTaskId: string | null;
+  deletingTaskId: string | null;
+  onDraftChange: (taskId: string, field: "dependencyTaskIds" | "parentTaskId" | "childTaskIds", value: string | string[]) => void;
+  onSaveRelationships: (taskId: string) => Promise<boolean> | boolean;
+  onCreateTaskComment: (taskId: string, comment: string) => Promise<boolean> | boolean;
+  onDeleteTask: (taskId: string, taskName: string) => void;
+  onClose: () => void;
+}
 
 export function TaskEditModal({
   task,
@@ -13,17 +28,18 @@ export function TaskEditModal({
   onCreateTaskComment,
   onDeleteTask,
   onClose,
-}: any) {
-  const [commentDraft, setCommentDraft] = useState<any>("");
+}: TaskEditModalProps) {
+  const [commentDraft, setCommentDraft] = useState("");
 
   if (!task) {
     return null;
   }
 
   const taskId = task.id;
+  const taskName = task.name;
   const currentChildTaskIds = tasks
-    .filter((candidateTask: any) => String(candidateTask?.parentTaskId || "").trim() === taskId)
-    .map((candidateTask: any) => String(candidateTask?.id || "").trim())
+    .filter((candidateTask) => String(candidateTask.parentTaskId || "").trim() === taskId)
+    .map((candidateTask) => String(candidateTask.id || "").trim())
     .filter(Boolean);
   const draft = relationshipDraft || {
     dependencyTaskIds: Array.isArray(task?.dependencyTaskIds) ? task.dependencyTaskIds : [],
@@ -35,31 +51,34 @@ export function TaskEditModal({
   const parentTaskId = String(draft?.parentTaskId || "").trim();
   const isBusy = savingTaskId === taskId || deletingTaskId === taskId;
 
-  function removeDependency(depId: any) {
-    onDraftChange(taskId, "dependencyTaskIds", draftDependencyTaskIds.filter((id: any) => id !== depId));
+  function removeDependency(depId: string) {
+    onDraftChange(taskId, "dependencyTaskIds", draftDependencyTaskIds.filter((id) => id !== depId));
   }
-  function addDependency(depId: any) {
+  function addDependency(depId: string) {
     if (depId && !draftDependencyTaskIds.includes(depId)) {
       onDraftChange(taskId, "dependencyTaskIds", [...draftDependencyTaskIds, depId]);
     }
   }
-  function removeChild(childId: any) {
-    onDraftChange(taskId, "childTaskIds", selectedChildTaskIds.filter((id: any) => id !== childId));
+  function removeChild(childId: string) {
+    onDraftChange(taskId, "childTaskIds", selectedChildTaskIds.filter((id) => id !== childId));
   }
-  function addChild(childId: any) {
+  function addChild(childId: string) {
     if (childId && !selectedChildTaskIds.includes(childId)) {
       onDraftChange(taskId, "childTaskIds", [...selectedChildTaskIds, childId]);
     }
   }
 
   const availableParentOptions = tasks.filter(
-    (t: any) => t.id !== taskId && !selectedChildTaskIds.includes(t.id),
+    (candidateTask) => candidateTask.id !== taskId && !selectedChildTaskIds.includes(candidateTask.id),
   );
   const availableChildOptions = tasks.filter(
-    (t: any) => t.id !== taskId && t.id !== parentTaskId && !selectedChildTaskIds.includes(t.id),
+    (candidateTask) =>
+      candidateTask.id !== taskId
+      && candidateTask.id !== parentTaskId
+      && !selectedChildTaskIds.includes(candidateTask.id),
   );
   const availableDependencyOptions = tasks.filter(
-    (t: any) => t.id !== taskId && !draftDependencyTaskIds.includes(t.id),
+    (candidateTask) => candidateTask.id !== taskId && !draftDependencyTaskIds.includes(candidateTask.id),
   );
 
   async function handleSave() {
@@ -69,7 +88,7 @@ export function TaskEditModal({
     }
   }
 
-  async function handleCommentSubmit(event: any) {
+  async function handleCommentSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const didCreate = await onCreateTaskComment(taskId, commentDraft);
     if (didCreate) {
@@ -78,7 +97,7 @@ export function TaskEditModal({
   }
 
   function handleDelete() {
-    onDeleteTask(taskId, task.name);
+    onDeleteTask(taskId, taskName);
   }
 
   return (
@@ -113,11 +132,11 @@ export function TaskEditModal({
           <select
             id="edit-parent-task"
             value={parentTaskId}
-            onChange={(event: any) => onDraftChange(taskId, "parentTaskId", event.target.value)}
+            onChange={(event: ChangeEvent<HTMLSelectElement>) => onDraftChange(taskId, "parentTaskId", event.target.value)}
           >
             <option value="">No parent task</option>
-            {availableParentOptions.map((t: any) => (
-              <option key={`edit-parent-${t.id}`} value={String(t.id)}>{t.name}</option>
+            {availableParentOptions.map((candidateTask) => (
+              <option key={`edit-parent-${candidateTask.id}`} value={String(candidateTask.id)}>{candidateTask.name}</option>
             ))}
           </select>
           {parentTaskId && (
@@ -134,8 +153,8 @@ export function TaskEditModal({
         <label>Child tasks</label>
         {selectedChildTaskIds.length > 0 && (
           <div className="task-relation-pills">
-            {selectedChildTaskIds.map((childId: any) => {
-              const childTask = tasks.find((t: any) => t.id === childId);
+            {selectedChildTaskIds.map((childId) => {
+              const childTask = tasks.find((candidateTask) => candidateTask.id === childId);
               return (
                 <span key={childId} className="task-relation-pill">
                   <span>{childTask?.name || childId}</span>
@@ -153,19 +172,19 @@ export function TaskEditModal({
         <select
           className="task-relation-add"
           value=""
-          onChange={(e: any) => addChild(e.target.value)}
+          onChange={(event: ChangeEvent<HTMLSelectElement>) => addChild(event.target.value)}
         >
           <option value="">Add child task…</option>
-          {availableChildOptions.map((t: any) => (
-            <option key={`edit-child-${t.id}`} value={String(t.id)}>{t.name}</option>
+          {availableChildOptions.map((candidateTask) => (
+            <option key={`edit-child-${candidateTask.id}`} value={String(candidateTask.id)}>{candidateTask.name}</option>
           ))}
         </select>
 
         <label>Dependencies</label>
         {draftDependencyTaskIds.length > 0 && (
           <div className="task-relation-pills">
-            {draftDependencyTaskIds.map((depId: any) => {
-              const depTask = tasks.find((t: any) => t.id === depId);
+            {draftDependencyTaskIds.map((depId) => {
+              const depTask = tasks.find((candidateTask) => candidateTask.id === depId);
               return (
                 <span key={depId} className="task-relation-pill">
                   <span>{depTask?.name || depId}</span>
@@ -183,18 +202,18 @@ export function TaskEditModal({
         <select
           className="task-relation-add"
           value=""
-          onChange={(e: any) => addDependency(e.target.value)}
+          onChange={(event: ChangeEvent<HTMLSelectElement>) => addDependency(event.target.value)}
         >
           <option value="">Add dependency…</option>
-          {availableDependencyOptions.map((t: any) => (
-            <option key={`edit-depends-${t.id}`} value={String(t.id)}>{t.name}</option>
+          {availableDependencyOptions.map((candidateTask) => (
+            <option key={`edit-depends-${candidateTask.id}`} value={String(candidateTask.id)}>{candidateTask.name}</option>
           ))}
         </select>
 
         <label>Comments</label>
         {Array.isArray(task.comments) && task.comments.length > 0 ? (
           <ul className="task-comments-list">
-            {task.comments.map((comment: any) => (
+            {task.comments.map((comment) => (
               <li key={`task-comment-${comment.id}`} className="task-comment-item">
                 <p>{comment.comment}</p>
                 <span className="chat-card-meta">
@@ -214,7 +233,7 @@ export function TaskEditModal({
             rows={3}
             placeholder="Document context, blockers, or handoff notes."
             value={commentDraft}
-            onChange={(event: any) => setCommentDraft(event.target.value)}
+            onChange={(event: ChangeEvent<HTMLTextAreaElement>) => setCommentDraft(event.target.value)}
           />
           <button
             type="submit"

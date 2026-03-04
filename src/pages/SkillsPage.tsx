@@ -1,10 +1,46 @@
-import { useMemo, useState } from "react";
+import {
+  useMemo,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+} from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Page } from "../components/Page.tsx";
 import { CreationModal } from "../components/CreationModal.tsx";
 import { normalizeUniqueStringList } from "../utils/normalization.ts";
 import { useSetPageActions } from "../components/PageActionsContext.tsx";
+import type {
+  McpServer,
+  Role,
+  RoleDraft,
+  RoleDraftById,
+  Skill,
+  StringArrayById,
+} from "../types/domain.ts";
+
+interface SkillsPageProps {
+  selectedCompanyId: string;
+  skills: Skill[];
+  roles: Role[];
+  mcpServers: McpServer[];
+  roleMcpServerIdsByRoleId: StringArrayById;
+  activeSkill: Skill | null;
+  isLoadingSkills: boolean;
+  isLoadingRoles: boolean;
+  skillError: string;
+  onOpenSkill: (skillId: string) => void;
+  onBackToSkills: () => void;
+  onCreateRole: (input: { name: string; parentRoleId: string | null }) => Promise<void> | void;
+  onUpdateRole: (input: { id: string; name: string; parentRoleId: string | null }) => Promise<void> | void;
+  onDeleteRole: (roleId: string, roleName: string) => void;
+  onAddSkillToRole: (roleId: string, skillId: string) => Promise<void> | void;
+  onRemoveSkillFromRole: (roleId: string, skillId: string) => Promise<void> | void;
+  onRoleMcpServerIdsChange: (roleId: string, mcpServerIds: string[]) => void;
+  onOpenGitSkillPackage: (packageId: string) => void;
+}
 
 export function SkillsPage({
   selectedCompanyId,
@@ -25,19 +61,19 @@ export function SkillsPage({
   onRemoveSkillFromRole,
   onRoleMcpServerIdsChange,
   onOpenGitSkillPackage,
-}: any) {
-  const [newRoleName, setNewRoleName] = useState<any>("");
-  const [newRoleParentId, setNewRoleParentId] = useState<any>("");
-  const [isCreatingRole, setIsCreatingRole] = useState<any>(false);
-  const [savingRoleId, setSavingRoleId] = useState<any>("");
-  const [roleDrafts, setRoleDrafts] = useState<any>({});
-  const [localError, setLocalError] = useState<any>("");
-  const [showRawMarkdown, setShowRawMarkdown] = useState<any>(false);
-  const [editingRoleId, setEditingRoleId] = useState<any>("");
-  const [isCreateRoleModalOpen, setIsCreateRoleModalOpen] = useState<any>(false);
+}: SkillsPageProps) {
+  const [newRoleName, setNewRoleName] = useState("");
+  const [newRoleParentId, setNewRoleParentId] = useState("");
+  const [isCreatingRole, setIsCreatingRole] = useState(false);
+  const [savingRoleId, setSavingRoleId] = useState("");
+  const [roleDrafts, setRoleDrafts] = useState<RoleDraftById>({});
+  const [localError, setLocalError] = useState("");
+  const [showRawMarkdown, setShowRawMarkdown] = useState(false);
+  const [editingRoleId, setEditingRoleId] = useState("");
+  const [isCreateRoleModalOpen, setIsCreateRoleModalOpen] = useState(false);
 
   const assignedSkillIds = useMemo(() => {
-    const ids = new Set<any>();
+    const ids = new Set<string>();
     for (const role of roles) {
       for (const skill of role.skills || []) {
         if (skill?.id) {
@@ -49,12 +85,12 @@ export function SkillsPage({
   }, [roles]);
 
   const unassignedSkills = useMemo(() => {
-    return skills.filter((skill: any) => !assignedSkillIds.has(skill.id));
+    return skills.filter((skill) => !assignedSkillIds.has(skill.id));
   }, [assignedSkillIds, skills]);
 
-  const editingRole = roles.find((role: any) => role.id === editingRoleId) || null;
+  const editingRole = roles.find((role) => role.id === editingRoleId) || null;
 
-  async function handleCreateRole(event: any) {
+  async function handleCreateRole(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     try {
       setIsCreatingRole(true);
@@ -66,32 +102,32 @@ export function SkillsPage({
       setNewRoleName("");
       setNewRoleParentId("");
       setIsCreateRoleModalOpen(false);
-    } catch (error: any) {
-      setLocalError(error.message);
+    } catch (error: unknown) {
+      setLocalError(error instanceof Error ? error.message : "Failed to create role.");
     } finally {
       setIsCreatingRole(false);
     }
   }
 
-  async function handleAddSkillToRole(roleId: any, skillId: any) {
+  async function handleAddSkillToRole(roleId: string, skillId: string) {
     try {
       setLocalError("");
       await onAddSkillToRole(roleId, skillId);
-    } catch (error: any) {
-      setLocalError(error.message);
+    } catch (error: unknown) {
+      setLocalError(error instanceof Error ? error.message : "Failed to assign skill to role.");
     }
   }
 
-  async function handleRemoveSkillFromRole(roleId: any, skillId: any) {
+  async function handleRemoveSkillFromRole(roleId: string, skillId: string) {
     try {
       setLocalError("");
       await onRemoveSkillFromRole(roleId, skillId);
-    } catch (error: any) {
-      setLocalError(error.message);
+    } catch (error: unknown) {
+      setLocalError(error instanceof Error ? error.message : "Failed to remove skill from role.");
     }
   }
 
-  function getRoleDraft(role: any) {
+  function getRoleDraft(role: Role): RoleDraft {
     const existingDraft = roleDrafts[role.id];
     if (existingDraft) {
       return existingDraft;
@@ -102,8 +138,8 @@ export function SkillsPage({
     };
   }
 
-  function updateRoleDraft(roleId: any, nextDraft: any) {
-    setRoleDrafts((current: any) => ({
+  function updateRoleDraft(roleId: string, nextDraft: Partial<RoleDraft>) {
+    setRoleDrafts((current) => ({
       ...current,
       [roleId]: {
         ...current[roleId],
@@ -112,7 +148,7 @@ export function SkillsPage({
     }));
   }
 
-  async function handleUpdateRole(roleId: any) {
+  async function handleUpdateRole(roleId: string) {
     try {
       const draft = roleDrafts[roleId];
       if (!draft) {
@@ -126,15 +162,15 @@ export function SkillsPage({
         parentRoleId: draft.parentRoleId || null,
       });
       setEditingRoleId("");
-    } catch (error: any) {
-      setLocalError(error.message);
+    } catch (error: unknown) {
+      setLocalError(error instanceof Error ? error.message : "Failed to update role.");
     } finally {
       setSavingRoleId("");
     }
   }
 
-  function openEditRoleModal(role: any) {
-    setRoleDrafts((current: any) => ({
+  function openEditRoleModal(role: Role) {
+    setRoleDrafts((current) => ({
       ...current,
       [role.id]: {
         name: role.name || "",
@@ -176,7 +212,7 @@ export function SkillsPage({
 
           <div className="skill-detail-info">
             <p className="chat-card-meta">
-              Roles: {(activeSkill.roles || []).map((role: any) => role.name).join(", ") || "none"}
+              Roles: {(activeSkill.roles || []).map((role) => role.name).join(", ") || "none"}
               {" · "}Files: {activeSkill.fileList?.length || 0}
             </p>
           </div>
@@ -203,7 +239,7 @@ export function SkillsPage({
               <button
                 type="button"
                 className="secondary-btn"
-                onClick={() => setShowRawMarkdown((current: any) => !current)}
+                onClick={() => setShowRawMarkdown((current) => !current)}
               >
                 {showRawMarkdown ? "Rendered" : "Raw"}
               </button>
@@ -221,7 +257,7 @@ export function SkillsPage({
             <section className="skill-detail-section">
               <h3>Files</h3>
               <ul className="skill-file-list">
-                {activeSkill.fileList.map((filePath: any) => (
+                {activeSkill.fileList.map((filePath) => (
                   <li key={filePath}>
                     <code>{filePath}</code>
                   </li>
@@ -247,7 +283,7 @@ export function SkillsPage({
           </header>
 
           <ul className="chat-card-list">
-            {roles.map((role: any) => {
+            {roles.map((role) => {
               const skillCount = (role.skills || []).length;
               const parentLabel = role.parentRole?.name || null;
               return (
@@ -257,7 +293,7 @@ export function SkillsPage({
                   onClick={() => openEditRoleModal(role)}
                   role="button"
                   tabIndex={0}
-                  onKeyDown={(event: any) => {
+                  onKeyDown={(event: KeyboardEvent<HTMLLIElement>) => {
                     if (event.key === "Enter") {
                       openEditRoleModal(role);
                     }
@@ -276,7 +312,7 @@ export function SkillsPage({
                     <button
                       type="button"
                       className="chat-card-icon-btn chat-card-icon-btn-danger"
-                      onClick={(event: any) => {
+                      onClick={(event: MouseEvent<HTMLButtonElement>) => {
                         event.stopPropagation();
                         onDeleteRole(role.id, role.name);
                       }}
@@ -310,14 +346,14 @@ export function SkillsPage({
             <span className="chat-card-meta">{unassignedSkills.length} skills</span>
           </header>
           <ul className="chat-card-list">
-            {unassignedSkills.map((skill: any) => (
+            {unassignedSkills.map((skill) => (
               <li
                 key={`unassigned-skill-${skill.id}`}
                 className="chat-card"
                 onClick={() => onOpenSkill(skill.id)}
                 role="button"
                 tabIndex={0}
-                onKeyDown={(event: any) => {
+                onKeyDown={(event: KeyboardEvent<HTMLLIElement>) => {
                   if (event.key === "Enter") {
                     onOpenSkill(skill.id);
                   }
@@ -348,7 +384,7 @@ export function SkillsPage({
               id="new-skill-role-name"
               className="chat-settings-input"
               value={newRoleName}
-              onChange={(event: any) => setNewRoleName(event.target.value)}
+              onChange={(event: ChangeEvent<HTMLInputElement>) => setNewRoleName(event.target.value)}
               placeholder="e.g. obra/superpowers"
               required
               autoFocus
@@ -360,10 +396,10 @@ export function SkillsPage({
               id="new-skill-role-parent"
               className="chat-settings-input"
               value={newRoleParentId}
-              onChange={(event: any) => setNewRoleParentId(event.target.value)}
+              onChange={(event: ChangeEvent<HTMLSelectElement>) => setNewRoleParentId(event.target.value)}
             >
               <option value="">None</option>
-              {roles.map((role: any) => (
+              {roles.map((role) => (
                 <option key={`parent-role-${role.id}`} value={role.id}>
                   {role.name}
                 </option>
@@ -388,14 +424,14 @@ export function SkillsPage({
       >
         {editingRole ? (() => {
           const roleDraft = getRoleDraft(editingRole);
-          const parentOptions = roles.filter((entry: any) => entry.id !== editingRole.id);
-          const roleSkillIds = new Set((editingRole.skills || []).map((skill: any) => skill.id));
-          const availableSkills = skills.filter((skill: any) => !roleSkillIds.has(skill.id));
+          const parentOptions = roles.filter((entry) => entry.id !== editingRole.id);
+          const roleSkillIds = new Set((editingRole.skills || []).map((skill) => skill.id));
+          const availableSkills = skills.filter((skill) => !roleSkillIds.has(skill.id));
           const assignedRoleMcpServerIds = normalizeUniqueStringList(
             roleMcpServerIdsByRoleId?.[editingRole.id] || [],
           );
           const availableRoleMcpServers = mcpServers.filter(
-            (mcpServer: any) => !assignedRoleMcpServerIds.includes(mcpServer.id),
+            (mcpServer) => !assignedRoleMcpServerIds.includes(mcpServer.id),
           );
 
           return (
@@ -406,7 +442,7 @@ export function SkillsPage({
                   id={`role-name-${editingRole.id}`}
                   className="chat-settings-input"
                   value={roleDraft.name}
-                  onChange={(event: any) =>
+                  onChange={(event: ChangeEvent<HTMLInputElement>) =>
                     updateRoleDraft(editingRole.id, { name: event.target.value })
                   }
                 />
@@ -417,12 +453,12 @@ export function SkillsPage({
                   id={`role-parent-${editingRole.id}`}
                   className="chat-settings-input"
                   value={roleDraft.parentRoleId || ""}
-                  onChange={(event: any) =>
+                  onChange={(event: ChangeEvent<HTMLSelectElement>) =>
                     updateRoleDraft(editingRole.id, { parentRoleId: event.target.value })
                   }
                 >
                   <option value="">None</option>
-                  {parentOptions.map((parentRole: any) => (
+                  {parentOptions.map((parentRole) => (
                     <option key={`role-parent-option-${editingRole.id}-${parentRole.id}`} value={parentRole.id}>
                       {parentRole.name}
                     </option>
@@ -447,8 +483,8 @@ export function SkillsPage({
                   {assignedRoleMcpServerIds.length === 0 ? (
                     <span className="empty-hint">No MCP servers assigned to this role.</span>
                   ) : (
-                    assignedRoleMcpServerIds.map((mcpServerId: any) => {
-                      const mcpServer = mcpServers.find((server: any) => server.id === mcpServerId);
+                    assignedRoleMcpServerIds.map((mcpServerId) => {
+                      const mcpServer = mcpServers.find((server) => server.id === mcpServerId);
                       const mcpServerLabel = mcpServer ? mcpServer.name : mcpServerId;
                       return (
                         <button
@@ -459,7 +495,7 @@ export function SkillsPage({
                             onRoleMcpServerIdsChange(
                               editingRole.id,
                               assignedRoleMcpServerIds.filter(
-                                (candidateId: any) => candidateId !== mcpServerId,
+                                (candidateId) => candidateId !== mcpServerId,
                               ),
                             )
                           }
@@ -481,7 +517,7 @@ export function SkillsPage({
                   id={`role-add-mcp-${editingRole.id}`}
                   className="chat-settings-input"
                   value=""
-                  onChange={(event: any) => {
+                  onChange={(event: ChangeEvent<HTMLSelectElement>) => {
                     const nextMcpServerId = String(event.target.value || "").trim();
                     if (!nextMcpServerId) {
                       return;
@@ -498,7 +534,7 @@ export function SkillsPage({
                       ? "All MCP servers already assigned"
                       : "Select MCP server to add"}
                   </option>
-                  {availableRoleMcpServers.map((mcpServer: any) => (
+                  {availableRoleMcpServers.map((mcpServer) => (
                     <option
                       key={`role-mcp-option-${editingRole.id}-${mcpServer.id}`}
                       value={mcpServer.id}
@@ -515,7 +551,7 @@ export function SkillsPage({
                   <p className="empty-hint">No skills in this role.</p>
                 ) : (
                   <ul className="chat-card-list">
-                    {editingRole.skills.map((skill: any) => (
+                    {(editingRole.skills || []).map((skill) => (
                       <li key={`${editingRole.id}-${skill.id}`} className="chat-card">
                         <div className="chat-card-main">
                           <p className="chat-card-title">
@@ -565,7 +601,7 @@ export function SkillsPage({
                     id={`role-add-skill-${editingRole.id}`}
                     className="chat-settings-input"
                     value=""
-                    onChange={(event: any) => {
+                    onChange={(event: ChangeEvent<HTMLSelectElement>) => {
                       const nextSkillId = String(event.target.value || "").trim();
                       if (!nextSkillId) {
                         return;
@@ -574,7 +610,7 @@ export function SkillsPage({
                     }}
                   >
                     <option value="">Select skill</option>
-                    {availableSkills.map((skill: any) => (
+                    {availableSkills.map((skill) => (
                       <option key={`role-skill-option-${editingRole.id}-${skill.id}`} value={skill.id}>
                         {skill.name}
                       </option>

@@ -9,9 +9,22 @@ import {
   mcpHeadersToText,
 } from "./normalization.ts";
 
-export function createRelationshipDrafts(tasks: any) {
-  const taskList = Array.isArray(tasks) ? tasks : [];
-  const childTaskIdsByParentTaskId = new Map<any, any>();
+type LooseRecord = Record<string, unknown>;
+
+function toRecord(value: unknown): LooseRecord {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  return value as LooseRecord;
+}
+
+export function createRelationshipDrafts(tasks: unknown): Record<string, {
+  dependencyTaskIds: string[];
+  parentTaskId: string;
+  childTaskIds: string[];
+}> {
+  const taskList = Array.isArray(tasks) ? tasks.map(toRecord) : [];
+  const childTaskIdsByParentTaskId = new Map<string, string[]>();
 
   for (const task of taskList) {
     const taskId = String(task?.id || "").trim();
@@ -27,7 +40,7 @@ export function createRelationshipDrafts(tasks: any) {
     }
   }
 
-  return taskList.reduce((drafts: any, task: any) => {
+  return taskList.reduce<Record<string, { dependencyTaskIds: string[]; parentTaskId: string; childTaskIds: string[] }>>((drafts, task) => {
     const taskId = String(task?.id || "").trim();
     if (!taskId) {
       return drafts;
@@ -35,7 +48,7 @@ export function createRelationshipDrafts(tasks: any) {
 
     drafts[taskId] = {
       dependencyTaskIds: normalizeUniqueStringList(task?.dependencyTaskIds || [])
-        .filter((dependencyTaskId: any) => dependencyTaskId !== taskId),
+        .filter((dependencyTaskId) => dependencyTaskId !== taskId),
       parentTaskId: String(task?.parentTaskId || "").trim(),
       childTaskIds: normalizeUniqueStringList(childTaskIdsByParentTaskId.get(taskId) || []),
     };
@@ -43,50 +56,65 @@ export function createRelationshipDrafts(tasks: any) {
   }, {});
 }
 
-export function createAgentDrafts(agents: any) {
-  return agents.reduce((drafts: any, agent: any) => {
-    drafts[agent.id] = {
-      agentRunnerId: agent.agentRunnerId || "",
-      roleIds: [...(agent.roleIds || [])],
-      mcpServerIds: [...(agent.mcpServerIds || [])],
-      name: agent.name || "",
-      agentSdk: agent.agentSdk || DEFAULT_AGENT_SDK,
-      model: agent.model || "",
-      modelReasoningLevel: agent.modelReasoningLevel || "",
-      defaultAdditionalModelInstructions: agent.defaultAdditionalModelInstructions || "",
+export function createAgentDrafts(agents: unknown): Record<string, LooseRecord> {
+  const agentList = Array.isArray(agents) ? agents.map(toRecord) : [];
+  return agentList.reduce<Record<string, LooseRecord>>((drafts, agent) => {
+    const agentId = String(agent.id || "").trim();
+    if (!agentId) {
+      return drafts;
+    }
+    drafts[agentId] = {
+      agentRunnerId: String(agent.agentRunnerId || "").trim(),
+      roleIds: Array.isArray(agent.roleIds) ? [...agent.roleIds] : [],
+      mcpServerIds: Array.isArray(agent.mcpServerIds) ? [...agent.mcpServerIds] : [],
+      name: String(agent.name || "").trim(),
+      agentSdk: String(agent.agentSdk || "").trim() || DEFAULT_AGENT_SDK,
+      model: String(agent.model || "").trim(),
+      modelReasoningLevel: String(agent.modelReasoningLevel || "").trim(),
+      defaultAdditionalModelInstructions: String(agent.defaultAdditionalModelInstructions || "").trim(),
     };
     return drafts;
   }, {});
 }
 
-export function createSkillDrafts(skills: any) {
-  return skills.reduce((drafts: any, skill: any) => {
+export function createSkillDrafts(skills: unknown): Record<string, LooseRecord> {
+  const skillList = Array.isArray(skills) ? skills.map(toRecord) : [];
+  return skillList.reduce<Record<string, LooseRecord>>((drafts, skill) => {
+    const skillId = String(skill.id || "").trim();
+    if (!skillId) {
+      return drafts;
+    }
     const normalizedSkillType = normalizeSkillType(skill.skillType);
-    drafts[skill.id] = {
-      name: skill.name || "",
+    drafts[skillId] = {
+      name: String(skill.name || "").trim(),
       skillType: normalizedSkillType,
       skillsMpPackageName:
         normalizedSkillType === SKILL_TYPE_SKILLSMP
           ? String(skill.skillsMpPackageName || "").trim()
           : "",
-      description: skill.description || "",
-      instructions: skill.instructions || "",
+      description: String(skill.description || "").trim(),
+      instructions: String(skill.instructions || "").trim(),
     };
     return drafts;
   }, {});
 }
 
-export function createMcpServerDrafts(mcpServers: any) {
-  return mcpServers.reduce((drafts: any, mcpServer: any) => {
-    drafts[mcpServer.id] = {
-      name: mcpServer.name || "",
+export function createMcpServerDrafts(mcpServers: unknown): Record<string, LooseRecord> {
+  const serverList = Array.isArray(mcpServers) ? mcpServers.map(toRecord) : [];
+  return serverList.reduce<Record<string, LooseRecord>>((drafts, mcpServer) => {
+    const serverId = String(mcpServer.id || "").trim();
+    if (!serverId) {
+      return drafts;
+    }
+    drafts[serverId] = {
+      name: String(mcpServer.name || "").trim(),
       transportType: normalizeMcpTransportType(mcpServer.transportType),
-      url: mcpServer.url || "",
-      command: mcpServer.command || "",
+      url: String(mcpServer.url || "").trim(),
+      command: String(mcpServer.command || "").trim(),
       argsText: mcpArgsToText(mcpServer.args || []),
       envVarsText: mcpEnvVarsToText(mcpServer.envVars || []),
       authType: normalizeMcpAuthType(mcpServer.authType),
-      bearerToken: mcpServer.bearerToken || "",
+      bearerToken: String(mcpServer.bearerToken || "").trim(),
       customHeadersText: mcpHeadersToText(mcpServer.customHeaders || []),
       enabled: mcpServer.enabled !== false,
     };

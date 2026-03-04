@@ -1,10 +1,42 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Page } from "../components/Page.tsx";
 import { useSetPageActions } from "../components/PageActionsContext.tsx";
 import { TaskGraphView } from "../components/TaskGraphView.tsx";
 import { TaskTableView } from "../components/TaskTableView.tsx";
 import { TaskCreateModal } from "../components/TaskCreateModal.tsx";
 import { TaskEditModal } from "../components/TaskEditModal.tsx";
+import type {
+  TaskItem,
+  TaskRelationshipDraftById,
+} from "../types/domain.ts";
+
+interface TasksPageProps {
+  selectedCompanyId: string;
+  tasks: TaskItem[];
+  isLoadingTasks: boolean;
+  taskError: string;
+  isSubmittingTask: boolean;
+  savingTaskId: string | null;
+  commentingTaskId: string | null;
+  deletingTaskId: string | null;
+  name: string;
+  description: string;
+  parentTaskId: string;
+  dependencyTaskIds: string[];
+  relationshipDrafts: TaskRelationshipDraftById;
+  taskCountLabel: string;
+  onNameChange: (value: string) => void;
+  onDescriptionChange: (value: string) => void;
+  onParentTaskIdChange: (value: string) => void;
+  onDependencyTaskIdsChange: (value: string[]) => void;
+  onCreateTask: (event: FormEvent<HTMLFormElement>) => Promise<boolean> | boolean;
+  onDraftChange: (taskId: string, field: string, value: string | string[]) => void;
+  onSaveRelationships: (taskId: string) => Promise<boolean> | boolean;
+  onAddDependency?: (taskId: string, dependencyTaskId: string) => void;
+  onCreateTaskComment: (taskId: string, comment: string) => Promise<boolean> | boolean;
+  onDeleteTask: (taskId: string, taskName: string) => void;
+  renderTaskLink: (task: TaskItem) => ReactNode;
+}
 
 export function TasksPage({
   selectedCompanyId,
@@ -32,25 +64,25 @@ export function TasksPage({
   onCreateTaskComment,
   onDeleteTask,
   renderTaskLink,
-}: any) {
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState<any>(false);
-  const [editingTaskId, setEditingTaskId] = useState<any>("");
-  const [activeTab, setActiveTab] = useState<any>("graph");
+}: TasksPageProps) {
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState("");
+  const [activeTab, setActiveTab] = useState<"graph" | "table">("graph");
 
   const editingTask = editingTaskId
-    ? tasks.find((t: any) => t.id === editingTaskId) || null
+    ? tasks.find((task) => task.id === editingTaskId) || null
     : null;
 
   function closeEditTaskModal() {
     setEditingTaskId("");
   }
 
-  const handleTaskClick = useCallback((taskId: any) => {
+  const handleTaskClick = useCallback((taskId: string) => {
     setEditingTaskId(taskId);
   }, []);
 
-  const handleDeleteTask = useCallback((taskId: any, taskName: any) => {
-    onDeleteTask(taskId, taskName);
+  const handleDeleteTask = useCallback((taskId: string, taskName?: string) => {
+    onDeleteTask(taskId, taskName || taskId);
     setEditingTaskId("");
   }, [onDeleteTask]);
 
@@ -114,7 +146,7 @@ export function TasksPage({
             {activeTab === "graph" ? (
               <TaskGraphView tasks={tasks} onTaskClick={handleTaskClick} onAddDependency={onAddDependency} />
             ) : (
-              <TaskTableView tasks={tasks} onTaskClick={handleTaskClick} onDeleteTask={onDeleteTask} />
+              <TaskTableView tasks={tasks} onTaskClick={handleTaskClick} onDeleteTask={handleDeleteTask} />
             )}
           </div>
         ) : null}

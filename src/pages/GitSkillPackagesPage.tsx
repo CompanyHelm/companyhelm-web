@@ -1,9 +1,21 @@
-import { useMemo, useState } from "react";
+import {
+  useMemo,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+} from "react";
 import { Page } from "../components/Page.tsx";
 import { CreationModal } from "../components/CreationModal.tsx";
 import { useSetPageActions } from "../components/PageActionsContext.tsx";
+import type {
+  GitReference,
+  GitSkillPackage,
+  GitSkillPackagePreview,
+} from "../types/domain.ts";
 
-function splitGitReferences(preview: any) {
+function splitGitReferences(preview: GitSkillPackagePreview | null) {
   if (!preview) {
     return [];
   }
@@ -11,6 +23,25 @@ function splitGitReferences(preview: any) {
     ...(Array.isArray(preview.branches) ? preview.branches : []),
     ...(Array.isArray(preview.tags) ? preview.tags : []),
   ];
+}
+
+interface CreateGitSkillPackagePayload {
+  packageId?: string;
+  warnings?: string[];
+}
+
+interface GitSkillPackagesPageProps {
+  selectedCompanyId: string;
+  gitSkillPackages: GitSkillPackage[];
+  activeGitSkillPackage: GitSkillPackage | null;
+  isLoadingGitSkillPackages: boolean;
+  skillError: string;
+  onOpenGitSkillPackage: (packageId: string) => void;
+  onBackToGitSkillPackages: () => void;
+  onPreviewGitSkillPackage: (gitRepositoryUrl: string) => Promise<GitSkillPackagePreview>;
+  onCreateGitSkillPackage: (input: { gitRepositoryUrl: string; gitReference: string }) => Promise<CreateGitSkillPackagePayload>;
+  onDeleteGitSkillPackage: (packageId: string, packageName: string) => void;
+  onOpenSkill: (skillId: string) => void;
 }
 
 export function GitSkillPackagesPage({
@@ -25,15 +56,15 @@ export function GitSkillPackagesPage({
   onCreateGitSkillPackage,
   onDeleteGitSkillPackage,
   onOpenSkill,
-}: any) {
-  const [gitRepositoryUrl, setGitRepositoryUrl] = useState<any>("");
-  const [preview, setPreview] = useState<any>(null);
-  const [selectedReference, setSelectedReference] = useState<any>("");
-  const [previewError, setPreviewError] = useState<any>("");
-  const [createWarnings, setCreateWarnings] = useState<any>([]);
-  const [isPreviewing, setIsPreviewing] = useState<any>(false);
-  const [isCreating, setIsCreating] = useState<any>(false);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState<any>(false);
+}: GitSkillPackagesPageProps) {
+  const [gitRepositoryUrl, setGitRepositoryUrl] = useState("");
+  const [preview, setPreview] = useState<GitSkillPackagePreview | null>(null);
+  const [selectedReference, setSelectedReference] = useState("");
+  const [previewError, setPreviewError] = useState("");
+  const [createWarnings, setCreateWarnings] = useState<string[]>([]);
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const combinedReferences = useMemo(() => splitGitReferences(preview), [preview]);
 
@@ -55,7 +86,7 @@ export function GitSkillPackagesPage({
   ), []);
   useSetPageActions(pageActions);
 
-  async function handlePreview(event: any) {
+  async function handlePreview(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     try {
       setIsPreviewing(true);
@@ -64,16 +95,16 @@ export function GitSkillPackagesPage({
       const payload = await onPreviewGitSkillPackage(gitRepositoryUrl);
       setPreview(payload);
       setSelectedReference("");
-    } catch (error: any) {
+    } catch (error: unknown) {
       setPreview(null);
       setSelectedReference("");
-      setPreviewError(error.message);
+      setPreviewError(error instanceof Error ? error.message : "Failed to preview package.");
     } finally {
       setIsPreviewing(false);
     }
   }
 
-  async function handleCreate(event: any) {
+  async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     try {
       setIsCreating(true);
@@ -86,8 +117,8 @@ export function GitSkillPackagesPage({
       if (payload?.packageId) {
         onOpenGitSkillPackage(payload.packageId);
       }
-    } catch (error: any) {
-      setPreviewError(error.message);
+    } catch (error: unknown) {
+      setPreviewError(error instanceof Error ? error.message : "Failed to import package.");
     } finally {
       setIsCreating(false);
     }
@@ -132,14 +163,14 @@ export function GitSkillPackagesPage({
             <h3>Skills in package</h3>
             {Array.isArray(activeGitSkillPackage.skills) && activeGitSkillPackage.skills.length > 0 ? (
               <ul className="chat-card-list">
-                {activeGitSkillPackage.skills.map((skill: any) => (
+                {activeGitSkillPackage.skills.map((skill) => (
                   <li
                     key={`package-skill-${skill.id}`}
                     className="chat-card"
                     onClick={() => onOpenSkill(skill.id)}
                     role="button"
                     tabIndex={0}
-                    onKeyDown={(event: any) => {
+                    onKeyDown={(event: KeyboardEvent<HTMLLIElement>) => {
                       if (event.key === "Enter") {
                         onOpenSkill(skill.id);
                       }
@@ -174,14 +205,14 @@ export function GitSkillPackagesPage({
       ) : (
         <section className="panel list-panel">
           <ul className="chat-card-list">
-            {gitSkillPackages.map((gitSkillPackage: any) => (
+            {gitSkillPackages.map((gitSkillPackage) => (
               <li
                 key={gitSkillPackage.id}
                 className="chat-card"
                 onClick={() => onOpenGitSkillPackage(gitSkillPackage.id)}
                 role="button"
                 tabIndex={0}
-                onKeyDown={(event: any) => {
+                onKeyDown={(event: KeyboardEvent<HTMLLIElement>) => {
                   if (event.key === "Enter") {
                     onOpenGitSkillPackage(gitSkillPackage.id);
                   }
@@ -199,7 +230,7 @@ export function GitSkillPackagesPage({
                   <button
                     type="button"
                     className="chat-card-icon-btn chat-card-icon-btn-danger"
-                    onClick={(event: any) => {
+                    onClick={(event: MouseEvent<HTMLButtonElement>) => {
                       event.stopPropagation();
                       onDeleteGitSkillPackage(gitSkillPackage.id, gitSkillPackage.packageName);
                     }}
@@ -231,12 +262,12 @@ export function GitSkillPackagesPage({
         {createWarnings.length > 0 ? (
           <div className="chat-settings-modal-form">
             <div className="chat-settings-field">
-              <label className="chat-settings-label">Import warnings</label>
-              <ul>
-                {createWarnings.map((warning: any, index: any) => (
+                <label className="chat-settings-label">Import warnings</label>
+                <ul>
+                {createWarnings.map((warning, index) => (
                   <li key={`import-warning-${index}`}>{warning}</li>
                 ))}
-              </ul>
+                </ul>
             </div>
           </div>
         ) : null}
@@ -248,7 +279,7 @@ export function GitSkillPackagesPage({
               id="git-skill-package-url"
               className="chat-settings-input"
               value={gitRepositoryUrl}
-              onChange={(event: any) => setGitRepositoryUrl(event.target.value)}
+              onChange={(event: ChangeEvent<HTMLInputElement>) => setGitRepositoryUrl(event.target.value)}
               placeholder="https://github.com/obra/superpowers"
               required
               autoFocus
@@ -269,11 +300,11 @@ export function GitSkillPackagesPage({
                 id="git-skill-reference"
                 className="chat-settings-input"
                 value={selectedReference}
-                onChange={(event: any) => setSelectedReference(event.target.value)}
+                onChange={(event: ChangeEvent<HTMLSelectElement>) => setSelectedReference(event.target.value)}
                 required
               >
                 <option value="">Select branch or tag</option>
-                {combinedReferences.map((reference: any) => (
+                {combinedReferences.map((reference: GitReference) => (
                   <option key={`${reference.kind}:${reference.fullRef}`} value={reference.fullRef}>
                     {reference.name} ({reference.kind})
                   </option>

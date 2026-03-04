@@ -1,6 +1,19 @@
 import { useMemo } from "react";
 import { Page } from "../components/Page.tsx";
 import { formatTimestamp, normalizeRunnerStatus, toSortableTimestamp } from "../utils/formatting.ts";
+import type { AgentRunner, Company, TaskItem } from "../types/domain.ts";
+
+interface DashboardPageProps {
+  selectedCompanyId: string;
+  selectedCompany: Company | null;
+  tasks: TaskItem[];
+  agentRunners: AgentRunner[];
+  isLoadingTasks: boolean;
+  isLoadingRunners: boolean;
+  taskError: string;
+  runnerError: string;
+  onNavigate: (page: string) => void;
+}
 
 export function DashboardPage({
   selectedCompanyId,
@@ -12,9 +25,9 @@ export function DashboardPage({
   taskError,
   runnerError,
   onNavigate,
-}: any) {
+}: DashboardPageProps) {
   const readyRunnerCount = useMemo(() => {
-    return agentRunners.filter((runner: any) => normalizeRunnerStatus(runner.status) === "ready")
+    return agentRunners.filter((runner) => normalizeRunnerStatus(runner.status) === "ready")
       .length;
   }, [agentRunners]);
 
@@ -23,12 +36,14 @@ export function DashboardPage({
   }, [agentRunners.length, readyRunnerCount]);
 
   const recentTasks = useMemo(() => {
-    return [...tasks].sort((a: any, b: any) => b.id - a.id).slice(0, 5);
+    return [...tasks]
+      .sort((a, b) => Number(b.id) - Number(a.id))
+      .slice(0, 5);
   }, [tasks]);
 
   const recentRunners = useMemo(() => {
     return [...agentRunners]
-      .sort((a: any, b: any) => toSortableTimestamp(b.lastSeenAt) - toSortableTimestamp(a.lastSeenAt))
+      .sort((a, b) => toSortableTimestamp(b.lastSeenAt) - toSortableTimestamp(a.lastSeenAt))
       .slice(0, 5);
   }, [agentRunners]);
 
@@ -87,7 +102,7 @@ export function DashboardPage({
 
           {recentTasks.length > 0 ? (
             <ul className="compact-list">
-              {recentTasks.map((task: any) => (
+              {recentTasks.map((task) => (
                 <li key={`dashboard-task-${task.id}`} className="compact-item">
                   <div>
                     <strong>{task.name}</strong>
@@ -119,7 +134,7 @@ export function DashboardPage({
 
           {recentRunners.length > 0 ? (
             <ul className="compact-list">
-              {recentRunners.map((runner: any) => {
+              {recentRunners.map((runner) => {
                 const status = normalizeRunnerStatus(runner.status);
                 return (
                   <li key={`dashboard-runner-${runner.id}`} className="compact-item">

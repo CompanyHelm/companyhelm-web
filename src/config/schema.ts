@@ -1,9 +1,10 @@
 import { z } from "zod";
 
-export const runtimeConfigSchema = z
+const runtimeConfigBaseSchema = z
   .object({
     api: z.object({
       graphqlApiUrl: z.string().url(),
+      graphqlWebSocketUrl: z.string().min(1).optional(),
       runnerGrpcTarget: z.string().min(1),
     }),
     auth: z.object({
@@ -20,7 +21,7 @@ export const runtimeConfigSchema = z
         .optional(),
     }),
   })
-  .superRefine((config: any, ctx: any) => {
+  .superRefine((config, ctx) => {
     if (config.auth.provider === "supabase" && !config.auth.supabase) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -29,3 +30,6 @@ export const runtimeConfigSchema = z
       });
     }
   });
+
+export const runtimeConfigSchema = runtimeConfigBaseSchema;
+export type RuntimeConfig = z.infer<typeof runtimeConfigSchema>;

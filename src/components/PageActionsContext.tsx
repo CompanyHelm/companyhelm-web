@@ -1,9 +1,18 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
-const PageActionsContext = createContext<any>(null);
+interface PageActionsContextValue {
+  actions: ReactNode | null;
+  setActions: (nextActions: ReactNode | null) => void;
+}
 
-export function PageActionsProvider({ children }: any) {
-  const [actions, setActions] = useState<any>(null);
+const PageActionsContext = createContext<PageActionsContextValue | null>(null);
+
+interface PageActionsProviderProps {
+  children: ReactNode;
+}
+
+export function PageActionsProvider({ children }: PageActionsProviderProps) {
+  const [actions, setActions] = useState<ReactNode | null>(null);
   return (
     <PageActionsContext.Provider value={{ actions, setActions }}>
       {children}
@@ -12,11 +21,11 @@ export function PageActionsProvider({ children }: any) {
 }
 
 export function usePageActions() {
-  return useContext<any>(PageActionsContext);
+  return useContext(PageActionsContext);
 }
 
-export function useSetPageActions(actionsNode: any) {
-  const ctx = useContext<any>(PageActionsContext);
+export function useSetPageActions(actionsNode: ReactNode | null) {
+  const ctx = useContext(PageActionsContext);
   useEffect(() => {
     if (ctx) {
       ctx.setActions(actionsNode);

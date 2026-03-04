@@ -1,42 +1,83 @@
+import type { GraphQLResponse, RequestParameters, Variables } from "relay-runtime";
 import { relayEnvironment } from "./environment.ts";
 
-function inferOperationKind(query: any) {
+type OperationKind = RequestParameters["operationKind"];
+
+interface GraphQLPayloadError {
+  message?: string;
+}
+
+interface GraphQLPayload {
+  data?: Record<string, unknown> | null;
+  errors?: GraphQLPayloadError[];
+}
+
+interface RelayExecuteOptions {
+  query: string;
+  variables?: Variables;
+  operationKind?: OperationKind;
+  force?: boolean;
+}
+
+interface RelaySubscribeOptions {
+  query: string;
+  variables?: Variables;
+  onData?: (data: Record<string, unknown>) => void;
+  onError?: (error: Error) => void;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object";
+}
+
+function toRecord(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {};
+}
+
+function inferOperationKind(query: string): OperationKind {
   const operationSource = String(query || "").trim();
   const match = operationSource.match(/^(query|mutation|subscription)\b/i);
   if (!match) {
     return "query";
   }
-  return match[1].toLowerCase();
+  const matchKind = match[1]?.toLowerCase();
+  if (matchKind === "mutation") {
+    return "mutation";
+  }
+  if (matchKind === "subscription") {
+    return "subscription";
+  }
+  return "query";
 }
 
-function inferOperationName(query: any, operationKind: any) {
+function inferOperationName(query: string, operationKind: OperationKind): string {
   const operationSource = String(query || "").trim();
   const match = operationSource.match(/^(query|mutation|subscription)\s+([A-Za-z0-9_]+)/i);
   if (match?.[2]) {
     return match[2];
   }
-  const kind = operationKind || inferOperationKind(query);
-  if (kind === "mutation") {
+  if (operationKind === "mutation") {
     return "AnonymousMutation";
   }
-  if (kind === "subscription") {
+  if (operationKind === "subscription") {
     return "AnonymousSubscription";
   }
   return "AnonymousQuery";
 }
 
-function createRequestParameters(query: any, operationKind: any) {
+function createRequestParameters(query: string, operationKind: OperationKind): RequestParameters {
+  const operationName = inferOperationName(query, operationKind);
   return {
     id: null,
-    cacheID: null,
+    cacheID: `${operationKind}:${operationName}`,
     metadata: {},
-    name: inferOperationName(query, operationKind),
+    name: operationName,
     operationKind,
     text: query,
   };
 }
 
-function toGraphQLError(errorPayload: any) {
+function toGraphQLError(errorPayload: unknown): Error {
   if (errorPayload instanceof Error) {
     return errorPayload;
   }
@@ -46,8 +87,19 @@ function toGraphQLError(errorPayload: any) {
   return new Error(message);
 }
 
-function toGraphQLPayloadError(payload: any) {
-  const errors = Array.isArray(payload?.errors) ? payload.errors : [];
+function toGraphQLPayload(rawPayload: GraphQLResponse | null | undefined): GraphQLPayload {
+  if (!rawPayload) {
+    return {};
+  }
+  const singularPayload = Array.isArray(rawPayload) ? rawPayload[0] : rawPayload;
+  if (!singularPayload || typeof singularPayload !== "object") {
+    return {};
+  }
+  return singularPayload as GraphQLPayload;
+}
+
+function toGraphQLPayloadError(payload: GraphQLPayload): Error | null {
+  const errors = Array.isArray(payload.errors) ? payload.errors : [];
   if (errors.length === 0) {
     return null;
   }
@@ -63,20 +115,20 @@ function executeRelayOperation({
   variables,
   operationKind,
   force,
-}: any): Promise<any> {
+}: RelayExecuteOptions): Promise<GraphQLPayload> {
   const kind = operationKind || inferOperationKind(query);
   const params = createRequestParameters(query, kind);
 
-  return new Promise((resolve: any, reject: any) => {
-    let latestPayload: any = null;
+  return new Promise((resolve, reject) => {
+    let latestPayload: GraphQLPayload | null = null;
     relayEnvironment
       .getNetwork()
       .execute(params, variables || {}, { force: Boolean(force) }, null)
       .subscribe({
-        next: (payload: any) => {
-          latestPayload = payload;
+        next: (payload) => {
+          latestPayload = toGraphQLPayload(payload);
         },
-        error: (error: any) => {
+        error: (error: unknown) => {
           reject(toGraphQLError(error));
         },
         complete: () => {
@@ -91,8 +143,8 @@ export async function executeRelayGraphQL({
   variables,
   operationKind,
   force = false,
-}: any) {
-  const payload: any = await executeRelayOperation({
+}: RelayExecuteOptions): Promise<Record<string, unknown>> {
+  const payload = await executeRelayOperation({
     query,
     variables,
     operationKind,
@@ -104,7 +156,7 @@ export async function executeRelayGraphQL({
     throw payloadError;
   }
 
-  return payload?.data || {};
+  return toRecord(payload.data);
 }
 
 export function subscribeRelayGraphQL({
@@ -112,21 +164,22 @@ export function subscribeRelayGraphQL({
   variables,
   onData,
   onError,
-}: any) {
+}: RelaySubscribeOptions): () => void {
   const params = createRequestParameters(query, "subscription");
   const subscription = relayEnvironment
     .getNetwork()
     .execute(params, variables || {}, { force: true }, null)
     .subscribe({
-      next: (payload: any) => {
-        const payloadError = toGraphQLPayloadError(payload);
+      next: (payload) => {
+        const normalizedPayload = toGraphQLPayload(payload);
+        const payloadError = toGraphQLPayloadError(normalizedPayload);
         if (payloadError) {
           onError?.(payloadError);
           return;
         }
-        onData?.(payload?.data || {});
+        onData?.(toRecord(normalizedPayload.data));
       },
-      error: (error: any) => {
+      error: (error: unknown) => {
         onError?.(toGraphQLError(error));
       },
     });

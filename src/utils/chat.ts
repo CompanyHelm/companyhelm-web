@@ -1,23 +1,68 @@
 import { toSortableTimestamp, normalizeChatStatus } from "./formatting.ts";
 
-export function hasRunningChatTurns(turns: any) {
-  return (Array.isArray(turns) ? turns : []).some((turn: any) => normalizeChatStatus(turn?.status) === "running");
+type LooseRecord = Record<string, unknown>;
+type SessionMap = Record<string, unknown[]>;
+
+interface ChatTurnLike extends LooseRecord {
+  id?: string;
+  status?: string;
+  createdAt?: string;
+  startedAt?: string;
+  endedAt?: string;
+  items?: ChatTurnItemLike[];
+}
+
+interface ChatTurnItemLike extends LooseRecord {
+  id?: string;
+  createdAt?: string;
+  startedAt?: string;
+  endedAt?: string;
+}
+
+interface ChatMessageLike extends LooseRecord {
+  role?: string;
+  text?: string;
+}
+
+function toRecord(value: unknown): LooseRecord {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  return value as LooseRecord;
+}
+
+function toTurn(value: unknown): ChatTurnLike {
+  return toRecord(value) as ChatTurnLike;
+}
+
+function toTurnItem(value: unknown): ChatTurnItemLike {
+  return toRecord(value) as ChatTurnItemLike;
+}
+
+export function hasRunningChatTurns(turns: unknown): boolean {
+  return (Array.isArray(turns) ? turns : []).some((turn) => normalizeChatStatus(toTurn(turn)?.status) === "running");
 }
 
 export function mergeChatSessionsByAgentSnapshot({
   currentSessionsByAgent,
   snapshotSessionsByAgent,
-  knownAgentIds
-}: any = {}) {
-  const currentByAgent =
+  knownAgentIds,
+}: {
+  currentSessionsByAgent?: unknown;
+  snapshotSessionsByAgent?: unknown;
+  knownAgentIds?: unknown;
+} = {}): SessionMap {
+  const currentByAgent = (
     currentSessionsByAgent && typeof currentSessionsByAgent === "object"
       ? currentSessionsByAgent
-      : {};
-  const snapshotByAgent =
+      : {}
+  ) as SessionMap;
+  const snapshotByAgent = (
     snapshotSessionsByAgent && typeof snapshotSessionsByAgent === "object"
       ? snapshotSessionsByAgent
-      : {};
-  const nextByAgent = { ...currentByAgent };
+      : {}
+  ) as SessionMap;
+  const nextByAgent: SessionMap = { ...currentByAgent };
 
   for (const [rawAgentId, sessions] of Object.entries(snapshotByAgent)) {
     const agentId = String(rawAgentId || "").trim();
@@ -40,28 +85,29 @@ export function mergeChatSessionsByAgentSnapshot({
   return nextByAgent;
 }
 
-export function getLatestRunningChatTurn(turns: any) {
+export function getLatestRunningChatTurn(turns: unknown): ChatTurnLike | null {
   const runningTurns = (Array.isArray(turns) ? turns : []).filter(
-    (turn: any) => normalizeChatStatus(turn?.status) === "running",
+    (turn) => normalizeChatStatus(toTurn(turn)?.status) === "running",
   );
   if (runningTurns.length === 0) {
     return null;
   }
-  return [...runningTurns].sort(compareTurnsByTimestamp).at(-1) || null;
+  return toTurn([...runningTurns].sort(compareTurnsByTimestamp).at(-1));
 }
 
-export function isChatSessionRunning(session: any, chatSessionRunningById: any) {
-  if (!session) {
+export function isChatSessionRunning(session: unknown, chatSessionRunningById: Record<string, boolean>): boolean {
+  const sessionRecord = toRecord(session);
+  if (!sessionRecord || Object.keys(sessionRecord).length === 0) {
     return false;
   }
-  const normalizedSessionStatus = String(session.status || "").trim().toLowerCase();
+  const normalizedSessionStatus = String(sessionRecord.status || "").trim().toLowerCase();
   if (normalizedSessionStatus === "running") {
     return true;
   }
   if (normalizedSessionStatus === "ready") {
     return false;
   }
-  const sessionId = String(session.id || "").trim();
+  const sessionId = String(sessionRecord.id || "").trim();
   return Boolean(sessionId && chatSessionRunningById?.[sessionId]);
 }
 
@@ -73,11 +119,12 @@ const CODEX_TURN_COMPLETION_TYPES = new Set([
   "turn.error",
 ]);
 
-export function parseCodexStreamPayload(message: any) {
-  if (String(message?.role || "").trim().toLowerCase() !== "llm") {
+export function parseCodexStreamPayload(message: unknown): LooseRecord | null {
+  const messageRecord = toRecord(message) as ChatMessageLike;
+  if (String(messageRecord.role || "").trim().toLowerCase() !== "llm") {
     return null;
   }
-  const rawContent = String(message?.text || "").trim();
+  const rawContent = String(messageRecord.text || "").trim();
   if (!rawContent.startsWith("{") || !rawContent.endsWith("}")) {
     return null;
   }
@@ -86,34 +133,39 @@ export function parseCodexStreamPayload(message: any) {
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
       return null;
     }
-    return parsed;
+    return parsed as LooseRecord;
   } catch {
     return null;
   }
 }
 
-export function getCodexStreamEventType(payload: any) {
-  if (!payload || typeof payload !== "object") {
+export function getCodexStreamEventType(payload: unknown): string {
+  const payloadRecord = toRecord(payload);
+  if (!payloadRecord || Object.keys(payloadRecord).length === 0) {
     return "";
   }
-  const topLevelType = String(payload.type || "").trim().toLowerCase();
-  if (topLevelType === "item" && payload.item && typeof payload.item === "object") {
-    return String(payload.item.type || "").trim().toLowerCase() || topLevelType;
+  const topLevelType = String(payloadRecord.type || "").trim().toLowerCase();
+  const itemRecord = toRecord(payloadRecord.item);
+  if (topLevelType === "item" && Object.keys(itemRecord).length > 0) {
+    return String(itemRecord.type || "").trim().toLowerCase() || topLevelType;
   }
   return topLevelType;
 }
 
-export function getCodexStreamTurnKey(payload: any) {
-  if (!payload || typeof payload !== "object") {
+export function getCodexStreamTurnKey(payload: unknown): string {
+  const payloadRecord = toRecord(payload);
+  if (!payloadRecord || Object.keys(payloadRecord).length === 0) {
     return CODEX_STREAM_DEFAULT_TURN_KEY;
   }
+  const payloadTurn = toRecord(payloadRecord.turn);
+  const payloadItem = toRecord(payloadRecord.item);
   const candidates = [
-    payload.turn_id,
-    payload.turnId,
-    payload.id,
-    payload.turn?.id,
-    payload.item?.turn_id,
-    payload.item?.turnId,
+    payloadRecord.turn_id,
+    payloadRecord.turnId,
+    payloadRecord.id,
+    payloadTurn.id,
+    payloadItem.turn_id,
+    payloadItem.turnId,
   ];
   for (const candidate of candidates) {
     const cleaned = String(candidate || "").trim();
@@ -124,14 +176,15 @@ export function getCodexStreamTurnKey(payload: any) {
   return CODEX_STREAM_DEFAULT_TURN_KEY;
 }
 
-export function flattenCodexStreamText(value: any): string {
+export function flattenCodexStreamText(value: unknown): string {
   if (typeof value === "string") {
     return value.trim();
   }
   if (Array.isArray(value)) {
-    return value.map((entry: any) => flattenCodexStreamText(entry)).filter(Boolean).join("\n").trim();
+    return value.map((entry) => flattenCodexStreamText(entry)).filter(Boolean).join("\n").trim();
   }
-  if (!value || typeof value !== "object") {
+  const valueRecord = toRecord(value);
+  if (!valueRecord || Object.keys(valueRecord).length === 0) {
     return "";
   }
 
@@ -145,10 +198,10 @@ export function flattenCodexStreamText(value: any): string {
     "reasoning",
   ];
   for (const fieldName of directFields) {
-    if (!(fieldName in value)) {
+    if (!(fieldName in valueRecord)) {
       continue;
     }
-    const text = flattenCodexStreamText(value[fieldName]);
+    const text = flattenCodexStreamText(valueRecord[fieldName]);
     if (text) {
       return text;
     }
@@ -156,7 +209,7 @@ export function flattenCodexStreamText(value: any): string {
   return "";
 }
 
-export function getCodexStreamDisplayText(payload: any) {
+export function getCodexStreamDisplayText(payload: unknown): string {
   const text = flattenCodexStreamText(payload);
   if (text) {
     return text;
@@ -164,8 +217,8 @@ export function getCodexStreamDisplayText(payload: any) {
   return JSON.stringify(payload, null, 2);
 }
 
-export function getActiveCodexTurnKeys(chatMessages: any) {
-  const activeTurnKeys = new Set<any>();
+export function getActiveCodexTurnKeys(chatMessages: unknown): Set<string> {
+  const activeTurnKeys = new Set<string>();
   for (const message of Array.isArray(chatMessages) ? chatMessages : []) {
     const payload = parseCodexStreamPayload(message);
     if (!payload) {
@@ -187,36 +240,41 @@ export function getActiveCodexTurnKeys(chatMessages: any) {
   return activeTurnKeys;
 }
 
-export function compareTurnsByTimestamp(a: any, b: any) {
-  const leftTime = toSortableTimestamp(a?.createdAt || a?.startedAt);
-  const rightTime = toSortableTimestamp(b?.createdAt || b?.startedAt);
+export function compareTurnsByTimestamp(a: unknown, b: unknown): number {
+  const leftTurn = toTurn(a);
+  const rightTurn = toTurn(b);
+  const leftTime = toSortableTimestamp(leftTurn.createdAt || leftTurn.startedAt);
+  const rightTime = toSortableTimestamp(rightTurn.createdAt || rightTurn.startedAt);
   if (leftTime !== rightTime) {
     return leftTime - rightTime;
   }
-  return String(a?.id || "").localeCompare(String(b?.id || ""));
+  return String(leftTurn.id || "").localeCompare(String(rightTurn.id || ""));
 }
 
-export function compareTurnItemsByStartedAt(a: any, b: any) {
-  const leftTime = toSortableTimestamp(a?.startedAt || a?.createdAt || a?.endedAt);
-  const rightTime = toSortableTimestamp(b?.startedAt || b?.createdAt || b?.endedAt);
+export function compareTurnItemsByStartedAt(a: unknown, b: unknown): number {
+  const leftItem = toTurnItem(a);
+  const rightItem = toTurnItem(b);
+  const leftTime = toSortableTimestamp(leftItem.startedAt || leftItem.createdAt || leftItem.endedAt);
+  const rightTime = toSortableTimestamp(rightItem.startedAt || rightItem.createdAt || rightItem.endedAt);
   if (leftTime !== rightTime) {
     return leftTime - rightTime;
   }
-  return String(a?.id || "").localeCompare(String(b?.id || ""));
+  return String(leftItem.id || "").localeCompare(String(rightItem.id || ""));
 }
 
-export function getTurnLifecycleSignature(turns: any) {
+export function getTurnLifecycleSignature(turns: unknown): string {
   const normalizedTurns = Array.isArray(turns) ? turns : [];
   if (normalizedTurns.length === 0) {
     return "";
   }
   return [...normalizedTurns]
     .sort(compareTurnsByTimestamp)
-    .map((turn: any) => {
-      const turnId = String(turn?.id || "").trim();
-      const status = normalizeChatStatus(turn?.status);
-      const startedAt = String(turn?.startedAt || "").trim();
-      const endedAt = String(turn?.endedAt || "").trim();
+    .map((turn) => {
+      const turnRecord = toTurn(turn);
+      const turnId = String(turnRecord.id || "").trim();
+      const status = normalizeChatStatus(turnRecord.status);
+      const startedAt = String(turnRecord.startedAt || "").trim();
+      const endedAt = String(turnRecord.endedAt || "").trim();
       return `${turnId}:${status}:${startedAt}:${endedAt}`;
     })
     .join("|");
@@ -225,8 +283,12 @@ export function getTurnLifecycleSignature(turns: any) {
 export function updateQueuedMessagesFromTurnSubscription({
   queuedMessages,
   previousRunningTurnId,
-  nextTurns
-}: any = {}) {
+  nextTurns,
+}: {
+  queuedMessages?: unknown;
+  previousRunningTurnId?: unknown;
+  nextTurns?: unknown;
+} = {}) {
   const queueSnapshot = Array.isArray(queuedMessages) ? queuedMessages : [];
   const priorRunningTurnId = String(previousRunningTurnId || "").trim();
   const nextRunningTurnId = String(getLatestRunningChatTurn(nextTurns)?.id || "").trim();
@@ -246,7 +308,12 @@ export function isSameChatSelection({
   currentSessionId = "",
   nextAgentId = "",
   nextSessionId = "",
-}: any = {}) {
+}: {
+  currentAgentId?: unknown;
+  currentSessionId?: unknown;
+  nextAgentId?: unknown;
+  nextSessionId?: unknown;
+} = {}): boolean {
   const resolvedCurrentAgentId = String(currentAgentId || "").trim();
   const resolvedCurrentSessionId = String(currentSessionId || "").trim();
   const resolvedNextAgentId = String(nextAgentId || "").trim();
@@ -267,23 +334,24 @@ export function isSameChatSelection({
   );
 }
 
-export function getSortedTurnItems(turn: any) {
-  const turnItems = Array.isArray(turn?.items) ? turn.items : [];
+export function getSortedTurnItems(turn: unknown): ChatTurnItemLike[] {
+  const turnRecord = toTurn(turn);
+  const turnItems = Array.isArray(turnRecord.items) ? turnRecord.items : [];
   return [...turnItems].sort(compareTurnItemsByStartedAt);
 }
 
-export function selectVisibleTurnsByMessageCount(chatTurns: any, visibleMessageCount: any) {
+export function selectVisibleTurnsByMessageCount(chatTurns: unknown, visibleMessageCount: number) {
   const normalizedTurns = Array.isArray(chatTurns) ? chatTurns : [];
-  const totalMessageCount = normalizedTurns.reduce((count: any, turn: any) => {
+  const totalMessageCount = normalizedTurns.reduce((count, turn) => {
     return count + getSortedTurnItems(turn).length;
   }, 0);
   const startMessageIndex = Math.max(0, totalMessageCount - Math.max(0, visibleMessageCount));
 
   let itemCursor = 0;
-  const visibleTurns: any[] = [];
+  const visibleTurns: Array<ChatTurnLike & { items: ChatTurnItemLike[] }> = [];
   for (const turn of normalizedTurns) {
     const turnItems = getSortedTurnItems(turn);
-    const visibleItems: any[] = [];
+    const visibleItems: ChatTurnItemLike[] = [];
     for (const item of turnItems) {
       if (itemCursor >= startMessageIndex) {
         visibleItems.push(item);
@@ -292,7 +360,7 @@ export function selectVisibleTurnsByMessageCount(chatTurns: any, visibleMessageC
     }
 
     if (visibleItems.length > 0 || (turnItems.length === 0 && itemCursor >= startMessageIndex)) {
-      visibleTurns.push({ ...turn, items: visibleItems });
+      visibleTurns.push({ ...toTurn(turn), items: visibleItems });
     }
   }
 
