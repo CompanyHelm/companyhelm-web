@@ -9,9 +9,9 @@ import {
   mcpHeadersToText,
 } from "./normalization.ts";
 
-export function createRelationshipDrafts(tasks) {
+export function createRelationshipDrafts(tasks: any) {
   const taskList = Array.isArray(tasks) ? tasks : [];
-  const childTaskIdsByParentTaskId = new Map();
+  const childTaskIdsByParentTaskId = new Map<any, any>();
 
   for (const task of taskList) {
     const taskId = String(task?.id || "").trim();
@@ -27,7 +27,7 @@ export function createRelationshipDrafts(tasks) {
     }
   }
 
-  return taskList.reduce((drafts, task) => {
+  return taskList.reduce((drafts: any, task: any) => {
     const taskId = String(task?.id || "").trim();
     if (!taskId) {
       return drafts;
@@ -35,7 +35,7 @@ export function createRelationshipDrafts(tasks) {
 
     drafts[taskId] = {
       dependencyTaskIds: normalizeUniqueStringList(task?.dependencyTaskIds || [])
-        .filter((dependencyTaskId) => dependencyTaskId !== taskId),
+        .filter((dependencyTaskId: any) => dependencyTaskId !== taskId),
       parentTaskId: String(task?.parentTaskId || "").trim(),
       childTaskIds: normalizeUniqueStringList(childTaskIdsByParentTaskId.get(taskId) || []),
     };
@@ -43,8 +43,8 @@ export function createRelationshipDrafts(tasks) {
   }, {});
 }
 
-export function createAgentDrafts(agents) {
-  return agents.reduce((drafts, agent) => {
+export function createAgentDrafts(agents: any) {
+  return agents.reduce((drafts: any, agent: any) => {
     drafts[agent.id] = {
       agentRunnerId: agent.agentRunnerId || "",
       roleIds: [...(agent.roleIds || [])],
@@ -59,8 +59,8 @@ export function createAgentDrafts(agents) {
   }, {});
 }
 
-export function createSkillDrafts(skills) {
-  return skills.reduce((drafts, skill) => {
+export function createSkillDrafts(skills: any) {
+  return skills.reduce((drafts: any, skill: any) => {
     const normalizedSkillType = normalizeSkillType(skill.skillType);
     drafts[skill.id] = {
       name: skill.name || "",
@@ -76,8 +76,8 @@ export function createSkillDrafts(skills) {
   }, {});
 }
 
-export function createMcpServerDrafts(mcpServers) {
-  return mcpServers.reduce((drafts, mcpServer) => {
+export function createMcpServerDrafts(mcpServers: any) {
+  return mcpServers.reduce((drafts: any, mcpServer: any) => {
     drafts[mcpServer.id] = {
       name: mcpServer.name || "",
       transportType: normalizeMcpTransportType(mcpServer.transportType),

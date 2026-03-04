@@ -1,10 +1,10 @@
 import { normalizeUniqueStringList } from "./normalization.ts";
 
-function toTaskId(value) {
+function toTaskId(value: any) {
   return String(value || "").trim();
 }
 
-function sortTaskNodesByName(a, b) {
+function sortTaskNodesByName(a: any, b: any) {
   const aName = String(a?.name || "").trim().toLowerCase();
   const bName = String(b?.name || "").trim().toLowerCase();
   if (aName < bName) {
@@ -16,8 +16,8 @@ function sortTaskNodesByName(a, b) {
   return String(a?.id || "").localeCompare(String(b?.id || ""));
 }
 
-export function buildTaskDependencyLanes(tasks) {
-  const taskById = new Map();
+export function buildTaskDependencyLanes(tasks: any) {
+  const taskById = new Map<any, any>();
   for (const rawTask of Array.isArray(tasks) ? tasks : []) {
     const taskId = toTaskId(rawTask?.id);
     if (!taskId) {
@@ -26,9 +26,9 @@ export function buildTaskDependencyLanes(tasks) {
     taskById.set(taskId, rawTask);
   }
 
-  const dependencyTaskIdsByTaskId = new Map();
-  const dependentTaskIdsByTaskId = new Map();
-  const inDegreeByTaskId = new Map();
+  const dependencyTaskIdsByTaskId = new Map<any, any>();
+  const dependentTaskIdsByTaskId = new Map<any, any>();
+  const inDegreeByTaskId = new Map<any, any>();
   for (const taskId of taskById.keys()) {
     dependencyTaskIdsByTaskId.set(taskId, []);
     dependentTaskIdsByTaskId.set(taskId, []);
@@ -37,7 +37,7 @@ export function buildTaskDependencyLanes(tasks) {
 
   for (const [taskId, task] of taskById.entries()) {
     const dependencyTaskIds = normalizeUniqueStringList(task?.dependencyTaskIds || [])
-      .filter((dependencyTaskId) => dependencyTaskId !== taskId && taskById.has(dependencyTaskId));
+      .filter((dependencyTaskId: any) => dependencyTaskId !== taskId && taskById.has(dependencyTaskId));
     dependencyTaskIdsByTaskId.set(taskId, dependencyTaskIds);
     inDegreeByTaskId.set(taskId, dependencyTaskIds.length);
     for (const dependencyTaskId of dependencyTaskIds) {
@@ -50,14 +50,14 @@ export function buildTaskDependencyLanes(tasks) {
     }
   }
 
-  const orderedTaskIds = [...taskById.keys()].sort((a, b) => {
+  const orderedTaskIds = [...taskById.keys()].sort((a: any, b: any) => {
     const taskA = taskById.get(a);
     const taskB = taskById.get(b);
     return sortTaskNodesByName(taskA, taskB);
   });
-  const queue = orderedTaskIds.filter((taskId) => (inDegreeByTaskId.get(taskId) || 0) === 0);
-  const levelByTaskId = new Map();
-  const processedTaskIds = new Set();
+  const queue = orderedTaskIds.filter((taskId: any) => (inDegreeByTaskId.get(taskId) || 0) === 0);
+  const levelByTaskId = new Map<any, any>();
+  const processedTaskIds = new Set<any>();
   for (const taskId of queue) {
     levelByTaskId.set(taskId, 0);
   }
@@ -88,7 +88,7 @@ export function buildTaskDependencyLanes(tasks) {
     }
   }
 
-  const tasksByLevel = new Map();
+  const tasksByLevel = new Map<any, any>();
   for (const [taskId, task] of taskById.entries()) {
     const level = levelByTaskId.get(taskId) || 0;
     const laneTask = {
@@ -108,8 +108,8 @@ export function buildTaskDependencyLanes(tasks) {
   }
 
   return [...tasksByLevel.entries()]
-    .sort(([a], [b]) => a - b)
-    .map(([level, laneTasks]) => ({
+    .sort(([a]: any, [b]: any) => a - b)
+    .map(([level, laneTasks]: any) => ({
       level,
       title: level === 0 ? "Foundations" : `Layer ${level + 1}`,
       tasks: [...laneTasks].sort(sortTaskNodesByName),

@@ -20,7 +20,7 @@ export const runtimeConfigSchema = z
         .optional(),
     }),
   })
-  .superRefine((config, ctx) => {
+  .superRefine((config: any, ctx: any) => {
     if (config.auth.provider === "supabase" && !config.auth.supabase) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

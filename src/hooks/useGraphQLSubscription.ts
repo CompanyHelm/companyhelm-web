@@ -6,7 +6,7 @@ export function subscribeGraphQL({
   variables,
   onData,
   onError,
-}) {
+}: any) {
   return subscribeRelayGraphQL({
     query,
     variables,
@@ -21,7 +21,7 @@ export function useGraphQLSubscription({
   variables,
   onData,
   onError,
-}) {
+}: any) {
   const serializedVariables = useMemo(() => JSON.stringify(variables || {}), [variables]);
   const onDataRef = useRef(onData);
   const onErrorRef = useRef(onError);
@@ -38,10 +38,10 @@ export function useGraphQLSubscription({
     const unsubscribe = subscribeGraphQL({
       query,
       variables: JSON.parse(serializedVariables),
-      onData: (payload) => {
+      onData: (payload: any) => {
         onDataRef.current?.(payload);
       },
-      onError: (error) => {
+      onError: (error: any) => {
         onErrorRef.current?.(error);
       },
     });

@@ -9,7 +9,7 @@ function getBrowserStorage() {
   return window.localStorage;
 }
 
-function getStoredToken(storageKey) {
+function getStoredToken(storageKey: any) {
   const storage = getBrowserStorage();
   if (!storage) {
     return "";
@@ -18,7 +18,7 @@ function getStoredToken(storageKey) {
   return String(storage.getItem(storageKey) || "").trim();
 }
 
-function setStoredToken(storageKey, token) {
+function setStoredToken(storageKey: any, token: any) {
   const storage = getBrowserStorage();
   if (!storage) {
     return;
@@ -32,7 +32,7 @@ function setStoredToken(storageKey, token) {
   storage.setItem(storageKey, normalizedToken);
 }
 
-function clearStoredToken(storageKey) {
+function clearStoredToken(storageKey: any) {
   const storage = getBrowserStorage();
   if (!storage) {
     return;
@@ -41,8 +41,8 @@ function clearStoredToken(storageKey) {
   storage.removeItem(storageKey);
 }
 
-async function executeGraphQLAuthMutation(query, variables) {
-  const headers = {
+async function executeGraphQLAuthMutation(query: any, variables: any) {
+  const headers: any = {
     "content-type": "application/json",
   };
   const activeCompanyId = getActiveCompanyId();
@@ -72,11 +72,16 @@ async function executeGraphQLAuthMutation(query, variables) {
 }
 
 class AuthProviderBase {
+  authStateListeners: any;
   constructor() {
-    this.authStateListeners = new Set();
+    this.authStateListeners = new Set<any>();
   }
 
-  subscribeAuthStateChange(listener) {
+  hasSession() {
+    return false;
+  }
+
+  subscribeAuthStateChange(listener: any) {
     if (typeof listener !== "function") {
       return () => {};
     }
@@ -99,7 +104,11 @@ class AuthProviderBase {
 }
 
 class CompanyhelmAuthProvider extends AuthProviderBase {
-  constructor(config) {
+  config: any;
+  name: any;
+  requiresPassword: any;
+  requiresProfileOnSignUp: any;
+  constructor(config: any) {
     super();
     this.name = "companyhelm";
     this.requiresPassword = true;
@@ -123,7 +132,7 @@ class CompanyhelmAuthProvider extends AuthProviderBase {
     return `Bearer ${token}`;
   }
 
-  async signIn(input) {
+  async signIn(input: any) {
     const email = String(input?.email || "").trim();
     const password = String(input?.password || "");
     if (!email || !password) {
@@ -158,7 +167,7 @@ class CompanyhelmAuthProvider extends AuthProviderBase {
     return data.signIn.user;
   }
 
-  async signUp(input) {
+  async signUp(input: any) {
     const firstName = String(input?.firstName || "").trim();
     const lastName = String(input?.lastName || "").trim();
     const email = String(input?.email || "").trim();
@@ -204,7 +213,12 @@ class CompanyhelmAuthProvider extends AuthProviderBase {
 }
 
 class SupabaseAuthProvider extends AuthProviderBase {
-  constructor(config) {
+  client: any;
+  config: any;
+  name: any;
+  requiresPassword: any;
+  requiresProfileOnSignUp: any;
+  constructor(config: any) {
     super();
     const url = String(config?.url || "").trim();
     const anonKey = String(config?.anonKey || "").trim();
@@ -236,7 +250,7 @@ class SupabaseAuthProvider extends AuthProviderBase {
       },
     });
 
-    this.client.auth.onAuthStateChange((_event, session) => {
+    this.client.auth.onAuthStateChange((_event: any, session: any) => {
       setStoredToken(this.config.tokenStorageKey, session?.access_token || "");
       this.notifyAuthStateChange();
     });
@@ -273,7 +287,7 @@ class SupabaseAuthProvider extends AuthProviderBase {
     return `Bearer ${token}`;
   }
 
-  async signIn(input) {
+  async signIn(input: any) {
     const email = String(input?.email || "").trim();
     const password = String(input?.password || "");
     if (!email || !password) {
@@ -298,7 +312,7 @@ class SupabaseAuthProvider extends AuthProviderBase {
     return data?.user || null;
   }
 
-  async signUp(input) {
+  async signUp(input: any) {
     const firstName = String(input?.firstName || "").trim();
     const lastName = String(input?.lastName || "").trim();
     const email = String(input?.email || "").trim();
@@ -307,7 +321,7 @@ class SupabaseAuthProvider extends AuthProviderBase {
       throw new Error("Email and password are required.");
     }
 
-    const metadata = {};
+    const metadata: any = {};
     if (firstName) {
       metadata.firstName = firstName;
     }
@@ -315,7 +329,7 @@ class SupabaseAuthProvider extends AuthProviderBase {
       metadata.lastName = lastName;
     }
 
-    const signUpInput = {
+    const signUpInput: any = {
       email,
       password,
     };
@@ -346,7 +360,7 @@ class SupabaseAuthProvider extends AuthProviderBase {
   }
 }
 
-export function createAuthProvider(config) {
+export function createAuthProvider(config: any) {
   const providerName = String(config?.authProvider || "").trim().toLowerCase();
   if (providerName === "companyhelm") {
     return new CompanyhelmAuthProvider(config.auth.companyhelm);

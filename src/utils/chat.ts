@@ -1,14 +1,14 @@
 import { toSortableTimestamp, normalizeChatStatus } from "./formatting.ts";
 
-export function hasRunningChatTurns(turns) {
-  return (Array.isArray(turns) ? turns : []).some((turn) => normalizeChatStatus(turn?.status) === "running");
+export function hasRunningChatTurns(turns: any) {
+  return (Array.isArray(turns) ? turns : []).some((turn: any) => normalizeChatStatus(turn?.status) === "running");
 }
 
 export function mergeChatSessionsByAgentSnapshot({
   currentSessionsByAgent,
   snapshotSessionsByAgent,
-  knownAgentIds,
-} = {}) {
+  knownAgentIds
+}: any = {}) {
   const currentByAgent =
     currentSessionsByAgent && typeof currentSessionsByAgent === "object"
       ? currentSessionsByAgent
@@ -40,9 +40,9 @@ export function mergeChatSessionsByAgentSnapshot({
   return nextByAgent;
 }
 
-export function getLatestRunningChatTurn(turns) {
+export function getLatestRunningChatTurn(turns: any) {
   const runningTurns = (Array.isArray(turns) ? turns : []).filter(
-    (turn) => normalizeChatStatus(turn?.status) === "running",
+    (turn: any) => normalizeChatStatus(turn?.status) === "running",
   );
   if (runningTurns.length === 0) {
     return null;
@@ -50,7 +50,7 @@ export function getLatestRunningChatTurn(turns) {
   return [...runningTurns].sort(compareTurnsByTimestamp).at(-1) || null;
 }
 
-export function isChatSessionRunning(session, chatSessionRunningById) {
+export function isChatSessionRunning(session: any, chatSessionRunningById: any) {
   if (!session) {
     return false;
   }
@@ -73,7 +73,7 @@ const CODEX_TURN_COMPLETION_TYPES = new Set([
   "turn.error",
 ]);
 
-export function parseCodexStreamPayload(message) {
+export function parseCodexStreamPayload(message: any) {
   if (String(message?.role || "").trim().toLowerCase() !== "llm") {
     return null;
   }
@@ -92,7 +92,7 @@ export function parseCodexStreamPayload(message) {
   }
 }
 
-export function getCodexStreamEventType(payload) {
+export function getCodexStreamEventType(payload: any) {
   if (!payload || typeof payload !== "object") {
     return "";
   }
@@ -103,7 +103,7 @@ export function getCodexStreamEventType(payload) {
   return topLevelType;
 }
 
-export function getCodexStreamTurnKey(payload) {
+export function getCodexStreamTurnKey(payload: any) {
   if (!payload || typeof payload !== "object") {
     return CODEX_STREAM_DEFAULT_TURN_KEY;
   }
@@ -124,12 +124,12 @@ export function getCodexStreamTurnKey(payload) {
   return CODEX_STREAM_DEFAULT_TURN_KEY;
 }
 
-export function flattenCodexStreamText(value) {
+export function flattenCodexStreamText(value: any): string {
   if (typeof value === "string") {
     return value.trim();
   }
   if (Array.isArray(value)) {
-    return value.map((entry) => flattenCodexStreamText(entry)).filter(Boolean).join("\n").trim();
+    return value.map((entry: any) => flattenCodexStreamText(entry)).filter(Boolean).join("\n").trim();
   }
   if (!value || typeof value !== "object") {
     return "";
@@ -156,7 +156,7 @@ export function flattenCodexStreamText(value) {
   return "";
 }
 
-export function getCodexStreamDisplayText(payload) {
+export function getCodexStreamDisplayText(payload: any) {
   const text = flattenCodexStreamText(payload);
   if (text) {
     return text;
@@ -164,8 +164,8 @@ export function getCodexStreamDisplayText(payload) {
   return JSON.stringify(payload, null, 2);
 }
 
-export function getActiveCodexTurnKeys(chatMessages) {
-  const activeTurnKeys = new Set();
+export function getActiveCodexTurnKeys(chatMessages: any) {
+  const activeTurnKeys = new Set<any>();
   for (const message of Array.isArray(chatMessages) ? chatMessages : []) {
     const payload = parseCodexStreamPayload(message);
     if (!payload) {
@@ -187,7 +187,7 @@ export function getActiveCodexTurnKeys(chatMessages) {
   return activeTurnKeys;
 }
 
-export function compareTurnsByTimestamp(a, b) {
+export function compareTurnsByTimestamp(a: any, b: any) {
   const leftTime = toSortableTimestamp(a?.createdAt || a?.startedAt);
   const rightTime = toSortableTimestamp(b?.createdAt || b?.startedAt);
   if (leftTime !== rightTime) {
@@ -196,7 +196,7 @@ export function compareTurnsByTimestamp(a, b) {
   return String(a?.id || "").localeCompare(String(b?.id || ""));
 }
 
-export function compareTurnItemsByStartedAt(a, b) {
+export function compareTurnItemsByStartedAt(a: any, b: any) {
   const leftTime = toSortableTimestamp(a?.startedAt || a?.createdAt || a?.endedAt);
   const rightTime = toSortableTimestamp(b?.startedAt || b?.createdAt || b?.endedAt);
   if (leftTime !== rightTime) {
@@ -205,14 +205,14 @@ export function compareTurnItemsByStartedAt(a, b) {
   return String(a?.id || "").localeCompare(String(b?.id || ""));
 }
 
-export function getTurnLifecycleSignature(turns) {
+export function getTurnLifecycleSignature(turns: any) {
   const normalizedTurns = Array.isArray(turns) ? turns : [];
   if (normalizedTurns.length === 0) {
     return "";
   }
   return [...normalizedTurns]
     .sort(compareTurnsByTimestamp)
-    .map((turn) => {
+    .map((turn: any) => {
       const turnId = String(turn?.id || "").trim();
       const status = normalizeChatStatus(turn?.status);
       const startedAt = String(turn?.startedAt || "").trim();
@@ -225,8 +225,8 @@ export function getTurnLifecycleSignature(turns) {
 export function updateQueuedMessagesFromTurnSubscription({
   queuedMessages,
   previousRunningTurnId,
-  nextTurns,
-} = {}) {
+  nextTurns
+}: any = {}) {
   const queueSnapshot = Array.isArray(queuedMessages) ? queuedMessages : [];
   const priorRunningTurnId = String(previousRunningTurnId || "").trim();
   const nextRunningTurnId = String(getLatestRunningChatTurn(nextTurns)?.id || "").trim();
@@ -246,7 +246,7 @@ export function isSameChatSelection({
   currentSessionId = "",
   nextAgentId = "",
   nextSessionId = "",
-} = {}) {
+}: any = {}) {
   const resolvedCurrentAgentId = String(currentAgentId || "").trim();
   const resolvedCurrentSessionId = String(currentSessionId || "").trim();
   const resolvedNextAgentId = String(nextAgentId || "").trim();
@@ -267,23 +267,23 @@ export function isSameChatSelection({
   );
 }
 
-export function getSortedTurnItems(turn) {
+export function getSortedTurnItems(turn: any) {
   const turnItems = Array.isArray(turn?.items) ? turn.items : [];
   return [...turnItems].sort(compareTurnItemsByStartedAt);
 }
 
-export function selectVisibleTurnsByMessageCount(chatTurns, visibleMessageCount) {
+export function selectVisibleTurnsByMessageCount(chatTurns: any, visibleMessageCount: any) {
   const normalizedTurns = Array.isArray(chatTurns) ? chatTurns : [];
-  const totalMessageCount = normalizedTurns.reduce((count, turn) => {
+  const totalMessageCount = normalizedTurns.reduce((count: any, turn: any) => {
     return count + getSortedTurnItems(turn).length;
   }, 0);
   const startMessageIndex = Math.max(0, totalMessageCount - Math.max(0, visibleMessageCount));
 
   let itemCursor = 0;
-  const visibleTurns = [];
+  const visibleTurns: any[] = [];
   for (const turn of normalizedTurns) {
     const turnItems = getSortedTurnItems(turn);
-    const visibleItems = [];
+    const visibleItems: any[] = [];
     for (const item of turnItems) {
       if (itemCursor >= startMessageIndex) {
         visibleItems.push(item);

@@ -4,18 +4,18 @@ import { clearConfigCache, getConfig, loadConfig } from "../../src/config/config
 import { getDevelopmentConfig } from "../../src/config/development.ts";
 import { runtimeConfigSchema } from "../../src/config/schema.ts";
 
-function withWindow(nextWindow, fn) {
+function withWindow(nextWindow: any, fn: any) {
   const originalWindow = global.window;
   try {
     if (typeof nextWindow === "undefined") {
-      delete global.window;
+      Reflect.deleteProperty(global as any, "window");
     } else {
-      global.window = nextWindow;
+      global.window = nextWindow as any;
     }
     return fn();
   } finally {
     if (typeof originalWindow === "undefined") {
-      delete global.window;
+      Reflect.deleteProperty(global as any, "window");
     } else {
       global.window = originalWindow;
     }

@@ -5,7 +5,7 @@ import {
   NAV_ITEMS,
 } from "./constants.ts";
 
-export function normalizePathname(rawPathname) {
+export function normalizePathname(rawPathname: any) {
   const trimmed = String(rawPathname || "").trim();
   if (!trimmed || trimmed === "/") {
     return "/";
@@ -15,7 +15,7 @@ export function normalizePathname(rawPathname) {
   return cleanPath ? `/${cleanPath}` : "/";
 }
 
-export function getPageFromPathname(pathname = window.location.pathname) {
+export function getPageFromPathname(pathname: any = window.location.pathname) {
   const segments = normalizePathname(pathname).toLowerCase().split("/").filter(Boolean);
   const pageId = segments[0] || "";
   if (pageId && PAGE_IDS.has(pageId)) {
@@ -47,7 +47,7 @@ export function clearGithubInstallCallbackFromLocation() {
   setBrowserPath("/settings", { replace: true });
 }
 
-export function buildGithubAppInstallUrl({ appLink, companyId }) {
+export function buildGithubAppInstallUrl({ appLink, companyId }: any) {
   const resolvedAppLink = String(appLink || "").trim() || DEFAULT_GITHUB_APP_INSTALL_URL;
   const resolvedCompanyId = String(companyId || "").trim();
 
@@ -65,7 +65,7 @@ export function buildGithubAppInstallUrl({ appLink, companyId }) {
   }
 }
 
-export function getAgentsRouteFromPathname(pathname = window.location.pathname) {
+export function getAgentsRouteFromPathname(pathname: any = window.location.pathname) {
   const segments = normalizePathname(pathname).split("/").filter(Boolean);
   if (segments[0] !== "agents") {
     return { view: "list", agentId: "", sessionId: "" };
@@ -78,7 +78,7 @@ export function getAgentsRouteFromPathname(pathname = window.location.pathname) 
   return { view: "agent", agentId, sessionId: "" };
 }
 
-export function getSkillsRouteFromPathname(pathname = window.location.pathname) {
+export function getSkillsRouteFromPathname(pathname: any = window.location.pathname) {
   const segments = normalizePathname(pathname).split("/").filter(Boolean);
   if (segments[0] !== "skills") {
     return { view: "list", skillId: "" };
@@ -91,7 +91,7 @@ export function getSkillsRouteFromPathname(pathname = window.location.pathname) 
   return { view: "detail", skillId };
 }
 
-export function getRolesRouteFromPathname(pathname = window.location.pathname) {
+export function getRolesRouteFromPathname(pathname: any = window.location.pathname) {
   const segments = normalizePathname(pathname).split("/").filter(Boolean);
   if (segments[0] !== "roles") {
     return { view: "list", roleId: "" };
@@ -104,7 +104,7 @@ export function getRolesRouteFromPathname(pathname = window.location.pathname) {
   return { view: "detail", roleId };
 }
 
-export function getRunnersRouteFromPathname(pathname = window.location.pathname) {
+export function getRunnersRouteFromPathname(pathname: any = window.location.pathname) {
   const segments = normalizePathname(pathname).split("/").filter(Boolean);
   if (String(segments[0] || "").toLowerCase() !== "agent-runner") {
     return { view: "list", runnerId: "" };
@@ -117,7 +117,7 @@ export function getRunnersRouteFromPathname(pathname = window.location.pathname)
   return { view: "detail", runnerId };
 }
 
-export function getGitSkillPackagesRouteFromPathname(pathname = window.location.pathname) {
+export function getGitSkillPackagesRouteFromPathname(pathname: any = window.location.pathname) {
   const segments = normalizePathname(pathname).split("/").filter(Boolean);
   if (String(segments[0] || "").toLowerCase() !== "gitskillpackages") {
     return { view: "list", packageId: "" };
@@ -133,7 +133,7 @@ export function getGitSkillPackagesRouteFromPathname(pathname = window.location.
 export function getChatsRouteFromLocation({
   pathname = window.location.pathname,
   search = window.location.search,
-} = {}) {
+}: any = {}) {
   const normalizedPath = normalizePathname(pathname);
   if (normalizedPath !== "/chats") {
     return { agentId: "", threadId: "" };
@@ -145,7 +145,7 @@ export function getChatsRouteFromLocation({
   return { agentId, threadId };
 }
 
-export function getChatsPath({ agentId = "", threadId = "" } = {}) {
+export function getChatsPath({ agentId = "", threadId = "" }: any = {}) {
   const params = new URLSearchParams();
   const resolvedAgentId = String(agentId || "").trim();
   const resolvedThreadId = String(threadId || "").trim();
@@ -159,7 +159,7 @@ export function getChatsPath({ agentId = "", threadId = "" } = {}) {
   return query ? `/chats?${query}` : "/chats";
 }
 
-export function setBrowserPath(pathname, { replace = false } = {}) {
+export function setBrowserPath(pathname: any, { replace = false }: any = {}) {
   const currentUrl = new URL(window.location.href);
   const nextUrl = new URL(String(pathname || "/"), currentUrl.origin);
   const nextPathname = normalizePathname(nextUrl.pathname);
@@ -180,7 +180,7 @@ export function setBrowserPath(pathname, { replace = false } = {}) {
   window.dispatchEvent(new PopStateEvent("popstate"));
 }
 
-export function getPathForPage(pageId) {
+export function getPathForPage(pageId: any) {
   const normalizedPageId = String(pageId || "").trim().toLowerCase();
   if (normalizedPageId === "chat") {
     return "/chats";
