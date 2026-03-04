@@ -227,9 +227,7 @@ function assignPositions(nodes, edges, xById, levelById) {
 
   const roots = nodes
     .filter((node) => !parentById.has(node.id))
-    .sort(
-    (a, b) => (xById.get(a.id) || 0) - (xById.get(b.id) || 0),
-  );
+    .sort((a, b) => (xById.get(a.id) || 0) - (xById.get(b.id) || 0));
 
   let nextRootLeft = 0;
   for (const root of roots) {
