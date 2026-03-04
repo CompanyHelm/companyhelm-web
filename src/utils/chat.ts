@@ -95,6 +95,14 @@ export function getLatestRunningChatTurn(turns: unknown): ChatTurnLike | null {
   return toTurn([...runningTurns].sort(compareTurnsByTimestamp).at(-1));
 }
 
+export function getLatestChatTurn(turns: unknown): ChatTurnLike | null {
+  const normalizedTurns = Array.isArray(turns) ? turns : [];
+  if (normalizedTurns.length === 0) {
+    return null;
+  }
+  return toTurn([...normalizedTurns].sort(compareTurnsByTimestamp).at(-1));
+}
+
 export function isChatSessionRunning(session: unknown, chatSessionRunningById: Record<string, boolean>): boolean {
   const sessionRecord = toRecord(session);
   if (!sessionRecord || Object.keys(sessionRecord).length === 0) {
@@ -103,9 +111,6 @@ export function isChatSessionRunning(session: unknown, chatSessionRunningById: R
   const normalizedSessionStatus = String(sessionRecord.status || "").trim().toLowerCase();
   if (normalizedSessionStatus === "running") {
     return true;
-  }
-  if (normalizedSessionStatus === "ready") {
-    return false;
   }
   const sessionId = String(sessionRecord.id || "").trim();
   return Boolean(sessionId && chatSessionRunningById?.[sessionId]);
@@ -282,23 +287,23 @@ export function getTurnLifecycleSignature(turns: unknown): string {
 
 export function updateQueuedMessagesFromTurnSubscription({
   queuedMessages,
-  previousRunningTurnId,
+  previousLatestTurnId,
   nextTurns,
 }: {
   queuedMessages?: unknown;
-  previousRunningTurnId?: unknown;
+  previousLatestTurnId?: unknown;
   nextTurns?: unknown;
 } = {}) {
   const queueSnapshot = Array.isArray(queuedMessages) ? queuedMessages : [];
-  const priorRunningTurnId = String(previousRunningTurnId || "").trim();
-  const nextRunningTurnId = String(getLatestRunningChatTurn(nextTurns)?.id || "").trim();
+  const priorLatestTurnId = String(previousLatestTurnId || "").trim();
+  const nextLatestTurnId = String(getLatestChatTurn(nextTurns)?.id || "").trim();
   const shouldDequeueOldestMessage =
     queueSnapshot.length > 0
-    && Boolean(nextRunningTurnId)
-    && nextRunningTurnId !== priorRunningTurnId;
+    && Boolean(nextLatestTurnId)
+    && nextLatestTurnId !== priorLatestTurnId;
 
   return {
-    nextRunningTurnId,
+    nextLatestTurnId,
     nextQueuedMessages: shouldDequeueOldestMessage ? queueSnapshot.slice(1) : queueSnapshot,
   };
 }
