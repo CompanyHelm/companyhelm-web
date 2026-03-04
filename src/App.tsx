@@ -179,6 +179,7 @@ import { normalizeRunnerStatus, normalizeChatStatus } from "./utils/formatting.t
 
 import {
   hasRunningChatTurns,
+  getLatestChatTurn,
   getLatestRunningChatTurn,
   compareTurnsByTimestamp,
   getTurnLifecycleSignature,
@@ -2387,7 +2388,7 @@ function App() {
   );
   const isNavigatingToChatsRef = useRef<any>(false);
   const turnLifecycleSignatureBySessionIdRef = useRef<any>(new Map<any, any>());
-  const runningTurnIdBySessionIdRef = useRef<any>(new Map<any, any>());
+  const latestTurnIdBySessionIdRef = useRef<any>(new Map<any, any>());
   const runCreateChatSessionSingleFlight = useMemo(() => createSingleFlightByKey(), []);
   const hasCompanies = companies.length > 0;
   const handleChatSessionRenameDraftChange = useCallback((nextTitle: any) => {
@@ -3320,11 +3321,11 @@ function App() {
             )
           : [];
         const nextTurnLifecycleSignature = getTurnLifecycleSignature(nextTurns);
-        const nextRunningTurnId = String(getLatestRunningChatTurn(nextTurns)?.id || "").trim();
+        const nextLatestTurnId = String(getLatestChatTurn(nextTurns)?.id || "").trim();
         setChatTurns(nextTurns);
         setQueuedChatMessages(nextQueuedMessages);
         turnLifecycleSignatureBySessionIdRef.current.set(targetSessionId, nextTurnLifecycleSignature);
-        runningTurnIdBySessionIdRef.current.set(targetSessionId, nextRunningTurnId);
+        latestTurnIdBySessionIdRef.current.set(targetSessionId, nextLatestTurnId);
         setChatSessionRunningState(targetSessionId, hasRunningChatTurns(nextTurns));
       } catch (loadError: any) {
         if (!silently) {
@@ -3506,17 +3507,17 @@ function App() {
       if (nextTurnLifecycleSignature !== previousTurnLifecycleSignature) {
         turnLifecycleSignatureBySessionIdRef.current.set(targetSessionId, nextTurnLifecycleSignature);
       }
-      const previousRunningTurnId = runningTurnIdBySessionIdRef.current.get(targetSessionId) || "";
-      const { nextRunningTurnId } = updateQueuedMessagesFromTurnSubscription({
+      const previousLatestTurnId = latestTurnIdBySessionIdRef.current.get(targetSessionId) || "";
+      const { nextLatestTurnId } = updateQueuedMessagesFromTurnSubscription({
         queuedMessages: [],
-        previousRunningTurnId,
+        previousLatestTurnId,
         nextTurns,
       });
-      runningTurnIdBySessionIdRef.current.set(targetSessionId, nextRunningTurnId);
+      latestTurnIdBySessionIdRef.current.set(targetSessionId, nextLatestTurnId);
       setQueuedChatMessages((currentQueuedMessages: any) =>
         updateQueuedMessagesFromTurnSubscription({
           queuedMessages: currentQueuedMessages,
-          previousRunningTurnId,
+          previousLatestTurnId,
           nextTurns,
         }).nextQueuedMessages,
       );
@@ -3583,7 +3584,7 @@ function App() {
     setActiveCompanyId(selectedCompanyId);
     persistCompanyId(selectedCompanyId);
     turnLifecycleSignatureBySessionIdRef.current.clear();
-    runningTurnIdBySessionIdRef.current.clear();
+    latestTurnIdBySessionIdRef.current.clear();
   }, [selectedCompanyId]);
 
   useEffect(() => {
