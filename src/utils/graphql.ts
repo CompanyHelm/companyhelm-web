@@ -787,6 +787,63 @@ export const LIST_SECRET_ACCESS_LOGS_QUERY = `
   }
 `;
 
+export const LIST_APPROVALS_QUERY = `
+  query ListApprovals($companyId: String!, $status: String, $first: Int) {
+    approvals(companyId: $companyId, status: $status, first: $first) {
+      id
+      companyId
+      type
+      status
+      secretId
+      threadId
+      reason
+      rejectionReason
+      createdByPrincipalId
+      resolvedByPrincipalId
+      resolvedAt
+      createdAt
+      updatedAt
+      secretName
+      requestingAgentId
+      requestingAgentName
+    }
+  }
+`;
+
+export const APPROVE_APPROVAL_MUTATION = `
+  mutation ApproveApproval($companyId: String!, $id: String!) {
+    approveApproval(companyId: $companyId, id: $id) {
+      ok
+      error
+      approval {
+        id
+      }
+    }
+  }
+`;
+
+export const REJECT_APPROVAL_MUTATION = `
+  mutation RejectApproval($companyId: String!, $id: String!, $rejectionReason: String) {
+    rejectApproval(companyId: $companyId, id: $id, rejectionReason: $rejectionReason) {
+      ok
+      error
+      approval {
+        id
+      }
+    }
+  }
+`;
+
+export const DELETE_APPROVAL_MUTATION = `
+  mutation DeleteApproval($companyId: String!, $id: String!) {
+    deleteApproval(companyId: $companyId, id: $id) {
+      ok
+      error
+      deletedApprovalId
+    }
+  }
+`;
+
 export const CREATE_SECRET_MUTATION = `
   mutation CreateSecret(
     $companyId: String!
@@ -2633,6 +2690,63 @@ export const COMPANY_API_LIST_SECRET_ACCESS_LOGS_QUERY = `
         id
         name
       }
+    }
+  }
+`;
+
+export const COMPANY_API_LIST_APPROVALS_QUERY = `
+  query CompanyApiListApprovals($companyId: ID!, $status: ApprovalStatus, $first: Int) {
+    approvals(companyId: $companyId, status: $status, first: $first) {
+      id
+      companyId
+      type
+      status
+      secretId
+      threadId
+      reason
+      rejectionReason
+      createdByPrincipalId
+      resolvedByPrincipalId
+      resolvedAt
+      createdAt
+      updatedAt
+      secretName
+      requestingAgentId
+      requestingAgentName
+    }
+  }
+`;
+
+export const COMPANY_API_APPROVE_APPROVAL_MUTATION = `
+  mutation CompanyApiApproveApproval($companyId: ID!, $id: ID!) {
+    approveApproval(companyId: $companyId, id: $id) {
+      ok
+      error
+      approval {
+        id
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_REJECT_APPROVAL_MUTATION = `
+  mutation CompanyApiRejectApproval($companyId: ID!, $id: ID!, $rejectionReason: String) {
+    rejectApproval(companyId: $companyId, id: $id, rejectionReason: $rejectionReason) {
+      ok
+      error
+      approval {
+        id
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_DELETE_APPROVAL_MUTATION = `
+  mutation CompanyApiDeleteApproval($companyId: ID!, $id: ID!) {
+    deleteApproval(companyId: $companyId, id: $id) {
+      ok
+      error
+      deletedApprovalId
     }
   }
 `;
