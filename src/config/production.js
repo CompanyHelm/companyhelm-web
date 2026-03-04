@@ -6,8 +6,8 @@ export function getProductionConfig() {
       graphqlApiUrl: "http://127.0.0.1:4000/graphql",
       runnerGrpcTarget: "localhost:50051",
     },
-    authProvider: "companyhelm",
     auth: {
+      provider: "companyhelm",
       companyhelm: {
         tokenStorageKey: "companyhelm.auth.token",
       },

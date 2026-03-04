@@ -6,8 +6,8 @@ export const runtimeConfigSchema = z
       graphqlApiUrl: z.string().url(),
       runnerGrpcTarget: z.string().min(1),
     }),
-    authProvider: z.enum(["companyhelm", "supabase"]),
     auth: z.object({
+      provider: z.enum(["companyhelm", "supabase"]),
       companyhelm: z.object({
         tokenStorageKey: z.string().min(1),
       }),
@@ -21,7 +21,7 @@ export const runtimeConfigSchema = z
     }),
   })
   .superRefine((config, ctx) => {
-    if (config.authProvider === "supabase" && !config.auth.supabase) {
+    if (config.auth.provider === "supabase" && !config.auth.supabase) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["auth", "supabase"],
