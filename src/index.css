@@ -2565,17 +2565,6 @@ button:disabled {
   flex-wrap: wrap;
 }
 
-.task-table-agent-input {
-  min-width: 220px;
-  height: 2rem;
-  padding: 0 0.55rem;
-  border-radius: 8px;
-  border: 1px solid var(--panel-border);
-  background: var(--bg-base);
-  color: var(--ink-0);
-  font-size: 0.78rem;
-}
-
 .task-table {
   width: 100%;
   min-width: 800px;

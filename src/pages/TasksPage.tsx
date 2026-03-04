@@ -6,6 +6,7 @@ import { TaskTableView } from "../components/TaskTableView.tsx";
 import { TaskCreateModal } from "../components/TaskCreateModal.tsx";
 import { TaskEditModal } from "../components/TaskEditModal.tsx";
 import type {
+  Agent,
   TaskItem,
   TaskRelationshipDraftById,
 } from "../types/domain.ts";
@@ -13,6 +14,7 @@ import type {
 interface TasksPageProps {
   selectedCompanyId: string;
   tasks: TaskItem[];
+  agents: Agent[];
   isLoadingTasks: boolean;
   taskError: string;
   isSubmittingTask: boolean;
@@ -36,13 +38,14 @@ interface TasksPageProps {
   onCreateTaskComment: (taskId: string, comment: string) => Promise<boolean> | boolean;
   onDeleteTask: (taskId: string, taskName: string) => void;
   onBatchDeleteTasks: (taskIds: string[]) => Promise<boolean> | boolean;
-  onBatchExecuteTasks: (taskIds: string[], agentId: string) => Promise<boolean> | boolean;
+  onBatchExecuteTasks: (taskIds: string[], fallbackAgentId?: string) => Promise<boolean> | boolean;
   renderTaskLink: (task: TaskItem) => ReactNode;
 }
 
 export function TasksPage({
   selectedCompanyId,
   tasks,
+  agents,
   isLoadingTasks,
   taskError,
   isSubmittingTask,
@@ -152,6 +155,7 @@ export function TasksPage({
             ) : (
               <TaskTableView
                 tasks={tasks}
+                agents={agents}
                 onTaskClick={handleTaskClick}
                 onDeleteTask={handleDeleteTask}
                 onBatchDeleteTasks={onBatchDeleteTasks}
