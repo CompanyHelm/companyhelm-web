@@ -45,6 +45,7 @@ import {
   LIST_GIT_SKILL_PACKAGES_QUERY,
   LIST_MCP_SERVERS_QUERY,
   LIST_SECRETS_QUERY,
+  LIST_SECRET_VALUE_QUERY,
   LIST_SECRET_ACCESS_LOGS_QUERY,
   CREATE_TASK_MUTATION,
   ADD_TASK_DEPENDENCY_MUTATION,
@@ -124,6 +125,7 @@ import {
   COMPANY_API_LIST_GIT_SKILL_PACKAGES_QUERY,
   COMPANY_API_LIST_MCP_SERVERS_QUERY,
   COMPANY_API_LIST_SECRETS_QUERY,
+  COMPANY_API_LIST_SECRET_VALUE_QUERY,
   COMPANY_API_LIST_SECRET_ACCESS_LOGS_QUERY,
   COMPANY_API_PREVIEW_GIT_SKILL_PACKAGE_MUTATION,
   COMPANY_API_CREATE_GIT_SKILL_PACKAGE_MUTATION,
@@ -1954,6 +1956,21 @@ async function executeGraphQL(query: any, variables: any = {}) {
     };
   }
 
+  if (query === LIST_SECRET_VALUE_QUERY) {
+    const data = await executeRawGraphQL(COMPANY_API_LIST_SECRET_VALUE_QUERY, {
+      companyId: resolveLegacyId(variables?.companyId),
+      secretId: resolveLegacyId(variables?.secretId),
+    });
+    const payload = data?.secretValue;
+    return {
+      secretValue: {
+        ok: Boolean(payload?.ok),
+        error: payload?.error ? String(payload.error) : null,
+        value: payload?.value == null ? null : String(payload.value),
+      },
+    };
+  }
+
   if (query === LIST_SECRET_ACCESS_LOGS_QUERY) {
     const data = await executeRawGraphQL(COMPANY_API_LIST_SECRET_ACCESS_LOGS_QUERY, {
       companyId: resolveLegacyId(variables?.companyId),
@@ -2526,6 +2543,9 @@ function App() {
   const [secretAccessLogsBySecretId, setSecretAccessLogsBySecretId] = useState<any>({});
   const [isLoadingSecretAccessLogsBySecretId, setIsLoadingSecretAccessLogsBySecretId] = useState<any>({});
   const [secretAccessLogErrorBySecretId, setSecretAccessLogErrorBySecretId] = useState<any>({});
+  const [secretValuesBySecretId, setSecretValuesBySecretId] = useState<any>({});
+  const [isLoadingSecretValuesBySecretId, setIsLoadingSecretValuesBySecretId] = useState<any>({});
+  const [secretValueErrorBySecretId, setSecretValueErrorBySecretId] = useState<any>({});
   const [mcpServerName, setMcpServerName] = useState<any>("");
   const [mcpServerTransportType, setMcpServerTransportType] = useState<any>(
     MCP_TRANSPORT_TYPE_STREAMABLE_HTTP,
@@ -3232,6 +3252,9 @@ function App() {
       setSecretAccessLogsBySecretId({});
       setIsLoadingSecretAccessLogsBySecretId({});
       setSecretAccessLogErrorBySecretId({});
+      setSecretValuesBySecretId({});
+      setIsLoadingSecretValuesBySecretId({});
+      setSecretValueErrorBySecretId({});
       setHasLoadedSecrets(false);
       setIsLoadingSecrets(false);
       return;
@@ -3260,6 +3283,21 @@ function App() {
         ),
       );
       setSecretAccessLogErrorBySecretId((currentErrorBySecretId: any) =>
+        Object.fromEntries(
+          Object.entries(currentErrorBySecretId || {}).filter(([secretId]) => validSecretIds.has(secretId)),
+        ),
+      );
+      setSecretValuesBySecretId((currentValuesBySecretId: any) =>
+        Object.fromEntries(
+          Object.entries(currentValuesBySecretId || {}).filter(([secretId]) => validSecretIds.has(secretId)),
+        ),
+      );
+      setIsLoadingSecretValuesBySecretId((currentLoadingBySecretId: any) =>
+        Object.fromEntries(
+          Object.entries(currentLoadingBySecretId || {}).filter(([secretId]) => validSecretIds.has(secretId)),
+        ),
+      );
+      setSecretValueErrorBySecretId((currentErrorBySecretId: any) =>
         Object.fromEntries(
           Object.entries(currentErrorBySecretId || {}).filter(([secretId]) => validSecretIds.has(secretId)),
         ),
@@ -3337,6 +3375,55 @@ function App() {
       }));
     } finally {
       setIsLoadingSecretAccessLogsBySecretId((currentBySecretId: any) => ({
+        ...(currentBySecretId || {}),
+        [normalizedSecretId]: false,
+      }));
+    }
+  }, [selectedCompanyId]);
+
+  const loadSecretValue = useCallback(async (secretId: any) => {
+    const normalizedSecretId = String(secretId || "").trim();
+    if (!selectedCompanyId || !normalizedSecretId) {
+      return null;
+    }
+
+    try {
+      setIsLoadingSecretValuesBySecretId((currentBySecretId: any) => ({
+        ...(currentBySecretId || {}),
+        [normalizedSecretId]: true,
+      }));
+      setSecretValueErrorBySecretId((currentBySecretId: any) => ({
+        ...(currentBySecretId || {}),
+        [normalizedSecretId]: "",
+      }));
+
+      const data = await executeGraphQL(LIST_SECRET_VALUE_QUERY, {
+        companyId: selectedCompanyId,
+        secretId: normalizedSecretId,
+      });
+      const payload = data?.secretValue;
+      if (!payload?.ok) {
+        throw new Error(payload?.error || "Failed to load secret value.");
+      }
+
+      const value = payload?.value == null ? "" : String(payload.value);
+      setSecretValuesBySecretId((currentBySecretId: any) => ({
+        ...(currentBySecretId || {}),
+        [normalizedSecretId]: value,
+      }));
+      return value;
+    } catch (loadError: any) {
+      setSecretValuesBySecretId((currentBySecretId: any) => ({
+        ...(currentBySecretId || {}),
+        [normalizedSecretId]: "",
+      }));
+      setSecretValueErrorBySecretId((currentBySecretId: any) => ({
+        ...(currentBySecretId || {}),
+        [normalizedSecretId]: loadError?.message || "Failed to load secret value.",
+      }));
+      return null;
+    } finally {
+      setIsLoadingSecretValuesBySecretId((currentBySecretId: any) => ({
         ...(currentBySecretId || {}),
         [normalizedSecretId]: false,
       }));
@@ -7896,8 +7983,11 @@ function App() {
             secretDescription={secretDescription}
             secretValue={secretValue}
             secretDrafts={secretDrafts}
+            secretValuesBySecretId={secretValuesBySecretId}
             secretAccessLogsBySecretId={secretAccessLogsBySecretId}
+            isLoadingSecretValuesBySecretId={isLoadingSecretValuesBySecretId}
             isLoadingSecretAccessLogsBySecretId={isLoadingSecretAccessLogsBySecretId}
+            secretValueErrorBySecretId={secretValueErrorBySecretId}
             secretAccessLogErrorBySecretId={secretAccessLogErrorBySecretId}
             secretCountLabel={secretCountLabel}
             onSecretNameChange={setSecretName}
@@ -7905,6 +7995,7 @@ function App() {
             onSecretValueChange={setSecretValue}
             onCreateSecret={handleCreateSecret}
             onSecretDraftChange={handleSecretDraftChange}
+            onLoadSecretValue={loadSecretValue}
             onLoadSecretAccessLogs={loadSecretAccessLogs}
             onSaveSecret={handleSaveSecret}
             onDeleteSecret={handleDeleteSecret}

@@ -15,6 +15,26 @@ function formatAccessedAt(value: any) {
   return parsed.toLocaleString();
 }
 
+function SecretVisibilityIcon({ isVisible }: { isVisible: boolean }) {
+  if (isVisible) {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M3 3l18 18" />
+        <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
+        <path d="M9.9 4.2A10.3 10.3 0 0 1 12 4c5 0 8.8 3.3 10 8-0.5 1.8-1.4 3.3-2.6 4.5" />
+        <path d="M6.3 6.3C4.7 7.8 3.5 9.8 3 12c1.2 4.7 5 8 10 8 1.4 0 2.7-0.3 3.9-0.8" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
 export function SecretsPage({
   secrets,
   isLoadingSecrets,
@@ -26,8 +46,11 @@ export function SecretsPage({
   secretDescription,
   secretValue,
   secretDrafts,
+  secretValuesBySecretId,
   secretAccessLogsBySecretId,
+  isLoadingSecretValuesBySecretId,
   isLoadingSecretAccessLogsBySecretId,
+  secretValueErrorBySecretId,
   secretAccessLogErrorBySecretId,
   secretCountLabel,
   onSecretNameChange,
@@ -35,12 +58,16 @@ export function SecretsPage({
   onSecretValueChange,
   onCreateSecret,
   onSecretDraftChange,
+  onLoadSecretValue,
   onLoadSecretAccessLogs,
   onSaveSecret,
   onDeleteSecret,
 }: any) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState<any>(false);
   const [editingSecretId, setEditingSecretId] = useState<any>("");
+  const [isCreateSecretValueVisible, setIsCreateSecretValueVisible] = useState<any>(false);
+  const [isSecretDraftValueVisibleBySecretId, setIsSecretDraftValueVisibleBySecretId] = useState<any>({});
+  const [isCurrentSecretValueVisibleBySecretId, setIsCurrentSecretValueVisibleBySecretId] = useState<any>({});
 
   const pageActions = useMemo(() => (
     <>
@@ -64,8 +91,55 @@ export function SecretsPage({
   async function handleCreateSecretSubmit(event: any) {
     const didCreate = await onCreateSecret(event);
     if (didCreate) {
+      setIsCreateSecretValueVisible(false);
       setIsCreateModalOpen(false);
     }
+  }
+
+  function handleCloseCreateModal() {
+    setIsCreateSecretValueVisible(false);
+    setIsCreateModalOpen(false);
+  }
+
+  function handleCloseEditModal() {
+    setEditingSecretId("");
+  }
+
+  function handleSecretDraftVisibilityToggle(secretId: any) {
+    setIsSecretDraftValueVisibleBySecretId((currentBySecretId: any) => ({
+      ...(currentBySecretId || {}),
+      [secretId]: !Boolean(currentBySecretId?.[secretId]),
+    }));
+  }
+
+  async function handleCurrentSecretValueVisibilityToggle(secretId: any) {
+    const normalizedSecretId = String(secretId || "").trim();
+    if (!normalizedSecretId) {
+      return;
+    }
+
+    const hasLoadedCurrentValue = Object.prototype.hasOwnProperty.call(
+      secretValuesBySecretId || {},
+      normalizedSecretId,
+    );
+
+    if (!hasLoadedCurrentValue) {
+      if (typeof onLoadSecretValue === "function") {
+        const loadedValue = await onLoadSecretValue(normalizedSecretId);
+        if (loadedValue !== null) {
+          setIsCurrentSecretValueVisibleBySecretId((currentBySecretId: any) => ({
+            ...(currentBySecretId || {}),
+            [normalizedSecretId]: true,
+          }));
+        }
+      }
+      return;
+    }
+
+    setIsCurrentSecretValueVisibleBySecretId((currentBySecretId: any) => ({
+      ...(currentBySecretId || {}),
+      [normalizedSecretId]: !Boolean(currentBySecretId?.[normalizedSecretId]),
+    }));
   }
 
   useEffect(() => {
@@ -154,7 +228,7 @@ export function SecretsPage({
         title="Create secret"
         description="Store an encrypted secret value for company-level integrations."
         isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
+        onClose={handleCloseCreateModal}
       >
         <form className="task-form" onSubmit={handleCreateSecretSubmit}>
           <label htmlFor="create-secret-name">Name</label>
@@ -177,13 +251,25 @@ export function SecretsPage({
           />
 
           <label htmlFor="create-secret-value">Secret value</label>
-          <input
-            id="create-secret-value"
-            value={secretValue}
-            onChange={(event: any) => onSecretValueChange(event.target.value)}
-            placeholder="Paste secret value"
-            required
-          />
+          <div className="secret-input-row">
+            <input
+              id="create-secret-value"
+              type={isCreateSecretValueVisible ? "text" : "password"}
+              value={secretValue}
+              onChange={(event: any) => onSecretValueChange(event.target.value)}
+              placeholder="Paste secret value"
+              required
+            />
+            <button
+              type="button"
+              className="secret-visibility-toggle-btn"
+              onClick={() => setIsCreateSecretValueVisible((current: any) => !current)}
+              aria-label={isCreateSecretValueVisible ? "Hide secret value" : "Show secret value"}
+              title={isCreateSecretValueVisible ? "Hide secret value" : "Show secret value"}
+            >
+              <SecretVisibilityIcon isVisible={isCreateSecretValueVisible} />
+            </button>
+          </div>
 
           <button type="submit" disabled={isCreatingSecret}>
             {isCreatingSecret ? "Creating..." : "Create secret"}
@@ -200,7 +286,7 @@ export function SecretsPage({
         }
         description="Leave value empty to keep the current encrypted value unchanged."
         isOpen={Boolean(editingSecretId)}
-        onClose={() => setEditingSecretId("")}
+        onClose={handleCloseEditModal}
       >
         {editingSecretId ? (() => {
           const draft = secretDrafts[editingSecretId] || {
@@ -215,6 +301,17 @@ export function SecretsPage({
           const accessLogError = String(secretAccessLogErrorBySecretId?.[editingSecretId] || "");
           const isSavingOrDeleting =
             savingSecretId === editingSecretId || deletingSecretId === editingSecretId;
+          const hasLoadedCurrentSecretValue = Object.prototype.hasOwnProperty.call(
+            secretValuesBySecretId || {},
+            editingSecretId,
+          );
+          const currentSecretValue = hasLoadedCurrentSecretValue
+            ? String(secretValuesBySecretId?.[editingSecretId] ?? "")
+            : "";
+          const isLoadingCurrentSecretValue = Boolean(isLoadingSecretValuesBySecretId?.[editingSecretId]);
+          const currentSecretValueError = String(secretValueErrorBySecretId?.[editingSecretId] || "");
+          const isCurrentSecretValueVisible = Boolean(isCurrentSecretValueVisibleBySecretId?.[editingSecretId]);
+          const isDraftSecretValueVisible = Boolean(isSecretDraftValueVisibleBySecretId?.[editingSecretId]);
 
           return (
             <div className="chat-settings-modal-form">
@@ -251,20 +348,74 @@ export function SecretsPage({
               </div>
 
               <div className="chat-settings-field">
+                <label htmlFor={`edit-secret-current-value-${editingSecretId}`} className="chat-settings-label">
+                  Current value
+                </label>
+                <div className="secret-input-row">
+                  <input
+                    id={`edit-secret-current-value-${editingSecretId}`}
+                    className="chat-settings-input"
+                    type={isCurrentSecretValueVisible ? "text" : "password"}
+                    value={currentSecretValue}
+                    readOnly
+                    placeholder={
+                      hasLoadedCurrentSecretValue
+                        ? ""
+                        : (isLoadingCurrentSecretValue ? "Loading..." : "Click eye icon to view current value")
+                    }
+                    disabled={isSavingOrDeleting}
+                  />
+                  <button
+                    type="button"
+                    className="secret-visibility-toggle-btn"
+                    onClick={() => {
+                      void handleCurrentSecretValueVisibilityToggle(editingSecretId);
+                    }}
+                    disabled={isSavingOrDeleting || isLoadingCurrentSecretValue}
+                    aria-label={
+                      hasLoadedCurrentSecretValue
+                        ? (isCurrentSecretValueVisible ? "Hide current secret value" : "Show current secret value")
+                        : "View current secret value"
+                    }
+                    title={
+                      hasLoadedCurrentSecretValue
+                        ? (isCurrentSecretValueVisible ? "Hide current secret value" : "Show current secret value")
+                        : "View current secret value"
+                    }
+                  >
+                    <SecretVisibilityIcon isVisible={isCurrentSecretValueVisible} />
+                  </button>
+                </div>
+                {currentSecretValueError ? <p className="error-banner">{currentSecretValueError}</p> : null}
+              </div>
+
+              <div className="chat-settings-field">
                 <label htmlFor={`edit-secret-value-${editingSecretId}`} className="chat-settings-label">
                   New value (optional)
                 </label>
-                <input
-                  id={`edit-secret-value-${editingSecretId}`}
-                  className="chat-settings-input"
-                  type="text"
-                  value={draft.value}
-                  onChange={(event: any) =>
-                    onSecretDraftChange(editingSecretId, "value", event.target.value)
-                  }
-                  placeholder="Set only when rotating the secret"
-                  disabled={isSavingOrDeleting}
-                />
+                <div className="secret-input-row">
+                  <input
+                    id={`edit-secret-value-${editingSecretId}`}
+                    className="chat-settings-input"
+                    type={isDraftSecretValueVisible ? "text" : "password"}
+                    value={draft.value}
+                    onChange={(event: any) =>
+                      onSecretDraftChange(editingSecretId, "value", event.target.value)
+                    }
+                    placeholder="Set only when rotating the secret"
+                    disabled={isSavingOrDeleting}
+                  />
+                  <button
+                    type="button"
+                    className="secret-visibility-toggle-btn"
+                    onClick={() => handleSecretDraftVisibilityToggle(editingSecretId)}
+                    disabled={isSavingOrDeleting}
+                    aria-label={isDraftSecretValueVisible ? "Hide new secret value" : "Show new secret value"}
+                    title={isDraftSecretValueVisible ? "Hide new secret value" : "Show new secret value"}
+                  >
+                    <SecretVisibilityIcon isVisible={isDraftSecretValueVisible} />
+                  </button>
+                </div>
               </div>
 
               <div className="chat-settings-field">

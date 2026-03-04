@@ -750,6 +750,16 @@ export const LIST_SECRETS_QUERY = `
   }
 `;
 
+export const LIST_SECRET_VALUE_QUERY = `
+  query ListSecretValue($companyId: String!, $secretId: String!) {
+    secretValue(companyId: $companyId, secretId: $secretId) {
+      ok
+      error
+      value
+    }
+  }
+`;
+
 export const LIST_SECRET_ACCESS_LOGS_QUERY = `
   query ListSecretAccessLogs($companyId: String!, $secretId: String!, $first: Int) {
     secretAccessLogs(companyId: $companyId, secretId: $secretId, first: $first) {
@@ -2586,6 +2596,16 @@ export const COMPANY_API_LIST_SECRETS_QUERY = `
       description
       createdAt
       updatedAt
+    }
+  }
+`;
+
+export const COMPANY_API_LIST_SECRET_VALUE_QUERY = `
+  query CompanyApiListSecretValue($companyId: ID!, $secretId: ID!) {
+    secretValue(companyId: $companyId, secretId: $secretId) {
+      ok
+      error
+      value
     }
   }
 `;
