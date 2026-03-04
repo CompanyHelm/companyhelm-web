@@ -35,6 +35,8 @@ interface TasksPageProps {
   onAddDependency?: (taskId: string, dependencyTaskId: string) => void;
   onCreateTaskComment: (taskId: string, comment: string) => Promise<boolean> | boolean;
   onDeleteTask: (taskId: string, taskName: string) => void;
+  onBatchDeleteTasks: (taskIds: string[]) => Promise<boolean> | boolean;
+  onBatchExecuteTasks: (taskIds: string[], agentId: string) => Promise<boolean> | boolean;
   renderTaskLink: (task: TaskItem) => ReactNode;
 }
 
@@ -63,6 +65,8 @@ export function TasksPage({
   onAddDependency,
   onCreateTaskComment,
   onDeleteTask,
+  onBatchDeleteTasks,
+  onBatchExecuteTasks,
   renderTaskLink,
 }: TasksPageProps) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -146,7 +150,13 @@ export function TasksPage({
             {activeTab === "graph" ? (
               <TaskGraphView tasks={tasks} onTaskClick={handleTaskClick} onAddDependency={onAddDependency} />
             ) : (
-              <TaskTableView tasks={tasks} onTaskClick={handleTaskClick} onDeleteTask={handleDeleteTask} />
+              <TaskTableView
+                tasks={tasks}
+                onTaskClick={handleTaskClick}
+                onDeleteTask={handleDeleteTask}
+                onBatchDeleteTasks={onBatchDeleteTasks}
+                onBatchExecuteTasks={onBatchExecuteTasks}
+              />
             )}
           </div>
         ) : null}

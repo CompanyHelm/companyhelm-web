@@ -49,6 +49,8 @@ import {
   REMOVE_TASK_DEPENDENCY_MUTATION,
   SET_TASK_PARENT_MUTATION,
   DELETE_TASK_MUTATION,
+  BATCH_DELETE_TASKS_MUTATION,
+  BATCH_EXECUTE_TASKS_MUTATION,
   CREATE_TASK_COMMENT_MUTATION,
   DELETE_AGENT_RUNNER_MUTATION,
   CREATE_AGENT_MUTATION,
@@ -107,6 +109,8 @@ import {
   COMPANY_API_REMOVE_TASK_DEPENDENCY_MUTATION,
   COMPANY_API_SET_TASK_PARENT_MUTATION,
   COMPANY_API_DELETE_TASK_MUTATION,
+  COMPANY_API_BATCH_DELETE_TASKS_MUTATION,
+  COMPANY_API_BATCH_EXECUTE_TASKS_MUTATION,
   COMPANY_API_CREATE_TASK_COMMENT_MUTATION,
   COMPANY_API_LIST_SKILLS_QUERY,
   COMPANY_API_LIST_ROLES_QUERY,
@@ -2002,6 +2006,40 @@ async function executeGraphQL(query: any, variables: any = {}) {
         ok: Boolean(payload?.ok),
         error: payload?.error ? String(payload.error) : null,
         deletedTaskId: resolveLegacyId(payload?.deletedTaskId) || null,
+      },
+    };
+  }
+
+  if (query === BATCH_DELETE_TASKS_MUTATION) {
+    const data = await executeRawGraphQL(COMPANY_API_BATCH_DELETE_TASKS_MUTATION, {
+      companyId: resolveLegacyId(variables?.companyId),
+      ids: normalizeUniqueStringList(variables?.ids || []),
+    });
+    const payload = data?.batchDeleteTasks;
+    return {
+      batchDeleteTasks: {
+        ok: Boolean(payload?.ok),
+        error: payload?.error ? String(payload.error) : null,
+        deletedTaskIds: Array.isArray(payload?.deletedTaskIds)
+          ? payload.deletedTaskIds.map((taskId: any) => resolveLegacyId(taskId)).filter(Boolean)
+          : [],
+      },
+    };
+  }
+
+  if (query === BATCH_EXECUTE_TASKS_MUTATION) {
+    const data = await executeRawGraphQL(COMPANY_API_BATCH_EXECUTE_TASKS_MUTATION, {
+      taskIds: normalizeUniqueStringList(variables?.taskIds || []),
+      agentId: resolveLegacyId(variables?.agentId),
+    });
+    const payload = data?.batchExecuteTasks;
+    return {
+      batchExecuteTasks: {
+        ok: Boolean(payload?.ok),
+        error: payload?.error ? String(payload.error) : null,
+        tasks: Array.isArray(payload?.tasks)
+          ? payload.tasks.map((task: any) => toTaskPayload(task))
+          : [],
       },
     };
   }
@@ -4451,6 +4489,85 @@ function App() {
       setTaskError(deleteError.message);
     } finally {
       setDeletingTaskId(null);
+    }
+  }
+
+  async function handleBatchDeleteTasks(taskIds: any[]) {
+    if (!selectedCompanyId) {
+      setTaskError("Select a company before deleting tasks.");
+      return false;
+    }
+
+    const normalizedTaskIds = normalizeUniqueStringList(taskIds || []);
+    if (normalizedTaskIds.length === 0) {
+      setTaskError("Select at least one task to delete.");
+      return false;
+    }
+
+    const confirmed = window.confirm(
+      `Delete ${normalizedTaskIds.length} selected task${normalizedTaskIds.length === 1 ? "" : "s"}?`,
+    );
+    if (!confirmed) {
+      return false;
+    }
+
+    try {
+      setDeletingTaskId("batch");
+      setTaskError("");
+      const data = await executeGraphQL(BATCH_DELETE_TASKS_MUTATION, {
+        companyId: selectedCompanyId,
+        ids: normalizedTaskIds,
+      });
+      const result = data.batchDeleteTasks;
+      if (!result.ok) {
+        throw new Error(result.error || "Batch task deletion failed.");
+      }
+      await loadTasks();
+      return true;
+    } catch (deleteError: any) {
+      setTaskError(deleteError.message);
+      return false;
+    } finally {
+      setDeletingTaskId(null);
+    }
+  }
+
+  async function handleBatchExecuteTasks(taskIds: any[], agentId: any) {
+    if (!selectedCompanyId) {
+      setTaskError("Select a company before executing tasks.");
+      return false;
+    }
+
+    const normalizedTaskIds = normalizeUniqueStringList(taskIds || []);
+    if (normalizedTaskIds.length === 0) {
+      setTaskError("Select at least one task to execute.");
+      return false;
+    }
+
+    const normalizedAgentId = String(agentId || "").trim();
+    if (!normalizedAgentId) {
+      setTaskError("Agent id is required to execute selected tasks.");
+      return false;
+    }
+
+    try {
+      setSavingTaskId("batch");
+      setTaskError("");
+      const data = await executeGraphQL(BATCH_EXECUTE_TASKS_MUTATION, {
+        taskIds: normalizedTaskIds,
+        agentId: normalizedAgentId,
+      });
+      const result = data.batchExecuteTasks;
+      if (!result.ok) {
+        throw new Error(result.error || "Batch task execution failed.");
+      }
+      await loadTasks();
+      return true;
+    } catch (executeError: any) {
+      setTaskError(executeError.message);
+      return false;
+    } finally {
+      setSavingTaskId(null);
     }
   }
 
@@ -7193,6 +7310,8 @@ function App() {
             onAddDependency={handleAddTaskDependency}
             onCreateTaskComment={handleCreateTaskComment}
             onDeleteTask={handleDeleteTask}
+            onBatchDeleteTasks={handleBatchDeleteTasks}
+            onBatchExecuteTasks={handleBatchExecuteTasks}
             renderTaskLink={renderTaskLink}
           />
         ) : null}
