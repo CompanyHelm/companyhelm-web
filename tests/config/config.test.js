@@ -1,83 +1,49 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { loadConfig, getConfig, clearConfigCache } from "../../scripts/config/config.js";
-import { frontendConfigSchema } from "../../scripts/config/schema.js";
-import { resolveViteCommand } from "../../scripts/vite.js";
-import { parseCliEnvironmentArgument, stripEnvironmentArguments } from "../../scripts/config/cli.js";
+import { clearConfigCache, getConfig, loadConfig } from "../../src/config/config.js";
+import { getDevelopmentConfig } from "../../src/config/development.js";
+import { runtimeConfigSchema } from "../../src/config/schema.js";
 
-test("resolveViteCommand accepts known vite commands", () => {
-  assert.equal(resolveViteCommand(["dev"]), "dev");
-  assert.equal(resolveViteCommand(["build"]), "build");
-  assert.equal(resolveViteCommand(["preview"]), "preview");
-});
+function withWindow(nextWindow, fn) {
+  const originalWindow = global.window;
+  try {
+    if (typeof nextWindow === "undefined") {
+      delete global.window;
+    } else {
+      global.window = nextWindow;
+    }
+    return fn();
+  } finally {
+    if (typeof originalWindow === "undefined") {
+      delete global.window;
+    } else {
+      global.window = originalWindow;
+    }
+  }
+}
 
-test("resolveViteCommand rejects extra CLI options", () => {
-  assert.throws(
-    () => resolveViteCommand(["dev", "--host", "0.0.0.0"]),
-    /Vite CLI options are disabled/
-  );
-});
-
-test("parseCliEnvironmentArgument accepts '--environment <name>'", () => {
-  const environment = parseCliEnvironmentArgument(["--environment", "local"]);
-  assert.equal(environment, "local");
-});
-
-test("parseCliEnvironmentArgument accepts '--environment=<name>'", () => {
-  const environment = parseCliEnvironmentArgument(["--environment=prod"]);
-  assert.equal(environment, "prod");
-});
-
-test("parseCliEnvironmentArgument throws when environment is missing", () => {
-  assert.throws(
-    () => parseCliEnvironmentArgument([]),
-    /Missing required --environment <name> CLI argument\./
-  );
-});
-
-test("parseCliEnvironmentArgument throws when --environment value is missing", () => {
-  assert.throws(() => parseCliEnvironmentArgument(["--environment"]), /Missing value for --environment\./);
-});
-
-test("stripEnvironmentArguments removes environment flags", () => {
-  const stripped = stripEnvironmentArguments(["--environment", "local", "--environment=prod"]);
-  assert.deepEqual(stripped, []);
-});
-
-test("loadConfig parses local config with expected fields", () => {
-  const config = loadConfig("local");
-  assert.equal(config.server.host, "127.0.0.1");
-  assert.equal(config.server.listeningPort, 5173);
-  assert.equal(config.api.graphqlApiUrl, "http://127.0.0.1:4000/graphql");
-  assert.equal(config.api.runnerGrpcTarget, "localhost:50051");
-  assert.equal(config.authProvider, "companyhelm");
-  assert.equal(config.auth.companyhelm.tokenStorageKey, "companyhelm.auth.token");
-});
-
-test("getConfig requires explicit environment initialization", () => {
+test("getConfig defaults to development config when no runtime override exists", () => {
   clearConfigCache();
-  assert.throws(
-    () => getConfig(),
-    /Configuration was not initialized\. Pass --environment <name>/
-  );
+  const config = withWindow(undefined, () => getConfig());
+  assert.deepEqual(config, getDevelopmentConfig());
 });
 
-test("getConfig returns cached config after explicit environment init", () => {
+test("getConfig caches results until clearConfigCache is called", () => {
   clearConfigCache();
-  const config = getConfig("local");
-  assert.equal(config.server.host, "127.0.0.1");
+  const first = withWindow(undefined, () => getConfig());
+  const second = withWindow(undefined, () => getConfig());
+  assert.equal(first, second);
+
   clearConfigCache();
+  const third = withWindow(undefined, () => getConfig());
+  assert.notEqual(first, third);
 });
 
-test("frontendConfigSchema accepts supabase auth configuration", () => {
-  const config = frontendConfigSchema.parse({
-    server: {
-      host: "127.0.0.1",
-      listeningPort: 5173,
-    },
+test("loadConfig prefers window runtime config override", () => {
+  const runtimeConfig = {
     api: {
-      graphqlApiUrl: "http://127.0.0.1:4000/graphql",
-      runnerGrpcTarget: "localhost:50051",
+      graphqlApiUrl: "https://api.example.com/graphql",
+      runnerGrpcTarget: "runner.example.com:50051",
     },
     authProvider: "supabase",
     auth: {
@@ -86,12 +52,40 @@ test("frontendConfigSchema accepts supabase auth configuration", () => {
       },
       supabase: {
         url: "https://example.supabase.co",
-        anonKey: "test-anon-key",
+        anonKey: "anon-key",
         tokenStorageKey: "supabase.auth.token",
       },
     },
-  });
+  };
 
+  const config = withWindow(
+    {
+      __COMPANYHELM_CONFIG__: runtimeConfig,
+      location: { hostname: "frontend.example.com" },
+    },
+    () => loadConfig(),
+  );
+
+  assert.equal(config.api.graphqlApiUrl, "https://api.example.com/graphql");
   assert.equal(config.authProvider, "supabase");
   assert.equal(config.auth.supabase.url, "https://example.supabase.co");
+});
+
+test("runtimeConfigSchema rejects supabase provider without supabase config", () => {
+  assert.throws(
+    () =>
+      runtimeConfigSchema.parse({
+        api: {
+          graphqlApiUrl: "https://api.example.com/graphql",
+          runnerGrpcTarget: "runner.example.com:50051",
+        },
+        authProvider: "supabase",
+        auth: {
+          companyhelm: {
+            tokenStorageKey: "companyhelm.auth.token",
+          },
+        },
+      }),
+    /Supabase auth provider requires auth\.supabase configuration\./,
+  );
 });

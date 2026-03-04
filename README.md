@@ -7,18 +7,20 @@ React SPA for `companyhelm-api` GraphQL.
 ```bash
 nvm use 22
 npm install
-npm run dev -- --environment local
+npm run dev
 ```
 
-Open `http://localhost:5173`.
+Open `http://localhost:4173`.
 
-Frontend config is loaded from `config/<environment>.yaml` and validated with `zod`.
-Environment selection requires `--environment <name>` (or `--environment=<name>`).
+Frontend config is loaded from `src/config/` and validated with `zod`.
+`src/config/config.js` resolves config in this order:
+1. `window.__COMPANYHELM_CONFIG__` runtime override (when present)
+2. `src/config/production.js` for non-local hostnames
+3. `src/config/development.js` fallback
 
 Current config fields:
-- `server.host`
-- `server.listeningPort`
 - `api.graphqlApiUrl`
+- `api.runnerGrpcTarget`
 - `authProvider` (`companyhelm` or `supabase`)
 - `auth.companyhelm.tokenStorageKey`
 - `auth.supabase.url` (required when `authProvider: supabase`)
@@ -26,20 +28,14 @@ Current config fields:
 - `auth.supabase.tokenStorageKey` (required when `authProvider: supabase`)
 
 `api.graphqlApiUrl` is used to derive:
-- Vite `/graphql` proxy target
 - Relay HTTP GraphQL URL
 - Relay WebSocket GraphQL URL
 
 ## Build
 
 ```bash
-npm run build -- --environment local
-npm run preview -- --environment local
-```
-
-Example for a non-local environment:
-```bash
-npm run build -- --environment prod
+npm run build
+npm run preview
 ```
 
 ## Relay client

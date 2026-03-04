@@ -4,10 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "files": [
-    "config/*.yaml",
     "public/**",
     "schema/**",
-    "scripts/**",
     "src/**",
     "index.html",
     "vite.config.js"
