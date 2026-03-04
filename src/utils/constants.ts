@@ -82,6 +82,7 @@ export const NAV_SECTIONS: NavigationSection[] = [
         requiresCompany: true,
       },
       { id: "secrets", label: "Secrets", href: "/secrets", requiresCompany: true },
+      { id: "approvals", label: "Approvals", href: "/approvals", requiresCompany: true },
       { id: "mcp-servers", label: "MCP Servers", href: "/mcp-servers", requiresCompany: true },
     ],
   },

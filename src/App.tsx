@@ -47,6 +47,10 @@ import {
   LIST_SECRETS_QUERY,
   LIST_SECRET_VALUE_QUERY,
   LIST_SECRET_ACCESS_LOGS_QUERY,
+  LIST_APPROVALS_QUERY,
+  APPROVE_APPROVAL_MUTATION,
+  REJECT_APPROVAL_MUTATION,
+  DELETE_APPROVAL_MUTATION,
   CREATE_TASK_MUTATION,
   ADD_TASK_DEPENDENCY_MUTATION,
   REMOVE_TASK_DEPENDENCY_MUTATION,
@@ -127,6 +131,10 @@ import {
   COMPANY_API_LIST_SECRETS_QUERY,
   COMPANY_API_LIST_SECRET_VALUE_QUERY,
   COMPANY_API_LIST_SECRET_ACCESS_LOGS_QUERY,
+  COMPANY_API_LIST_APPROVALS_QUERY,
+  COMPANY_API_APPROVE_APPROVAL_MUTATION,
+  COMPANY_API_REJECT_APPROVAL_MUTATION,
+  COMPANY_API_DELETE_APPROVAL_MUTATION,
   COMPANY_API_PREVIEW_GIT_SKILL_PACKAGE_MUTATION,
   COMPANY_API_CREATE_GIT_SKILL_PACKAGE_MUTATION,
   COMPANY_API_DELETE_GIT_SKILL_PACKAGE_MUTATION,
@@ -252,6 +260,7 @@ import { SkillGroupsPage } from "./pages/SkillGroupsPage.tsx";
 import { RolesPage } from "./pages/RolesPage.tsx";
 import { GitSkillPackagesPage } from "./pages/GitSkillPackagesPage.tsx";
 import { SecretsPage } from "./pages/SecretsPage.tsx";
+import { ApprovalsPage } from "./pages/ApprovalsPage.tsx";
 import { McpServersPage } from "./pages/McpServersPage.tsx";
 import { AgentChatsPage } from "./pages/AgentChatsPage.tsx";
 import { AgentChatPage } from "./pages/AgentChatPage.tsx";
@@ -740,6 +749,27 @@ function toSecretPayload(secret: any) {
     description: String(secret?.description || "").trim(),
     createdAt: resolveLegacyId(secret?.createdAt),
     updatedAt: resolveLegacyId(secret?.updatedAt),
+  };
+}
+
+function toApprovalPayload(approval: any) {
+  return {
+    id: resolveLegacyId(approval?.id),
+    companyId: resolveLegacyId(approval?.company?.id, approval?.companyId),
+    type: resolveLegacyId(approval?.type) || "secret",
+    status: resolveLegacyId(approval?.status) || "pending",
+    secretId: resolveLegacyId(approval?.secretId),
+    threadId: resolveLegacyId(approval?.threadId),
+    reason: String(approval?.reason || "").trim(),
+    rejectionReason: String(approval?.rejectionReason || "").trim() || null,
+    createdByPrincipalId: resolveLegacyId(approval?.createdByPrincipalId) || null,
+    resolvedByPrincipalId: resolveLegacyId(approval?.resolvedByPrincipalId) || null,
+    resolvedAt: resolveLegacyId(approval?.resolvedAt) || null,
+    createdAt: resolveLegacyId(approval?.createdAt),
+    updatedAt: resolveLegacyId(approval?.updatedAt),
+    secretName: resolveLegacyId(approval?.secretName) || null,
+    requestingAgentId: resolveLegacyId(approval?.requestingAgentId) || null,
+    requestingAgentName: resolveLegacyId(approval?.requestingAgentName) || null,
   };
 }
 
@@ -1984,6 +2014,24 @@ async function executeGraphQL(query: any, variables: any = {}) {
     };
   }
 
+  if (query === LIST_APPROVALS_QUERY) {
+    const requestedStatus = resolveLegacyId(variables?.status).toLowerCase();
+    const normalizedStatus =
+      requestedStatus === "pending" || requestedStatus === "approved" || requestedStatus === "rejected"
+        ? requestedStatus
+        : null;
+    const data = await executeRawGraphQL(COMPANY_API_LIST_APPROVALS_QUERY, {
+      companyId: resolveLegacyId(variables?.companyId),
+      status: normalizedStatus,
+      first: typeof variables?.first === "number" ? variables.first : null,
+    });
+    return {
+      approvals: Array.isArray(data?.approvals)
+        ? data.approvals.map((approval: any) => toApprovalPayload(approval))
+        : [],
+    };
+  }
+
   if (query === DELETE_GITHUB_INSTALLATION_MUTATION) {
     return {
       ...unsupportedMutation("deleteGithubInstallation"),
@@ -2342,6 +2390,56 @@ async function executeGraphQL(query: any, variables: any = {}) {
     };
   }
 
+  if (query === APPROVE_APPROVAL_MUTATION) {
+    const data = await executeRawGraphQL(COMPANY_API_APPROVE_APPROVAL_MUTATION, {
+      companyId: resolveLegacyId(variables?.companyId),
+      id: resolveLegacyId(variables?.id),
+    });
+    const payload = data?.approveApproval;
+    return {
+      approveApproval: {
+        ok: Boolean(payload?.ok),
+        error: payload?.error ? String(payload.error) : null,
+        approval: payload?.approval ? toApprovalPayload(payload.approval) : null,
+      },
+    };
+  }
+
+  if (query === REJECT_APPROVAL_MUTATION) {
+    const nextVariables: any = {
+      companyId: resolveLegacyId(variables?.companyId),
+      id: resolveLegacyId(variables?.id),
+    };
+    if (Object.prototype.hasOwnProperty.call(variables || {}, "rejectionReason")) {
+      const nextRejectionReason = String(variables?.rejectionReason || "").trim();
+      nextVariables.rejectionReason = nextRejectionReason || null;
+    }
+    const data = await executeRawGraphQL(COMPANY_API_REJECT_APPROVAL_MUTATION, nextVariables);
+    const payload = data?.rejectApproval;
+    return {
+      rejectApproval: {
+        ok: Boolean(payload?.ok),
+        error: payload?.error ? String(payload.error) : null,
+        approval: payload?.approval ? toApprovalPayload(payload.approval) : null,
+      },
+    };
+  }
+
+  if (query === DELETE_APPROVAL_MUTATION) {
+    const data = await executeRawGraphQL(COMPANY_API_DELETE_APPROVAL_MUTATION, {
+      companyId: resolveLegacyId(variables?.companyId),
+      id: resolveLegacyId(variables?.id),
+    });
+    const payload = data?.deleteApproval;
+    return {
+      deleteApproval: {
+        ok: Boolean(payload?.ok),
+        error: payload?.error ? String(payload.error) : null,
+        deletedApprovalId: resolveLegacyId(payload?.deletedApprovalId) || null,
+      },
+    };
+  }
+
   if (query === INITIALIZE_AGENT_MUTATION) {
     return unsupportedMutation("initializeAgentRunner");
   }
@@ -2478,6 +2576,7 @@ function App() {
   const [skillGroups, setSkillGroups] = useState<any>([]);
   const [gitSkillPackages, setGitSkillPackages] = useState<any>([]);
   const [secrets, setSecrets] = useState<any>([]);
+  const [approvals, setApprovals] = useState<any>([]);
   const [mcpServers, setMcpServers] = useState<any>([]);
   const [agentRunners, setAgentRunners] = useState<any>([]);
   const [hasLoadedAgentRunners, setHasLoadedAgentRunners] = useState<any>(false);
@@ -2493,12 +2592,14 @@ function App() {
   const [isLoadingSkillGroups, setIsLoadingSkillGroups] = useState<any>(false);
   const [isLoadingGitSkillPackages, setIsLoadingGitSkillPackages] = useState<any>(false);
   const [isLoadingSecrets, setIsLoadingSecrets] = useState<any>(false);
+  const [isLoadingApprovals, setIsLoadingApprovals] = useState<any>(false);
   const [isLoadingMcpServers, setIsLoadingMcpServers] = useState<any>(false);
   const [isLoadingRunners, setIsLoadingRunners] = useState<any>(false);
   const [isLoadingAgents, setIsLoadingAgents] = useState<any>(false);
   const [taskError, setTaskError] = useState<any>("");
   const [skillError, setSkillError] = useState<any>("");
   const [secretError, setSecretError] = useState<any>("");
+  const [approvalError, setApprovalError] = useState<any>("");
   const [mcpServerError, setMcpServerError] = useState<any>("");
   const [runnerError, setRunnerError] = useState<any>("");
   const [agentError, setAgentError] = useState<any>("");
@@ -2510,10 +2611,13 @@ function App() {
   const [commentingTaskId, setCommentingTaskId] = useState<any>(null);
   const [savingSkillId, setSavingSkillId] = useState<any>(null);
   const [savingSecretId, setSavingSecretId] = useState<any>(null);
+  const [approvingApprovalId, setApprovingApprovalId] = useState<any>(null);
+  const [rejectingApprovalId, setRejectingApprovalId] = useState<any>(null);
   const [savingMcpServerId, setSavingMcpServerId] = useState<any>(null);
   const [deletingTaskId, setDeletingTaskId] = useState<any>(null);
   const [deletingSkillId, setDeletingSkillId] = useState<any>(null);
   const [deletingSecretId, setDeletingSecretId] = useState<any>(null);
+  const [deletingApprovalId, setDeletingApprovalId] = useState<any>(null);
   const [deletingMcpServerId, setDeletingMcpServerId] = useState<any>(null);
   const [deletingRunnerId, setDeletingRunnerId] = useState<any>(null);
   const [regeneratingRunnerId, setRegeneratingRunnerId] = useState<any>(null);
@@ -2540,6 +2644,7 @@ function App() {
   const [secretDescription, setSecretDescription] = useState<any>("");
   const [secretValue, setSecretValue] = useState<any>("");
   const [secretDrafts, setSecretDrafts] = useState<any>({});
+  const [rejectionReasonDraftByApprovalId, setRejectionReasonDraftByApprovalId] = useState<any>({});
   const [secretAccessLogsBySecretId, setSecretAccessLogsBySecretId] = useState<any>({});
   const [isLoadingSecretAccessLogsBySecretId, setIsLoadingSecretAccessLogsBySecretId] = useState<any>({});
   const [secretAccessLogErrorBySecretId, setSecretAccessLogErrorBySecretId] = useState<any>({});
@@ -2980,6 +3085,7 @@ function App() {
   const shouldLoadSecretData =
     activePage === "secrets"
     || activePage === "mcp-servers";
+  const shouldLoadApprovalData = activePage === "approvals";
   const shouldLoadMcpServerData =
     activePage === "mcp-servers"
     || activePage === "skills"
@@ -3308,6 +3414,41 @@ function App() {
       setSecretError(loadError.message);
     } finally {
       setIsLoadingSecrets(false);
+    }
+  }, [selectedCompanyId]);
+
+  const loadApprovals = useCallback(async () => {
+    if (!selectedCompanyId) {
+      setApprovalError("");
+      setApprovals([]);
+      setRejectionReasonDraftByApprovalId({});
+      setIsLoadingApprovals(false);
+      return;
+    }
+
+    try {
+      setApprovalError("");
+      setIsLoadingApprovals(true);
+      const data = await executeGraphQL(LIST_APPROVALS_QUERY, {
+        companyId: selectedCompanyId,
+        first: 200,
+      });
+      const nextApprovals = Array.isArray(data?.approvals) ? data.approvals : [];
+      setApprovals(nextApprovals);
+      const validApprovalIds = new Set(
+        nextApprovals
+          .map((approval: any) => String(approval?.id || "").trim())
+          .filter(Boolean),
+      );
+      setRejectionReasonDraftByApprovalId((currentByApprovalId: any) =>
+        Object.fromEntries(
+          Object.entries(currentByApprovalId || {}).filter(([approvalId]) => validApprovalIds.has(approvalId)),
+        ),
+      );
+    } catch (loadError: any) {
+      setApprovalError(loadError.message);
+    } finally {
+      setIsLoadingApprovals(false);
     }
   }, [selectedCompanyId]);
 
@@ -4294,6 +4435,13 @@ function App() {
     }
     loadSecrets();
   }, [loadSecrets, selectedCompanyId, shouldLoadSecretData]);
+
+  useEffect(() => {
+    if (!selectedCompanyId || !shouldLoadApprovalData) {
+      return;
+    }
+    loadApprovals();
+  }, [loadApprovals, selectedCompanyId, shouldLoadApprovalData]);
 
   useEffect(() => {
     if (!selectedCompanyId || !shouldLoadMcpServerData) {
@@ -5952,6 +6100,104 @@ function App() {
       setSecretError(deleteError.message);
     } finally {
       setDeletingSecretId(null);
+    }
+  }
+
+  function handleApprovalRejectionReasonChange(approvalId: any, value: any) {
+    const normalizedApprovalId = String(approvalId || "").trim();
+    if (!normalizedApprovalId) {
+      return;
+    }
+    setRejectionReasonDraftByApprovalId((currentByApprovalId: any) => ({
+      ...(currentByApprovalId || {}),
+      [normalizedApprovalId]: String(value || ""),
+    }));
+  }
+
+  async function handleApproveApproval(approvalId: any) {
+    const normalizedApprovalId = String(approvalId || "").trim();
+    if (!selectedCompanyId || !normalizedApprovalId) {
+      return;
+    }
+
+    try {
+      setApprovingApprovalId(normalizedApprovalId);
+      setApprovalError("");
+      const data = await executeGraphQL(APPROVE_APPROVAL_MUTATION, {
+        companyId: selectedCompanyId,
+        id: normalizedApprovalId,
+      });
+      const payload = data?.approveApproval;
+      if (!payload?.ok) {
+        throw new Error(payload?.error || "Failed to approve approval.");
+      }
+      await loadApprovals();
+    } catch (error: any) {
+      setApprovalError(error?.message || "Failed to approve approval.");
+    } finally {
+      setApprovingApprovalId(null);
+    }
+  }
+
+  async function handleRejectApproval(approvalId: any) {
+    const normalizedApprovalId = String(approvalId || "").trim();
+    if (!selectedCompanyId || !normalizedApprovalId) {
+      return;
+    }
+
+    const rejectionReason = String(rejectionReasonDraftByApprovalId?.[normalizedApprovalId] || "").trim();
+
+    try {
+      setRejectingApprovalId(normalizedApprovalId);
+      setApprovalError("");
+      const data = await executeGraphQL(REJECT_APPROVAL_MUTATION, {
+        companyId: selectedCompanyId,
+        id: normalizedApprovalId,
+        rejectionReason: rejectionReason || null,
+      });
+      const payload = data?.rejectApproval;
+      if (!payload?.ok) {
+        throw new Error(payload?.error || "Failed to reject approval.");
+      }
+      setRejectionReasonDraftByApprovalId((currentByApprovalId: any) => ({
+        ...(currentByApprovalId || {}),
+        [normalizedApprovalId]: "",
+      }));
+      await loadApprovals();
+    } catch (error: any) {
+      setApprovalError(error?.message || "Failed to reject approval.");
+    } finally {
+      setRejectingApprovalId(null);
+    }
+  }
+
+  async function handleDeleteApproval(approvalId: any) {
+    const normalizedApprovalId = String(approvalId || "").trim();
+    if (!selectedCompanyId || !normalizedApprovalId) {
+      return;
+    }
+
+    const confirmed = window.confirm("Delete this approval?");
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setDeletingApprovalId(normalizedApprovalId);
+      setApprovalError("");
+      const data = await executeGraphQL(DELETE_APPROVAL_MUTATION, {
+        companyId: selectedCompanyId,
+        id: normalizedApprovalId,
+      });
+      const payload = data?.deleteApproval;
+      if (!payload?.ok) {
+        throw new Error(payload?.error || "Failed to delete approval.");
+      }
+      await loadApprovals();
+    } catch (error: any) {
+      setApprovalError(error?.message || "Failed to delete approval.");
+    } finally {
+      setDeletingApprovalId(null);
     }
   }
 
@@ -7673,6 +7919,16 @@ function App() {
     return `${secrets.length} secrets`;
   }, [secrets.length]);
 
+  const approvalCountLabel = useMemo(() => {
+    if (approvals.length === 0) {
+      return "No approvals";
+    }
+    if (approvals.length === 1) {
+      return "1 approval";
+    }
+    return `${approvals.length} approvals`;
+  }, [approvals.length]);
+
   const runnerCountLabel = useMemo(() => {
     if (agentRunners.length === 0) {
       return "No runners";
@@ -7999,6 +8255,23 @@ function App() {
             onLoadSecretAccessLogs={loadSecretAccessLogs}
             onSaveSecret={handleSaveSecret}
             onDeleteSecret={handleDeleteSecret}
+          />
+        ) : null}
+
+        {selectedCompanyId && activePage === "approvals" ? (
+          <ApprovalsPage
+            approvals={approvals}
+            isLoadingApprovals={isLoadingApprovals}
+            approvalError={approvalError}
+            approvingApprovalId={approvingApprovalId}
+            rejectingApprovalId={rejectingApprovalId}
+            deletingApprovalId={deletingApprovalId}
+            rejectionReasonDraftByApprovalId={rejectionReasonDraftByApprovalId}
+            approvalCountLabel={approvalCountLabel}
+            onRejectionReasonChange={handleApprovalRejectionReasonChange}
+            onApproveApproval={handleApproveApproval}
+            onRejectApproval={handleRejectApproval}
+            onDeleteApproval={handleDeleteApproval}
           />
         ) : null}
 
