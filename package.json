@@ -13,9 +13,9 @@
     "vite.config.js"
   ],
   "scripts": {
-    "dev": "node scripts/vite.js dev",
-    "build": "node scripts/vite.js build",
-    "preview": "node scripts/vite.js preview",
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
     "test": "node --test tests/**/*.test.js"
   },
   "dependencies": {

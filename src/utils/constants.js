@@ -1,5 +1,4 @@
 // NOTE: GRAPHQL_WS_URL depends on resolveGraphQLWebSocketUrl from media.js
-import { runtimeConfig } from "../generated/runtime-config.js";
 import { resolveGraphQLWebSocketUrl } from "./media.js";
 
 const normalizedRuntimeConfig = runtimeConfig || {};
