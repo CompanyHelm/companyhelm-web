@@ -1,4 +1,4 @@
-import { useMemo, type KeyboardEvent, type MouseEvent } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent, type KeyboardEvent, type MouseEvent } from "react";
 
 interface TaskTableTask {
   id: string | number;
@@ -14,6 +14,8 @@ interface TaskTableViewProps {
   tasks: TaskTableTask[];
   onTaskClick: (taskId: string) => void;
   onDeleteTask: (taskId: string, taskName?: string) => void;
+  onBatchDeleteTasks: (taskIds: string[]) => Promise<boolean> | boolean;
+  onBatchExecuteTasks: (taskIds: string[], agentId: string) => Promise<boolean> | boolean;
 }
 
 function buildDependencyMaps(tasks: TaskTableTask[]) {
@@ -40,23 +42,142 @@ function buildDependencyMaps(tasks: TaskTableTask[]) {
   return { nameById, blocksMap };
 }
 
-export function TaskTableView({ tasks, onTaskClick, onDeleteTask }: TaskTableViewProps) {
+export function TaskTableView({
+  tasks,
+  onTaskClick,
+  onDeleteTask,
+  onBatchDeleteTasks,
+  onBatchExecuteTasks,
+}: TaskTableViewProps) {
   const taskArray = Array.isArray(tasks) ? tasks : [];
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
+  const [batchAgentId, setBatchAgentId] = useState("");
+  const [isBatchActionPending, setIsBatchActionPending] = useState(false);
 
   const { nameById, blocksMap } = useMemo(
     () => buildDependencyMaps(taskArray),
     [taskArray],
   );
 
+  useEffect(() => {
+    const availableTaskIds = new Set(taskArray.map((task) => String(task.id)));
+    setSelectedTaskIds((previous) => {
+      const next = new Set([...previous].filter((taskId) => availableTaskIds.has(taskId)));
+      return next.size === previous.size ? previous : next;
+    });
+  }, [taskArray]);
+
   if (taskArray.length === 0) {
     return null;
   }
 
+  const allSelected = taskArray.length > 0 && taskArray.every((task) => selectedTaskIds.has(String(task.id)));
+  const selectedCount = selectedTaskIds.size;
+
+  function toggleTaskSelection(taskId: string, checked: boolean) {
+    setSelectedTaskIds((previous) => {
+      const next = new Set(previous);
+      if (checked) {
+        next.add(taskId);
+      } else {
+        next.delete(taskId);
+      }
+      return next;
+    });
+  }
+
+  function handleToggleAll(event: ChangeEvent<HTMLInputElement>) {
+    if (event.target.checked) {
+      setSelectedTaskIds(new Set(taskArray.map((task) => String(task.id))));
+      return;
+    }
+    setSelectedTaskIds(new Set());
+  }
+
+  async function handleBatchDeleteClick() {
+    if (selectedCount === 0 || isBatchActionPending) {
+      return;
+    }
+    setIsBatchActionPending(true);
+    try {
+      const didDelete = await onBatchDeleteTasks([...selectedTaskIds]);
+      if (didDelete) {
+        setSelectedTaskIds(new Set());
+      }
+    } finally {
+      setIsBatchActionPending(false);
+    }
+  }
+
+  async function handleBatchExecuteClick() {
+    if (selectedCount === 0 || isBatchActionPending) {
+      return;
+    }
+    const normalizedAgentId = batchAgentId.trim();
+    if (!normalizedAgentId) {
+      return;
+    }
+    setIsBatchActionPending(true);
+    try {
+      const didExecute = await onBatchExecuteTasks([...selectedTaskIds], normalizedAgentId);
+      if (didExecute) {
+        setSelectedTaskIds(new Set());
+      }
+    } finally {
+      setIsBatchActionPending(false);
+    }
+  }
+
   return (
     <div className="task-table-scroll">
+      <div className="task-table-toolbar">
+        <div className="task-table-toolbar-selection">
+          <input
+            type="checkbox"
+            aria-label="Select all tasks"
+            checked={allSelected}
+            onChange={handleToggleAll}
+          />
+          <span>{selectedCount > 0 ? `${selectedCount} selected` : `${taskArray.length} tasks`}</span>
+        </div>
+        <div className="task-table-toolbar-actions">
+          <input
+            type="text"
+            className="task-table-agent-input"
+            value={batchAgentId}
+            onChange={(event) => setBatchAgentId(event.target.value)}
+            placeholder="Agent ID for batch execute"
+            aria-label="Agent ID for batch execute"
+          />
+          <button
+            type="button"
+            className="secondary-btn"
+            onClick={handleBatchExecuteClick}
+            disabled={selectedCount === 0 || isBatchActionPending || !batchAgentId.trim()}
+          >
+            Execute selected
+          </button>
+          <button
+            type="button"
+            className="task-table-batch-delete-btn"
+            onClick={handleBatchDeleteClick}
+            disabled={selectedCount === 0 || isBatchActionPending}
+          >
+            Delete selected
+          </button>
+        </div>
+      </div>
       <table className="task-table">
         <thead>
           <tr>
+            <th className="task-table-select-col">
+              <input
+                type="checkbox"
+                aria-label="Select all rows"
+                checked={allSelected}
+                onChange={handleToggleAll}
+              />
+            </th>
             <th>Name</th>
             <th>Status</th>
             <th>Description</th>
@@ -74,6 +195,7 @@ export function TaskTableView({ tasks, onTaskClick, onDeleteTask }: TaskTableVie
               .filter((id) => nameById.has(String(id)) && String(id) !== taskId);
             const blocking = blocksMap.get(taskId) || [];
             const commentCount = Array.isArray(task.comments) ? task.comments.length : 0;
+            const isSelected = selectedTaskIds.has(taskId);
 
             return (
               <tr
@@ -86,6 +208,17 @@ export function TaskTableView({ tasks, onTaskClick, onDeleteTask }: TaskTableVie
                   if (event.key === "Enter" || event.key === " ") onTaskClick(taskId);
                 }}
               >
+                <td
+                  className="task-table-select-col"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <input
+                    type="checkbox"
+                    aria-label={`Select task ${task.name || taskId}`}
+                    checked={isSelected}
+                    onChange={(event) => toggleTaskSelection(taskId, event.target.checked)}
+                  />
+                </td>
                 <td className="task-table-name">{task.name}</td>
                 <td>
                   <span className={`task-status-pill task-status-pill-${task.status || "draft"}`}>

@@ -911,6 +911,50 @@ export const DELETE_TASK_MUTATION = `
   }
 `;
 
+export const BATCH_DELETE_TASKS_MUTATION = `
+  mutation BatchDeleteTasks($companyId: ID!, $ids: [ID!]!) {
+    batchDeleteTasks(companyId: $companyId, ids: $ids) {
+      ok
+      error
+      deletedTaskIds
+    }
+  }
+`;
+
+export const BATCH_EXECUTE_TASKS_MUTATION = `
+  mutation BatchExecuteTasks($taskIds: [ID!]!, $agentId: ID!) {
+    batchExecuteTasks(taskIds: $taskIds, agentId: $agentId) {
+      ok
+      error
+      tasks {
+        id
+        company {
+          id
+        }
+        name
+        description
+        acceptanceCriteria
+        assigneePrincipalId
+        threadId
+        parentTaskId
+        status
+        createdAt
+        updatedAt
+        dependencyTaskIds
+        comments {
+          id
+          taskId
+          companyId
+          comment
+          authorPrincipalId
+          createdAt
+          updatedAt
+        }
+      }
+    }
+  }
+`;
+
 export const CREATE_TASK_COMMENT_MUTATION = `
   mutation CreateTaskComment($companyId: ID!, $taskId: ID!, $comment: String!) {
     createTaskComment(companyId: $companyId, taskId: $taskId, comment: $comment) {
@@ -1902,6 +1946,50 @@ export const COMPANY_API_DELETE_TASK_MUTATION = `
       ok
       error
       deletedTaskId
+    }
+  }
+`;
+
+export const COMPANY_API_BATCH_DELETE_TASKS_MUTATION = `
+  mutation CompanyApiBatchDeleteTasks($companyId: ID!, $ids: [ID!]!) {
+    batchDeleteTasks(companyId: $companyId, ids: $ids) {
+      ok
+      error
+      deletedTaskIds
+    }
+  }
+`;
+
+export const COMPANY_API_BATCH_EXECUTE_TASKS_MUTATION = `
+  mutation CompanyApiBatchExecuteTasks($taskIds: [ID!]!, $agentId: ID!) {
+    batchExecuteTasks(taskIds: $taskIds, agentId: $agentId) {
+      ok
+      error
+      tasks {
+        id
+        name
+        description
+        acceptanceCriteria
+        assigneePrincipalId
+        threadId
+        parentTaskId
+        status
+        createdAt
+        updatedAt
+        dependencyTaskIds
+        comments {
+          id
+          taskId
+          companyId
+          comment
+          authorPrincipalId
+          createdAt
+          updatedAt
+        }
+        company {
+          id
+        }
+      }
     }
   }
 `;
