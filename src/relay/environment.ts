@@ -19,21 +19,21 @@ const queryResponseCache = new QueryResponseCache({
   ttl: QUERY_RESPONSE_CACHE_TTL_MS,
 });
 
-const inFlightQueryRequests = new Map();
+const inFlightQueryRequests = new Map<any, any>();
 const JWT_EXPIRED_PATTERN = /\bjwt\b.*\bexpired\b/i;
 const SUBSCRIPTION_RECONNECT_BASE_DELAY_MS = 300;
 const SUBSCRIPTION_RECONNECT_MAX_DELAY_MS = 5000;
 const SUBSCRIPTION_IDLE_CLOSE_DELAY_MS = 250;
 
-function resolveOperationCacheKey(params) {
+function resolveOperationCacheKey(params: any) {
   return String(params?.id || params?.cacheID || params?.text || params?.name || "anonymous");
 }
 
-function resolveInFlightQueryKey(params, variables) {
+function resolveInFlightQueryKey(params: any, variables: any) {
   return `${resolveOperationCacheKey(params)}::${JSON.stringify(variables || {})}`;
 }
 
-function toGraphQLErrorMessage(payload, fallbackMessage) {
+function toGraphQLErrorMessage(payload: any, fallbackMessage: any) {
   const errors = Array.isArray(payload?.errors) ? payload.errors : [];
   if (errors.length === 0) {
     return fallbackMessage;
@@ -45,22 +45,22 @@ function toGraphQLErrorMessage(payload, fallbackMessage) {
   return firstMessage || fallbackMessage;
 }
 
-function getGraphQLErrorMessages(payload) {
+function getGraphQLErrorMessages(payload: any) {
   const errors = Array.isArray(payload?.errors) ? payload.errors : [];
   return errors
-    .map((errorItem) => {
+    .map((errorItem: any) => {
       const message = errorItem?.message;
       return typeof message === "string" ? message.trim() : "";
     })
     .filter(Boolean);
 }
 
-function isJwtExpiredErrorMessage(message) {
+function isJwtExpiredErrorMessage(message: any) {
   return JWT_EXPIRED_PATTERN.test(String(message || ""));
 }
 
-function isJwtExpiredPayload(payload) {
-  return getGraphQLErrorMessages(payload).some((message) => isJwtExpiredErrorMessage(message));
+function isJwtExpiredPayload(payload: any) {
+  return getGraphQLErrorMessages(payload).some((message: any) => isJwtExpiredErrorMessage(message));
 }
 
 function handleAuthenticationFailure() {
@@ -70,7 +70,7 @@ function handleAuthenticationFailure() {
   }
 }
 
-function normalizeOperationKind(rawKind) {
+function normalizeOperationKind(rawKind: any) {
   const normalized = String(rawKind || "").trim().toLowerCase();
   if (normalized === "query" || normalized === "mutation" || normalized === "subscription") {
     return normalized;
@@ -78,13 +78,13 @@ function normalizeOperationKind(rawKind) {
   return "query";
 }
 
-async function performHttpGraphQLRequest(params, variables, operationKind, cacheKey) {
+async function performHttpGraphQLRequest(params: any, variables: any, operationKind: any, cacheKey: any) {
   const queryText = typeof params?.text === "string" ? params.text : "";
   if (!queryText.trim()) {
     throw new Error(`Relay operation '${String(params?.name || "anonymous")}' is missing GraphQL query text.`);
   }
 
-  const headers = {
+  const headers: any = {
     "Content-Type": "application/json",
   };
   const authorization = authProvider.getAuthorizationHeaderValue();
@@ -105,7 +105,7 @@ async function performHttpGraphQLRequest(params, variables, operationKind, cache
     }),
   });
 
-  let payload = null;
+  let payload: any = null;
   try {
     payload = await response.json();
   } catch {
@@ -135,7 +135,7 @@ async function performHttpGraphQLRequest(params, variables, operationKind, cache
   return payload;
 }
 
-function fetchGraphQL(params, variables, cacheConfig) {
+function fetchGraphQL(params: any, variables: any, cacheConfig: any) {
   const operationKind = normalizeOperationKind(params?.operationKind);
   const isQuery = operationKind === "query";
   const forceFetch = Boolean(cacheConfig?.force);
@@ -164,7 +164,7 @@ function fetchGraphQL(params, variables, cacheConfig) {
   return performHttpGraphQLRequest(params, variables, operationKind, cacheKey);
 }
 
-function toSubscriptionError(rawError) {
+function toSubscriptionError(rawError: any) {
   if (rawError instanceof Error) {
     return rawError;
   }
@@ -184,7 +184,7 @@ function toSubscriptionError(rawError) {
 function buildConnectionInitPayload() {
   const authorization = authProvider.getAuthorizationHeaderValue();
   const activeCompanyId = getActiveCompanyId();
-  const headers = {};
+  const headers: any = {};
   if (authorization) {
     headers.authorization = authorization;
   }
@@ -205,9 +205,18 @@ function buildConnectionInitPayload() {
         headers,
       };
 }
-let graphQLSubscriptionServiceSingleton = null;
+let graphQLSubscriptionServiceSingleton: any = null;
 
 class GraphQLSubscriptionService {
+  activeOperations: any;
+  closedByClient: any;
+  idleCloseTimerId: any;
+  nextOperationId: any;
+  reconnectAttempt: any;
+  reconnectTimerId: any;
+  socket: any;
+  socketAcked: any;
+  socketEndpoint: any;
   static getInstance() {
     if (!graphQLSubscriptionServiceSingleton) {
       graphQLSubscriptionServiceSingleton = new GraphQLSubscriptionService();
@@ -224,7 +233,7 @@ class GraphQLSubscriptionService {
     this.idleCloseTimerId = null;
     this.closedByClient = false;
     this.nextOperationId = 0;
-    this.activeOperations = new Map();
+    this.activeOperations = new Map<any, any>();
   }
 
   clearReconnectTimer() {
@@ -254,7 +263,7 @@ class GraphQLSubscriptionService {
     }, SUBSCRIPTION_IDLE_CLOSE_DELAY_MS);
   }
 
-  closeSocket({ closeCode = 1000 } = {}) {
+  closeSocket({ closeCode = 1000 }: any = {}) {
     this.clearIdleCloseTimer();
     this.clearReconnectTimer();
     this.socketAcked = false;
@@ -271,7 +280,7 @@ class GraphQLSubscriptionService {
     }
   }
 
-  sendSubscriptionStart(operation) {
+  sendSubscriptionStart(operation: any) {
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN || !this.socketAcked) {
       return;
     }
@@ -296,7 +305,7 @@ class GraphQLSubscriptionService {
     }
   }
 
-  scheduleReconnect(endpoint) {
+  scheduleReconnect(endpoint: any) {
     if (this.activeOperations.size === 0 || this.reconnectTimerId !== null) {
       return;
     }
@@ -312,7 +321,7 @@ class GraphQLSubscriptionService {
     this.reconnectAttempt += 1;
   }
 
-  handleSocketPayload(payload) {
+  handleSocketPayload(payload: any) {
     switch (payload?.type) {
       case "connection_ack":
         this.socketAcked = true;
@@ -375,7 +384,7 @@ class GraphQLSubscriptionService {
     }
   }
 
-  ensureSocket(endpoint) {
+  ensureSocket(endpoint: any) {
     if (typeof window === "undefined" || typeof WebSocket === "undefined") {
       return;
     }
@@ -411,14 +420,14 @@ class GraphQLSubscriptionService {
       }));
     });
 
-    socket.addEventListener("message", (event) => {
+    socket.addEventListener("message", (event: any) => {
       if (this.socket !== socket) {
         return;
       }
       try {
         const payload = JSON.parse(event.data);
         this.handleSocketPayload(payload);
-      } catch (error) {
+      } catch (error: any) {
         const parseError = toSubscriptionError(error);
         for (const operation of this.activeOperations.values()) {
           operation.sink.error(parseError);
@@ -466,7 +475,7 @@ class GraphQLSubscriptionService {
     queryText,
     variables,
     sink,
-  }) {
+  }: any) {
     const operationId = `sub-${Date.now()}-${this.nextOperationId++}`;
     this.activeOperations.set(operationId, {
       id: operationId,
@@ -512,10 +521,10 @@ class GraphQLSubscriptionService {
   }
 }
 
-const graphQLSubscriptionService = GraphQLSubscriptionService.getInstance();
+const graphQLSubscriptionService: any = GraphQLSubscriptionService.getInstance();
 
-function subscribeGraphQL(params, variables) {
-  return Observable.create((sink) => {
+function subscribeGraphQL(params: any, variables: any) {
+  return Observable.create((sink: any) => {
     if (typeof window === "undefined" || typeof WebSocket === "undefined") {
       sink.error(new Error("WebSocket subscriptions are unavailable in this environment."));
       return () => {};

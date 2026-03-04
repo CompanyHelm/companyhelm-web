@@ -87,13 +87,13 @@ export const BOTTOM_NAV_ITEMS = [
   { id: "profile", label: "Profile", href: "/profile", requiresCompany: false },
 ];
 
-export const PRIMARY_NAV_ITEMS = NAV_SECTIONS.flatMap((s) => s.items);
+export const PRIMARY_NAV_ITEMS = NAV_SECTIONS.flatMap((s: any) => s.items);
 
 export const PROFILE_NAV_ITEM = BOTTOM_NAV_ITEMS[1];
 
 export const NAV_ITEMS = [...PRIMARY_NAV_ITEMS, ...BOTTOM_NAV_ITEMS];
-export const NAV_ITEM_LOOKUP = NAV_ITEMS.reduce((map, item) => {
+export const NAV_ITEM_LOOKUP = NAV_ITEMS.reduce((map: any, item: any) => {
   map.set(item.id, item);
   return map;
-}, new Map());
-export const PAGE_IDS = new Set(NAV_ITEMS.map((item) => item.id));
+}, new Map<any, any>());
+export const PAGE_IDS = new Set(NAV_ITEMS.map((item: any) => item.id));

@@ -4,7 +4,7 @@ import { runtimeConfigSchema } from "./schema.ts";
 
 const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "::1", "0.0.0.0"]);
 
-let cachedConfig;
+let cachedConfig: any;
 
 function getWindowRuntimeConfig() {
   if (typeof window === "undefined") {

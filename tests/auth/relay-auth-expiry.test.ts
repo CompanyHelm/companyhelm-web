@@ -12,7 +12,7 @@ test("relay signs out when the API responds with HTTP 401", async () => {
     authProvider.signOut = () => {
       signOutCalls += 1;
     };
-    global.fetch = async () => ({
+    global.fetch = (async () => ({
       ok: false,
       status: 401,
       async json() {
@@ -22,7 +22,7 @@ test("relay signs out when the API responds with HTTP 401", async () => {
           ],
         };
       },
-    });
+    })) as any;
 
     await assert.rejects(
       executeRelayGraphQL({
@@ -35,7 +35,7 @@ test("relay signs out when the API responds with HTTP 401", async () => {
   } finally {
     authProvider.signOut = originalSignOut;
     if (typeof originalFetch === "undefined") {
-      delete global.fetch;
+      Reflect.deleteProperty(global as any, "fetch");
     } else {
       global.fetch = originalFetch;
     }
@@ -51,7 +51,7 @@ test("relay signs out when GraphQL errors include JWT expiration", async () => {
     authProvider.signOut = () => {
       signOutCalls += 1;
     };
-    global.fetch = async () => ({
+    global.fetch = (async () => ({
       ok: true,
       status: 200,
       async json() {
@@ -61,7 +61,7 @@ test("relay signs out when GraphQL errors include JWT expiration", async () => {
           ],
         };
       },
-    });
+    })) as any;
 
     await assert.rejects(
       executeRelayGraphQL({
@@ -74,7 +74,7 @@ test("relay signs out when GraphQL errors include JWT expiration", async () => {
   } finally {
     authProvider.signOut = originalSignOut;
     if (typeof originalFetch === "undefined") {
-      delete global.fetch;
+      Reflect.deleteProperty(global as any, "fetch");
     } else {
       global.fetch = originalFetch;
     }

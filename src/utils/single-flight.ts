@@ -1,7 +1,7 @@
 export function createSingleFlightByKey() {
-  const inFlightByKey = new Map();
+  const inFlightByKey = new Map<any, any>();
 
-  return async function runSingleFlight(key, task) {
+  return async function runSingleFlight(key: any, task: any) {
     const resolvedKey = String(key || "").trim();
     if (!resolvedKey) {
       throw new Error("Single-flight key is required.");

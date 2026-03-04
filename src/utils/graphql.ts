@@ -1570,9 +1570,9 @@ export const AGENT_TURNS_SUBSCRIPTION = `
 export const COMPANY_API_NOT_IMPLEMENTED_ERROR = "Not implemented in companyhelm-api yet.";
 export const COMPANY_API_PAGE_SIZE = 100;
 
-export const companyApiAgentMetadataById = new Map();
-export const companyApiThreadMetadataById = new Map();
-export const companyApiRunnerMetadataById = new Map();
+export const companyApiAgentMetadataById = new Map<any, any>();
+export const companyApiThreadMetadataById = new Map<any, any>();
+export const companyApiRunnerMetadataById = new Map<any, any>();
 
 export const COMPANY_API_LIST_COMPANIES_CONNECTION_QUERY = `
   query CompanyApiListCompanies($first: Int!, $after: String) {

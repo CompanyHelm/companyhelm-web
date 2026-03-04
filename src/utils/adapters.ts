@@ -1,26 +1,26 @@
 import { AVAILABLE_AGENT_SDKS, DEFAULT_AGENT_SDK } from "./constants.ts";
 
-const companyApiRunnerMetadataById = new Map();
-const companyApiAgentMetadataById = new Map();
-const companyApiThreadMetadataById = new Map();
+const companyApiRunnerMetadataById = new Map<any, any>();
+const companyApiAgentMetadataById = new Map<any, any>();
+const companyApiThreadMetadataById = new Map<any, any>();
 
-function normalizeAgentSdkValue(value) {
+function normalizeAgentSdkValue(value: any) {
   return String(value || "")
     .trim()
     .toLowerCase();
 }
 
-function isAvailableAgentSdk(value) {
+function isAvailableAgentSdk(value: any) {
   return AVAILABLE_AGENT_SDKS.includes(normalizeAgentSdkValue(value));
 }
 
-function normalizeUniqueStringList(values) {
+function normalizeUniqueStringList(values: any) {
   if (!Array.isArray(values)) {
     return [];
   }
 
-  const normalizedValues = [];
-  const seenValues = new Set();
+  const normalizedValues: any[] = [];
+  const seenValues = new Set<any>();
   for (const rawValue of values) {
     const cleanValue = String(rawValue || "").trim();
     if (!cleanValue || seenValues.has(cleanValue)) {
@@ -32,7 +32,7 @@ function normalizeUniqueStringList(values) {
   return normalizedValues;
 }
 
-function normalizeOptionalInstructions(value) {
+function normalizeOptionalInstructions(value: any) {
   if (value === undefined || value === null) {
     return null;
   }
@@ -40,7 +40,7 @@ function normalizeOptionalInstructions(value) {
   return normalizedValue || null;
 }
 
-function normalizeRunnerAvailableAgentSdks(runner) {
+function normalizeRunnerAvailableAgentSdks(runner: any) {
   const runnerSdks = Array.isArray(runner?.availableAgentSdks)
     ? runner.availableAgentSdks
     : Array.isArray(runner?.agentSdks)
@@ -48,7 +48,7 @@ function normalizeRunnerAvailableAgentSdks(runner) {
       : [];
 
   return runnerSdks
-    .map((sdkEntry) => ({
+    .map((sdkEntry: any) => ({
       id: resolveLegacyId(sdkEntry?.id),
       name: normalizeAgentSdkValue(sdkEntry?.name),
       availableModels: (
@@ -58,7 +58,7 @@ function normalizeRunnerAvailableAgentSdks(runner) {
             ? sdkEntry.models
             : []
       )
-        .map((modelEntry) => ({
+        .map((modelEntry: any) => ({
           id: resolveLegacyId(modelEntry?.id),
           name: String(modelEntry?.name || "").trim(),
           reasoningLevels: [
@@ -70,23 +70,23 @@ function normalizeRunnerAvailableAgentSdks(runner) {
                     ? modelEntry.reasoning
                     : [modelEntry?.reasoningLevels, modelEntry?.reasoning]
               )
-                .map((value) => String(value || "").trim())
+                .map((value: any) => String(value || "").trim())
                 .filter(Boolean),
             ),
-          ].sort((a, b) => a.localeCompare(b)),
+          ].sort((a: any, b: any) => a.localeCompare(b)),
         }))
-        .filter((modelEntry) => Boolean(modelEntry.name))
-        .sort((leftModel, rightModel) => leftModel.name.localeCompare(rightModel.name)),
+        .filter((modelEntry: any) => Boolean(modelEntry.name))
+        .sort((leftModel: any, rightModel: any) => leftModel.name.localeCompare(rightModel.name)),
     }))
-    .filter((sdkEntry) => Boolean(sdkEntry.name))
-    .sort((leftSdk, rightSdk) => leftSdk.name.localeCompare(rightSdk.name));
+    .filter((sdkEntry: any) => Boolean(sdkEntry.name))
+    .sort((leftSdk: any, rightSdk: any) => leftSdk.name.localeCompare(rightSdk.name));
 }
 
-export function normalizeCompanyApiRunnerStatus(value) {
+export function normalizeCompanyApiRunnerStatus(value: any) {
   return String(value || "").trim().toLowerCase() === "connected" ? "ready" : "disconnected";
 }
 
-export function resolveLegacyId(...values) {
+export function resolveLegacyId(...values: any) {
   for (const value of values) {
     const resolved = String(value || "").trim();
     if (resolved) {
@@ -96,14 +96,14 @@ export function resolveLegacyId(...values) {
   return "";
 }
 
-export function toConnectionNodes(connection) {
+export function toConnectionNodes(connection: any) {
   if (!connection || !Array.isArray(connection.edges)) {
     return [];
   }
-  return connection.edges.map((edge) => edge?.node).filter(Boolean);
+  return connection.edges.map((edge: any) => edge?.node).filter(Boolean);
 }
 
-export function toLegacyRunnerPayload(agentRunner) {
+export function toLegacyRunnerPayload(agentRunner: any) {
   const runnerId = resolveLegacyId(agentRunner?.id);
   const runnerName = resolveLegacyId(agentRunner?.name);
   const nowIso = new Date().toISOString();
@@ -139,7 +139,9 @@ export function toLegacyRunnerPayload(agentRunner) {
   };
 }
 
-export function toLegacyAgentPayload(agent, { metadataOverride } = {}) {
+export function toLegacyAgentPayload(agent: any, {
+  metadataOverride
+}: any = {}) {
   const agentId = resolveLegacyId(agent?.id);
   const currentMetadata = companyApiAgentMetadataById.get(agentId) || {};
   const overrideProvidesDefaultAdditionalModelInstructions = Boolean(
@@ -195,7 +197,9 @@ export function toLegacyAgentPayload(agent, { metadataOverride } = {}) {
   };
 }
 
-export function toLegacyThreadPayload(thread, { metadataOverride } = {}) {
+export function toLegacyThreadPayload(thread: any, {
+  metadataOverride
+}: any = {}) {
   const threadId = resolveLegacyId(thread?.id);
   const nowIso = new Date().toISOString();
   const currentMetadata = companyApiThreadMetadataById.get(threadId) || {};
@@ -292,7 +296,7 @@ export function toLegacyThreadPayload(thread, { metadataOverride } = {}) {
   };
 }
 
-export function toLegacyTurnItemRole(itemType) {
+export function toLegacyTurnItemRole(itemType: any) {
   const normalizedType = String(itemType || "").trim().toLowerCase();
   if (normalizedType === "user_message") {
     return "user";
@@ -303,7 +307,9 @@ export function toLegacyTurnItemRole(itemType) {
   return "system";
 }
 
-export function toLegacyTurnPayload(turn, { runnerId } = {}) {
+export function toLegacyTurnPayload(turn: any, {
+  runnerId
+}: any = {}) {
   const resolvedTurnId = resolveLegacyId(turn?.id);
   const resolvedThreadId = resolveLegacyId(turn?.thread?.id);
   const resolvedCompanyId = resolveLegacyId(turn?.company?.id);
@@ -313,7 +319,7 @@ export function toLegacyTurnPayload(turn, { runnerId } = {}) {
   const resolvedEndedAt = resolveLegacyId(turn?.endedAt) || null;
   const fallbackTimestamp = resolvedStartedAt || resolvedEndedAt || new Date().toISOString();
 
-  const items = (Array.isArray(turn?.items) ? turn.items : []).map((item) => {
+  const items = (Array.isArray(turn?.items) ? turn.items : []).map((item: any) => {
     const resolvedItemType = resolveLegacyId(item?.type) || "unknown";
     const itemStartedAt = resolveLegacyId(item?.startedAt) || null;
     const itemEndedAt = resolveLegacyId(item?.completedAt) || null;
@@ -357,7 +363,7 @@ export function toLegacyTurnPayload(turn, { runnerId } = {}) {
   };
 }
 
-export function toLegacyQueuedUserMessagePayload(queuedMessage) {
+export function toLegacyQueuedUserMessagePayload(queuedMessage: any) {
   const normalizedStatus = String(queuedMessage?.status || "").trim().toLowerCase();
   return {
     id: resolveLegacyId(queuedMessage?.id),
