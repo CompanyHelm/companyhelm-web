@@ -11,9 +11,10 @@
     "vite.config.js"
   ],
   "scripts": {
-    "dev": "vite dev",
-    "build": "vite build",
-    "preview": "vite preview",
+    "config:generate": "node scripts/config/generate-runtime-config.js",
+    "dev": "npm run config:generate -- --environment local && vite dev",
+    "build": "npm run config:generate -- --environment prod && vite build",
+    "preview": "npm run config:generate -- --environment prod && vite preview",
     "test": "node --test tests/**/*.test.js"
   },
   "dependencies": {

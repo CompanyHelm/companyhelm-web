@@ -33,10 +33,13 @@
 
 ## Configuration Source of Truth
 
-- Runtime/frontend configuration must come only from `src/config/`.
-- Do not read runtime config values from `import.meta.env`, `VITE_*`, or other environment variables.
+- Runtime/frontend configuration values must come from `config/<environment>.yaml`,
+  generated to `public/config.json` by `scripts/config/generate-runtime-config.js`.
+- Do not read runtime config values from `import.meta.env`, `VITE_*`, or other
+  environment variables.
 - If new frontend config values are introduced, add them to:
   - `src/config/schema.js`
-  - `src/config/development.js`
-  - `src/config/production.js`
-  - `src/config/config.js`
+  - `config/local.yaml`
+  - `config/dev.yaml`
+  - `config/prod.yaml`
+  - `scripts/config/generate-runtime-config.js` (if transformation logic changes)

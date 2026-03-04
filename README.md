@@ -12,11 +12,36 @@ npm run dev
 
 Open `http://localhost:4173`.
 
-Frontend config is loaded from `src/config/` and validated with `zod`.
-`src/config/config.js` resolves config in this order:
-1. `window.__COMPANYHELM_CONFIG__` runtime override (when present)
-2. `src/config/production.js` for non-local hostnames
-3. `src/config/development.js` fallback
+## Runtime config generation
+
+Runtime config is generated from YAML files under `config/` and written to
+`public/config.json` before Vite starts.
+
+- source files:
+  - `config/local.yaml`
+  - `config/dev.yaml`
+  - `config/prod.yaml`
+- generator: `scripts/config/generate-runtime-config.js`
+- validation schema: `src/config/schema.js` (Zod)
+- generated file: `public/config.json` (gitignored)
+
+The script takes `--environment <local|dev|prod>` and hard-fails when:
+- `--environment` is missing/invalid
+- `config/<environment>.yaml` is missing
+- YAML does not satisfy `runtimeConfigSchema`
+
+`npm run dev`, `npm run build`, and `npm run preview` run this generator first:
+- `dev` uses `local`
+- `build` and `preview` use `prod`
+
+You can run the generator directly:
+
+```bash
+npm run config:generate -- --environment local
+```
+
+The app bootstraps by fetching `/config.json` at startup. If the file cannot be
+loaded, startup fails immediately with an error screen.
 
 Current config fields:
 - `api.graphqlApiUrl`
