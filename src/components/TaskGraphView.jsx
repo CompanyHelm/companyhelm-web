@@ -27,6 +27,9 @@ const NODE_HEIGHT = 90;
 const CHILD_EDGE_COLOR = "rgba(37, 99, 235, 0.82)";
 const VERTICAL_LEVEL_GAP = 160;
 const HORIZONTAL_GAP = 60;
+const BLOCK_VERTICAL_GAP = 46;
+const BLOCK_EDGE_ROUTE_BASE_OFFSET = 30;
+const BLOCK_EDGE_ROUTE_LANE_GAP = 24;
 
 function TaskNode({ data }) {
   return (
@@ -151,7 +154,7 @@ function computeParentChildLevels(nodes, edges) {
   return levelById;
 }
 
-function assignPositions(nodes, edges, xById, levelById) {
+function assignPositions(nodes, edges, xById, yById, levelById) {
   const parentById = new Map();
   const childrenByParent = new Map();
   for (const edge of edges) {
@@ -252,7 +255,134 @@ function assignPositions(nodes, edges, xById, levelById) {
     fallbackX += NODE_WIDTH + HORIZONTAL_GAP;
   }
 
+  const dependencySourcesByTarget = new Map();
+  for (const edge of edges) {
+    if (!edge.id.startsWith("dependency-")) continue;
+    if (!dependencySourcesByTarget.has(edge.target)) dependencySourcesByTarget.set(edge.target, []);
+    dependencySourcesByTarget.get(edge.target).push(edge.source);
+  }
+
+  const blockedBySource = new Map();
+  for (const [targetId, sourceIds] of dependencySourcesByTarget.entries()) {
+    if (sourceIds.length === 0 || !positionById.has(targetId)) continue;
+
+    const targetCenterX = (positionById.get(targetId)?.x ?? 0) + NODE_WIDTH / 2;
+    let chosenSourceId = sourceIds[0];
+    let chosenDistance = Number.POSITIVE_INFINITY;
+
+    for (const sourceId of sourceIds) {
+      const sourcePos = positionById.get(sourceId);
+      if (!sourcePos) continue;
+      const sourceCenterX = sourcePos.x + NODE_WIDTH / 2;
+      const horizontalDistance = targetCenterX - sourceCenterX;
+      const distance =
+        horizontalDistance >= 0
+          ? horizontalDistance
+          : Number.MAX_SAFE_INTEGER / 2 + Math.abs(horizontalDistance);
+      if (distance < chosenDistance) {
+        chosenDistance = distance;
+        chosenSourceId = sourceId;
+      }
+    }
+
+    if (!blockedBySource.has(chosenSourceId)) blockedBySource.set(chosenSourceId, []);
+    blockedBySource.get(chosenSourceId).push(targetId);
+  }
+
+  function shiftSubtreeY(nodeId, deltaY, visiting = new Set()) {
+    if (visiting.has(nodeId)) return;
+    visiting.add(nodeId);
+
+    const nodePos = positionById.get(nodeId);
+    if (nodePos) {
+      positionById.set(nodeId, { x: nodePos.x, y: nodePos.y + deltaY });
+    }
+
+    const childIds = orderedChildrenByParent.get(nodeId) || [];
+    for (const childId of childIds) {
+      shiftSubtreeY(childId, deltaY, visiting);
+    }
+
+    visiting.delete(nodeId);
+  }
+
+  const blockers = [...blockedBySource.keys()].sort(
+    (a, b) => (positionById.get(a)?.x ?? 0) - (positionById.get(b)?.x ?? 0),
+  );
+
+  for (const blockerId of blockers) {
+    const blockedTargets = [...(blockedBySource.get(blockerId) || [])].sort((a, b) => {
+      const yDiff = (yById.get(a) || 0) - (yById.get(b) || 0);
+      if (yDiff !== 0) return yDiff;
+      return (xById.get(a) || 0) - (xById.get(b) || 0);
+    });
+
+    const blockerPos = positionById.get(blockerId);
+    if (!blockerPos || blockedTargets.length === 0) continue;
+
+    const blockerCenterY = blockerPos.y + NODE_HEIGHT / 2;
+    for (let index = 0; index < blockedTargets.length; index++) {
+      const targetId = blockedTargets[index];
+      const targetPos = positionById.get(targetId);
+      if (!targetPos) continue;
+
+      const centeredLane = index - (blockedTargets.length - 1) / 2;
+      const desiredCenterY = blockerCenterY + centeredLane * (NODE_HEIGHT + BLOCK_VERTICAL_GAP);
+      const desiredY = desiredCenterY - NODE_HEIGHT / 2;
+      const deltaY = desiredY - targetPos.y;
+      if (Math.abs(deltaY) < 0.5) continue;
+
+      shiftSubtreeY(targetId, deltaY);
+    }
+  }
+
   return positionById;
+}
+
+function routeDependencyEdges(edges, nodesWithPositions) {
+  const positionById = new Map(
+    nodesWithPositions.map((node) => [node.id, node.position]),
+  );
+  const dependencyEdgesBySource = new Map();
+
+  for (const edge of edges) {
+    if (!edge.id.startsWith("dependency-")) continue;
+    if (!dependencyEdgesBySource.has(edge.source)) dependencyEdgesBySource.set(edge.source, []);
+    dependencyEdgesBySource.get(edge.source).push(edge);
+  }
+
+  const centeredLaneByEdgeId = new Map();
+  for (const sourceEdges of dependencyEdgesBySource.values()) {
+    const sortedEdges = [...sourceEdges].sort((a, b) => {
+      const centerAY = (positionById.get(a.target)?.y ?? 0) + NODE_HEIGHT / 2;
+      const centerBY = (positionById.get(b.target)?.y ?? 0) + NODE_HEIGHT / 2;
+      const yDiff = centerAY - centerBY;
+      if (yDiff !== 0) return yDiff;
+      return a.target.localeCompare(b.target);
+    });
+
+    for (let index = 0; index < sortedEdges.length; index++) {
+      centeredLaneByEdgeId.set(
+        sortedEdges[index].id,
+        index - (sortedEdges.length - 1) / 2,
+      );
+    }
+  }
+
+  return edges.map((edge) => {
+    if (!edge.id.startsWith("dependency-")) return edge;
+    const centeredLane = centeredLaneByEdgeId.get(edge.id) || 0;
+    const laneOffset = BLOCK_EDGE_ROUTE_BASE_OFFSET + Math.abs(centeredLane) * BLOCK_EDGE_ROUTE_LANE_GAP;
+
+    return {
+      ...edge,
+      pathOptions: {
+        ...edge.pathOptions,
+        borderRadius: 16,
+        offset: laneOffset,
+      },
+    };
+  });
 }
 
 async function computeElkLayout(nodes, edges) {
@@ -268,11 +398,13 @@ async function computeElkLayout(nodes, edges) {
 
   const layoutResult = await elk.layout(graph);
   const xById = new Map();
+  const yById = new Map();
   for (const child of layoutResult.children || []) {
     xById.set(child.id, child.x || 0);
+    yById.set(child.id, child.y || 0);
   }
 
-  const positionById = assignPositions(nodes, edges, xById, levelById);
+  const positionById = assignPositions(nodes, edges, xById, yById, levelById);
 
   return nodes.map((node) => ({
     ...node,
@@ -307,8 +439,9 @@ export function TaskGraphView({ tasks, onTaskClick, onAddDependency }) {
           onClick: () => onTaskClick(node.id),
         },
       }));
+      const routedEdges = routeDependencyEdges(rawEdges, nodesWithHandlers);
       setNodes(nodesWithHandlers);
-      setEdges(rawEdges);
+      setEdges(routedEdges);
       setIsLayoutReady(true);
     });
   }, [rawNodes, rawEdges, onTaskClick, setNodes, setEdges]);
