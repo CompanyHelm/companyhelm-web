@@ -1,7 +1,19 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Page } from "../components/Page.tsx";
 import { CreationModal } from "../components/CreationModal.tsx";
 import { useSetPageActions } from "../components/PageActionsContext.tsx";
+
+function formatAccessedAt(value: any) {
+  const normalized = String(value || "").trim();
+  if (!normalized) {
+    return "-";
+  }
+  const parsed = new Date(normalized);
+  if (Number.isNaN(parsed.getTime())) {
+    return normalized;
+  }
+  return parsed.toLocaleString();
+}
 
 export function SecretsPage({
   secrets,
@@ -14,12 +26,16 @@ export function SecretsPage({
   secretDescription,
   secretValue,
   secretDrafts,
+  secretAccessLogsBySecretId,
+  isLoadingSecretAccessLogsBySecretId,
+  secretAccessLogErrorBySecretId,
   secretCountLabel,
   onSecretNameChange,
   onSecretDescriptionChange,
   onSecretValueChange,
   onCreateSecret,
   onSecretDraftChange,
+  onLoadSecretAccessLogs,
   onSaveSecret,
   onDeleteSecret,
 }: any) {
@@ -51,6 +67,16 @@ export function SecretsPage({
       setIsCreateModalOpen(false);
     }
   }
+
+  useEffect(() => {
+    if (!editingSecretId) {
+      return;
+    }
+
+    if (typeof onLoadSecretAccessLogs === "function") {
+      void onLoadSecretAccessLogs(editingSecretId, { first: 100 });
+    }
+  }, [editingSecretId, onLoadSecretAccessLogs]);
 
   return (
     <Page><div className="page-stack">
@@ -182,6 +208,11 @@ export function SecretsPage({
             description: "",
             value: "",
           };
+          const accessLogs = Array.isArray(secretAccessLogsBySecretId?.[editingSecretId])
+            ? secretAccessLogsBySecretId[editingSecretId]
+            : [];
+          const isLoadingAccessLogs = Boolean(isLoadingSecretAccessLogsBySecretId?.[editingSecretId]);
+          const accessLogError = String(secretAccessLogErrorBySecretId?.[editingSecretId] || "");
           const isSavingOrDeleting =
             savingSecretId === editingSecretId || deletingSecretId === editingSecretId;
 
@@ -234,6 +265,60 @@ export function SecretsPage({
                   placeholder="Set only when rotating the secret"
                   disabled={isSavingOrDeleting}
                 />
+              </div>
+
+              <div className="chat-settings-field">
+                <label className="chat-settings-label">Access log</label>
+                <div className="chat-settings-actions">
+                  <button
+                    type="button"
+                    className="secondary-btn"
+                    onClick={() => {
+                      if (typeof onLoadSecretAccessLogs === "function") {
+                        void onLoadSecretAccessLogs(editingSecretId, { first: 100 });
+                      }
+                    }}
+                    disabled={isLoadingAccessLogs || typeof onLoadSecretAccessLogs !== "function"}
+                  >
+                    {isLoadingAccessLogs ? "Refreshing..." : "Refresh log"}
+                  </button>
+                </div>
+
+                {accessLogError ? <p className="error-banner">{accessLogError}</p> : null}
+                {isLoadingAccessLogs ? <p className="chat-card-meta">Loading access log...</p> : null}
+                {!isLoadingAccessLogs && !accessLogError && accessLogs.length === 0 ? (
+                  <p className="chat-card-meta">No access events yet.</p>
+                ) : null}
+
+                {!isLoadingAccessLogs && !accessLogError && accessLogs.length > 0 ? (
+                  <ul className="chat-card-list">
+                    {accessLogs.map((accessLog: any) => {
+                      const agentName = String(accessLog?.agent?.name || accessLog?.agentId || "Unknown agent");
+                      const threadId = String(accessLog?.threadId || accessLog?.thread?.id || "").trim();
+                      const threadTitle = String(accessLog?.thread?.title || "").trim();
+                      const mcpServerName = String(accessLog?.mcpServer?.name || accessLog?.mcpServerId || "-");
+                      const threadLabel = threadTitle
+                        ? `${threadTitle} (${threadId || "-"})`
+                        : (threadId || "-");
+
+                      return (
+                        <li key={accessLog.id} className="chat-card">
+                          <div className="chat-card-main">
+                            <p className="chat-card-title">
+                              <strong>{formatAccessedAt(accessLog?.accessedAt)}</strong>
+                            </p>
+                            <p className="chat-card-meta">
+                              Agent: {agentName} &middot; Thread: {threadLabel}
+                            </p>
+                            <p className="chat-card-meta">
+                              MCP server: {mcpServerName}
+                            </p>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : null}
               </div>
 
               <div className="chat-settings-actions">

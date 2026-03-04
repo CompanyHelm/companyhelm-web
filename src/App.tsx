@@ -45,6 +45,7 @@ import {
   LIST_GIT_SKILL_PACKAGES_QUERY,
   LIST_MCP_SERVERS_QUERY,
   LIST_SECRETS_QUERY,
+  LIST_SECRET_ACCESS_LOGS_QUERY,
   CREATE_TASK_MUTATION,
   ADD_TASK_DEPENDENCY_MUTATION,
   REMOVE_TASK_DEPENDENCY_MUTATION,
@@ -123,6 +124,7 @@ import {
   COMPANY_API_LIST_GIT_SKILL_PACKAGES_QUERY,
   COMPANY_API_LIST_MCP_SERVERS_QUERY,
   COMPANY_API_LIST_SECRETS_QUERY,
+  COMPANY_API_LIST_SECRET_ACCESS_LOGS_QUERY,
   COMPANY_API_PREVIEW_GIT_SKILL_PACKAGE_MUTATION,
   COMPANY_API_CREATE_GIT_SKILL_PACKAGE_MUTATION,
   COMPANY_API_DELETE_GIT_SKILL_PACKAGE_MUTATION,
@@ -736,6 +738,44 @@ function toSecretPayload(secret: any) {
     description: String(secret?.description || "").trim(),
     createdAt: resolveLegacyId(secret?.createdAt),
     updatedAt: resolveLegacyId(secret?.updatedAt),
+  };
+}
+
+function toSecretAccessLogPayload(secretAccessLog: any) {
+  const threadId = resolveLegacyId(secretAccessLog?.thread?.id, secretAccessLog?.threadId) || null;
+  const threadTitle = resolveLegacyId(secretAccessLog?.thread?.title) || null;
+  const agentId = resolveLegacyId(secretAccessLog?.agent?.id, secretAccessLog?.agentId) || null;
+  const agentName = resolveLegacyId(secretAccessLog?.agent?.name) || null;
+  const mcpServerId = resolveLegacyId(secretAccessLog?.mcpServer?.id, secretAccessLog?.mcpServerId) || null;
+  const mcpServerName = resolveLegacyId(secretAccessLog?.mcpServer?.name) || null;
+
+  return {
+    id: resolveLegacyId(secretAccessLog?.id),
+    companyId: resolveLegacyId(secretAccessLog?.company?.id, secretAccessLog?.companyId),
+    secretId: resolveLegacyId(secretAccessLog?.secret?.id, secretAccessLog?.secretId) || null,
+    threadId,
+    agentId,
+    mcpServerId,
+    accessReason: String(secretAccessLog?.accessReason || "").trim(),
+    accessedAt: resolveLegacyId(secretAccessLog?.accessedAt),
+    thread: threadId
+      ? {
+        id: threadId,
+        title: threadTitle,
+      }
+      : null,
+    agent: agentId
+      ? {
+        id: agentId,
+        name: agentName || agentId,
+      }
+      : null,
+    mcpServer: mcpServerId
+      ? {
+        id: mcpServerId,
+        name: mcpServerName || mcpServerId,
+      }
+      : null,
   };
 }
 
@@ -1914,6 +1954,19 @@ async function executeGraphQL(query: any, variables: any = {}) {
     };
   }
 
+  if (query === LIST_SECRET_ACCESS_LOGS_QUERY) {
+    const data = await executeRawGraphQL(COMPANY_API_LIST_SECRET_ACCESS_LOGS_QUERY, {
+      companyId: resolveLegacyId(variables?.companyId),
+      secretId: resolveLegacyId(variables?.secretId),
+      first: typeof variables?.first === "number" ? variables.first : null,
+    });
+    return {
+      secretAccessLogs: Array.isArray(data?.secretAccessLogs)
+        ? data.secretAccessLogs.map((secretAccessLog: any) => toSecretAccessLogPayload(secretAccessLog))
+        : [],
+    };
+  }
+
   if (query === DELETE_GITHUB_INSTALLATION_MUTATION) {
     return {
       ...unsupportedMutation("deleteGithubInstallation"),
@@ -2470,6 +2523,9 @@ function App() {
   const [secretDescription, setSecretDescription] = useState<any>("");
   const [secretValue, setSecretValue] = useState<any>("");
   const [secretDrafts, setSecretDrafts] = useState<any>({});
+  const [secretAccessLogsBySecretId, setSecretAccessLogsBySecretId] = useState<any>({});
+  const [isLoadingSecretAccessLogsBySecretId, setIsLoadingSecretAccessLogsBySecretId] = useState<any>({});
+  const [secretAccessLogErrorBySecretId, setSecretAccessLogErrorBySecretId] = useState<any>({});
   const [mcpServerName, setMcpServerName] = useState<any>("");
   const [mcpServerTransportType, setMcpServerTransportType] = useState<any>(
     MCP_TRANSPORT_TYPE_STREAMABLE_HTTP,
@@ -3173,6 +3229,9 @@ function App() {
       setSecretError("");
       setSecrets([]);
       setSecretDrafts({});
+      setSecretAccessLogsBySecretId({});
+      setIsLoadingSecretAccessLogsBySecretId({});
+      setSecretAccessLogErrorBySecretId({});
       setHasLoadedSecrets(false);
       setIsLoadingSecrets(false);
       return;
@@ -3185,6 +3244,26 @@ function App() {
       const nextSecrets = data.secrets || [];
       setSecrets(nextSecrets);
       setSecretDrafts(createSecretDrafts(nextSecrets));
+      const validSecretIds = new Set(
+        (Array.isArray(nextSecrets) ? nextSecrets : [])
+          .map((secret: any) => String(secret?.id || "").trim())
+          .filter(Boolean),
+      );
+      setSecretAccessLogsBySecretId((currentLogsBySecretId: any) =>
+        Object.fromEntries(
+          Object.entries(currentLogsBySecretId || {}).filter(([secretId]) => validSecretIds.has(secretId)),
+        ),
+      );
+      setIsLoadingSecretAccessLogsBySecretId((currentLoadingBySecretId: any) =>
+        Object.fromEntries(
+          Object.entries(currentLoadingBySecretId || {}).filter(([secretId]) => validSecretIds.has(secretId)),
+        ),
+      );
+      setSecretAccessLogErrorBySecretId((currentErrorBySecretId: any) =>
+        Object.fromEntries(
+          Object.entries(currentErrorBySecretId || {}).filter(([secretId]) => validSecretIds.has(secretId)),
+        ),
+      );
       setHasLoadedSecrets(true);
     } catch (loadError: any) {
       setHasLoadedSecrets(false);
@@ -3217,6 +3296,50 @@ function App() {
       setMcpServerError(loadError.message);
     } finally {
       setIsLoadingMcpServers(false);
+    }
+  }, [selectedCompanyId]);
+
+  const loadSecretAccessLogs = useCallback(async (secretId: any, { first = 50 }: any = {}) => {
+    const normalizedSecretId = String(secretId || "").trim();
+    if (!selectedCompanyId || !normalizedSecretId) {
+      return;
+    }
+
+    const normalizedFirst = Number.isFinite(first) ? Number(first) : 50;
+    const clampedFirst = Math.max(1, Math.min(200, Math.floor(normalizedFirst)));
+
+    try {
+      setIsLoadingSecretAccessLogsBySecretId((currentBySecretId: any) => ({
+        ...(currentBySecretId || {}),
+        [normalizedSecretId]: true,
+      }));
+      setSecretAccessLogErrorBySecretId((currentBySecretId: any) => ({
+        ...(currentBySecretId || {}),
+        [normalizedSecretId]: "",
+      }));
+      const data = await executeGraphQL(LIST_SECRET_ACCESS_LOGS_QUERY, {
+        companyId: selectedCompanyId,
+        secretId: normalizedSecretId,
+        first: clampedFirst,
+      });
+      setSecretAccessLogsBySecretId((currentBySecretId: any) => ({
+        ...(currentBySecretId || {}),
+        [normalizedSecretId]: Array.isArray(data?.secretAccessLogs) ? data.secretAccessLogs : [],
+      }));
+    } catch (loadError: any) {
+      setSecretAccessLogsBySecretId((currentBySecretId: any) => ({
+        ...(currentBySecretId || {}),
+        [normalizedSecretId]: [],
+      }));
+      setSecretAccessLogErrorBySecretId((currentBySecretId: any) => ({
+        ...(currentBySecretId || {}),
+        [normalizedSecretId]: loadError?.message || "Failed to load access logs.",
+      }));
+    } finally {
+      setIsLoadingSecretAccessLogsBySecretId((currentBySecretId: any) => ({
+        ...(currentBySecretId || {}),
+        [normalizedSecretId]: false,
+      }));
     }
   }, [selectedCompanyId]);
 
@@ -3798,6 +3921,9 @@ function App() {
     setGitSkillPackages([]);
     setSecrets([]);
     setSecretDrafts({});
+    setSecretAccessLogsBySecretId({});
+    setIsLoadingSecretAccessLogsBySecretId({});
+    setSecretAccessLogErrorBySecretId({});
     setHasLoadedSecrets(false);
     setSecretName("");
     setSecretDescription("");
@@ -7770,12 +7896,16 @@ function App() {
             secretDescription={secretDescription}
             secretValue={secretValue}
             secretDrafts={secretDrafts}
+            secretAccessLogsBySecretId={secretAccessLogsBySecretId}
+            isLoadingSecretAccessLogsBySecretId={isLoadingSecretAccessLogsBySecretId}
+            secretAccessLogErrorBySecretId={secretAccessLogErrorBySecretId}
             secretCountLabel={secretCountLabel}
             onSecretNameChange={setSecretName}
             onSecretDescriptionChange={setSecretDescription}
             onSecretValueChange={setSecretValue}
             onCreateSecret={handleCreateSecret}
             onSecretDraftChange={handleSecretDraftChange}
+            onLoadSecretAccessLogs={loadSecretAccessLogs}
             onSaveSecret={handleSaveSecret}
             onDeleteSecret={handleDeleteSecret}
           />

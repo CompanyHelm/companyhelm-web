@@ -750,6 +750,33 @@ export const LIST_SECRETS_QUERY = `
   }
 `;
 
+export const LIST_SECRET_ACCESS_LOGS_QUERY = `
+  query ListSecretAccessLogs($companyId: String!, $secretId: String!, $first: Int) {
+    secretAccessLogs(companyId: $companyId, secretId: $secretId, first: $first) {
+      id
+      companyId
+      secretId
+      threadId
+      agentId
+      mcpServerId
+      accessReason
+      accessedAt
+      agent {
+        id
+        name
+      }
+      thread {
+        id
+        title
+      }
+      mcpServer {
+        id
+        name
+      }
+    }
+  }
+`;
+
 export const CREATE_SECRET_MUTATION = `
   mutation CreateSecret(
     $companyId: String!
@@ -2559,6 +2586,33 @@ export const COMPANY_API_LIST_SECRETS_QUERY = `
       description
       createdAt
       updatedAt
+    }
+  }
+`;
+
+export const COMPANY_API_LIST_SECRET_ACCESS_LOGS_QUERY = `
+  query CompanyApiListSecretAccessLogs($companyId: ID!, $secretId: ID!, $first: Int) {
+    secretAccessLogs(companyId: $companyId, secretId: $secretId, first: $first) {
+      id
+      companyId
+      secretId
+      threadId
+      agentId
+      mcpServerId
+      accessReason
+      accessedAt
+      agent {
+        id
+        name
+      }
+      thread {
+        id
+        title
+      }
+      mcpServer {
+        id
+        name
+      }
     }
   }
 `;
