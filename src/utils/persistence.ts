@@ -8,7 +8,7 @@ export function getPersistedCompanyId() {
   }
 }
 
-export function persistCompanyId(companyId) {
+export function persistCompanyId(companyId: any) {
   try {
     if (!companyId) {
       window.localStorage.removeItem(SELECTED_COMPANY_STORAGE_KEY);

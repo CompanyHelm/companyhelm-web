@@ -1,11 +1,11 @@
-export function matchesMediaQuery(query) {
+export function matchesMediaQuery(query: any) {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
     return false;
   }
   return window.matchMedia(query).matches;
 }
 
-export function resolveGraphQLWebSocketUrl(rawUrl) {
+export function resolveGraphQLWebSocketUrl(rawUrl: any) {
   const cleanUrl = String(rawUrl || "").trim();
   if (!cleanUrl) {
     return "";

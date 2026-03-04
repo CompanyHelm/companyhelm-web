@@ -1,10 +1,10 @@
-function normalizeCompanyId(value) {
+function normalizeCompanyId(value: any) {
   return String(value || "").trim();
 }
 
 let activeCompanyId = "";
 
-export function setActiveCompanyId(companyId) {
+export function setActiveCompanyId(companyId: any) {
   activeCompanyId = normalizeCompanyId(companyId);
   return activeCompanyId;
 }

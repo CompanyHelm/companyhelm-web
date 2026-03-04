@@ -1,4 +1,4 @@
-export function quoteShellArg(value) {
+export function quoteShellArg(value: any) {
   const normalizedValue = String(value ?? "");
   if (/^[A-Za-z0-9_./:-]+$/.test(normalizedValue)) {
     return normalizedValue;
@@ -9,7 +9,7 @@ export function quoteShellArg(value) {
 export function buildRunnerStartCommand({
   backendGrpcTarget,
   runnerSecret,
-}) {
+}: any) {
   return [
     "companyhelm",
     "--server-url",

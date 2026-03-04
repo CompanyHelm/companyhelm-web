@@ -41,25 +41,25 @@ test("createAuthProvider returns supabase provider", () => {
 });
 
 test("signIn sends active company context header to GraphQL API", async () => {
-  const localStorageMap = new Map();
+  const localStorageMap = new Map<any, any>();
   global.window = {
     localStorage: {
-      getItem(key) {
+      getItem(key: any) {
         return localStorageMap.has(key) ? localStorageMap.get(key) : null;
       },
-      setItem(key, value) {
+      setItem(key: any, value: any) {
         localStorageMap.set(key, String(value));
       },
-      removeItem(key) {
+      removeItem(key: any) {
         localStorageMap.delete(key);
       },
     },
-  };
+  } as any;
 
   setActiveCompanyId("company-123");
 
-  const fetchCalls = [];
-  global.fetch = async (url, options) => {
+  const fetchCalls: any[] = [];
+  global.fetch = (async (url: any, options: any) => {
     fetchCalls.push({ url, options });
     return {
       ok: true,
@@ -79,7 +79,7 @@ test("signIn sends active company context header to GraphQL API", async () => {
         };
       },
     };
-  };
+  }) as any;
 
   const provider = createAuthProvider({
     authProvider: "companyhelm",
@@ -144,23 +144,23 @@ test("companyhelm signUp requires password", async () => {
 test("companyhelm provider emits auth state updates on sign in and sign out", async () => {
   const originalWindow = global.window;
   const originalFetch = global.fetch;
-  const localStorageMap = new Map();
+  const localStorageMap = new Map<any, any>();
   try {
     global.window = {
       localStorage: {
-        getItem(key) {
+        getItem(key: any) {
           return localStorageMap.has(key) ? localStorageMap.get(key) : null;
         },
-        setItem(key, value) {
+        setItem(key: any, value: any) {
           localStorageMap.set(key, String(value));
         },
-        removeItem(key) {
+        removeItem(key: any) {
           localStorageMap.delete(key);
         },
       },
-    };
+    } as any;
 
-    global.fetch = async () => ({
+    global.fetch = (async () => ({
       ok: true,
       async json() {
         return {
@@ -177,7 +177,7 @@ test("companyhelm provider emits auth state updates on sign in and sign out", as
           },
         };
       },
-    });
+    })) as any;
 
     const provider = createAuthProvider({
       authProvider: "companyhelm",
@@ -191,8 +191,8 @@ test("companyhelm provider emits auth state updates on sign in and sign out", as
       },
     });
 
-    const authStateUpdates = [];
-    const unsubscribe = provider.subscribeAuthStateChange((hasSession) => {
+    const authStateUpdates: any[] = [];
+    const unsubscribe = provider.subscribeAuthStateChange((hasSession: any) => {
       authStateUpdates.push(Boolean(hasSession));
     });
 
@@ -203,12 +203,12 @@ test("companyhelm provider emits auth state updates on sign in and sign out", as
     assert.deepEqual(authStateUpdates, [true, false]);
   } finally {
     if (typeof originalWindow === "undefined") {
-      delete global.window;
+      Reflect.deleteProperty(global as any, "window");
     } else {
       global.window = originalWindow;
     }
     if (typeof originalFetch === "undefined") {
-      delete global.fetch;
+      Reflect.deleteProperty(global as any, "fetch");
     } else {
       global.fetch = originalFetch;
     }

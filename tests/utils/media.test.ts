@@ -17,13 +17,13 @@ test("resolveGraphQLWebSocketUrl resolves relative paths against the current ori
   try {
     global.window = {
       location: new URL("http://localhost:5173/dashboard"),
-    };
+    } as any;
 
     const result = resolveGraphQLWebSocketUrl("/graphql");
     assert.equal(result, "ws://localhost:5173/graphql");
   } finally {
     if (typeof originalWindow === "undefined") {
-      delete global.window;
+      Reflect.deleteProperty(global as any, "window");
     } else {
       global.window = originalWindow;
     }
