@@ -201,6 +201,7 @@ import {
 } from "./utils/normalization.ts";
 
 import { normalizeRunnerStatus, normalizeChatStatus } from "./utils/formatting.ts";
+import { buildTaskExecutionPlan } from "./utils/task-execution.ts";
 
 import {
   hasRunningChatTurns,
@@ -3097,6 +3098,7 @@ function App() {
     activePage === "agent-runner" ||
     activePage === "profile";
   const shouldLoadAgentData =
+    activePage === "tasks" ||
     activePage === "agents" ||
     activePage === "profile";
   const shouldSubscribeAgentRunners = activePage === "dashboard" || activePage === "agent-runner";
@@ -5099,7 +5101,7 @@ function App() {
     }
   }
 
-  async function handleBatchExecuteTasks(taskIds: any[], agentId: any) {
+  async function handleBatchExecuteTasks(taskIds: any[], fallbackAgentId: any = "") {
     if (!selectedCompanyId) {
       setTaskError("Select a company before executing tasks.");
       return false;
@@ -5111,22 +5113,29 @@ function App() {
       return false;
     }
 
-    const normalizedAgentId = String(agentId || "").trim();
-    if (!normalizedAgentId) {
-      setTaskError("Agent id is required to execute selected tasks.");
+    const executionPlan = buildTaskExecutionPlan({
+      taskIds: normalizedTaskIds,
+      tasks,
+      fallbackAgentId: String(fallbackAgentId || "").trim(),
+    });
+
+    if (executionPlan.missingTaskIds.length > 0) {
+      setTaskError("Select a fallback agent for tasks without an assigned agent.");
       return false;
     }
 
     try {
       setSavingTaskId("batch");
       setTaskError("");
-      const data = await executeGraphQL(BATCH_EXECUTE_TASKS_MUTATION, {
-        taskIds: normalizedTaskIds,
-        agentId: normalizedAgentId,
-      });
-      const result = data.batchExecuteTasks;
-      if (!result.ok) {
-        throw new Error(result.error || "Batch task execution failed.");
+      for (const group of executionPlan.groups) {
+        const data = await executeGraphQL(BATCH_EXECUTE_TASKS_MUTATION, {
+          taskIds: group.taskIds,
+          agentId: group.agentId,
+        });
+        const result = data.batchExecuteTasks;
+        if (!result.ok) {
+          throw new Error(result.error || "Batch task execution failed.");
+        }
       }
       await loadTasks();
       return true;
@@ -8117,6 +8126,7 @@ function App() {
           <TasksPage
             selectedCompanyId={selectedCompanyId}
             tasks={tasks}
+            agents={agents}
             isLoadingTasks={isLoadingTasks}
             taskError={taskError}
             isSubmittingTask={isSubmittingTask}
