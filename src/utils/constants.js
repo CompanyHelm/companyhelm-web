@@ -7,7 +7,7 @@ const normalizedRuntimeConfig = getConfig();
 export const GRAPHQL_URL = String(normalizedRuntimeConfig.api?.graphqlApiUrl || "").trim();
 export const GRAPHQL_WS_URL = String(normalizedRuntimeConfig.api?.graphqlWebSocketUrl || "").trim()
   || resolveGraphQLWebSocketUrl(GRAPHQL_URL);
-export const AUTH_PROVIDER = String(normalizedRuntimeConfig.authProvider || "companyhelm").trim() || "companyhelm";
+export const AUTH_PROVIDER = String(normalizedRuntimeConfig.auth?.provider || "companyhelm").trim() || "companyhelm";
 export const COMPANYHELM_AUTH_TOKEN_STORAGE_KEY =
   String(normalizedRuntimeConfig.auth?.companyhelm?.tokenStorageKey || "").trim() || "companyhelm.auth.token";
 export const SUPABASE_URL = String(normalizedRuntimeConfig.auth?.supabase?.url || "").trim();

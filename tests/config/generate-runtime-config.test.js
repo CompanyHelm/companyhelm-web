@@ -43,8 +43,8 @@ test("generateRuntimeConfig validates yaml and writes public/config.json", () =>
         "api:",
         "  graphqlApiUrl: \"http://127.0.0.1:4000/graphql\"",
         "  runnerGrpcTarget: \"localhost:50051\"",
-        "authProvider: \"companyhelm\"",
         "auth:",
+        "  provider: \"companyhelm\"",
         "  companyhelm:",
         "    tokenStorageKey: \"companyhelm.auth.token\"",
         "",
@@ -59,7 +59,7 @@ test("generateRuntimeConfig validates yaml and writes public/config.json", () =>
     assert.equal(result.sourcePath, resolveEnvironmentConfigPath(repoRoot, "local"));
     assert.equal(result.outputPath, resolveGeneratedConfigPath(repoRoot));
     assert.equal(writtenJson.api.graphqlApiUrl, "http://127.0.0.1:4000/graphql");
-    assert.equal(writtenJson.authProvider, "companyhelm");
+    assert.equal(writtenJson.auth.provider, "companyhelm");
     assert.equal(
       writtenJson.auth.companyhelm.tokenStorageKey,
       "companyhelm.auth.token",
@@ -79,8 +79,8 @@ test("generateRuntimeConfig fails when yaml is invalid for schema", () => {
         "api:",
         "  graphqlApiUrl: \"not-a-url\"",
         "  runnerGrpcTarget: \"\"",
-        "authProvider: \"companyhelm\"",
         "auth:",
+        "  provider: \"companyhelm\"",
         "  companyhelm:",
         "    tokenStorageKey: \"\"",
         "",

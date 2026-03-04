@@ -46,11 +46,11 @@ loaded, startup fails immediately with an error screen.
 Current config fields:
 - `api.graphqlApiUrl`
 - `api.runnerGrpcTarget`
-- `authProvider` (`companyhelm` or `supabase`)
+- `auth.provider` (`companyhelm` or `supabase`)
 - `auth.companyhelm.tokenStorageKey`
-- `auth.supabase.url` (required when `authProvider: supabase`)
-- `auth.supabase.anonKey` (required when `authProvider: supabase`)
-- `auth.supabase.tokenStorageKey` (required when `authProvider: supabase`)
+- `auth.supabase.url` (required when `auth.provider: supabase`)
+- `auth.supabase.anonKey` (required when `auth.provider: supabase`)
+- `auth.supabase.tokenStorageKey` (required when `auth.provider: supabase`)
 
 `api.graphqlApiUrl` is used to derive:
 - Relay HTTP GraphQL URL

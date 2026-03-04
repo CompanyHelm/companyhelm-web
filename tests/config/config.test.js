@@ -45,8 +45,8 @@ test("loadConfig prefers window runtime config override", () => {
       graphqlApiUrl: "https://api.example.com/graphql",
       runnerGrpcTarget: "runner.example.com:50051",
     },
-    authProvider: "supabase",
     auth: {
+      provider: "supabase",
       companyhelm: {
         tokenStorageKey: "companyhelm.auth.token",
       },
@@ -67,7 +67,7 @@ test("loadConfig prefers window runtime config override", () => {
   );
 
   assert.equal(config.api.graphqlApiUrl, "https://api.example.com/graphql");
-  assert.equal(config.authProvider, "supabase");
+  assert.equal(config.auth.provider, "supabase");
   assert.equal(config.auth.supabase.url, "https://example.supabase.co");
 });
 
@@ -79,8 +79,8 @@ test("runtimeConfigSchema rejects supabase provider without supabase config", ()
           graphqlApiUrl: "https://api.example.com/graphql",
           runnerGrpcTarget: "runner.example.com:50051",
         },
-        authProvider: "supabase",
         auth: {
+          provider: "supabase",
           companyhelm: {
             tokenStorageKey: "companyhelm.auth.token",
           },
