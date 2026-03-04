@@ -1611,6 +1611,30 @@ export const AGENT_TURNS_SUBSCRIPTION = `
   }
 `;
 
+export const AGENT_QUEUED_USER_MESSAGES_SUBSCRIPTION = `
+  subscription AgentQueuedUserMessagesUpdated(
+    $companyId: ID!
+    $agentId: ID!
+    $threadId: ID!
+    $first: Int = 200
+  ) {
+    queuedUserMessagesUpdated(
+      companyId: $companyId
+      agentId: $agentId
+      threadId: $threadId
+      first: $first
+    ) {
+      id
+      status
+      sdkTurnId
+      companyId
+      threadId
+      allowSteer
+      text
+    }
+  }
+`;
+
 export const COMPANY_API_NOT_IMPLEMENTED_ERROR = "Not implemented in companyhelm-api yet.";
 export const COMPANY_API_PAGE_SIZE = 100;
 

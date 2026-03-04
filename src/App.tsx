@@ -92,6 +92,7 @@ import {
   AGENT_RUNNERS_SUBSCRIPTION,
   AGENT_THREADS_SUBSCRIPTION,
   AGENT_TURNS_SUBSCRIPTION,
+  AGENT_QUEUED_USER_MESSAGES_SUBSCRIPTION,
   COMPANY_API_NOT_IMPLEMENTED_ERROR,
   COMPANY_API_PAGE_SIZE,
   COMPANY_API_LIST_COMPANIES_CONNECTION_QUERY,
@@ -183,12 +184,10 @@ import { normalizeRunnerStatus, normalizeChatStatus } from "./utils/formatting.t
 
 import {
   hasRunningChatTurns,
-  getLatestChatTurn,
   getLatestRunningChatTurn,
   compareTurnsByTimestamp,
   getTurnLifecycleSignature,
   mergeChatSessionsByAgentSnapshot,
-  updateQueuedMessagesFromTurnSubscription,
   isSameChatSelection,
 } from "./utils/chat.ts";
 
@@ -2426,7 +2425,6 @@ function App() {
   );
   const isNavigatingToChatsRef = useRef<any>(false);
   const turnLifecycleSignatureBySessionIdRef = useRef<any>(new Map<any, any>());
-  const latestTurnIdBySessionIdRef = useRef<any>(new Map<any, any>());
   const runCreateChatSessionSingleFlight = useMemo(() => createSingleFlightByKey(), []);
   const hasCompanies = companies.length > 0;
   const handleChatSessionRenameDraftChange = useCallback((nextTitle: any) => {
@@ -3359,11 +3357,9 @@ function App() {
             )
           : [];
         const nextTurnLifecycleSignature = getTurnLifecycleSignature(nextTurns);
-        const nextLatestTurnId = String(getLatestChatTurn(nextTurns)?.id || "").trim();
         setChatTurns(nextTurns);
         setQueuedChatMessages(nextQueuedMessages);
         turnLifecycleSignatureBySessionIdRef.current.set(targetSessionId, nextTurnLifecycleSignature);
-        latestTurnIdBySessionIdRef.current.set(targetSessionId, nextLatestTurnId);
         setChatSessionRunningState(targetSessionId, hasRunningChatTurns(nextTurns));
       } catch (loadError: any) {
         if (!silently) {
@@ -3545,25 +3541,27 @@ function App() {
       if (nextTurnLifecycleSignature !== previousTurnLifecycleSignature) {
         turnLifecycleSignatureBySessionIdRef.current.set(targetSessionId, nextTurnLifecycleSignature);
       }
-      const previousLatestTurnId = latestTurnIdBySessionIdRef.current.get(targetSessionId) || "";
-      const { nextLatestTurnId } = updateQueuedMessagesFromTurnSubscription({
-        queuedMessages: [],
-        previousLatestTurnId,
-        nextTurns,
-      });
-      latestTurnIdBySessionIdRef.current.set(targetSessionId, nextLatestTurnId);
-      setQueuedChatMessages((currentQueuedMessages: any) =>
-        updateQueuedMessagesFromTurnSubscription({
-          queuedMessages: currentQueuedMessages,
-          previousLatestTurnId,
-          nextTurns,
-        }).nextQueuedMessages,
-      );
       setChatSessionRunningState(targetSessionId, hasRunningChatTurns(nextTurns));
     }
     setChatError("");
     setIsLoadingChat(false);
   }, [resolvedChatSessionId, setChatSessionRunningState]);
+
+  const handleAgentQueuedMessagesSubscriptionData = useCallback((payload: any) => {
+    if (!payload?.queuedUserMessagesUpdated) {
+      return;
+    }
+
+    const nextQueuedMessages = Array.isArray(payload.queuedUserMessagesUpdated)
+      ? payload.queuedUserMessagesUpdated.map((queuedMessage: any) =>
+          toLegacyQueuedUserMessagePayload(queuedMessage),
+        )
+      : [];
+
+    setQueuedChatMessages(nextQueuedMessages);
+    setChatError("");
+    setIsLoadingChat(false);
+  }, []);
 
   const handleAgentChatSubscriptionError = useCallback((error: any) => {
     setChatError(error.message);
@@ -3614,6 +3612,22 @@ function App() {
     onError: handleAgentChatSubscriptionError,
   });
 
+  useGraphQLSubscription({
+    enabled: Boolean(selectedCompanyId && chatAgentId && resolvedChatSessionId && shouldSubscribeChatTurns),
+    query: AGENT_QUEUED_USER_MESSAGES_SUBSCRIPTION,
+    variables:
+      selectedCompanyId && chatAgentId && resolvedChatSessionId
+        ? {
+            companyId: selectedCompanyId,
+            agentId: chatAgentId,
+            threadId: resolvedChatSessionId,
+            first: 200,
+          }
+        : undefined,
+    onData: handleAgentQueuedMessagesSubscriptionData,
+    onError: handleAgentChatSubscriptionError,
+  });
+
   useEffect(() => {
     loadCompanies();
   }, [loadCompanies]);
@@ -3622,7 +3636,6 @@ function App() {
     setActiveCompanyId(selectedCompanyId);
     persistCompanyId(selectedCompanyId);
     turnLifecycleSignatureBySessionIdRef.current.clear();
-    latestTurnIdBySessionIdRef.current.clear();
   }, [selectedCompanyId]);
 
   useEffect(() => {
