@@ -32,11 +32,11 @@ test("parseEnvironmentFromArgs rejects unsupported environment values", () => {
   );
 });
 
-test("generateRuntimeConfig validates yaml and writes public/config.json", () => {
+test("generateRuntimeConfig validates yaml and writes src/generated/config.js", () => {
   const repoRoot = mkdtempSync(join(tmpdir(), "companyhelm-frontend-config-"));
   try {
     mkdirSync(join(repoRoot, "config"), { recursive: true });
-    mkdirSync(join(repoRoot, "public"), { recursive: true });
+    mkdirSync(join(repoRoot, "src", "generated"), { recursive: true });
     writeFileSync(
       join(repoRoot, "config", "local.yaml"),
       [
@@ -53,11 +53,14 @@ test("generateRuntimeConfig validates yaml and writes public/config.json", () =>
     );
 
     const result = generateRuntimeConfig({ repoRoot, environment: "local" });
-    const writtenJson = JSON.parse(readFileSync(resolveGeneratedConfigPath(repoRoot), "utf8"));
+    const generatedModule = readFileSync(resolveGeneratedConfigPath(repoRoot), "utf8");
+    const jsonPayload = generatedModule.match(/export default (\{[\s\S]*\});\n$/)?.[1];
+    const writtenJson = JSON.parse(jsonPayload || "{}");
 
     assert.equal(result.environment, "local");
     assert.equal(result.sourcePath, resolveEnvironmentConfigPath(repoRoot, "local"));
     assert.equal(result.outputPath, resolveGeneratedConfigPath(repoRoot));
+    assert.match(generatedModule, /^\/\* This file is auto-generated\. Do not edit\. \*\//);
     assert.equal(writtenJson.api.graphqlApiUrl, "http://127.0.0.1:4000/graphql");
     assert.equal(writtenJson.auth.provider, "companyhelm");
     assert.equal(

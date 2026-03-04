@@ -43,7 +43,7 @@ export function resolveEnvironmentConfigPath(repoRoot, environment) {
 }
 
 export function resolveGeneratedConfigPath(repoRoot) {
-  return resolve(repoRoot, "public", "config.json");
+  return resolve(repoRoot, "src", "generated", "config.js");
 }
 
 export function generateRuntimeConfig({ repoRoot, environment }) {
@@ -56,9 +56,15 @@ export function generateRuntimeConfig({ repoRoot, environment }) {
   const parsedConfig = parseYaml(rawYaml);
   const validatedConfig = runtimeConfigSchema.parse(parsedConfig);
   const outputPath = resolveGeneratedConfigPath(repoRoot);
-  const outputDir = resolve(repoRoot, "public");
+  const outputDir = resolve(repoRoot, "src", "generated");
+  const generatedModuleSource = [
+    "/* This file is auto-generated. Do not edit. */",
+    "",
+    `export default ${JSON.stringify(validatedConfig, null, 2)};`,
+    "",
+  ].join("\n");
   mkdirSync(outputDir, { recursive: true });
-  writeFileSync(outputPath, `${JSON.stringify(validatedConfig, null, 2)}\n`, "utf8");
+  writeFileSync(outputPath, generatedModuleSource, "utf8");
 
   return {
     environment: normalizeEnvironment(environment),
