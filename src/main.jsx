@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { clearConfigCache } from "./config/config.js";
+import { clearConfigCache } from "./config/config.ts";
 import "./index.css";
 
 async function loadRuntimeConfig() {
@@ -50,7 +50,7 @@ async function bootstrap() {
       import("react-relay"),
       import("./App"),
       import("./auth/AuthGate.jsx"),
-      import("./relay/environment.js"),
+      import("./relay/environment.ts"),
     ]);
 
   ReactDOM.createRoot(document.getElementById("root")).render(

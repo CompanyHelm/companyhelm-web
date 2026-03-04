@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { authProvider } from "./runtime.js";
-import { normalizePathname, setBrowserPath } from "../utils/path.js";
+import { authProvider } from "./runtime.ts";
+import { normalizePathname, setBrowserPath } from "../utils/path.ts";
 
 const SIGN_IN_MODE = "signIn";
 const SIGN_UP_MODE = "signUp";

@@ -4,19 +4,19 @@ import remarkGfm from "remark-gfm";
 import { CreationModal } from "../components/CreationModal.jsx";
 import { ChatSessionRunningBadge } from "../components/ChatSessionRunningBadge.jsx";
 import { useSetPageActions } from "../components/PageActionsContext.jsx";
-import { formatTimestamp } from "../utils/formatting.js";
+import { formatTimestamp } from "../utils/formatting.ts";
 import {
   compareTurnsByTimestamp,
   getLatestRunningChatTurn,
   isChatSessionRunning,
   selectVisibleTurnsByMessageCount,
-} from "../utils/chat.js";
+} from "../utils/chat.ts";
 import {
   CHAT_MESSAGE_BATCH_SIZE,
   THREAD_TITLE_MAX_LENGTH,
   TRANSCRIPT_TOP_LOAD_THRESHOLD_PX,
   TRANSCRIPT_BOTTOM_STICKY_THRESHOLD_PX,
-} from "../utils/constants.js";
+} from "../utils/constants.ts";
 
 const CHAT_COMPOSER_MIN_LINES = 2;
 const CHAT_COMPOSER_MAX_LINES = 10;

@@ -1,9 +1,9 @@
 import { useMemo } from "react";
 import { Page } from "../components/Page.jsx";
-import { formatTimestamp, normalizeRunnerStatus } from "../utils/formatting.js";
-import { normalizeRunnerAvailableAgentSdks, normalizeRunnerCodexAvailableModels } from "../utils/normalization.js";
-import { DEFAULT_AGENT_SDK } from "../utils/constants.js";
-import { getChatsPath, setBrowserPath } from "../utils/path.js";
+import { formatTimestamp, normalizeRunnerStatus } from "../utils/formatting.ts";
+import { normalizeRunnerAvailableAgentSdks, normalizeRunnerCodexAvailableModels } from "../utils/normalization.ts";
+import { DEFAULT_AGENT_SDK } from "../utils/constants.ts";
+import { getChatsPath, setBrowserPath } from "../utils/path.ts";
 
 export function AgentRunnerDetailPage({
   runner,

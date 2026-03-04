@@ -2,9 +2,9 @@ import { useMemo, useState } from "react";
 import { Page } from "../components/Page.jsx";
 import { CreationModal } from "../components/CreationModal.jsx";
 import { AgentEditModal } from "../components/AgentEditModal.jsx";
-import { isChatSessionRunning } from "../utils/chat.js";
-import { formatRunnerLabel, formatTimestamp } from "../utils/formatting.js";
-import { normalizeUniqueStringList } from "../utils/normalization.js";
+import { isChatSessionRunning } from "../utils/chat.ts";
+import { formatRunnerLabel, formatTimestamp } from "../utils/formatting.ts";
+import { normalizeUniqueStringList } from "../utils/normalization.ts";
 import { useSetPageActions } from "../components/PageActionsContext.jsx";
 
 function collectRoleAndSubroleIds(roleIds, roles) {

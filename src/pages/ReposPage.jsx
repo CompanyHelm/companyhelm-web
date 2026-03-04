@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Page } from "../components/Page.jsx";
 import { useSetPageActions } from "../components/PageActionsContext.jsx";
-import { formatTimestamp } from "../utils/formatting.js";
+import { formatTimestamp } from "../utils/formatting.ts";
 
 export function ReposPage({
   selectedCompanyId,

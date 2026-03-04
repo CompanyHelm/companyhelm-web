@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Page } from "../components/Page.jsx";
 import { CreationModal } from "../components/CreationModal.jsx";
 import { useSetPageActions } from "../components/PageActionsContext.jsx";
-import { formatTimestamp } from "../utils/formatting.js";
+import { formatTimestamp } from "../utils/formatting.ts";
 
 export function SettingsPage({
   hasCompanies,

@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { CreationModal } from "./CreationModal.jsx";
-import { AVAILABLE_AGENT_SDKS, DEFAULT_AGENT_SDK } from "../utils/constants.js";
+import { AVAILABLE_AGENT_SDKS, DEFAULT_AGENT_SDK } from "../utils/constants.ts";
 import {
   normalizeUniqueStringList,
   getRunnerCodexModelEntriesForRunner,
   getRunnerModelNames,
   getRunnerReasoningLevels,
-} from "../utils/normalization.js";
-import { formatRunnerLabel } from "../utils/formatting.js";
+} from "../utils/normalization.ts";
+import { formatRunnerLabel } from "../utils/formatting.ts";
 
 function collectRoleAndSubroleIds(roleIds, roleChildrenByParentId) {
   const normalizedRoleIds = normalizeUniqueStringList(roleIds);
