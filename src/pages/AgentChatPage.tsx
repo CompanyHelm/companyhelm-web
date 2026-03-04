@@ -158,6 +158,8 @@ export function AgentChatPage({
   const [isInstructionsExpanded, setIsInstructionsExpanded] = useState<any>(false);
   const [selectedCommandOutputItem, setSelectedCommandOutputItem] = useState<any>(null);
   const [selectedQueuedMessage, setSelectedQueuedMessage] = useState<any>(null);
+  const [isComposerExpanded, setIsComposerExpanded] = useState<any>(false);
+  const expandedTextareaRef = useRef<any>(null);
   const [chatSidebarWidth, setChatSidebarWidth] = useState<any>(() => {
     if (typeof window === "undefined") {
       return CHAT_SIDEBAR_DEFAULT_WIDTH_PX;
@@ -284,7 +286,12 @@ export function AgentChatPage({
     chatMessageInputNode.style.height = "auto";
     const nextHeight = Math.min(Math.max(chatMessageInputNode.scrollHeight, minHeight), maxHeight);
     chatMessageInputNode.style.height = `${nextHeight}px`;
-    chatMessageInputNode.style.overflowY = chatMessageInputNode.scrollHeight > maxHeight ? "auto" : "hidden";
+    const hasScrollbar = chatMessageInputNode.scrollHeight > maxHeight;
+    chatMessageInputNode.style.overflowY = hasScrollbar ? "auto" : "hidden";
+    const expandBtn = chatMessageInputNode.parentElement?.querySelector(".chat-composer-expand-btn") as HTMLElement | null;
+    if (expandBtn) {
+      expandBtn.style.right = hasScrollbar ? "1.1rem" : "0.35rem";
+    }
   }, []);
 
   useLayoutEffect(() => {
@@ -959,6 +966,59 @@ export function AgentChatPage({
         </div>
       </CreationModal>
 
+      {isComposerExpanded ? (
+        <div className="modal-overlay" role="presentation" onClick={() => setIsComposerExpanded(false)}>
+          <section
+            className="panel modal-card chat-composer-fullscreen-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Expanded message editor"
+            onClick={(event: any) => event.stopPropagation()}
+          >
+            <header className="panel-header panel-header-row modal-header">
+              <h2>Compose message</h2>
+              <button
+                type="button"
+                className="secondary-btn modal-close-btn"
+                onClick={() => setIsComposerExpanded(false)}
+              >
+                Close
+              </button>
+            </header>
+            <div className="chat-composer-fullscreen-body">
+              <textarea
+                ref={expandedTextareaRef}
+                className="chat-composer-fullscreen-input"
+                placeholder="Ask the agent to plan, debug, or implement something..."
+                value={chatDraftMessage}
+                onChange={(event: any) => onChatDraftMessageChange(event.target.value)}
+                onKeyDown={(event: any) => {
+                  if (event.key === "Escape") {
+                    event.preventDefault();
+                    setIsComposerExpanded(false);
+                  }
+                }}
+                autoFocus
+                disabled={!canChat || isSendingChatMessage || isInterruptingChatTurn}
+              />
+              <div className="chat-composer-fullscreen-footer">
+                <span className="subcopy">Esc to close</span>
+                <button
+                  type="button"
+                  disabled={!canChat || !chatDraftMessage.trim() || isSendingChatMessage}
+                  onClick={(event: any) => {
+                    setIsComposerExpanded(false);
+                    onSendChatMessage(event, "steer");
+                  }}
+                >
+                  {isSendingChatMessage ? "Sending..." : "Send message"}
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
       <section className="panel composer-panel chat-composer-panel">
         {latestReasoning ? (
           <p className={`chat-turn-reasoning chat-turn-reasoning-${latestReasoning.status} chat-composer-reasoning`}>
@@ -967,17 +1027,34 @@ export function AgentChatPage({
         ) : null}
         <form className="chat-composer-form" onSubmit={onSendChatMessage}>
           <div className="chat-composer-input-row">
-            <textarea
-              id="chat-message-input"
-              ref={chatMessageInputRef}
-              className="chat-composer-input"
-              rows={CHAT_COMPOSER_MIN_LINES}
-              placeholder="Ask the agent to plan, debug, or implement something..."
-              value={chatDraftMessage}
-              onChange={(event: any) => onChatDraftMessageChange(event.target.value)}
-              onKeyDown={handleChatMessageKeyDown}
-              disabled={!canChat || isSendingChatMessage || isInterruptingChatTurn}
-            />
+            <div className="chat-composer-input-wrapper">
+              <textarea
+                id="chat-message-input"
+                ref={chatMessageInputRef}
+                className="chat-composer-input"
+                rows={CHAT_COMPOSER_MIN_LINES}
+                placeholder="Ask the agent to plan, debug, or implement something..."
+                value={chatDraftMessage}
+                onChange={(event: any) => onChatDraftMessageChange(event.target.value)}
+                onKeyDown={handleChatMessageKeyDown}
+                disabled={!canChat || isSendingChatMessage || isInterruptingChatTurn}
+              />
+              <button
+                type="button"
+                className="chat-composer-expand-btn"
+                onClick={() => setIsComposerExpanded(true)}
+                disabled={!canChat}
+                title="Expand editor"
+                aria-label="Expand editor to fullscreen"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <polyline points="15 3 21 3 21 9" />
+                  <polyline points="9 21 3 21 3 15" />
+                  <line x1="21" y1="3" x2="14" y2="10" />
+                  <line x1="3" y1="21" x2="10" y2="14" />
+                </svg>
+              </button>
+            </div>
             <div className="chat-composer-toolbar">
               {hasRunningTurn ? (
                 <span className="chat-composer-status">
