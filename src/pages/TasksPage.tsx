@@ -32,6 +32,7 @@ interface TasksPageProps {
   onParentTaskIdChange: (value: string) => void;
   onDependencyTaskIdsChange: (value: string[]) => void;
   onCreateTask: (event: FormEvent<HTMLFormElement>) => Promise<boolean> | boolean;
+  onCreateAndExecuteTask: (event: FormEvent<HTMLFormElement>, agentId: string) => Promise<boolean> | boolean;
   onDraftChange: (taskId: string, field: string, value: string | string[]) => void;
   onSaveRelationships: (taskId: string) => Promise<boolean> | boolean;
   onAddDependency?: (taskId: string, dependencyTaskId: string) => void;
@@ -63,6 +64,7 @@ export function TasksPage({
   onParentTaskIdChange,
   onDependencyTaskIdsChange,
   onCreateTask,
+  onCreateAndExecuteTask,
   onDraftChange,
   onSaveRelationships,
   onAddDependency,
@@ -180,6 +182,8 @@ export function TasksPage({
         onParentTaskIdChange={onParentTaskIdChange}
         onDependencyTaskIdsChange={onDependencyTaskIdsChange}
         onCreateTask={onCreateTask}
+        onCreateAndExecuteTask={onCreateAndExecuteTask}
+        agents={agents}
       />
 
       <TaskEditModal

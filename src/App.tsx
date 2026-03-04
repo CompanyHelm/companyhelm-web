@@ -5031,6 +5031,66 @@ function App() {
     }
   }
 
+  async function handleCreateAndExecuteTask(event: any, agentId: any) {
+    event.preventDefault();
+    if (!selectedCompanyId) {
+      setTaskError("Select a company before creating tasks.");
+      return false;
+    }
+    if (!name.trim()) {
+      setTaskError("Task name is required.");
+      return false;
+    }
+    const normalizedAgentId = String(agentId || "").trim();
+    if (!normalizedAgentId) {
+      setTaskError("Select an agent to execute the task.");
+      return false;
+    }
+
+    try {
+      setIsSubmittingTask(true);
+      setTaskError("");
+      const data = await executeGraphQL(CREATE_TASK_MUTATION, {
+        companyId: selectedCompanyId,
+        name: name.trim(),
+        description: description.trim() || null,
+        parentTaskId: String(parentTaskId || "").trim() || null,
+        dependencyTaskIds: normalizeUniqueStringList(dependencyTaskIds),
+      });
+
+      const result = data.createTask;
+      if (!result.ok) {
+        throw new Error(result.error || "Task creation failed.");
+      }
+
+      const createdTaskId = String(result.task?.id || "").trim();
+      if (!createdTaskId) {
+        throw new Error("Task was created but no ID was returned.");
+      }
+
+      const execData = await executeGraphQL(BATCH_EXECUTE_TASKS_MUTATION, {
+        taskIds: [createdTaskId],
+        agentId: normalizedAgentId,
+      });
+      const execResult = execData.batchExecuteTasks;
+      if (!execResult.ok) {
+        throw new Error(execResult.error || "Task created but execution failed.");
+      }
+
+      setName("");
+      setDescription("");
+      setParentTaskId("");
+      setDependencyTaskIds([]);
+      await loadTasks();
+      return true;
+    } catch (submitError: any) {
+      setTaskError(submitError.message);
+      return false;
+    } finally {
+      setIsSubmittingTask(false);
+    }
+  }
+
   async function handleDeleteTask(taskId: any, taskName: any) {
     if (!selectedCompanyId) {
       setTaskError("Select a company before deleting tasks.");
@@ -8144,6 +8204,7 @@ function App() {
             onParentTaskIdChange={setParentTaskId}
             onDependencyTaskIdsChange={setDependencyTaskIds}
             onCreateTask={handleCreateTask}
+            onCreateAndExecuteTask={handleCreateAndExecuteTask}
             onDraftChange={handleDraftChange}
             onSaveRelationships={handleRelationshipSave}
             onAddDependency={handleAddTaskDependency}

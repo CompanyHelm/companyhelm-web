@@ -1,7 +1,12 @@
-import type { ChangeEvent, FormEvent } from "react";
+import { useState, type ChangeEvent, type FormEvent } from "react";
 import { CreationModal } from "./CreationModal.tsx";
 
 interface TaskOption {
+  id: string | number;
+  name: string;
+}
+
+interface AgentOption {
   id: string | number;
   name: string;
 }
@@ -10,6 +15,7 @@ interface TaskCreateModalProps {
   isOpen: boolean;
   onClose: () => void;
   tasks: TaskOption[];
+  agents: AgentOption[];
   name: string;
   description: string;
   parentTaskId: string;
@@ -20,12 +26,14 @@ interface TaskCreateModalProps {
   onParentTaskIdChange: (value: string) => void;
   onDependencyTaskIdsChange: (value: string[]) => void;
   onCreateTask: (event: FormEvent<HTMLFormElement>) => Promise<boolean> | boolean;
+  onCreateAndExecuteTask: (event: FormEvent<HTMLFormElement>, agentId: string) => Promise<boolean> | boolean;
 }
 
 export function TaskCreateModal({
   isOpen,
   onClose,
   tasks,
+  agents,
   name,
   description,
   parentTaskId,
@@ -36,10 +44,23 @@ export function TaskCreateModal({
   onParentTaskIdChange,
   onDependencyTaskIdsChange,
   onCreateTask,
+  onCreateAndExecuteTask,
 }: TaskCreateModalProps) {
+  const [selectedAgentId, setSelectedAgentId] = useState("");
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     const didCreate = await onCreateTask(event);
     if (didCreate) {
+      onClose();
+    }
+  }
+
+  async function handleCreateAndExecute(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const didCreate = await onCreateAndExecuteTask(event, selectedAgentId);
+    if (didCreate) {
+      setSelectedAgentId("");
       onClose();
     }
   }
@@ -73,6 +94,22 @@ export function TaskCreateModal({
           value={description}
           onChange={(event: ChangeEvent<HTMLTextAreaElement>) => onDescriptionChange(event.target.value)}
         />
+
+        <label htmlFor="task-agent">Agent</label>
+        <select
+          id="task-agent"
+          name="agentId"
+          value={selectedAgentId}
+          onChange={(event: ChangeEvent<HTMLSelectElement>) => setSelectedAgentId(event.target.value)}
+        >
+          <option value="">No agent</option>
+          {agents.map((agent) => (
+            <option key={`create-agent-${agent.id}`} value={String(agent.id)}>
+              {agent.name}
+            </option>
+          ))}
+        </select>
+        <p className="chat-card-meta">Optional: assign an agent to execute this task.</p>
 
         <label htmlFor="task-parent">Parent task</label>
         <select
@@ -110,9 +147,19 @@ export function TaskCreateModal({
         </select>
         <p className="chat-card-meta">Select one or more tasks this task depends on.</p>
 
-        <button type="submit" disabled={isSubmittingTask}>
-          {isSubmittingTask ? "Creating..." : "Create task"}
-        </button>
+        <div className="task-form-actions">
+          <button type="submit" disabled={isSubmittingTask}>
+            {isSubmittingTask ? "Creating..." : "Create task"}
+          </button>
+          <button
+            type="button"
+            disabled={isSubmittingTask || !selectedAgentId}
+            onClick={(event: any) => handleCreateAndExecute(event)}
+            title={!selectedAgentId ? "Select an agent above to create & execute" : ""}
+          >
+            {isSubmittingTask ? "Creating..." : "Create & Execute"}
+          </button>
+        </div>
       </form>
     </CreationModal>
   );
