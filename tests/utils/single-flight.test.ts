@@ -8,7 +8,7 @@ test("createSingleFlightByKey deduplicates concurrent calls with the same key", 
 
   const task = async () => {
     invocationCount += 1;
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await new Promise<void>((resolve) => setTimeout(resolve, 10));
     return `result-${invocationCount}`;
   };
 
@@ -26,9 +26,9 @@ test("createSingleFlightByKey runs calls independently for different keys", asyn
   const runSingleFlight = createSingleFlightByKey();
   let invocationCount = 0;
 
-  const createTask = (value) => async () => {
+  const createTask = (value: string) => async () => {
     invocationCount += 1;
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await new Promise<void>((resolve) => setTimeout(resolve, 10));
     return value;
   };
 

@@ -31,6 +31,11 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@types/node": "^25.3.3",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@types/react-relay": "^18.2.1",
+    "@types/relay-runtime": "^20.1.1",
     "@vitejs/plugin-react": "^4.3.4",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",

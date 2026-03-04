@@ -5,6 +5,10 @@ import {
   QueryResponseCache,
   RecordSource,
   Store,
+  type CacheConfig,
+  type GraphQLResponse,
+  type RequestParameters,
+  type Variables,
 } from "relay-runtime";
 import { authProvider } from "../auth/runtime.ts";
 import { GRAPHQL_URL, GRAPHQL_WS_URL } from "../utils/constants.ts";
@@ -14,26 +18,48 @@ import { getActiveCompanyId } from "../utils/company-context.ts";
 const QUERY_RESPONSE_CACHE_TTL_MS = 3_000;
 const QUERY_RESPONSE_CACHE_SIZE = 200;
 
+type OperationKind = RequestParameters["operationKind"];
+type GraphQLPayload = {
+  data?: Record<string, unknown> | null;
+  errors?: Array<{ message?: string }>;
+  [key: string]: unknown;
+};
+
+type SubscriptionSink = {
+  next: (payload: GraphQLResponse) => void;
+  error: (error: Error) => void;
+  complete: () => void;
+};
+
+type SubscriptionOperation = {
+  id: string;
+  sink: SubscriptionSink;
+  queryText: string;
+  variables: Variables;
+  started: boolean;
+};
+
 const queryResponseCache = new QueryResponseCache({
   size: QUERY_RESPONSE_CACHE_SIZE,
   ttl: QUERY_RESPONSE_CACHE_TTL_MS,
 });
 
-const inFlightQueryRequests = new Map();
+const inFlightQueryRequests = new Map<string, Promise<GraphQLResponse>>();
 const JWT_EXPIRED_PATTERN = /\bjwt\b.*\bexpired\b/i;
 const SUBSCRIPTION_RECONNECT_BASE_DELAY_MS = 300;
 const SUBSCRIPTION_RECONNECT_MAX_DELAY_MS = 5000;
 const SUBSCRIPTION_IDLE_CLOSE_DELAY_MS = 250;
 
-function resolveOperationCacheKey(params) {
-  return String(params?.id || params?.cacheID || params?.text || params?.name || "anonymous");
+function resolveOperationCacheKey(params: RequestParameters) {
+  const cacheID = "cacheID" in params ? params.cacheID : "";
+  return String(params.id || cacheID || params.text || params.name || "anonymous");
 }
 
-function resolveInFlightQueryKey(params, variables) {
+function resolveInFlightQueryKey(params: RequestParameters, variables: Variables) {
   return `${resolveOperationCacheKey(params)}::${JSON.stringify(variables || {})}`;
 }
 
-function toGraphQLErrorMessage(payload, fallbackMessage) {
+function toGraphQLErrorMessage(payload: GraphQLPayload | null, fallbackMessage: string) {
   const errors = Array.isArray(payload?.errors) ? payload.errors : [];
   if (errors.length === 0) {
     return fallbackMessage;
@@ -45,21 +71,21 @@ function toGraphQLErrorMessage(payload, fallbackMessage) {
   return firstMessage || fallbackMessage;
 }
 
-function getGraphQLErrorMessages(payload) {
+function getGraphQLErrorMessages(payload: GraphQLPayload | null) {
   const errors = Array.isArray(payload?.errors) ? payload.errors : [];
   return errors
-    .map((errorItem) => {
+    .map((errorItem: { message?: string }) => {
       const message = errorItem?.message;
       return typeof message === "string" ? message.trim() : "";
     })
     .filter(Boolean);
 }
 
-function isJwtExpiredErrorMessage(message) {
+function isJwtExpiredErrorMessage(message: string) {
   return JWT_EXPIRED_PATTERN.test(String(message || ""));
 }
 
-function isJwtExpiredPayload(payload) {
+function isJwtExpiredPayload(payload: GraphQLPayload | null) {
   return getGraphQLErrorMessages(payload).some((message) => isJwtExpiredErrorMessage(message));
 }
 
@@ -70,7 +96,7 @@ function handleAuthenticationFailure() {
   }
 }
 
-function normalizeOperationKind(rawKind) {
+function normalizeOperationKind(rawKind: unknown): OperationKind {
   const normalized = String(rawKind || "").trim().toLowerCase();
   if (normalized === "query" || normalized === "mutation" || normalized === "subscription") {
     return normalized;
@@ -78,13 +104,25 @@ function normalizeOperationKind(rawKind) {
   return "query";
 }
 
-async function performHttpGraphQLRequest(params, variables, operationKind, cacheKey) {
+function toGraphQLPayload(value: unknown): GraphQLPayload | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  return value as GraphQLPayload;
+}
+
+async function performHttpGraphQLRequest(
+  params: RequestParameters,
+  variables: Variables,
+  operationKind: OperationKind,
+  cacheKey: string,
+): Promise<GraphQLResponse> {
   const queryText = typeof params?.text === "string" ? params.text : "";
   if (!queryText.trim()) {
     throw new Error(`Relay operation '${String(params?.name || "anonymous")}' is missing GraphQL query text.`);
   }
 
-  const headers = {
+  const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
   const authorization = authProvider.getAuthorizationHeaderValue();
@@ -105,9 +143,9 @@ async function performHttpGraphQLRequest(params, variables, operationKind, cache
     }),
   });
 
-  let payload = null;
+  let payload: GraphQLPayload | null = null;
   try {
-    payload = await response.json();
+    payload = toGraphQLPayload(await response.json());
   } catch {
     payload = null;
   }
@@ -119,12 +157,12 @@ async function performHttpGraphQLRequest(params, variables, operationKind, cache
   if (!response.ok) {
     throw new Error(toGraphQLErrorMessage(payload, `GraphQL request failed (${response.status}).`));
   }
-  if (!payload || typeof payload !== "object") {
+  if (!payload) {
     throw new Error("GraphQL request failed: invalid response payload.");
   }
 
   if (operationKind === "query" && !Array.isArray(payload?.errors)) {
-    queryResponseCache.set(cacheKey, variables || {}, payload);
+    queryResponseCache.set(cacheKey, variables || {}, payload as GraphQLResponse);
   }
 
   if (operationKind === "mutation") {
@@ -132,10 +170,14 @@ async function performHttpGraphQLRequest(params, variables, operationKind, cache
     queryResponseCache.clear();
   }
 
-  return payload;
+  return payload as GraphQLResponse;
 }
 
-function fetchGraphQL(params, variables, cacheConfig) {
+function fetchGraphQL(
+  params: RequestParameters,
+  variables: Variables,
+  cacheConfig: CacheConfig,
+): Promise<GraphQLResponse> {
   const operationKind = normalizeOperationKind(params?.operationKind);
   const isQuery = operationKind === "query";
   const forceFetch = Boolean(cacheConfig?.force);
@@ -164,7 +206,7 @@ function fetchGraphQL(params, variables, cacheConfig) {
   return performHttpGraphQLRequest(params, variables, operationKind, cacheKey);
 }
 
-function toSubscriptionError(rawError) {
+function toSubscriptionError(rawError: unknown): Error {
   if (rawError instanceof Error) {
     return rawError;
   }
@@ -184,7 +226,7 @@ function toSubscriptionError(rawError) {
 function buildConnectionInitPayload() {
   const authorization = authProvider.getAuthorizationHeaderValue();
   const activeCompanyId = getActiveCompanyId();
-  const headers = {};
+  const headers: Record<string, string> = {};
   if (authorization) {
     headers.authorization = authorization;
   }
@@ -205,10 +247,20 @@ function buildConnectionInitPayload() {
         headers,
       };
 }
-let graphQLSubscriptionServiceSingleton = null;
+let graphQLSubscriptionServiceSingleton: GraphQLSubscriptionService | null = null;
 
 class GraphQLSubscriptionService {
-  static getInstance() {
+  activeOperations: Map<string, SubscriptionOperation>;
+  closedByClient: boolean;
+  idleCloseTimerId: ReturnType<typeof setTimeout> | null;
+  nextOperationId: number;
+  reconnectAttempt: number;
+  reconnectTimerId: ReturnType<typeof setTimeout> | null;
+  socket: WebSocket | null;
+  socketAcked: boolean;
+  socketEndpoint: string;
+
+  static getInstance(): GraphQLSubscriptionService {
     if (!graphQLSubscriptionServiceSingleton) {
       graphQLSubscriptionServiceSingleton = new GraphQLSubscriptionService();
     }
@@ -224,7 +276,7 @@ class GraphQLSubscriptionService {
     this.idleCloseTimerId = null;
     this.closedByClient = false;
     this.nextOperationId = 0;
-    this.activeOperations = new Map();
+    this.activeOperations = new Map<string, SubscriptionOperation>();
   }
 
   clearReconnectTimer() {
@@ -254,7 +306,7 @@ class GraphQLSubscriptionService {
     }, SUBSCRIPTION_IDLE_CLOSE_DELAY_MS);
   }
 
-  closeSocket({ closeCode = 1000 } = {}) {
+  closeSocket({ closeCode = 1000 }: { closeCode?: number } = {}) {
     this.clearIdleCloseTimer();
     this.clearReconnectTimer();
     this.socketAcked = false;
@@ -271,7 +323,7 @@ class GraphQLSubscriptionService {
     }
   }
 
-  sendSubscriptionStart(operation) {
+  sendSubscriptionStart(operation: SubscriptionOperation) {
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN || !this.socketAcked) {
       return;
     }
@@ -296,7 +348,7 @@ class GraphQLSubscriptionService {
     }
   }
 
-  scheduleReconnect(endpoint) {
+  scheduleReconnect(endpoint: string) {
     if (this.activeOperations.size === 0 || this.reconnectTimerId !== null) {
       return;
     }
@@ -312,7 +364,7 @@ class GraphQLSubscriptionService {
     this.reconnectAttempt += 1;
   }
 
-  handleSocketPayload(payload) {
+  handleSocketPayload(payload: Record<string, unknown>) {
     switch (payload?.type) {
       case "connection_ack":
         this.socketAcked = true;
@@ -322,7 +374,8 @@ class GraphQLSubscriptionService {
       case "next": {
         const operation = this.activeOperations.get(String(payload?.id || ""));
         if (operation) {
-          operation.sink.next(payload?.payload || {});
+          const nextPayload = toGraphQLPayload(payload?.payload) || {};
+          operation.sink.next(nextPayload as GraphQLResponse);
         }
         return;
       }
@@ -375,7 +428,7 @@ class GraphQLSubscriptionService {
     }
   }
 
-  ensureSocket(endpoint) {
+  ensureSocket(endpoint: string) {
     if (typeof window === "undefined" || typeof WebSocket === "undefined") {
       return;
     }
@@ -411,14 +464,14 @@ class GraphQLSubscriptionService {
       }));
     });
 
-    socket.addEventListener("message", (event) => {
+    socket.addEventListener("message", (event: MessageEvent) => {
       if (this.socket !== socket) {
         return;
       }
       try {
-        const payload = JSON.parse(event.data);
+        const payload = JSON.parse(String(event.data || "")) as Record<string, unknown>;
         this.handleSocketPayload(payload);
-      } catch (error) {
+      } catch (error: unknown) {
         const parseError = toSubscriptionError(error);
         for (const operation of this.activeOperations.values()) {
           operation.sink.error(parseError);
@@ -466,7 +519,12 @@ class GraphQLSubscriptionService {
     queryText,
     variables,
     sink,
-  }) {
+  }: {
+    endpoint: string;
+    queryText: string;
+    variables: Variables;
+    sink: SubscriptionSink;
+  }): () => void {
     const operationId = `sub-${Date.now()}-${this.nextOperationId++}`;
     this.activeOperations.set(operationId, {
       id: operationId,
@@ -514,8 +572,8 @@ class GraphQLSubscriptionService {
 
 const graphQLSubscriptionService = GraphQLSubscriptionService.getInstance();
 
-function subscribeGraphQL(params, variables) {
-  return Observable.create((sink) => {
+function subscribeGraphQL(params: RequestParameters, variables: Variables) {
+  return Observable.create<GraphQLResponse>((sink) => {
     if (typeof window === "undefined" || typeof WebSocket === "undefined") {
       sink.error(new Error("WebSocket subscriptions are unavailable in this environment."));
       return () => {};
@@ -537,7 +595,11 @@ function subscribeGraphQL(params, variables) {
       endpoint,
       queryText,
       variables: variables || {},
-      sink,
+      sink: {
+        next: (payload) => sink.next(payload),
+        error: (error) => sink.error(error),
+        complete: () => sink.complete(),
+      },
     });
   });
 }

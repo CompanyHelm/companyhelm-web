@@ -3,6 +3,46 @@ import test from "node:test";
 import { createAuthProvider } from "../../src/auth/provider.ts";
 import { setActiveCompanyId } from "../../src/utils/company-context.ts";
 
+type GlobalWithWindowAndFetch = typeof global & {
+  window?: Window & typeof globalThis;
+  fetch?: typeof fetch;
+};
+
+const testGlobal = global as GlobalWithWindowAndFetch;
+
+function createMockStorage(storageMap: Map<string, string>): Storage {
+  return {
+    get length() {
+      return storageMap.size;
+    },
+    clear() {
+      storageMap.clear();
+    },
+    key(index: number) {
+      return Array.from(storageMap.keys())[index] ?? null;
+    },
+    getItem(key: string) {
+      return storageMap.has(key) ? storageMap.get(key) || null : null;
+    },
+    setItem(key: string, value: string) {
+      storageMap.set(key, String(value));
+    },
+    removeItem(key: string) {
+      storageMap.delete(key);
+    },
+  };
+}
+
+function createMockResponse(payload: unknown, status = 200, ok = true): Response {
+  return {
+    ok,
+    status,
+    async json() {
+      return payload;
+    },
+  } as unknown as Response;
+}
+
 test("createAuthProvider returns companyhelm provider", () => {
   const provider = createAuthProvider({
     authProvider: "companyhelm",
@@ -41,45 +81,30 @@ test("createAuthProvider returns supabase provider", () => {
 });
 
 test("signIn sends active company context header to GraphQL API", async () => {
-  const localStorageMap = new Map();
-  global.window = {
-    localStorage: {
-      getItem(key) {
-        return localStorageMap.has(key) ? localStorageMap.get(key) : null;
-      },
-      setItem(key, value) {
-        localStorageMap.set(key, String(value));
-      },
-      removeItem(key) {
-        localStorageMap.delete(key);
-      },
-    },
-  };
+  const localStorageMap = new Map<string, string>();
+  testGlobal.window = {
+    localStorage: createMockStorage(localStorageMap),
+  } as unknown as Window & typeof globalThis;
 
   setActiveCompanyId("company-123");
 
-  const fetchCalls = [];
-  global.fetch = async (url, options) => {
+  const fetchCalls: Array<{ url: RequestInfo | URL; options?: RequestInit }> = [];
+  testGlobal.fetch = (async (url: RequestInfo | URL, options?: RequestInit) => {
     fetchCalls.push({ url, options });
-    return {
-      ok: true,
-      async json() {
-        return {
-          data: {
-            signIn: {
-              token: "token-1",
-              user: {
-                id: "user-1",
-                email: "user@example.com",
-                firstName: "User",
-                lastName: "Example",
-              },
-            },
+    return createMockResponse({
+      data: {
+        signIn: {
+          token: "token-1",
+          user: {
+            id: "user-1",
+            email: "user@example.com",
+            firstName: "User",
+            lastName: "Example",
           },
-        };
+        },
       },
-    };
-  };
+    });
+  }) as typeof fetch;
 
   const provider = createAuthProvider({
     authProvider: "companyhelm",
@@ -96,7 +121,7 @@ test("signIn sends active company context header to GraphQL API", async () => {
   await provider.signIn({ email: "user@example.com", password: "password-123" });
 
   assert.equal(fetchCalls.length, 1);
-  assert.equal(fetchCalls[0].options?.headers?.["x-company-id"], "company-123");
+  assert.equal((fetchCalls[0]?.options?.headers as Record<string, string> | undefined)?.["x-company-id"], "company-123");
   setActiveCompanyId("");
 });
 
@@ -142,42 +167,27 @@ test("companyhelm signUp requires password", async () => {
 });
 
 test("companyhelm provider emits auth state updates on sign in and sign out", async () => {
-  const originalWindow = global.window;
-  const originalFetch = global.fetch;
-  const localStorageMap = new Map();
+  const originalWindow = testGlobal.window;
+  const originalFetch = testGlobal.fetch;
+  const localStorageMap = new Map<string, string>();
   try {
-    global.window = {
-      localStorage: {
-        getItem(key) {
-          return localStorageMap.has(key) ? localStorageMap.get(key) : null;
-        },
-        setItem(key, value) {
-          localStorageMap.set(key, String(value));
-        },
-        removeItem(key) {
-          localStorageMap.delete(key);
-        },
-      },
-    };
+    testGlobal.window = {
+      localStorage: createMockStorage(localStorageMap),
+    } as unknown as Window & typeof globalThis;
 
-    global.fetch = async () => ({
-      ok: true,
-      async json() {
-        return {
-          data: {
-            signIn: {
-              token: "token-1",
-              user: {
-                id: "user-1",
-                email: "user@example.com",
-                firstName: "User",
-                lastName: "Example",
-              },
-            },
+    testGlobal.fetch = (async () => createMockResponse({
+      data: {
+        signIn: {
+          token: "token-1",
+          user: {
+            id: "user-1",
+            email: "user@example.com",
+            firstName: "User",
+            lastName: "Example",
           },
-        };
+        },
       },
-    });
+    })) as typeof fetch;
 
     const provider = createAuthProvider({
       authProvider: "companyhelm",
@@ -191,8 +201,8 @@ test("companyhelm provider emits auth state updates on sign in and sign out", as
       },
     });
 
-    const authStateUpdates = [];
-    const unsubscribe = provider.subscribeAuthStateChange((hasSession) => {
+    const authStateUpdates: boolean[] = [];
+    const unsubscribe = provider.subscribeAuthStateChange((hasSession: boolean) => {
       authStateUpdates.push(Boolean(hasSession));
     });
 
@@ -203,14 +213,14 @@ test("companyhelm provider emits auth state updates on sign in and sign out", as
     assert.deepEqual(authStateUpdates, [true, false]);
   } finally {
     if (typeof originalWindow === "undefined") {
-      delete global.window;
+      Reflect.deleteProperty(testGlobal, "window");
     } else {
-      global.window = originalWindow;
+      testGlobal.window = originalWindow;
     }
     if (typeof originalFetch === "undefined") {
-      delete global.fetch;
+      Reflect.deleteProperty(testGlobal, "fetch");
     } else {
-      global.fetch = originalFetch;
+      testGlobal.fetch = originalFetch;
     }
   }
 });

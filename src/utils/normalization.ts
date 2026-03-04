@@ -10,7 +10,12 @@ import {
   DEFAULT_AGENT_SDK,
 } from "./constants.ts";
 
-function resolveLegacyId(...values) {
+type KeyValueEntry = {
+  key: string;
+  value: string;
+};
+
+function resolveLegacyId(...values: unknown[]) {
   for (const value of values) {
     const resolved = String(value || "").trim();
     if (resolved) {
@@ -20,20 +25,20 @@ function resolveLegacyId(...values) {
   return "";
 }
 
-export function toSelectValue(value) {
+export function toSelectValue(value: unknown): string {
   if (value == null) {
     return "";
   }
   return String(value);
 }
 
-export function normalizeUniqueStringList(values) {
+export function normalizeUniqueStringList(values: unknown): string[] {
   if (!Array.isArray(values)) {
     return [];
   }
 
-  const normalizedValues = [];
-  const seenValues = new Set();
+  const normalizedValues: string[] = [];
+  const seenValues = new Set<string>();
   for (const rawValue of values) {
     const cleanValue = String(rawValue || "").trim();
     if (!cleanValue || seenValues.has(cleanValue)) {
@@ -45,7 +50,7 @@ export function normalizeUniqueStringList(values) {
   return normalizedValues;
 }
 
-export function normalizeOptionalInstructions(value) {
+export function normalizeOptionalInstructions(value: unknown): string | null {
   if (value === undefined || value === null) {
     return null;
   }
@@ -53,7 +58,7 @@ export function normalizeOptionalInstructions(value) {
   return normalizedValue || null;
 }
 
-export function normalizeSkillType(value) {
+export function normalizeSkillType(value: unknown): string {
   const normalized = String(value || "")
     .trim()
     .toLowerCase()
@@ -65,7 +70,7 @@ export function normalizeSkillType(value) {
   return SKILL_TYPE_TEXT;
 }
 
-export function normalizeMcpTransportType(value) {
+export function normalizeMcpTransportType(value: unknown): string {
   const normalized = String(value || "")
     .trim()
     .toLowerCase()
@@ -80,7 +85,7 @@ export function normalizeMcpTransportType(value) {
   return MCP_TRANSPORT_TYPE_STREAMABLE_HTTP;
 }
 
-export function normalizeMcpAuthType(value) {
+export function normalizeMcpAuthType(value: unknown): string {
   const normalized = String(value || "")
     .trim()
     .toLowerCase();
@@ -94,17 +99,17 @@ export function normalizeMcpAuthType(value) {
   return MCP_AUTH_TYPE_NONE;
 }
 
-export function mcpHeadersToText(headers) {
+export function mcpHeadersToText(headers: unknown): string {
   if (!Array.isArray(headers) || headers.length === 0) {
     return "";
   }
   return headers
-    .map((header) => `${String(header?.key || "").trim()}: ${String(header?.value || "").trim()}`)
+    .map((header) => `${String((header as KeyValueEntry)?.key || "").trim()}: ${String((header as KeyValueEntry)?.value || "").trim()}`)
     .filter((line) => line !== ":")
     .join("\n");
 }
 
-export function mcpArgsToText(args) {
+export function mcpArgsToText(args: unknown): string {
   if (!Array.isArray(args) || args.length === 0) {
     return "";
   }
@@ -114,23 +119,23 @@ export function mcpArgsToText(args) {
     .join("\n");
 }
 
-export function mcpEnvVarsToText(envVars) {
+export function mcpEnvVarsToText(envVars: unknown): string {
   if (!Array.isArray(envVars) || envVars.length === 0) {
     return "";
   }
   return envVars
-    .map((envVar) => `${String(envVar?.key || "").trim()}=${String(envVar?.value || "").trim()}`)
+    .map((envVar) => `${String((envVar as KeyValueEntry)?.key || "").trim()}=${String((envVar as KeyValueEntry)?.value || "").trim()}`)
     .filter((line) => line !== "=")
     .join("\n");
 }
 
-export function parseMcpHeadersText(rawText) {
+export function parseMcpHeadersText(rawText: unknown): { headers: KeyValueEntry[]; error: string } {
   const lines = String(rawText || "")
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
-  const headers = [];
-  const seenKeys = new Set();
+  const headers: KeyValueEntry[] = [];
+  const seenKeys = new Set<string>();
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
@@ -169,7 +174,7 @@ export function parseMcpHeadersText(rawText) {
   return { headers, error: "" };
 }
 
-export function parseMcpArgsText(rawText) {
+export function parseMcpArgsText(rawText: unknown): { args: string[]; error: string } {
   const args = String(rawText || "")
     .split("\n")
     .map((line) => line.trim())
@@ -180,13 +185,13 @@ export function parseMcpArgsText(rawText) {
   };
 }
 
-export function parseMcpEnvVarsText(rawText) {
+export function parseMcpEnvVarsText(rawText: unknown): { envVars: KeyValueEntry[]; error: string } {
   const lines = String(rawText || "")
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
-  const envVars = [];
-  const seenKeys = new Set();
+  const envVars: KeyValueEntry[] = [];
+  const seenKeys = new Set<string>();
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
@@ -224,17 +229,49 @@ export function parseMcpEnvVarsText(rawText) {
   return { envVars, error: "" };
 }
 
-export function normalizeAgentSdkValue(value) {
+type RunnerModelEntry = {
+  id: string;
+  name: string;
+  reasoningLevels: string[];
+};
+
+type RunnerCodexModelEntry = {
+  id: string;
+  sdkId: string;
+  name: string;
+  reasoning: string[];
+};
+
+type RunnerSdkEntry = {
+  id: string;
+  name: string;
+  availableModels: RunnerModelEntry[];
+};
+
+type RunnerLike = {
+  availableAgentSdks?: unknown;
+  agentSdks?: unknown;
+  [key: string]: unknown;
+};
+
+function toRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  return value as Record<string, unknown>;
+}
+
+export function normalizeAgentSdkValue(value: unknown): string {
   return String(value || "")
     .trim()
     .toLowerCase();
 }
 
-export function isAvailableAgentSdk(value) {
+export function isAvailableAgentSdk(value: unknown): boolean {
   return AVAILABLE_AGENT_SDKS.includes(normalizeAgentSdkValue(value));
 }
 
-export function normalizeRunnerAvailableAgentSdks(runner) {
+export function normalizeRunnerAvailableAgentSdks(runner: RunnerLike): RunnerSdkEntry[] {
   const runnerSdks = Array.isArray(runner?.availableAgentSdks)
     ? runner.availableAgentSdks
     : Array.isArray(runner?.agentSdks)
@@ -242,48 +279,53 @@ export function normalizeRunnerAvailableAgentSdks(runner) {
       : [];
 
   return runnerSdks
-    .map((sdkEntry) => ({
-      id: resolveLegacyId(sdkEntry?.id),
-      name: normalizeAgentSdkValue(sdkEntry?.name),
+    .map((sdkEntry) => {
+      const sdkRecord = toRecord(sdkEntry);
+      return {
+        id: resolveLegacyId(sdkRecord.id),
+        name: normalizeAgentSdkValue(sdkRecord.name),
       availableModels: (
-        Array.isArray(sdkEntry?.availableModels)
-          ? sdkEntry.availableModels
-          : Array.isArray(sdkEntry?.models)
-            ? sdkEntry.models
+        Array.isArray(sdkRecord.availableModels)
+          ? sdkRecord.availableModels
+          : Array.isArray(sdkRecord.models)
+            ? sdkRecord.models
             : []
       )
-        .map((modelEntry) => ({
-          id: resolveLegacyId(modelEntry?.id),
-          name: String(modelEntry?.name || "").trim(),
+        .map((modelEntry) => {
+          const modelRecord = toRecord(modelEntry);
+          const rawReasoningLevels = Array.isArray(modelRecord.reasoningLevels)
+            ? modelRecord.reasoningLevels
+            : Array.isArray(modelRecord.reasoning)
+              ? modelRecord.reasoning
+              : [modelRecord.reasoningLevels, modelRecord.reasoning];
+          return {
+            id: resolveLegacyId(modelRecord.id),
+            name: String(modelRecord.name || "").trim(),
           reasoningLevels: [
             ...new Set(
-              (
-                Array.isArray(modelEntry?.reasoningLevels)
-                  ? modelEntry.reasoningLevels
-                  : Array.isArray(modelEntry?.reasoning)
-                    ? modelEntry.reasoning
-                    : [modelEntry?.reasoningLevels, modelEntry?.reasoning]
-              )
+              rawReasoningLevels
                 .map((value) => String(value || "").trim())
                 .filter(Boolean),
             ),
-          ].sort((a, b) => a.localeCompare(b)),
-        }))
+          ].sort((leftLevel, rightLevel) => leftLevel.localeCompare(rightLevel)),
+          };
+        })
         .filter((modelEntry) => Boolean(modelEntry.name))
         .sort((leftModel, rightModel) => leftModel.name.localeCompare(rightModel.name)),
-    }))
+      };
+    })
     .filter((sdkEntry) => Boolean(sdkEntry.name))
     .sort((leftSdk, rightSdk) => leftSdk.name.localeCompare(rightSdk.name));
 }
 
-export function normalizeRunnerCodexAvailableModels(runner) {
+export function normalizeRunnerCodexAvailableModels(runner: RunnerLike) {
   const availableAgentSdks = normalizeRunnerAvailableAgentSdks(runner);
   const codexSdk = availableAgentSdks.find((sdkEntry) => sdkEntry.name === DEFAULT_AGENT_SDK) || null;
   if (!codexSdk) {
     return [];
   }
 
-  return codexSdk.availableModels.map((entry) => ({
+  return codexSdk.availableModels.map((entry): RunnerCodexModelEntry => ({
     id: entry.id,
     sdkId: codexSdk.id,
     name: entry.name,
@@ -295,6 +337,10 @@ export function resolveRunnerSdkAndModelIds({
   runner,
   sdkName,
   modelName,
+}: {
+  runner: RunnerLike;
+  sdkName?: string;
+  modelName?: string;
 }) {
   const normalizedSdk = normalizeAgentSdkValue(sdkName);
   const normalizedModel = String(modelName || "").trim();
@@ -321,7 +367,10 @@ export function resolveRunnerSdkAndModelIds({
   };
 }
 
-export function mergeAgentRunnerPayloadEntry(currentRunner, incomingRunner) {
+export function mergeAgentRunnerPayloadEntry(
+  currentRunner: Record<string, unknown> | null | undefined,
+  incomingRunner: Record<string, unknown> | null | undefined,
+) {
   const fallbackSdks = Array.isArray(currentRunner?.availableAgentSdks)
     ? currentRunner.availableAgentSdks
     : [];
@@ -341,7 +390,10 @@ export function mergeAgentRunnerPayloadEntry(currentRunner, incomingRunner) {
   };
 }
 
-export function mergeAgentRunnerPayloadList(currentRunners, incomingRunners) {
+export function mergeAgentRunnerPayloadList(
+  currentRunners: Array<Record<string, unknown>> | null | undefined,
+  incomingRunners: Array<Record<string, unknown>> | null | undefined,
+) {
   if (!Array.isArray(incomingRunners)) {
     return Array.isArray(currentRunners) ? currentRunners : [];
   }
@@ -357,11 +409,11 @@ export function mergeAgentRunnerPayloadList(currentRunners, incomingRunners) {
   });
 }
 
-export function getRunnerModelNames(codexModelEntries) {
+export function getRunnerModelNames(codexModelEntries: RunnerCodexModelEntry[]) {
   return codexModelEntries.map((entry) => entry.name);
 }
 
-export function getRunnerReasoningLevels(codexModelEntries, modelName) {
+export function getRunnerReasoningLevels(codexModelEntries: RunnerCodexModelEntry[], modelName: string) {
   const normalizedModel = String(modelName || "").trim();
   if (!normalizedModel) {
     return [];
@@ -370,7 +422,10 @@ export function getRunnerReasoningLevels(codexModelEntries, modelName) {
   return matchedEntry ? matchedEntry.reasoning : [];
 }
 
-export function getRunnerCodexModelEntriesForRunner(codexModelEntriesByRunnerId, runnerId) {
+export function getRunnerCodexModelEntriesForRunner(
+  codexModelEntriesByRunnerId: Map<string, RunnerCodexModelEntry[]>,
+  runnerId: string,
+) {
   if (!runnerId) {
     return [];
   }
@@ -381,6 +436,10 @@ export function resolveRunnerBackedModelSelection({
   codexModelEntries,
   requestedModel,
   requestedReasoning,
+}: {
+  codexModelEntries: RunnerCodexModelEntry[];
+  requestedModel?: string;
+  requestedReasoning?: string;
 }) {
   const modelNames = getRunnerModelNames(codexModelEntries);
   const normalizedRequestedModel = String(requestedModel || "").trim();

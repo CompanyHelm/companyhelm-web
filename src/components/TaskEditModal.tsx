@@ -1,0 +1,275 @@
+import { useState, type ChangeEvent, type FormEvent } from "react";
+import { CreationModal } from "./CreationModal.tsx";
+import type { TaskItem, TaskRelationshipDraft } from "../types/domain.ts";
+
+interface TaskEditModalProps {
+  task: TaskItem | null;
+  tasks: TaskItem[];
+  relationshipDraft?: TaskRelationshipDraft;
+  savingTaskId: string | null;
+  commentingTaskId: string | null;
+  deletingTaskId: string | null;
+  onDraftChange: (taskId: string, field: "dependencyTaskIds" | "parentTaskId" | "childTaskIds", value: string | string[]) => void;
+  onSaveRelationships: (taskId: string) => Promise<boolean> | boolean;
+  onCreateTaskComment: (taskId: string, comment: string) => Promise<boolean> | boolean;
+  onDeleteTask: (taskId: string, taskName: string) => void;
+  onClose: () => void;
+}
+
+export function TaskEditModal({
+  task,
+  tasks,
+  relationshipDraft,
+  savingTaskId,
+  commentingTaskId,
+  deletingTaskId,
+  onDraftChange,
+  onSaveRelationships,
+  onCreateTaskComment,
+  onDeleteTask,
+  onClose,
+}: TaskEditModalProps) {
+  const [commentDraft, setCommentDraft] = useState("");
+
+  if (!task) {
+    return null;
+  }
+
+  const taskId = task.id;
+  const taskName = task.name;
+  const currentChildTaskIds = tasks
+    .filter((candidateTask) => String(candidateTask.parentTaskId || "").trim() === taskId)
+    .map((candidateTask) => String(candidateTask.id || "").trim())
+    .filter(Boolean);
+  const draft = relationshipDraft || {
+    dependencyTaskIds: Array.isArray(task?.dependencyTaskIds) ? task.dependencyTaskIds : [],
+    parentTaskId: String(task?.parentTaskId || "").trim(),
+    childTaskIds: currentChildTaskIds,
+  };
+  const selectedChildTaskIds = Array.isArray(draft?.childTaskIds) ? draft.childTaskIds : [];
+  const draftDependencyTaskIds = Array.isArray(draft?.dependencyTaskIds) ? draft.dependencyTaskIds : [];
+  const parentTaskId = String(draft?.parentTaskId || "").trim();
+  const isBusy = savingTaskId === taskId || deletingTaskId === taskId;
+
+  function removeDependency(depId: string) {
+    onDraftChange(taskId, "dependencyTaskIds", draftDependencyTaskIds.filter((id) => id !== depId));
+  }
+  function addDependency(depId: string) {
+    if (depId && !draftDependencyTaskIds.includes(depId)) {
+      onDraftChange(taskId, "dependencyTaskIds", [...draftDependencyTaskIds, depId]);
+    }
+  }
+  function removeChild(childId: string) {
+    onDraftChange(taskId, "childTaskIds", selectedChildTaskIds.filter((id) => id !== childId));
+  }
+  function addChild(childId: string) {
+    if (childId && !selectedChildTaskIds.includes(childId)) {
+      onDraftChange(taskId, "childTaskIds", [...selectedChildTaskIds, childId]);
+    }
+  }
+
+  const availableParentOptions = tasks.filter(
+    (candidateTask) => candidateTask.id !== taskId && !selectedChildTaskIds.includes(candidateTask.id),
+  );
+  const availableChildOptions = tasks.filter(
+    (candidateTask) =>
+      candidateTask.id !== taskId
+      && candidateTask.id !== parentTaskId
+      && !selectedChildTaskIds.includes(candidateTask.id),
+  );
+  const availableDependencyOptions = tasks.filter(
+    (candidateTask) => candidateTask.id !== taskId && !draftDependencyTaskIds.includes(candidateTask.id),
+  );
+
+  async function handleSave() {
+    const didSave = await onSaveRelationships(taskId);
+    if (didSave) {
+      onClose();
+    }
+  }
+
+  async function handleCommentSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const didCreate = await onCreateTaskComment(taskId, commentDraft);
+    if (didCreate) {
+      setCommentDraft("");
+    }
+  }
+
+  function handleDelete() {
+    onDeleteTask(taskId, taskName);
+  }
+
+  return (
+    <CreationModal
+      modalId="edit-task-modal"
+      title="Edit task"
+      description="Update parent/child links, dependencies, and comments."
+      isOpen
+      onClose={onClose}
+    >
+      <div className="task-form">
+        <label htmlFor="edit-task-name">Name</label>
+        <input
+          id="edit-task-name"
+          value={task.name}
+          readOnly
+          className="task-form-readonly"
+        />
+
+        <label htmlFor="edit-task-description">Description</label>
+        <textarea
+          id="edit-task-description"
+          rows={3}
+          value={task.description || ""}
+          readOnly
+          className="task-form-readonly"
+          placeholder="No description provided."
+        />
+
+        <label htmlFor="edit-parent-task">Parent task</label>
+        <div className="task-parent-row">
+          <select
+            id="edit-parent-task"
+            value={parentTaskId}
+            onChange={(event: ChangeEvent<HTMLSelectElement>) => onDraftChange(taskId, "parentTaskId", event.target.value)}
+          >
+            <option value="">No parent task</option>
+            {availableParentOptions.map((candidateTask) => (
+              <option key={`edit-parent-${candidateTask.id}`} value={String(candidateTask.id)}>{candidateTask.name}</option>
+            ))}
+          </select>
+          {parentTaskId && (
+            <button
+              type="button"
+              className="task-parent-clear"
+              onClick={() => onDraftChange(taskId, "parentTaskId", "")}
+            >
+              Remove
+            </button>
+          )}
+        </div>
+
+        <label>Child tasks</label>
+        {selectedChildTaskIds.length > 0 && (
+          <div className="task-relation-pills">
+            {selectedChildTaskIds.map((childId) => {
+              const childTask = tasks.find((candidateTask) => candidateTask.id === childId);
+              return (
+                <span key={childId} className="task-relation-pill">
+                  <span>{childTask?.name || childId}</span>
+                  <button
+                    type="button"
+                    className="task-relation-pill-remove"
+                    onClick={() => removeChild(childId)}
+                    aria-label={`Remove child ${childTask?.name || childId}`}
+                  >×</button>
+                </span>
+              );
+            })}
+          </div>
+        )}
+        <select
+          className="task-relation-add"
+          value=""
+          onChange={(event: ChangeEvent<HTMLSelectElement>) => addChild(event.target.value)}
+        >
+          <option value="">Add child task…</option>
+          {availableChildOptions.map((candidateTask) => (
+            <option key={`edit-child-${candidateTask.id}`} value={String(candidateTask.id)}>{candidateTask.name}</option>
+          ))}
+        </select>
+
+        <label>Dependencies</label>
+        {draftDependencyTaskIds.length > 0 && (
+          <div className="task-relation-pills">
+            {draftDependencyTaskIds.map((depId) => {
+              const depTask = tasks.find((candidateTask) => candidateTask.id === depId);
+              return (
+                <span key={depId} className="task-relation-pill">
+                  <span>{depTask?.name || depId}</span>
+                  <button
+                    type="button"
+                    className="task-relation-pill-remove"
+                    onClick={() => removeDependency(depId)}
+                    aria-label={`Remove dependency ${depTask?.name || depId}`}
+                  >×</button>
+                </span>
+              );
+            })}
+          </div>
+        )}
+        <select
+          className="task-relation-add"
+          value=""
+          onChange={(event: ChangeEvent<HTMLSelectElement>) => addDependency(event.target.value)}
+        >
+          <option value="">Add dependency…</option>
+          {availableDependencyOptions.map((candidateTask) => (
+            <option key={`edit-depends-${candidateTask.id}`} value={String(candidateTask.id)}>{candidateTask.name}</option>
+          ))}
+        </select>
+
+        <label>Comments</label>
+        {Array.isArray(task.comments) && task.comments.length > 0 ? (
+          <ul className="task-comments-list">
+            {task.comments.map((comment) => (
+              <li key={`task-comment-${comment.id}`} className="task-comment-item">
+                <p>{comment.comment}</p>
+                <span className="chat-card-meta">
+                  {comment.createdAt ? new Date(comment.createdAt).toLocaleString() : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="chat-card-meta">No comments yet.</p>
+        )}
+
+        <form className="task-comment-form" onSubmit={handleCommentSubmit}>
+          <label htmlFor="task-comment-draft">Add comment</label>
+          <textarea
+            id="task-comment-draft"
+            rows={3}
+            placeholder="Document context, blockers, or handoff notes."
+            value={commentDraft}
+            onChange={(event: ChangeEvent<HTMLTextAreaElement>) => setCommentDraft(event.target.value)}
+          />
+          <button
+            type="submit"
+            className="secondary-btn"
+            disabled={commentingTaskId === taskId || !commentDraft.trim()}
+          >
+            {commentingTaskId === taskId ? "Adding comment..." : "Add comment"}
+          </button>
+        </form>
+
+        <div className="task-form-actions">
+          <button
+            type="button"
+            className="secondary-btn"
+            disabled={isBusy}
+            onClick={handleSave}
+          >
+            {savingTaskId === taskId ? "Saving..." : "Save"}
+          </button>
+          <button
+            type="button"
+            className="secondary-btn"
+            onClick={onClose}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="danger-btn"
+            disabled={isBusy}
+            onClick={handleDelete}
+          >
+            {deletingTaskId === taskId ? "Deleting..." : "Delete task"}
+          </button>
+        </div>
+      </div>
+    </CreationModal>
+  );
+}

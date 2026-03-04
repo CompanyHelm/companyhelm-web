@@ -48,7 +48,19 @@ export const TRANSCRIPT_BOTTOM_STICKY_THRESHOLD_PX = 12;
 export const SIDEBAR_COLLAPSE_MEDIA_QUERY = "(max-width: 1080px)";
 export const COMPACT_CHAT_MEDIA_QUERY = "(max-width: 1180px), (max-height: 900px)";
 
-export const NAV_SECTIONS = [
+export interface NavigationItem {
+  id: string;
+  label: string;
+  href: string;
+  requiresCompany: boolean;
+}
+
+interface NavigationSection {
+  label: string;
+  items: NavigationItem[];
+}
+
+export const NAV_SECTIONS: NavigationSection[] = [
   {
     label: "Work",
     items: [
@@ -82,12 +94,12 @@ export const NAV_SECTIONS = [
   },
 ];
 
-export const BOTTOM_NAV_ITEMS = [
+export const BOTTOM_NAV_ITEMS: NavigationItem[] = [
   { id: "settings", label: "Settings", href: "/settings", requiresCompany: false },
   { id: "profile", label: "Profile", href: "/profile", requiresCompany: false },
 ];
 
-export const PRIMARY_NAV_ITEMS = NAV_SECTIONS.flatMap((s) => s.items);
+export const PRIMARY_NAV_ITEMS = NAV_SECTIONS.flatMap((section) => section.items);
 
 export const PROFILE_NAV_ITEM = BOTTOM_NAV_ITEMS[1];
 
@@ -95,5 +107,5 @@ export const NAV_ITEMS = [...PRIMARY_NAV_ITEMS, ...BOTTOM_NAV_ITEMS];
 export const NAV_ITEM_LOOKUP = NAV_ITEMS.reduce((map, item) => {
   map.set(item.id, item);
   return map;
-}, new Map());
+}, new Map<string, NavigationItem>());
 export const PAGE_IDS = new Set(NAV_ITEMS.map((item) => item.id));

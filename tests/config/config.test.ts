@@ -2,22 +2,25 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { clearConfigCache, getConfig, loadConfig } from "../../src/config/config.ts";
 import { getDevelopmentConfig } from "../../src/config/development.ts";
-import { runtimeConfigSchema } from "../../src/config/schema.ts";
+import { runtimeConfigSchema, type RuntimeConfig } from "../../src/config/schema.ts";
 
-function withWindow(nextWindow, fn) {
-  const originalWindow = global.window;
+type TestWindow = Window & typeof globalThis;
+
+function withWindow<T>(nextWindow: TestWindow | undefined, fn: () => T): T {
+  const globalWithWindow = global as typeof global & { window?: TestWindow };
+  const originalWindow = globalWithWindow.window;
   try {
     if (typeof nextWindow === "undefined") {
-      delete global.window;
+      Reflect.deleteProperty(globalWithWindow, "window");
     } else {
-      global.window = nextWindow;
+      globalWithWindow.window = nextWindow;
     }
     return fn();
   } finally {
     if (typeof originalWindow === "undefined") {
-      delete global.window;
+      Reflect.deleteProperty(globalWithWindow, "window");
     } else {
-      global.window = originalWindow;
+      globalWithWindow.window = originalWindow;
     }
   }
 }
@@ -40,7 +43,7 @@ test("getConfig caches results until clearConfigCache is called", () => {
 });
 
 test("loadConfig prefers window runtime config override", () => {
-  const runtimeConfig = {
+  const runtimeConfig: RuntimeConfig = {
     api: {
       graphqlApiUrl: "https://api.example.com/graphql",
       runnerGrpcTarget: "runner.example.com:50051",
@@ -61,14 +64,14 @@ test("loadConfig prefers window runtime config override", () => {
   const config = withWindow(
     {
       __COMPANYHELM_CONFIG__: runtimeConfig,
-      location: { hostname: "frontend.example.com" },
-    },
+      location: { hostname: "frontend.example.com" } as unknown as Location,
+    } as unknown as TestWindow,
     () => loadConfig(),
   );
 
   assert.equal(config.api.graphqlApiUrl, "https://api.example.com/graphql");
   assert.equal(config.auth.provider, "supabase");
-  assert.equal(config.auth.supabase.url, "https://example.supabase.co");
+  assert.equal(config.auth.supabase?.url, "https://example.supabase.co");
 });
 
 test("runtimeConfigSchema rejects supabase provider without supabase config", () => {
