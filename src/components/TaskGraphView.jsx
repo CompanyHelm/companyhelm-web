@@ -161,59 +161,97 @@ function assignPositions(nodes, edges, xById, levelById) {
     childrenByParent.get(edge.source).push(edge.target);
   }
 
-  const maxLevel = Math.max(0, ...nodes.map((n) => levelById.get(n.id) || 0));
-  const nodesByLevel = new Map();
+  const orderedChildrenByParent = new Map();
+  for (const [parentId, childIds] of childrenByParent.entries()) {
+    orderedChildrenByParent.set(
+      parentId,
+      [...childIds].sort((a, b) => (xById.get(a) || 0) - (xById.get(b) || 0)),
+    );
+  }
+
+  const subtreeWidthById = new Map();
+  function getSubtreeWidth(nodeId, visiting = new Set()) {
+    if (subtreeWidthById.has(nodeId)) return subtreeWidthById.get(nodeId);
+    if (visiting.has(nodeId)) return NODE_WIDTH;
+    visiting.add(nodeId);
+
+    const childIds = orderedChildrenByParent.get(nodeId) || [];
+    let width = NODE_WIDTH;
+    if (childIds.length > 0) {
+      const childrenTotalWidth = childIds.reduce(
+        (sum, childId) => sum + getSubtreeWidth(childId, visiting),
+        0,
+      ) + (childIds.length - 1) * HORIZONTAL_GAP;
+      width = Math.max(NODE_WIDTH, childrenTotalWidth);
+    }
+
+    visiting.delete(nodeId);
+    subtreeWidthById.set(nodeId, width);
+    return width;
+  }
+
   for (const node of nodes) {
-    const level = levelById.get(node.id) || 0;
-    if (!nodesByLevel.has(level)) nodesByLevel.set(level, []);
-    nodesByLevel.get(level).push(node);
+    getSubtreeWidth(node.id);
   }
 
   const positionById = new Map();
 
-  // Level 0: use ELK x, spread to avoid overlaps
-  const roots = [...(nodesByLevel.get(0) || [])].sort(
-    (a, b) => (xById.get(a.id) || 0) - (xById.get(b.id) || 0),
-  );
-  for (let i = 0; i < roots.length; i++) {
-    let x = xById.get(roots[i].id) || 0;
-    if (i > 0) x = Math.max(x, positionById.get(roots[i - 1].id).x + NODE_WIDTH + HORIZONTAL_GAP);
-    positionById.set(roots[i].id, { x, y: 0 });
+  function placeSubtree(nodeId, leftX, fallbackLevel = 0, visiting = new Set()) {
+    if (visiting.has(nodeId)) return;
+    visiting.add(nodeId);
+
+    const width = subtreeWidthById.get(nodeId) || NODE_WIDTH;
+    const level = levelById.get(nodeId) || fallbackLevel;
+    positionById.set(nodeId, {
+      x: leftX + (width - NODE_WIDTH) / 2,
+      y: level * VERTICAL_LEVEL_GAP,
+    });
+
+    const childIds = orderedChildrenByParent.get(nodeId) || [];
+    if (childIds.length > 0) {
+      const childrenTotalWidth = childIds.reduce(
+        (sum, childId) => sum + (subtreeWidthById.get(childId) || NODE_WIDTH),
+        0,
+      ) + (childIds.length - 1) * HORIZONTAL_GAP;
+      let childLeft = leftX + (width - childrenTotalWidth) / 2;
+
+      for (const childId of childIds) {
+        const childWidth = subtreeWidthById.get(childId) || NODE_WIDTH;
+        placeSubtree(childId, childLeft, level + 1, visiting);
+        childLeft += childWidth + HORIZONTAL_GAP;
+      }
+    }
+
+    visiting.delete(nodeId);
   }
 
-  // Levels 1+: center each sibling group under its parent
-  for (let level = 1; level <= maxLevel; level++) {
-    const levelNodes = nodesByLevel.get(level) || [];
+  const roots = nodes
+    .filter((node) => !parentById.has(node.id))
+    .sort(
+    (a, b) => (xById.get(a.id) || 0) - (xById.get(b.id) || 0),
+  );
 
-    // Group nodes by parent, sorted by the parent's x position
-    const groups = new Map();
-    for (const node of levelNodes) {
-      const pid = parentById.get(node.id);
-      if (!groups.has(pid)) groups.set(pid, []);
-      groups.get(pid).push(node);
-    }
-    const sortedParentIds = [...groups.keys()].sort(
-      (a, b) => (positionById.get(a)?.x ?? 0) - (positionById.get(b)?.x ?? 0),
-    );
+  let nextRootLeft = 0;
+  for (const root of roots) {
+    placeSubtree(root.id, nextRootLeft);
+    nextRootLeft += (subtreeWidthById.get(root.id) || NODE_WIDTH) + HORIZONTAL_GAP * 2;
+  }
 
-    let nextMinX = 0;
-    for (const pid of sortedParentIds) {
-      // Sort siblings by ELK x to respect any dependency ordering within the group
-      const children = [...groups.get(pid)].sort(
-        (a, b) => (xById.get(a.id) || 0) - (xById.get(b.id) || 0),
-      );
-      const parentCenterX = (positionById.get(pid)?.x ?? 0) + NODE_WIDTH / 2;
-      const groupWidth = children.length * NODE_WIDTH + (children.length - 1) * HORIZONTAL_GAP;
-      const startX = Math.max(parentCenterX - groupWidth / 2, nextMinX);
+  const remainingNodes = nodes
+    .filter((node) => !positionById.has(node.id))
+    .sort((a, b) => {
+      const levelDiff = (levelById.get(a.id) || 0) - (levelById.get(b.id) || 0);
+      if (levelDiff !== 0) return levelDiff;
+      return (xById.get(a.id) || 0) - (xById.get(b.id) || 0);
+    });
 
-      for (let i = 0; i < children.length; i++) {
-        positionById.set(children[i].id, {
-          x: startX + i * (NODE_WIDTH + HORIZONTAL_GAP),
-          y: level * VERTICAL_LEVEL_GAP,
-        });
-      }
-      nextMinX = startX + groupWidth + HORIZONTAL_GAP;
-    }
+  let fallbackX = nextRootLeft;
+  for (const node of remainingNodes) {
+    positionById.set(node.id, {
+      x: fallbackX,
+      y: (levelById.get(node.id) || 0) * VERTICAL_LEVEL_GAP,
+    });
+    fallbackX += NODE_WIDTH + HORIZONTAL_GAP;
   }
 
   return positionById;
