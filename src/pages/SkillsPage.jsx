@@ -3,7 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Page } from "../components/Page.jsx";
 import { CreationModal } from "../components/CreationModal.jsx";
-import { normalizeUniqueStringList } from "../utils/normalization.js";
+import { normalizeUniqueStringList } from "../utils/normalization.ts";
 import { useSetPageActions } from "../components/PageActionsContext.jsx";
 
 export function SkillsPage({

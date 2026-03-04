@@ -8,14 +8,14 @@
     "schema/**",
     "src/**",
     "index.html",
-    "vite.config.js"
+    "vite.config.ts"
   ],
   "scripts": {
-    "config:generate": "node scripts/config/generate-runtime-config.js",
+    "config:generate": "tsx scripts/config/generate-runtime-config.js",
     "dev": "npm run config:generate -- --environment local && vite dev",
     "build": "npm run config:generate -- --environment prod && vite build",
     "preview": "npm run config:generate -- --environment prod && vite preview",
-    "test": "node --test tests/**/*.test.js"
+    "test": "tsx --test tests/**/*.test.ts"
   },
   "dependencies": {
     "@companyhelm/protos": "^0.4.0",
@@ -32,6 +32,8 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
     "vite": "^5.4.10",
     "yaml": "^2.8.1"
   }

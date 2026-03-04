@@ -18,9 +18,9 @@ import {
   BOTTOM_NAV_ITEMS,
   NAV_ITEMS,
   NAV_ITEM_LOOKUP,
-} from "./utils/constants.js";
+} from "./utils/constants.ts";
 
-import { matchesMediaQuery } from "./utils/media.js";
+import { matchesMediaQuery } from "./utils/media.ts";
 
 import {
   LIST_COMPANIES_QUERY,
@@ -151,7 +151,7 @@ import {
   COMPANY_API_STEER_QUEUED_USER_MESSAGE_MUTATION,
   COMPANY_API_DELETE_QUEUED_USER_MESSAGE_MUTATION,
   COMPANY_API_INTERRUPT_TURN_MUTATION,
-} from "./utils/graphql.js";
+} from "./utils/graphql.ts";
 
 import {
   normalizeUniqueStringList,
@@ -172,9 +172,9 @@ import {
   parseMcpHeadersText,
   parseMcpArgsText,
   parseMcpEnvVarsText,
-} from "./utils/normalization.js";
+} from "./utils/normalization.ts";
 
-import { normalizeRunnerStatus, normalizeChatStatus } from "./utils/formatting.js";
+import { normalizeRunnerStatus, normalizeChatStatus } from "./utils/formatting.ts";
 
 import {
   hasRunningChatTurns,
@@ -184,7 +184,7 @@ import {
   mergeChatSessionsByAgentSnapshot,
   updateQueuedMessagesFromTurnSubscription,
   isSameChatSelection,
-} from "./utils/chat.js";
+} from "./utils/chat.ts";
 
 import {
   normalizePathname,
@@ -201,23 +201,23 @@ import {
   parseGithubInstallCallbackFromLocation,
   clearGithubInstallCallbackFromLocation,
   buildGithubAppInstallUrl,
-} from "./utils/path.js";
+} from "./utils/path.ts";
 
-import { getPersistedCompanyId, persistCompanyId } from "./utils/persistence.js";
-import { setActiveCompanyId } from "./utils/company-context.js";
-import { createSingleFlightByKey } from "./utils/single-flight.js";
+import { getPersistedCompanyId, persistCompanyId } from "./utils/persistence.ts";
+import { setActiveCompanyId } from "./utils/company-context.ts";
+import { createSingleFlightByKey } from "./utils/single-flight.ts";
 
-import { buildRunnerStartCommand } from "./utils/shell.js";
+import { buildRunnerStartCommand } from "./utils/shell.ts";
 
 import {
   createRelationshipDrafts,
   createAgentDrafts,
   createSkillDrafts,
   createMcpServerDrafts,
-} from "./utils/drafts.js";
+} from "./utils/drafts.ts";
 
-import { subscribeGraphQL, useGraphQLSubscription } from "./hooks/useGraphQLSubscription.js";
-import { executeRelayGraphQL } from "./relay/client.js";
+import { subscribeGraphQL, useGraphQLSubscription } from "./hooks/useGraphQLSubscription.ts";
+import { executeRelayGraphQL } from "./relay/client.ts";
 
 import { Breadcrumbs } from "./components/Breadcrumbs.jsx";
 import { PageActionsProvider } from "./components/PageActionsContext.jsx";

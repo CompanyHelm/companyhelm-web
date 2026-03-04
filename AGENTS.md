@@ -38,7 +38,7 @@
 - Do not read runtime config values from `import.meta.env`, `VITE_*`, or other
   environment variables.
 - If new frontend config values are introduced, add them to:
-  - `src/config/schema.js`
+  - `src/config/schema.ts`
   - `config/local.yaml`
   - `config/dev.yaml`
   - `config/prod.yaml`

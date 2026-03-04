@@ -9,7 +9,7 @@ import {
   MCP_AUTH_TYPE_BEARER_TOKEN,
   MCP_AUTH_TYPE_CUSTOM_HEADERS,
   MCP_AUTH_TYPE_OPTIONS,
-} from "../utils/constants.js";
+} from "../utils/constants.ts";
 import { useSetPageActions } from "../components/PageActionsContext.jsx";
 
 export function McpServersPage({

@@ -2,15 +2,15 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { Page } from "../components/Page.jsx";
 import { CreationModal } from "../components/CreationModal.jsx";
 import { AgentEditModal } from "../components/AgentEditModal.jsx";
-import { AVAILABLE_AGENT_SDKS, DEFAULT_AGENT_SDK } from "../utils/constants.js";
+import { AVAILABLE_AGENT_SDKS, DEFAULT_AGENT_SDK } from "../utils/constants.ts";
 import {
   normalizeUniqueStringList,
   getRunnerCodexModelEntriesForRunner,
   getRunnerModelNames,
   getRunnerReasoningLevels,
-} from "../utils/normalization.js";
-import { formatRunnerLabel } from "../utils/formatting.js";
-import { setBrowserPath } from "../utils/path.js";
+} from "../utils/normalization.ts";
+import { formatRunnerLabel } from "../utils/formatting.ts";
+import { setBrowserPath } from "../utils/path.ts";
 import { useSetPageActions } from "../components/PageActionsContext.jsx";
 
 function collectRoleAndSubroleIds(roleIds, roleChildrenByParentId) {

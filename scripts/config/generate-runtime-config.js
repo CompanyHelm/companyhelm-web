@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parse as parseYaml } from "yaml";
-import { runtimeConfigSchema } from "../../src/config/schema.js";
+import { runtimeConfigSchema } from "../../src/config/schema.ts";
 
 const ALLOWED_ENVIRONMENTS = new Set(["local", "dev", "prod"]);
 

@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Page } from "../components/Page.jsx";
-import { formatTimestamp, normalizeRunnerStatus, toSortableTimestamp } from "../utils/formatting.js";
+import { formatTimestamp, normalizeRunnerStatus, toSortableTimestamp } from "../utils/formatting.ts";
 
 export function DashboardPage({
   selectedCompanyId,

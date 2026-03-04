@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import { Page } from "../components/Page.jsx";
 import { CreationModal } from "../components/CreationModal.jsx";
-import { formatTimestamp, normalizeRunnerStatus, toSortableTimestamp } from "../utils/formatting.js";
-import { setBrowserPath } from "../utils/path.js";
+import { formatTimestamp, normalizeRunnerStatus, toSortableTimestamp } from "../utils/formatting.ts";
+import { setBrowserPath } from "../utils/path.ts";
 import { useSetPageActions } from "../components/PageActionsContext.jsx";
 
 export function AgentRunnerPage({

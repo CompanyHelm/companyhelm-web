@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { Page } from "../components/Page.jsx";
 import { ChatSessionRunningBadge } from "../components/ChatSessionRunningBadge.jsx";
-import { isChatSessionRunning, compareTurnsByTimestamp } from "../utils/chat.js";
-import { formatTimestamp } from "../utils/formatting.js";
+import { isChatSessionRunning, compareTurnsByTimestamp } from "../utils/chat.ts";
+import { formatTimestamp } from "../utils/formatting.ts";
 
 export function ChatsOverviewPage({
   selectedCompanyId,

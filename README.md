@@ -22,7 +22,7 @@ Runtime config is generated from YAML files under `config/` and written to
   - `config/dev.yaml`
   - `config/prod.yaml`
 - generator: `scripts/config/generate-runtime-config.js`
-- validation schema: `src/config/schema.js` (Zod)
+- validation schema: `src/config/schema.ts` (Zod)
 - generated file: `public/config.json` (gitignored)
 
 The script takes `--environment <local|dev|prod>` and hard-fails when:
