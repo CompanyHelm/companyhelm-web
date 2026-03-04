@@ -104,9 +104,6 @@ export function isChatSessionRunning(session: unknown, chatSessionRunningById: R
   if (normalizedSessionStatus === "running") {
     return true;
   }
-  if (normalizedSessionStatus === "ready") {
-    return false;
-  }
   const sessionId = String(sessionRecord.id || "").trim();
   return Boolean(sessionId && chatSessionRunningById?.[sessionId]);
 }
