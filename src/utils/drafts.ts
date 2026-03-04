@@ -114,9 +114,25 @@ export function createMcpServerDrafts(mcpServers: unknown): Record<string, Loose
       argsText: mcpArgsToText(mcpServer.args || []),
       envVarsText: mcpEnvVarsToText(mcpServer.envVars || []),
       authType: normalizeMcpAuthType(mcpServer.authType),
-      bearerToken: String(mcpServer.bearerToken || "").trim(),
+      bearerTokenSecretId: String(mcpServer.bearerTokenSecretId || "").trim(),
       customHeadersText: mcpHeadersToText(mcpServer.customHeaders || []),
       enabled: mcpServer.enabled !== false,
+    };
+    return drafts;
+  }, {});
+}
+
+export function createSecretDrafts(secrets: unknown): Record<string, LooseRecord> {
+  const secretList = Array.isArray(secrets) ? secrets.map(toRecord) : [];
+  return secretList.reduce<Record<string, LooseRecord>>((drafts, secret) => {
+    const secretId = String(secret.id || "").trim();
+    if (!secretId) {
+      return drafts;
+    }
+    drafts[secretId] = {
+      name: String(secret.name || "").trim(),
+      description: String(secret.description || "").trim(),
+      value: "",
     };
     return drafts;
   }, {});

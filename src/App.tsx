@@ -44,6 +44,7 @@ import {
   LIST_SKILL_GROUPS_QUERY,
   LIST_GIT_SKILL_PACKAGES_QUERY,
   LIST_MCP_SERVERS_QUERY,
+  LIST_SECRETS_QUERY,
   CREATE_TASK_MUTATION,
   ADD_TASK_DEPENDENCY_MUTATION,
   REMOVE_TASK_DEPENDENCY_MUTATION,
@@ -79,6 +80,9 @@ import {
   CREATE_MCP_SERVER_MUTATION,
   UPDATE_MCP_SERVER_MUTATION,
   DELETE_MCP_SERVER_MUTATION,
+  CREATE_SECRET_MUTATION,
+  UPDATE_SECRET_MUTATION,
+  DELETE_SECRET_MUTATION,
   INITIALIZE_AGENT_MUTATION,
   RETRY_AGENT_SKILL_INSTALL_MUTATION,
   LIST_AGENT_TURNS_QUERY,
@@ -118,6 +122,7 @@ import {
   COMPANY_API_LIST_SKILL_GROUPS_QUERY,
   COMPANY_API_LIST_GIT_SKILL_PACKAGES_QUERY,
   COMPANY_API_LIST_MCP_SERVERS_QUERY,
+  COMPANY_API_LIST_SECRETS_QUERY,
   COMPANY_API_PREVIEW_GIT_SKILL_PACKAGE_MUTATION,
   COMPANY_API_CREATE_GIT_SKILL_PACKAGE_MUTATION,
   COMPANY_API_DELETE_GIT_SKILL_PACKAGE_MUTATION,
@@ -138,6 +143,9 @@ import {
   COMPANY_API_CREATE_MCP_SERVER_MUTATION,
   COMPANY_API_UPDATE_MCP_SERVER_MUTATION,
   COMPANY_API_DELETE_MCP_SERVER_MUTATION,
+  COMPANY_API_CREATE_SECRET_MUTATION,
+  COMPANY_API_UPDATE_SECRET_MUTATION,
+  COMPANY_API_DELETE_SECRET_MUTATION,
   COMPANY_API_LIST_AGENT_RUNNERS_CONNECTION_QUERY,
   COMPANY_API_CREATE_AGENT_RUNNER_MUTATION,
   COMPANY_API_REGENERATE_AGENT_RUNNER_SECRET_MUTATION,
@@ -219,6 +227,7 @@ import {
   createAgentDrafts,
   createSkillDrafts,
   createMcpServerDrafts,
+  createSecretDrafts,
 } from "./utils/drafts.ts";
 
 import { subscribeGraphQL, useGraphQLSubscription } from "./hooks/useGraphQLSubscription.ts";
@@ -238,6 +247,7 @@ import { SkillsPage } from "./pages/SkillsPage.tsx";
 import { SkillGroupsPage } from "./pages/SkillGroupsPage.tsx";
 import { RolesPage } from "./pages/RolesPage.tsx";
 import { GitSkillPackagesPage } from "./pages/GitSkillPackagesPage.tsx";
+import { SecretsPage } from "./pages/SecretsPage.tsx";
 import { McpServersPage } from "./pages/McpServersPage.tsx";
 import { AgentChatsPage } from "./pages/AgentChatsPage.tsx";
 import { AgentChatPage } from "./pages/AgentChatPage.tsx";
@@ -705,7 +715,7 @@ function toMcpServerPayload(mcpServer: any) {
           .filter((envVar: any) => envVar.key)
       : [],
     authType: normalizeMcpAuthType(mcpServer?.authType),
-    bearerToken: String(mcpServer?.bearerToken || "").trim(),
+    bearerTokenSecretId: resolveLegacyId(mcpServer?.bearerTokenSecretId) || null,
     customHeaders: Array.isArray(mcpServer?.customHeaders)
       ? mcpServer.customHeaders
           .map((header: any) => ({
@@ -715,6 +725,17 @@ function toMcpServerPayload(mcpServer: any) {
           .filter((header: any) => header.key && header.value)
       : [],
     enabled: mcpServer?.enabled !== false,
+  };
+}
+
+function toSecretPayload(secret: any) {
+  return {
+    id: resolveLegacyId(secret?.id),
+    companyId: resolveLegacyId(secret?.company?.id, secret?.companyId),
+    name: resolveLegacyId(secret?.name),
+    description: String(secret?.description || "").trim(),
+    createdAt: resolveLegacyId(secret?.createdAt),
+    updatedAt: resolveLegacyId(secret?.updatedAt),
   };
 }
 
@@ -1882,6 +1903,17 @@ async function executeGraphQL(query: any, variables: any = {}) {
     };
   }
 
+  if (query === LIST_SECRETS_QUERY) {
+    const data = await executeRawGraphQL(COMPANY_API_LIST_SECRETS_QUERY, {
+      companyId: resolveLegacyId(variables?.companyId),
+    });
+    return {
+      secrets: Array.isArray(data?.secrets)
+        ? data.secrets.map((secret: any) => toSecretPayload(secret))
+        : [],
+    };
+  }
+
   if (query === DELETE_GITHUB_INSTALLATION_MUTATION) {
     return {
       ...unsupportedMutation("deleteGithubInstallation"),
@@ -2108,7 +2140,7 @@ async function executeGraphQL(query: any, variables: any = {}) {
             .filter((envVar: any) => envVar.key)
         : [],
       authType: resolveLegacyId(variables?.authType) || null,
-      bearerToken: String(variables?.bearerToken || "").trim() || null,
+      bearerTokenSecretId: resolveLegacyId(variables?.bearerTokenSecretId) || null,
       customHeaders: Array.isArray(variables?.customHeaders)
         ? variables.customHeaders
             .map((header: any) => ({
@@ -2149,7 +2181,7 @@ async function executeGraphQL(query: any, variables: any = {}) {
             .filter((envVar: any) => envVar.key)
         : [],
       authType: resolveLegacyId(variables?.authType) || null,
-      bearerToken: String(variables?.bearerToken || "").trim() || null,
+      bearerTokenSecretId: resolveLegacyId(variables?.bearerTokenSecretId) || null,
       customHeaders: Array.isArray(variables?.customHeaders)
         ? variables.customHeaders
             .map((header: any) => ({
@@ -2181,6 +2213,61 @@ async function executeGraphQL(query: any, variables: any = {}) {
         ok: Boolean(payload?.ok),
         error: payload?.error ? String(payload.error) : null,
         deletedMcpServerId: resolveLegacyId(payload?.deletedMcpServerId) || null,
+      },
+    };
+  }
+
+  if (query === CREATE_SECRET_MUTATION) {
+    const data = await executeRawGraphQL(COMPANY_API_CREATE_SECRET_MUTATION, {
+      companyId: resolveLegacyId(variables?.companyId),
+      name: resolveLegacyId(variables?.name),
+      description: resolveLegacyId(variables?.description),
+      value: String(variables?.value || ""),
+    });
+    const payload = data?.createSecret;
+    return {
+      createSecret: {
+        ok: Boolean(payload?.ok),
+        error: payload?.error ? String(payload.error) : null,
+        secret: payload?.secret ? toSecretPayload(payload.secret) : null,
+      },
+    };
+  }
+
+  if (query === UPDATE_SECRET_MUTATION) {
+    const nextVariables: any = {
+      companyId: resolveLegacyId(variables?.companyId),
+      id: resolveLegacyId(variables?.id),
+      name: resolveLegacyId(variables?.name),
+      description: resolveLegacyId(variables?.description),
+    };
+    if (Object.prototype.hasOwnProperty.call(variables || {}, "value")) {
+      const nextValue = variables?.value;
+      nextVariables.value = nextValue == null ? null : String(nextValue);
+    }
+
+    const data = await executeRawGraphQL(COMPANY_API_UPDATE_SECRET_MUTATION, nextVariables);
+    const payload = data?.updateSecret;
+    return {
+      updateSecret: {
+        ok: Boolean(payload?.ok),
+        error: payload?.error ? String(payload.error) : null,
+        secret: payload?.secret ? toSecretPayload(payload.secret) : null,
+      },
+    };
+  }
+
+  if (query === DELETE_SECRET_MUTATION) {
+    const data = await executeRawGraphQL(COMPANY_API_DELETE_SECRET_MUTATION, {
+      companyId: resolveLegacyId(variables?.companyId),
+      id: resolveLegacyId(variables?.id),
+    });
+    const payload = data?.deleteSecret;
+    return {
+      deleteSecret: {
+        ok: Boolean(payload?.ok),
+        error: payload?.error ? String(payload.error) : null,
+        deletedSecretId: resolveLegacyId(payload?.deletedSecretId) || null,
       },
     };
   }
@@ -2320,12 +2407,14 @@ function App() {
   const [roles, setRoles] = useState<any>([]);
   const [skillGroups, setSkillGroups] = useState<any>([]);
   const [gitSkillPackages, setGitSkillPackages] = useState<any>([]);
+  const [secrets, setSecrets] = useState<any>([]);
   const [mcpServers, setMcpServers] = useState<any>([]);
   const [agentRunners, setAgentRunners] = useState<any>([]);
   const [hasLoadedAgentRunners, setHasLoadedAgentRunners] = useState<any>(false);
   const [hasLoadedSkills, setHasLoadedSkills] = useState<any>(false);
   const [hasLoadedRoles, setHasLoadedRoles] = useState<any>(false);
   const [hasLoadedSkillGroups, setHasLoadedSkillGroups] = useState<any>(false);
+  const [hasLoadedSecrets, setHasLoadedSecrets] = useState<any>(false);
   const [hasLoadedMcpServers, setHasLoadedMcpServers] = useState<any>(false);
   const [agents, setAgents] = useState<any>([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState<any>(false);
@@ -2333,23 +2422,28 @@ function App() {
   const [isLoadingRoles, setIsLoadingRoles] = useState<any>(false);
   const [isLoadingSkillGroups, setIsLoadingSkillGroups] = useState<any>(false);
   const [isLoadingGitSkillPackages, setIsLoadingGitSkillPackages] = useState<any>(false);
+  const [isLoadingSecrets, setIsLoadingSecrets] = useState<any>(false);
   const [isLoadingMcpServers, setIsLoadingMcpServers] = useState<any>(false);
   const [isLoadingRunners, setIsLoadingRunners] = useState<any>(false);
   const [isLoadingAgents, setIsLoadingAgents] = useState<any>(false);
   const [taskError, setTaskError] = useState<any>("");
   const [skillError, setSkillError] = useState<any>("");
+  const [secretError, setSecretError] = useState<any>("");
   const [mcpServerError, setMcpServerError] = useState<any>("");
   const [runnerError, setRunnerError] = useState<any>("");
   const [agentError, setAgentError] = useState<any>("");
   const [isSubmittingTask, setIsSubmittingTask] = useState<any>(false);
   const [isCreatingSkill, setIsCreatingSkill] = useState<any>(false);
+  const [isCreatingSecret, setIsCreatingSecret] = useState<any>(false);
   const [isCreatingMcpServer, setIsCreatingMcpServer] = useState<any>(false);
   const [savingTaskId, setSavingTaskId] = useState<any>(null);
   const [commentingTaskId, setCommentingTaskId] = useState<any>(null);
   const [savingSkillId, setSavingSkillId] = useState<any>(null);
+  const [savingSecretId, setSavingSecretId] = useState<any>(null);
   const [savingMcpServerId, setSavingMcpServerId] = useState<any>(null);
   const [deletingTaskId, setDeletingTaskId] = useState<any>(null);
   const [deletingSkillId, setDeletingSkillId] = useState<any>(null);
+  const [deletingSecretId, setDeletingSecretId] = useState<any>(null);
   const [deletingMcpServerId, setDeletingMcpServerId] = useState<any>(null);
   const [deletingRunnerId, setDeletingRunnerId] = useState<any>(null);
   const [regeneratingRunnerId, setRegeneratingRunnerId] = useState<any>(null);
@@ -2372,6 +2466,10 @@ function App() {
   const [skillDescription, setSkillDescription] = useState<any>("");
   const [skillInstructions, setSkillInstructions] = useState<any>("");
   const [skillDrafts, setSkillDrafts] = useState<any>({});
+  const [secretName, setSecretName] = useState<any>("");
+  const [secretDescription, setSecretDescription] = useState<any>("");
+  const [secretValue, setSecretValue] = useState<any>("");
+  const [secretDrafts, setSecretDrafts] = useState<any>({});
   const [mcpServerName, setMcpServerName] = useState<any>("");
   const [mcpServerTransportType, setMcpServerTransportType] = useState<any>(
     MCP_TRANSPORT_TYPE_STREAMABLE_HTTP,
@@ -2381,7 +2479,7 @@ function App() {
   const [mcpServerArgsText, setMcpServerArgsText] = useState<any>("");
   const [mcpServerEnvVarsText, setMcpServerEnvVarsText] = useState<any>("");
   const [mcpServerAuthType, setMcpServerAuthType] = useState<any>(MCP_AUTH_TYPE_NONE);
-  const [mcpServerBearerToken, setMcpServerBearerToken] = useState<any>("");
+  const [mcpServerBearerTokenSecretId, setMcpServerBearerTokenSecretId] = useState<any>("");
   const [mcpServerCustomHeadersText, setMcpServerCustomHeadersText] = useState<any>("");
   const [mcpServerEnabled, setMcpServerEnabled] = useState<any>(true);
   const [mcpServerDrafts, setMcpServerDrafts] = useState<any>({});
@@ -2803,6 +2901,9 @@ function App() {
     || activePage === "roles"
     || activePage === "gitskillpackages";
   const shouldLoadGitSkillPackageData = activePage === "skills" || activePage === "gitskillpackages";
+  const shouldLoadSecretData =
+    activePage === "secrets"
+    || activePage === "mcp-servers";
   const shouldLoadMcpServerData =
     activePage === "mcp-servers"
     || activePage === "skills"
@@ -3064,6 +3165,32 @@ function App() {
       setSkillError(loadError.message);
     } finally {
       setIsLoadingGitSkillPackages(false);
+    }
+  }, [selectedCompanyId]);
+
+  const loadSecrets = useCallback(async () => {
+    if (!selectedCompanyId) {
+      setSecretError("");
+      setSecrets([]);
+      setSecretDrafts({});
+      setHasLoadedSecrets(false);
+      setIsLoadingSecrets(false);
+      return;
+    }
+
+    try {
+      setSecretError("");
+      setIsLoadingSecrets(true);
+      const data = await executeGraphQL(LIST_SECRETS_QUERY, { companyId: selectedCompanyId });
+      const nextSecrets = data.secrets || [];
+      setSecrets(nextSecrets);
+      setSecretDrafts(createSecretDrafts(nextSecrets));
+      setHasLoadedSecrets(true);
+    } catch (loadError: any) {
+      setHasLoadedSecrets(false);
+      setSecretError(loadError.message);
+    } finally {
+      setIsLoadingSecrets(false);
     }
   }, [selectedCompanyId]);
 
@@ -3669,6 +3796,17 @@ function App() {
     setRoleSkillGroupIdsByRoleId({});
     setRoleMcpServerIdsByRoleId({});
     setGitSkillPackages([]);
+    setSecrets([]);
+    setSecretDrafts({});
+    setHasLoadedSecrets(false);
+    setSecretName("");
+    setSecretDescription("");
+    setSecretValue("");
+    setSecretError("");
+    setIsLoadingSecrets(false);
+    setIsCreatingSecret(false);
+    setSavingSecretId(null);
+    setDeletingSecretId(null);
     setMcpServers([]);
     setMcpServerDrafts({});
     setHasLoadedMcpServers(false);
@@ -3679,7 +3817,7 @@ function App() {
     setMcpServerArgsText("");
     setMcpServerEnvVarsText("");
     setMcpServerAuthType(MCP_AUTH_TYPE_NONE);
-    setMcpServerBearerToken("");
+    setMcpServerBearerTokenSecretId("");
     setMcpServerCustomHeadersText("");
     setMcpServerEnabled(true);
     setMcpServerError("");
@@ -3831,6 +3969,51 @@ function App() {
   }, [roles]);
 
   useEffect(() => {
+    if (!hasLoadedSecrets) {
+      return;
+    }
+
+    const validSecretIds = new Set(
+      secrets
+        .map((secret: any) => String(secret?.id || "").trim())
+        .filter(Boolean),
+    );
+
+    setMcpServerBearerTokenSecretId((currentSecretId: any) => {
+      const normalizedCurrentSecretId = String(currentSecretId || "").trim();
+      if (!normalizedCurrentSecretId || validSecretIds.has(normalizedCurrentSecretId)) {
+        return currentSecretId;
+      }
+      return "";
+    });
+
+    setMcpServerDrafts((currentDrafts: any) => {
+      let changed = false;
+      const nextDrafts: any = {};
+      for (const [mcpServerId, draft] of Object.entries(currentDrafts || {})) {
+        if (!draft || typeof draft !== "object") {
+          nextDrafts[mcpServerId] = draft;
+          continue;
+        }
+
+        const currentSecretId = String((draft as any).bearerTokenSecretId || "").trim();
+        if (!currentSecretId || validSecretIds.has(currentSecretId)) {
+          nextDrafts[mcpServerId] = draft;
+          continue;
+        }
+
+        changed = true;
+        nextDrafts[mcpServerId] = {
+          ...draft,
+          bearerTokenSecretId: "",
+        };
+      }
+
+      return changed ? nextDrafts : currentDrafts;
+    });
+  }, [hasLoadedSecrets, secrets]);
+
+  useEffect(() => {
     if (!shouldLoadGithubData) {
       return;
     }
@@ -3891,6 +4074,13 @@ function App() {
     }
     loadGitSkillPackages();
   }, [loadGitSkillPackages, selectedCompanyId, shouldLoadGitSkillPackageData]);
+
+  useEffect(() => {
+    if (!selectedCompanyId || !shouldLoadSecretData) {
+      return;
+    }
+    loadSecrets();
+  }, [loadSecrets, selectedCompanyId, shouldLoadSecretData]);
 
   useEffect(() => {
     if (!selectedCompanyId || !shouldLoadMcpServerData) {
@@ -4319,7 +4509,7 @@ function App() {
     }
 
     const confirmed = window.confirm(
-      `Delete company "${selectedCompany.name}"? This will also delete all tasks, skills, MCP servers, agents, and agent runners in that company.`,
+      `Delete company "${selectedCompany.name}"? This will also delete all tasks, skills, secrets, MCP servers, agents, and agent runners in that company.`,
     );
     if (!confirmed) {
       return;
@@ -4344,6 +4534,9 @@ function App() {
       setSkillGroups([]);
       setHasLoadedSkillGroups(false);
       setGitSkillPackages([]);
+      setSecrets([]);
+      setSecretDrafts({});
+      setHasLoadedSecrets(false);
       setMcpServers([]);
       setMcpServerDrafts({});
       setAgents([]);
@@ -5405,6 +5598,150 @@ function App() {
     }
   }
 
+  async function handleCreateSecret(event: any) {
+    event.preventDefault();
+    if (!selectedCompanyId) {
+      setSecretError("Select a company before creating secrets.");
+      return false;
+    }
+
+    const requestedName = String(secretName || "").trim();
+    const requestedDescription = String(secretDescription || "").trim();
+    const requestedValue = String(secretValue || "");
+
+    if (!requestedName) {
+      setSecretError("Secret name is required.");
+      return false;
+    }
+    if (!requestedDescription) {
+      setSecretError("Secret description is required.");
+      return false;
+    }
+    if (!requestedValue.trim()) {
+      setSecretError("Secret value is required.");
+      return false;
+    }
+
+    try {
+      setIsCreatingSecret(true);
+      setSecretError("");
+      const data = await executeGraphQL(CREATE_SECRET_MUTATION, {
+        companyId: selectedCompanyId,
+        name: requestedName,
+        description: requestedDescription,
+        value: requestedValue,
+      });
+      const result = data.createSecret;
+      if (!result.ok) {
+        throw new Error(result.error || "Secret creation failed.");
+      }
+      setSecretName("");
+      setSecretDescription("");
+      setSecretValue("");
+      await loadSecrets();
+      return true;
+    } catch (createError: any) {
+      setSecretError(createError.message);
+      return false;
+    } finally {
+      setIsCreatingSecret(false);
+    }
+  }
+
+  function handleSecretDraftChange(secretId: any, field: any, value: any) {
+    setSecretDrafts((currentDrafts: any) => {
+      const currentDraft = currentDrafts[secretId] || {
+        name: "",
+        description: "",
+        value: "",
+      };
+      return {
+        ...currentDrafts,
+        [secretId]: {
+          ...currentDraft,
+          [field]: value,
+        },
+      };
+    });
+  }
+
+  async function handleSaveSecret(secretId: any) {
+    if (!selectedCompanyId) {
+      setSecretError("Select a company before updating secrets.");
+      return;
+    }
+
+    const draft = secretDrafts[secretId] || {
+      name: "",
+      description: "",
+      value: "",
+    };
+    const requestedName = String(draft.name || "").trim();
+    const requestedDescription = String(draft.description || "").trim();
+    const requestedValue = String(draft.value || "");
+    const nextValue = requestedValue.trim() ? requestedValue : null;
+
+    if (!requestedName) {
+      setSecretError("Secret name is required.");
+      return;
+    }
+    if (!requestedDescription) {
+      setSecretError("Secret description is required.");
+      return;
+    }
+
+    try {
+      setSavingSecretId(secretId);
+      setSecretError("");
+      const data = await executeGraphQL(UPDATE_SECRET_MUTATION, {
+        companyId: selectedCompanyId,
+        id: secretId,
+        name: requestedName,
+        description: requestedDescription,
+        value: nextValue,
+      });
+      const result = data.updateSecret;
+      if (!result.ok) {
+        throw new Error(result.error || "Secret update failed.");
+      }
+      await loadSecrets();
+    } catch (updateError: any) {
+      setSecretError(updateError.message);
+    } finally {
+      setSavingSecretId(null);
+    }
+  }
+
+  async function handleDeleteSecret(secretId: any, secretDisplayName: any) {
+    if (!selectedCompanyId) {
+      setSecretError("Select a company before deleting secrets.");
+      return;
+    }
+
+    const confirmed = window.confirm(`Delete secret "${secretDisplayName}"?`);
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setDeletingSecretId(secretId);
+      setSecretError("");
+      const data = await executeGraphQL(DELETE_SECRET_MUTATION, {
+        companyId: selectedCompanyId,
+        id: secretId,
+      });
+      const result = data.deleteSecret;
+      if (!result.ok) {
+        throw new Error(result.error || "Secret deletion failed.");
+      }
+      await loadSecrets();
+    } catch (deleteError: any) {
+      setSecretError(deleteError.message);
+    } finally {
+      setDeletingSecretId(null);
+    }
+  }
+
   function resolveMcpServerMutationPayload({
     name: rawName,
     transportType: rawTransportType,
@@ -5413,7 +5750,7 @@ function App() {
     argsText: rawArgsText,
     envVarsText: rawEnvVarsText,
     authType: rawAuthType,
-    bearerToken: rawBearerToken,
+    bearerTokenSecretId: rawBearerTokenSecretId,
     customHeadersText: rawCustomHeadersText,
     enabled: rawEnabled,
   }: any) {
@@ -5424,7 +5761,7 @@ function App() {
     const argsText = String(rawArgsText || "");
     const envVarsText = String(rawEnvVarsText || "");
     const authType = normalizeMcpAuthType(rawAuthType);
-    const bearerToken = String(rawBearerToken || "").trim();
+    const bearerTokenSecretId = String(rawBearerTokenSecretId || "").trim();
     const customHeadersText = String(rawCustomHeadersText || "");
 
     if (!name) {
@@ -5453,7 +5790,7 @@ function App() {
           args: parsedArgs.args,
           envVars: parsedEnvVars.envVars,
           authType: MCP_AUTH_TYPE_NONE,
-          bearerToken: null,
+          bearerTokenSecretId: null,
           customHeaders: [],
           enabled: Boolean(rawEnabled),
         },
@@ -5482,8 +5819,8 @@ function App() {
       }
     }
 
-    if (authType === MCP_AUTH_TYPE_BEARER_TOKEN && !bearerToken) {
-      return { payload: null, error: "Bearer token is required when auth type is Bearer token." };
+    if (authType === MCP_AUTH_TYPE_BEARER_TOKEN && !bearerTokenSecretId) {
+      return { payload: null, error: "Bearer token secret is required when auth type is Bearer token." };
     }
 
     return {
@@ -5495,7 +5832,7 @@ function App() {
         args: [],
         envVars: [],
         authType,
-        bearerToken: authType === MCP_AUTH_TYPE_BEARER_TOKEN ? bearerToken : null,
+        bearerTokenSecretId: authType === MCP_AUTH_TYPE_BEARER_TOKEN ? bearerTokenSecretId : null,
         customHeaders: authType === MCP_AUTH_TYPE_CUSTOM_HEADERS ? customHeaders : [],
         enabled: Boolean(rawEnabled),
       },
@@ -5518,7 +5855,7 @@ function App() {
       argsText: mcpServerArgsText,
       envVarsText: mcpServerEnvVarsText,
       authType: mcpServerAuthType,
-      bearerToken: mcpServerBearerToken,
+      bearerTokenSecretId: mcpServerBearerTokenSecretId,
       customHeadersText: mcpServerCustomHeadersText,
       enabled: mcpServerEnabled,
     });
@@ -5545,7 +5882,7 @@ function App() {
       setMcpServerArgsText("");
       setMcpServerEnvVarsText("");
       setMcpServerAuthType(MCP_AUTH_TYPE_NONE);
-      setMcpServerBearerToken("");
+      setMcpServerBearerTokenSecretId("");
       setMcpServerCustomHeadersText("");
       setMcpServerEnabled(true);
       await loadMcpServers();
@@ -5568,7 +5905,7 @@ function App() {
         argsText: "",
         envVarsText: "",
         authType: MCP_AUTH_TYPE_NONE,
-        bearerToken: "",
+        bearerTokenSecretId: "",
         customHeadersText: "",
         enabled: true,
       };
@@ -5611,7 +5948,7 @@ function App() {
       argsText: "",
       envVarsText: "",
       authType: MCP_AUTH_TYPE_NONE,
-      bearerToken: "",
+      bearerTokenSecretId: "",
       customHeadersText: "",
       enabled: true,
     };
@@ -7113,6 +7450,16 @@ function App() {
     return `${mcpServers.length} MCP servers`;
   }, [mcpServers.length]);
 
+  const secretCountLabel = useMemo(() => {
+    if (secrets.length === 0) {
+      return "No secrets";
+    }
+    if (secrets.length === 1) {
+      return "1 secret";
+    }
+    return `${secrets.length} secrets`;
+  }, [secrets.length]);
+
   const runnerCountLabel = useMemo(() => {
     if (agentRunners.length === 0) {
       return "No runners";
@@ -7411,9 +7758,33 @@ function App() {
           />
         ) : null}
 
+        {selectedCompanyId && activePage === "secrets" ? (
+          <SecretsPage
+            secrets={secrets}
+            isLoadingSecrets={isLoadingSecrets}
+            secretError={secretError}
+            isCreatingSecret={isCreatingSecret}
+            savingSecretId={savingSecretId}
+            deletingSecretId={deletingSecretId}
+            secretName={secretName}
+            secretDescription={secretDescription}
+            secretValue={secretValue}
+            secretDrafts={secretDrafts}
+            secretCountLabel={secretCountLabel}
+            onSecretNameChange={setSecretName}
+            onSecretDescriptionChange={setSecretDescription}
+            onSecretValueChange={setSecretValue}
+            onCreateSecret={handleCreateSecret}
+            onSecretDraftChange={handleSecretDraftChange}
+            onSaveSecret={handleSaveSecret}
+            onDeleteSecret={handleDeleteSecret}
+          />
+        ) : null}
+
         {selectedCompanyId && activePage === "mcp-servers" ? (
           <McpServersPage
             selectedCompanyId={selectedCompanyId}
+            secrets={secrets}
             mcpServers={mcpServers}
             isLoadingMcpServers={isLoadingMcpServers}
             mcpServerError={mcpServerError}
@@ -7427,7 +7798,7 @@ function App() {
             mcpServerArgsText={mcpServerArgsText}
             mcpServerEnvVarsText={mcpServerEnvVarsText}
             mcpServerAuthType={mcpServerAuthType}
-            mcpServerBearerToken={mcpServerBearerToken}
+            mcpServerBearerTokenSecretId={mcpServerBearerTokenSecretId}
             mcpServerCustomHeadersText={mcpServerCustomHeadersText}
             mcpServerEnabled={mcpServerEnabled}
             mcpServerDrafts={mcpServerDrafts}
@@ -7441,9 +7812,10 @@ function App() {
             onMcpServerArgsTextChange={setMcpServerArgsText}
             onMcpServerEnvVarsTextChange={setMcpServerEnvVarsText}
             onMcpServerAuthTypeChange={(value: any) => setMcpServerAuthType(normalizeMcpAuthType(value))}
-            onMcpServerBearerTokenChange={setMcpServerBearerToken}
+            onMcpServerBearerTokenSecretIdChange={setMcpServerBearerTokenSecretId}
             onMcpServerCustomHeadersTextChange={setMcpServerCustomHeadersText}
             onMcpServerEnabledChange={setMcpServerEnabled}
+            onOpenSecretsPage={() => navigateTo("secrets")}
             onCreateMcpServer={handleCreateMcpServer}
             onMcpServerDraftChange={handleMcpServerDraftChange}
             onSaveMcpServer={handleSaveMcpServer}

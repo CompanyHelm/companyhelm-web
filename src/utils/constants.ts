@@ -81,6 +81,7 @@ export const NAV_SECTIONS: NavigationSection[] = [
         href: "/gitSkillPackages",
         requiresCompany: true,
       },
+      { id: "secrets", label: "Secrets", href: "/secrets", requiresCompany: true },
       { id: "mcp-servers", label: "MCP Servers", href: "/mcp-servers", requiresCompany: true },
     ],
   },

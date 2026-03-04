@@ -103,9 +103,16 @@ export interface McpServer extends NamedEntity {
   args?: string[];
   envVars?: McpKeyValueEntry[];
   authType?: string;
-  bearerToken?: string;
+  bearerTokenSecretId?: string | null;
   customHeaders?: McpKeyValueEntry[];
   enabled?: boolean;
+}
+
+export interface Secret extends NamedEntity {
+  companyId?: string;
+  description: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Agent extends NamedEntity {
