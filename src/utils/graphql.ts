@@ -727,12 +727,118 @@ export const LIST_MCP_SERVERS_QUERY = `
         value
       }
       authType
-      bearerToken
+      bearerTokenSecretId
       customHeaders {
         key
         value
       }
       enabled
+    }
+  }
+`;
+
+export const LIST_SECRETS_QUERY = `
+  query ListSecrets($companyId: String!) {
+    secrets(companyId: $companyId) {
+      id
+      companyId
+      name
+      description
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const LIST_SECRET_ACCESS_LOGS_QUERY = `
+  query ListSecretAccessLogs($companyId: String!, $secretId: String!, $first: Int) {
+    secretAccessLogs(companyId: $companyId, secretId: $secretId, first: $first) {
+      id
+      companyId
+      secretId
+      threadId
+      agentId
+      mcpServerId
+      accessReason
+      accessedAt
+      agent {
+        id
+        name
+      }
+      thread {
+        id
+        title
+      }
+      mcpServer {
+        id
+        name
+      }
+    }
+  }
+`;
+
+export const CREATE_SECRET_MUTATION = `
+  mutation CreateSecret(
+    $companyId: String!
+    $name: String!
+    $description: String!
+    $value: String!
+  ) {
+    createSecret(
+      companyId: $companyId
+      name: $name
+      description: $description
+      value: $value
+    ) {
+      ok
+      error
+      secret {
+        id
+        companyId
+        name
+        description
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`;
+
+export const UPDATE_SECRET_MUTATION = `
+  mutation UpdateSecret(
+    $companyId: String!
+    $id: String!
+    $name: String!
+    $description: String!
+    $value: String
+  ) {
+    updateSecret(
+      companyId: $companyId
+      id: $id
+      name: $name
+      description: $description
+      value: $value
+    ) {
+      ok
+      error
+      secret {
+        id
+        companyId
+        name
+        description
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`;
+
+export const DELETE_SECRET_MUTATION = `
+  mutation DeleteSecret($companyId: String!, $id: String!) {
+    deleteSecret(companyId: $companyId, id: $id) {
+      ok
+      error
+      deletedSecretId
     }
   }
 `;
@@ -1163,7 +1269,7 @@ export const CREATE_MCP_SERVER_MUTATION = `
     $args: [String!]
     $envVars: [McpEnvVarInput!]
     $authType: String
-    $bearerToken: String
+    $bearerTokenSecretId: ID
     $customHeaders: [McpHeaderInput!]
     $enabled: Boolean
   ) {
@@ -1176,7 +1282,7 @@ export const CREATE_MCP_SERVER_MUTATION = `
       args: $args
       envVars: $envVars
       authType: $authType
-      bearerToken: $bearerToken
+      bearerTokenSecretId: $bearerTokenSecretId
       customHeaders: $customHeaders
       enabled: $enabled
     ) {
@@ -1195,7 +1301,7 @@ export const CREATE_MCP_SERVER_MUTATION = `
           value
         }
         authType
-        bearerToken
+        bearerTokenSecretId
         customHeaders {
           key
           value
@@ -1217,7 +1323,7 @@ export const UPDATE_MCP_SERVER_MUTATION = `
     $args: [String!]
     $envVars: [McpEnvVarInput!]
     $authType: String
-    $bearerToken: String
+    $bearerTokenSecretId: ID
     $customHeaders: [McpHeaderInput!]
     $enabled: Boolean
   ) {
@@ -1231,7 +1337,7 @@ export const UPDATE_MCP_SERVER_MUTATION = `
       args: $args
       envVars: $envVars
       authType: $authType
-      bearerToken: $bearerToken
+      bearerTokenSecretId: $bearerTokenSecretId
       customHeaders: $customHeaders
       enabled: $enabled
     ) {
@@ -1250,7 +1356,7 @@ export const UPDATE_MCP_SERVER_MUTATION = `
           value
         }
         authType
-        bearerToken
+        bearerTokenSecretId
         customHeaders {
           key
           value
@@ -2461,12 +2567,118 @@ export const COMPANY_API_LIST_MCP_SERVERS_QUERY = `
         value
       }
       authType
-      bearerToken
+      bearerTokenSecretId
       customHeaders {
         key
         value
       }
       enabled
+    }
+  }
+`;
+
+export const COMPANY_API_LIST_SECRETS_QUERY = `
+  query CompanyApiListSecrets($companyId: ID!) {
+    secrets(companyId: $companyId) {
+      id
+      companyId
+      name
+      description
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const COMPANY_API_LIST_SECRET_ACCESS_LOGS_QUERY = `
+  query CompanyApiListSecretAccessLogs($companyId: ID!, $secretId: ID!, $first: Int) {
+    secretAccessLogs(companyId: $companyId, secretId: $secretId, first: $first) {
+      id
+      companyId
+      secretId
+      threadId
+      agentId
+      mcpServerId
+      accessReason
+      accessedAt
+      agent {
+        id
+        name
+      }
+      thread {
+        id
+        title
+      }
+      mcpServer {
+        id
+        name
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_CREATE_SECRET_MUTATION = `
+  mutation CompanyApiCreateSecret(
+    $companyId: ID!
+    $name: String!
+    $description: String!
+    $value: String!
+  ) {
+    createSecret(
+      companyId: $companyId
+      name: $name
+      description: $description
+      value: $value
+    ) {
+      ok
+      error
+      secret {
+        id
+        companyId
+        name
+        description
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_UPDATE_SECRET_MUTATION = `
+  mutation CompanyApiUpdateSecret(
+    $companyId: ID!
+    $id: ID!
+    $name: String!
+    $description: String!
+    $value: String
+  ) {
+    updateSecret(
+      companyId: $companyId
+      id: $id
+      name: $name
+      description: $description
+      value: $value
+    ) {
+      ok
+      error
+      secret {
+        id
+        companyId
+        name
+        description
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_DELETE_SECRET_MUTATION = `
+  mutation CompanyApiDeleteSecret($companyId: ID!, $id: ID!) {
+    deleteSecret(companyId: $companyId, id: $id) {
+      ok
+      error
+      deletedSecretId
     }
   }
 `;
@@ -2481,7 +2693,7 @@ export const COMPANY_API_CREATE_MCP_SERVER_MUTATION = `
     $args: [String!]
     $envVars: [McpEnvVarInput!]
     $authType: String
-    $bearerToken: String
+    $bearerTokenSecretId: ID
     $customHeaders: [McpHeaderInput!]
     $enabled: Boolean
   ) {
@@ -2494,7 +2706,7 @@ export const COMPANY_API_CREATE_MCP_SERVER_MUTATION = `
       args: $args
       envVars: $envVars
       authType: $authType
-      bearerToken: $bearerToken
+      bearerTokenSecretId: $bearerTokenSecretId
       customHeaders: $customHeaders
       enabled: $enabled
     ) {
@@ -2513,7 +2725,7 @@ export const COMPANY_API_CREATE_MCP_SERVER_MUTATION = `
           value
         }
         authType
-        bearerToken
+        bearerTokenSecretId
         customHeaders {
           key
           value
@@ -2535,7 +2747,7 @@ export const COMPANY_API_UPDATE_MCP_SERVER_MUTATION = `
     $args: [String!]
     $envVars: [McpEnvVarInput!]
     $authType: String
-    $bearerToken: String
+    $bearerTokenSecretId: ID
     $customHeaders: [McpHeaderInput!]
     $enabled: Boolean
   ) {
@@ -2549,7 +2761,7 @@ export const COMPANY_API_UPDATE_MCP_SERVER_MUTATION = `
       args: $args
       envVars: $envVars
       authType: $authType
-      bearerToken: $bearerToken
+      bearerTokenSecretId: $bearerTokenSecretId
       customHeaders: $customHeaders
       enabled: $enabled
     ) {
@@ -2568,7 +2780,7 @@ export const COMPANY_API_UPDATE_MCP_SERVER_MUTATION = `
           value
         }
         authType
-        bearerToken
+        bearerTokenSecretId
         customHeaders {
           key
           value

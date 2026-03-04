@@ -14,6 +14,7 @@ import { useSetPageActions } from "../components/PageActionsContext.tsx";
 
 export function McpServersPage({
   selectedCompanyId,
+  secrets,
   mcpServers,
   isLoadingMcpServers,
   mcpServerError,
@@ -27,7 +28,7 @@ export function McpServersPage({
   mcpServerArgsText,
   mcpServerEnvVarsText,
   mcpServerAuthType,
-  mcpServerBearerToken,
+  mcpServerBearerTokenSecretId,
   mcpServerCustomHeadersText,
   mcpServerEnabled,
   mcpServerDrafts,
@@ -39,9 +40,10 @@ export function McpServersPage({
   onMcpServerArgsTextChange,
   onMcpServerEnvVarsTextChange,
   onMcpServerAuthTypeChange,
-  onMcpServerBearerTokenChange,
+  onMcpServerBearerTokenSecretIdChange,
   onMcpServerCustomHeadersTextChange,
   onMcpServerEnabledChange,
+  onOpenSecretsPage,
   onCreateMcpServer,
   onMcpServerDraftChange,
   onSaveMcpServer,
@@ -49,6 +51,10 @@ export function McpServersPage({
 }: any) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState<any>(false);
   const [editingMcpServerId, setEditingMcpServerId] = useState<any>("");
+  const createFlowRequiresSecret =
+    mcpServerTransportType !== MCP_TRANSPORT_TYPE_STDIO
+    && mcpServerAuthType === MCP_AUTH_TYPE_BEARER_TOKEN
+    && secrets.length === 0;
 
   const pageActions = useMemo(() => (
     <>
@@ -106,7 +112,7 @@ export function McpServersPage({
                 argsText: "",
                 envVarsText: "",
                 authType: MCP_AUTH_TYPE_NONE,
-                bearerToken: "",
+                bearerTokenSecretId: "",
                 customHeadersText: "",
                 enabled: true,
               };
@@ -254,14 +260,39 @@ export function McpServersPage({
                 ))}
               </select>
 
-              <label htmlFor="create-mcp-token">Bearer token</label>
-              <input
-                id="create-mcp-token"
-                value={mcpServerBearerToken}
-                onChange={(event: any) => onMcpServerBearerTokenChange(event.target.value)}
-                placeholder="Token value only"
-                disabled={mcpServerAuthType !== MCP_AUTH_TYPE_BEARER_TOKEN}
-              />
+              {mcpServerAuthType === MCP_AUTH_TYPE_BEARER_TOKEN ? (
+                <>
+                  {secrets.length === 0 ? (
+                    <p className="error-banner">
+                      Bearer token auth requires a secret. Create a secret first, then select it here.
+                    </p>
+                  ) : (
+                    <>
+                      <label htmlFor="create-mcp-token-secret">Bearer token secret</label>
+                      <select
+                        id="create-mcp-token-secret"
+                        value={mcpServerBearerTokenSecretId}
+                        onChange={(event: any) => onMcpServerBearerTokenSecretIdChange(event.target.value)}
+                      >
+                        <option value="">Select a secret</option>
+                        {secrets.map((secret: any) => (
+                          <option key={`create-mcp-secret-${secret.id}`} value={secret.id}>
+                            {secret.name}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="chat-card-meta">Select an existing company secret.</p>
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    className="secondary-btn"
+                    onClick={onOpenSecretsPage}
+                  >
+                    {secrets.length === 0 ? "Create secret" : "Manage secrets"}
+                  </button>
+                </>
+              ) : null}
 
               <label htmlFor="create-mcp-headers">Custom headers</label>
               <textarea
@@ -285,9 +316,12 @@ export function McpServersPage({
             Enable this MCP server
           </label>
 
-          <button type="submit" disabled={isCreatingMcpServer}>
+          <button type="submit" disabled={isCreatingMcpServer || createFlowRequiresSecret}>
             {isCreatingMcpServer ? "Creating..." : "Create MCP server"}
           </button>
+          {createFlowRequiresSecret ? (
+            <p className="chat-card-meta">Create a secret first to use Bearer token auth.</p>
+          ) : null}
         </form>
       </CreationModal>
 
@@ -312,13 +346,17 @@ export function McpServersPage({
             argsText: "",
             envVarsText: "",
             authType: MCP_AUTH_TYPE_NONE,
-            bearerToken: "",
+            bearerTokenSecretId: "",
             customHeadersText: "",
             enabled: true,
           };
           const isSavingOrDeleting =
             savingMcpServerId === editingMcpServerId ||
             deletingMcpServerId === editingMcpServerId;
+          const requiresSecretCreation =
+            draft.transportType !== MCP_TRANSPORT_TYPE_STDIO
+            && draft.authType === MCP_AUTH_TYPE_BEARER_TOKEN
+            && secrets.length === 0;
 
           return (
             <div className="chat-settings-modal-form">
@@ -453,20 +491,42 @@ export function McpServersPage({
 
                   {draft.authType === MCP_AUTH_TYPE_BEARER_TOKEN ? (
                     <div className="chat-settings-field">
-                      <label htmlFor={`edit-mcp-token-${editingMcpServerId}`} className="chat-settings-label">
-                        Bearer token
-                      </label>
-                      <input
-                        id={`edit-mcp-token-${editingMcpServerId}`}
-                        className="chat-settings-input"
-                        type="text"
-                        value={draft.bearerToken}
-                        onChange={(event: any) =>
-                          onMcpServerDraftChange(editingMcpServerId, "bearerToken", event.target.value)
-                        }
-                        placeholder="Token value only"
+                      {secrets.length === 0 ? (
+                        <p className="error-banner">
+                          Bearer token auth requires a secret. Create a secret first, then select it here.
+                        </p>
+                      ) : (
+                        <>
+                          <label htmlFor={`edit-mcp-token-secret-${editingMcpServerId}`} className="chat-settings-label">
+                            Bearer token secret
+                          </label>
+                          <select
+                            id={`edit-mcp-token-secret-${editingMcpServerId}`}
+                            className="chat-settings-input"
+                            value={draft.bearerTokenSecretId}
+                            onChange={(event: any) =>
+                              onMcpServerDraftChange(editingMcpServerId, "bearerTokenSecretId", event.target.value)
+                            }
+                            disabled={isSavingOrDeleting}
+                          >
+                            <option value="">Select a secret</option>
+                            {secrets.map((secret: any) => (
+                              <option key={`edit-mcp-secret-${editingMcpServerId}-${secret.id}`} value={secret.id}>
+                                {secret.name}
+                              </option>
+                            ))}
+                          </select>
+                          <p className="chat-card-meta">Select an existing company secret.</p>
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        className="secondary-btn"
+                        onClick={onOpenSecretsPage}
                         disabled={isSavingOrDeleting}
-                      />
+                      >
+                        {secrets.length === 0 ? "Create secret" : "Manage secrets"}
+                      </button>
                     </div>
                   ) : null}
 
@@ -520,7 +580,7 @@ export function McpServersPage({
                     onSaveMcpServer(editingMcpServerId);
                     setEditingMcpServerId("");
                   }}
-                  disabled={isSavingOrDeleting}
+                  disabled={isSavingOrDeleting || requiresSecretCreation}
                 >
                   {savingMcpServerId === editingMcpServerId ? "Saving..." : "Save"}
                 </button>
