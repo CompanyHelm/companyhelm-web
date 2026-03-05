@@ -1,5 +1,4 @@
 import {
-  useMemo,
   useState,
   type ChangeEvent,
   type FormEvent,
@@ -13,7 +12,6 @@ import type {
   Company,
   GithubInstallCallback,
   GithubInstallation,
-  GithubRepository,
 } from "../types/domain.ts";
 
 interface SettingsPageProps {
@@ -31,17 +29,13 @@ interface SettingsPageProps {
   isLoadingGithubAppConfig: boolean;
   githubAppConfigError: string;
   githubInstallations: GithubInstallation[];
-  githubRepositories: GithubRepository[];
   isLoadingGithubInstallations: boolean;
-  isLoadingGithubRepositories: boolean;
   githubInstallationError: string;
   githubInstallationNotice: string;
   isAddingGithubInstallationFromCallback: boolean;
   pendingGithubInstallCallback: GithubInstallCallback | null;
   deletingGithubInstallationId: string;
-  refreshingGithubInstallationId: string;
   onDeleteGithubInstallation: (installationId: string) => void;
-  onRefreshGithubInstallationRepositories: (installationId: string) => void;
 }
 
 export function SettingsPage({
@@ -59,32 +53,15 @@ export function SettingsPage({
   isLoadingGithubAppConfig,
   githubAppConfigError,
   githubInstallations,
-  githubRepositories,
   isLoadingGithubInstallations,
-  isLoadingGithubRepositories,
   githubInstallationError,
   githubInstallationNotice,
   isAddingGithubInstallationFromCallback,
   pendingGithubInstallCallback,
   deletingGithubInstallationId,
-  refreshingGithubInstallationId,
   onDeleteGithubInstallation,
-  onRefreshGithubInstallationRepositories,
 }: SettingsPageProps) {
   const [isCreateCompanyModalOpen, setIsCreateCompanyModalOpen] = useState(false);
-  const repositoriesByInstallationId = useMemo(() => (
-    githubRepositories.reduce<Record<string, GithubRepository[]>>((grouped, repository) => {
-      const installationId = String(repository.githubInstallationId || "").trim();
-      if (!installationId) {
-        return grouped;
-      }
-      if (!grouped[installationId]) {
-        grouped[installationId] = [];
-      }
-      grouped[installationId].push(repository);
-      return grouped;
-    }, {})
-  ), [githubRepositories]);
 
   async function handleCreateCompanySubmit(event: FormEvent<HTMLFormElement>) {
     const didCreate = await onCreateCompany(event);
@@ -185,9 +162,7 @@ export function SettingsPage({
           {githubInstallations.length > 0 ? (
             <ul className="chat-card-list">
               {githubInstallations.map((installation) => {
-                const isBusy =
-                  refreshingGithubInstallationId === installation.installationId ||
-                  deletingGithubInstallationId === installation.installationId;
+                const isBusy = deletingGithubInstallationId === installation.installationId;
                 return (
                   <li key={`github-installation-${installation.installationId}`} className="chat-card">
                     <div className="chat-card-content">
@@ -196,24 +171,6 @@ export function SettingsPage({
                         ID: {installation.installationId} &middot; Linked {formatTimestamp(installation.createdAt)}
                       </span>
                     </div>
-                    <button
-                      type="button"
-                      className="chat-card-icon-btn"
-                      aria-label="Refresh repos"
-                      title={refreshingGithubInstallationId === installation.installationId ? "Refreshing..." : "Refresh repos"}
-                      disabled={isBusy}
-                      onClick={(event: MouseEvent<HTMLButtonElement>) => {
-                        event.stopPropagation();
-                        onRefreshGithubInstallationRepositories(installation.installationId);
-                      }}
-                    >
-                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                        <polyline points="23 4 23 10 17 10" />
-                        <polyline points="1 20 1 14 7 14" />
-                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10" />
-                        <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14" />
-                      </svg>
-                    </button>
                     <button
                       type="button"
                       className="chat-card-icon-btn chat-card-icon-btn-danger"
@@ -233,77 +190,6 @@ export function SettingsPage({
                         <path d="M9 6V4h6v2" />
                       </svg>
                     </button>
-                  </li>
-                );
-              })}
-            </ul>
-          ) : null}
-        </section>
-      ) : null}
-
-      {hasCompanies ? (
-        <section className="panel">
-          <header className="panel-header">
-            <h2>Repos</h2>
-          </header>
-          <p className="subcopy">Repositories linked through this company's GitHub installations.</p>
-          {isLoadingGithubRepositories ? (
-            <p className="empty-hint">Loading repositories...</p>
-          ) : null}
-          {!isLoadingGithubRepositories && githubRepositories.length === 0 ? (
-            <p className="empty-hint">No repositories imported yet. Refresh an installation above.</p>
-          ) : null}
-          {githubInstallations.length > 0 ? (
-            <ul className="chat-card-list">
-              {githubInstallations.map((installation) => {
-                const installationRepositories =
-                  repositoriesByInstallationId[installation.installationId] || [];
-                const isRefreshing = refreshingGithubInstallationId === installation.installationId;
-                return (
-                  <li
-                    key={`repo-installation-${installation.installationId}`}
-                    className="chat-card"
-                  >
-                    <div className="chat-card-content">
-                      <strong>{installation.accountLogin || `Installation ${installation.installationId}`}</strong>
-                      <span className="chat-card-meta">{installationRepositories.length} repos</span>
-                    </div>
-                    <button
-                      type="button"
-                      className="chat-card-icon-btn"
-                      aria-label="Refresh repos"
-                      title={isRefreshing ? "Refreshing..." : "Refresh repos"}
-                      disabled={isRefreshing}
-                      onClick={(event: MouseEvent<HTMLButtonElement>) => {
-                        event.stopPropagation();
-                        onRefreshGithubInstallationRepositories(installation.installationId);
-                      }}
-                    >
-                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                        <polyline points="23 4 23 10 17 10" />
-                        <polyline points="1 20 1 14 7 14" />
-                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10" />
-                        <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14" />
-                      </svg>
-                    </button>
-                    {installationRepositories.length === 0 ? (
-                      <p className="empty-hint">No repos cached for this installation.</p>
-                    ) : (
-                      <ul className="repo-list">
-                        {installationRepositories.map((repository) => (
-                          <li key={repository.id} className="repo-list-item">
-                            <a
-                              href={repository.htmlUrl || undefined}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              {repository.fullName}
-                            </a>
-                            <code>{repository.defaultBranch || "no-default-branch"}</code>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
                   </li>
                 );
               })}
