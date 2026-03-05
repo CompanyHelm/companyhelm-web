@@ -2375,6 +2375,80 @@ button:disabled {
   white-space: nowrap;
 }
 
+.chat-thread-task-summary {
+  margin-top: 0.16rem;
+  display: grid;
+  gap: 0.14rem;
+}
+
+.chat-thread-task-row {
+  display: flex;
+  align-items: center;
+  gap: 0.32rem;
+  min-width: 0;
+}
+
+.chat-thread-task-name {
+  min-width: 0;
+  flex: 1;
+  font-size: 0.68rem;
+  color: var(--ink-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-thread-task-summary .task-status-pill {
+  font-size: 0.56rem;
+  line-height: 1.1;
+  padding: 0.04rem 0.36rem;
+}
+
+.chat-thread-task-more-btn {
+  justify-self: start;
+  border: 1px solid rgba(26, 32, 38, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--ink-1);
+  font-size: 0.64rem;
+  padding: 0.07rem 0.44rem;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.chat-thread-task-more-btn:hover {
+  border-color: rgba(15, 118, 110, 0.45);
+  color: var(--action);
+  background: rgba(15, 118, 110, 0.08);
+}
+
+.chat-thread-task-modal-list {
+  margin-top: 0.35rem;
+}
+
+.chat-thread-task-modal-item {
+  display: block;
+}
+
+.chat-thread-task-modal-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  width: 100%;
+}
+
+.chat-thread-task-modal-name {
+  margin: 0;
+  min-width: 0;
+  flex: 1;
+  font-size: 0.88rem;
+  color: var(--ink-0);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .chat-thread-error-text {
   margin: 0.16rem 0 0;
   font-size: 0.68rem;

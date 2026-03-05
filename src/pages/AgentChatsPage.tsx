@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Page } from "../components/Page.tsx";
 import { CreationModal } from "../components/CreationModal.tsx";
 import { AgentEditModal } from "../components/AgentEditModal.tsx";
+import { ThreadTaskSummary } from "../components/ThreadTaskSummary.tsx";
 import { isChatSessionRunning } from "../utils/chat.ts";
 import { formatRunnerLabel, formatTimestamp } from "../utils/formatting.ts";
 import { normalizeUniqueStringList } from "../utils/normalization.ts";
@@ -438,6 +439,11 @@ export function AgentChatsPage({
                             <p className="agent-detail-chat-item-meta">
                               {formatTimestamp(session.updatedAt)} · {modelLabel} · {reasoningLabel}
                             </p>
+                            <ThreadTaskSummary
+                              tasks={session?.tasks}
+                              threadTitle={session?.title}
+                              modalId={`agent-chats-${agent.id}-${session.id}`}
+                            />
                             {isError && threadErrorMessage ? (
                               <p className="chat-thread-error-text">{threadErrorMessage}</p>
                             ) : null}

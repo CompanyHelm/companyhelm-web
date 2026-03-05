@@ -3187,6 +3187,13 @@ export const COMPANY_API_LIST_AGENTS_WITH_THREADS_CONNECTION_QUERY = `
                 status
                 errorMessage
                 currentReasoningLevel
+                tasks {
+                  id
+                  name
+                  status
+                  createdAt
+                  updatedAt
+                }
                 company {
                   id
                 }
@@ -3326,6 +3333,13 @@ export const COMPANY_API_LIST_THREADS_CONNECTION_QUERY = `
           status
           errorMessage
           currentReasoningLevel
+          tasks {
+            id
+            name
+            status
+            createdAt
+            updatedAt
+          }
           company {
             id
           }
