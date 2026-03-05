@@ -151,6 +151,14 @@ export const LIST_TASKS_QUERY = `
       description
       acceptanceCriteria
       assigneePrincipalId
+      assigneePrincipal {
+        id
+        kind
+        displayName
+        agentId
+        userId
+        email
+      }
       threadId
       parentTaskId
       status
@@ -163,9 +171,30 @@ export const LIST_TASKS_QUERY = `
         companyId
         comment
         authorPrincipalId
+        authorPrincipal {
+          id
+          kind
+          displayName
+          agentId
+          userId
+          email
+        }
         createdAt
         updatedAt
       }
+    }
+  }
+`;
+
+export const LIST_TASK_ASSIGNABLE_PRINCIPALS_QUERY = `
+  query ListTaskAssignablePrincipals($companyId: String!) {
+    taskAssignablePrincipals(companyId: $companyId) {
+      id
+      kind
+      displayName
+      agentId
+      userId
+      email
     }
   }
 `;
@@ -917,6 +946,7 @@ export const CREATE_TASK_MUTATION = `
     $description: String
     $acceptanceCriteria: String
     $status: TaskStatus
+    $assigneePrincipalId: ID
     $parentTaskId: ID
     $dependencyTaskIds: [ID!]
   ) {
@@ -926,6 +956,7 @@ export const CREATE_TASK_MUTATION = `
       description: $description
       acceptanceCriteria: $acceptanceCriteria
       status: $status
+      assigneePrincipalId: $assigneePrincipalId
       parentTaskId: $parentTaskId
       dependencyTaskIds: $dependencyTaskIds
     ) {
@@ -940,6 +971,14 @@ export const CREATE_TASK_MUTATION = `
         description
         acceptanceCriteria
         assigneePrincipalId
+        assigneePrincipal {
+          id
+          kind
+          displayName
+          agentId
+          userId
+          email
+        }
         threadId
         parentTaskId
         status
@@ -952,6 +991,14 @@ export const CREATE_TASK_MUTATION = `
           companyId
           comment
           authorPrincipalId
+          authorPrincipal {
+            id
+            kind
+            displayName
+            agentId
+            userId
+            email
+          }
           createdAt
           updatedAt
         }
@@ -978,6 +1025,14 @@ export const ADD_TASK_DEPENDENCY_MUTATION = `
         description
         acceptanceCriteria
         assigneePrincipalId
+        assigneePrincipal {
+          id
+          kind
+          displayName
+          agentId
+          userId
+          email
+        }
         threadId
         parentTaskId
         status
@@ -990,6 +1045,14 @@ export const ADD_TASK_DEPENDENCY_MUTATION = `
           companyId
           comment
           authorPrincipalId
+          authorPrincipal {
+            id
+            kind
+            displayName
+            agentId
+            userId
+            email
+          }
           createdAt
           updatedAt
         }
@@ -1016,6 +1079,14 @@ export const REMOVE_TASK_DEPENDENCY_MUTATION = `
         description
         acceptanceCriteria
         assigneePrincipalId
+        assigneePrincipal {
+          id
+          kind
+          displayName
+          agentId
+          userId
+          email
+        }
         threadId
         parentTaskId
         status
@@ -1028,6 +1099,14 @@ export const REMOVE_TASK_DEPENDENCY_MUTATION = `
           companyId
           comment
           authorPrincipalId
+          authorPrincipal {
+            id
+            kind
+            displayName
+            agentId
+            userId
+            email
+          }
           createdAt
           updatedAt
         }
@@ -1054,6 +1133,14 @@ export const SET_TASK_PARENT_MUTATION = `
         description
         acceptanceCriteria
         assigneePrincipalId
+        assigneePrincipal {
+          id
+          kind
+          displayName
+          agentId
+          userId
+          email
+        }
         threadId
         parentTaskId
         status
@@ -1066,9 +1153,53 @@ export const SET_TASK_PARENT_MUTATION = `
           companyId
           comment
           authorPrincipalId
+          authorPrincipal {
+            id
+            kind
+            displayName
+            agentId
+            userId
+            email
+          }
           createdAt
           updatedAt
         }
+      }
+    }
+  }
+`;
+
+export const SET_TASK_ASSIGNEE_PRINCIPAL_MUTATION = `
+  mutation SetTaskAssigneePrincipal($companyId: ID!, $taskId: ID!, $assigneePrincipalId: ID) {
+    setTaskAssigneePrincipal(
+      companyId: $companyId
+      taskId: $taskId
+      assigneePrincipalId: $assigneePrincipalId
+    ) {
+      ok
+      error
+      task {
+        id
+        assigneePrincipalId
+        status
+      }
+    }
+  }
+`;
+
+export const SET_TASK_STATUS_MUTATION = `
+  mutation SetTaskStatus($companyId: ID!, $taskId: ID!, $status: TaskStatus!) {
+    setTaskStatus(
+      companyId: $companyId
+      taskId: $taskId
+      status: $status
+    ) {
+      ok
+      error
+      task {
+        id
+        assigneePrincipalId
+        status
       }
     }
   }
@@ -1108,6 +1239,14 @@ export const BATCH_EXECUTE_TASKS_MUTATION = `
         description
         acceptanceCriteria
         assigneePrincipalId
+        assigneePrincipal {
+          id
+          kind
+          displayName
+          agentId
+          userId
+          email
+        }
         threadId
         parentTaskId
         status
@@ -1120,6 +1259,14 @@ export const BATCH_EXECUTE_TASKS_MUTATION = `
           companyId
           comment
           authorPrincipalId
+          authorPrincipal {
+            id
+            kind
+            displayName
+            agentId
+            userId
+            email
+          }
           createdAt
           updatedAt
         }
@@ -1139,6 +1286,14 @@ export const CREATE_TASK_COMMENT_MUTATION = `
         companyId
         comment
         authorPrincipalId
+        authorPrincipal {
+          id
+          kind
+          displayName
+          agentId
+          userId
+          email
+        }
         createdAt
         updatedAt
       }
@@ -2033,6 +2188,14 @@ export const COMPANY_API_LIST_TASKS_QUERY = `
       description
       acceptanceCriteria
       assigneePrincipalId
+      assigneePrincipal {
+        id
+        kind
+        displayName
+        agentId
+        userId
+        email
+      }
       threadId
       parentTaskId
       status
@@ -2045,12 +2208,33 @@ export const COMPANY_API_LIST_TASKS_QUERY = `
         companyId
         comment
         authorPrincipalId
+        authorPrincipal {
+          id
+          kind
+          displayName
+          agentId
+          userId
+          email
+        }
         createdAt
         updatedAt
       }
       company {
         id
       }
+    }
+  }
+`;
+
+export const COMPANY_API_LIST_TASK_ASSIGNABLE_PRINCIPALS_QUERY = `
+  query CompanyApiListTaskAssignablePrincipals($companyId: ID!) {
+    taskAssignablePrincipals(companyId: $companyId) {
+      id
+      kind
+      displayName
+      agentId
+      userId
+      email
     }
   }
 `;
@@ -2062,6 +2246,7 @@ export const COMPANY_API_CREATE_TASK_MUTATION = `
     $description: String
     $acceptanceCriteria: String
     $status: TaskStatus
+    $assigneePrincipalId: ID
     $parentTaskId: ID
     $dependencyTaskIds: [ID!]
   ) {
@@ -2071,6 +2256,7 @@ export const COMPANY_API_CREATE_TASK_MUTATION = `
       description: $description
       acceptanceCriteria: $acceptanceCriteria
       status: $status
+      assigneePrincipalId: $assigneePrincipalId
       parentTaskId: $parentTaskId
       dependencyTaskIds: $dependencyTaskIds
     ) {
@@ -2082,6 +2268,14 @@ export const COMPANY_API_CREATE_TASK_MUTATION = `
         description
         acceptanceCriteria
         assigneePrincipalId
+        assigneePrincipal {
+          id
+          kind
+          displayName
+          agentId
+          userId
+          email
+        }
         threadId
         parentTaskId
         status
@@ -2094,6 +2288,14 @@ export const COMPANY_API_CREATE_TASK_MUTATION = `
           companyId
           comment
           authorPrincipalId
+          authorPrincipal {
+            id
+            kind
+            displayName
+            agentId
+            userId
+            email
+          }
           createdAt
           updatedAt
         }
@@ -2160,6 +2362,14 @@ export const COMPANY_API_SET_TASK_PARENT_MUTATION = `
         description
         acceptanceCriteria
         assigneePrincipalId
+        assigneePrincipal {
+          id
+          kind
+          displayName
+          agentId
+          userId
+          email
+        }
         threadId
         parentTaskId
         status
@@ -2172,12 +2382,60 @@ export const COMPANY_API_SET_TASK_PARENT_MUTATION = `
           companyId
           comment
           authorPrincipalId
+          authorPrincipal {
+            id
+            kind
+            displayName
+            agentId
+            userId
+            email
+          }
           createdAt
           updatedAt
         }
         company {
           id
         }
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_SET_TASK_ASSIGNEE_PRINCIPAL_MUTATION = `
+  mutation CompanyApiSetTaskAssigneePrincipal(
+    $companyId: ID!
+    $taskId: ID!
+    $assigneePrincipalId: ID
+  ) {
+    setTaskAssigneePrincipal(
+      companyId: $companyId
+      taskId: $taskId
+      assigneePrincipalId: $assigneePrincipalId
+    ) {
+      ok
+      error
+      task {
+        id
+        assigneePrincipalId
+        status
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_SET_TASK_STATUS_MUTATION = `
+  mutation CompanyApiSetTaskStatus($companyId: ID!, $taskId: ID!, $status: TaskStatus!) {
+    setTaskStatus(
+      companyId: $companyId
+      taskId: $taskId
+      status: $status
+    ) {
+      ok
+      error
+      task {
+        id
+        assigneePrincipalId
+        status
       }
     }
   }
@@ -2214,6 +2472,14 @@ export const COMPANY_API_BATCH_EXECUTE_TASKS_MUTATION = `
         description
         acceptanceCriteria
         assigneePrincipalId
+        assigneePrincipal {
+          id
+          kind
+          displayName
+          agentId
+          userId
+          email
+        }
         threadId
         parentTaskId
         status
@@ -2226,6 +2492,14 @@ export const COMPANY_API_BATCH_EXECUTE_TASKS_MUTATION = `
           companyId
           comment
           authorPrincipalId
+          authorPrincipal {
+            id
+            kind
+            displayName
+            agentId
+            userId
+            email
+          }
           createdAt
           updatedAt
         }
@@ -2248,6 +2522,14 @@ export const COMPANY_API_CREATE_TASK_COMMENT_MUTATION = `
         companyId
         comment
         authorPrincipalId
+        authorPrincipal {
+          id
+          kind
+          displayName
+          agentId
+          userId
+          email
+        }
         createdAt
         updatedAt
       }

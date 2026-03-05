@@ -7,6 +7,7 @@ import { TaskCreateModal } from "../components/TaskCreateModal.tsx";
 import { TaskEditModal } from "../components/TaskEditModal.tsx";
 import type {
   Agent,
+  Principal,
   TaskItem,
   TaskRelationshipDraftById,
 } from "../types/domain.ts";
@@ -15,6 +16,7 @@ interface TasksPageProps {
   selectedCompanyId: string;
   tasks: TaskItem[];
   agents: Agent[];
+  principals: Principal[];
   isLoadingTasks: boolean;
   taskError: string;
   isSubmittingTask: boolean;
@@ -23,12 +25,16 @@ interface TasksPageProps {
   deletingTaskId: string | null;
   name: string;
   description: string;
+  assigneePrincipalId: string;
+  status: string;
   parentTaskId: string;
   dependencyTaskIds: string[];
   relationshipDrafts: TaskRelationshipDraftById;
   taskCountLabel: string;
   onNameChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
+  onAssigneePrincipalIdChange: (value: string) => void;
+  onStatusChange: (value: string) => void;
   onParentTaskIdChange: (value: string) => void;
   onDependencyTaskIdsChange: (value: string[]) => void;
   onCreateTask: (event: FormEvent<HTMLFormElement>) => Promise<boolean> | boolean;
@@ -48,6 +54,7 @@ export function TasksPage({
   selectedCompanyId,
   tasks,
   agents,
+  principals,
   isLoadingTasks,
   taskError,
   isSubmittingTask,
@@ -56,12 +63,16 @@ export function TasksPage({
   deletingTaskId,
   name,
   description,
+  assigneePrincipalId,
+  status,
   parentTaskId,
   dependencyTaskIds,
   relationshipDrafts,
   taskCountLabel,
   onNameChange,
   onDescriptionChange,
+  onAssigneePrincipalIdChange,
+  onStatusChange,
   onParentTaskIdChange,
   onDependencyTaskIdsChange,
   onCreateTask,
@@ -174,13 +185,18 @@ export function TasksPage({
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         tasks={tasks}
+        principals={principals}
         name={name}
         description={description}
+        assigneePrincipalId={assigneePrincipalId}
+        status={status}
         parentTaskId={parentTaskId}
         dependencyTaskIds={dependencyTaskIds}
         isSubmittingTask={isSubmittingTask}
         onNameChange={onNameChange}
         onDescriptionChange={onDescriptionChange}
+        onAssigneePrincipalIdChange={onAssigneePrincipalIdChange}
+        onStatusChange={onStatusChange}
         onParentTaskIdChange={onParentTaskIdChange}
         onDependencyTaskIdsChange={onDependencyTaskIdsChange}
         onCreateTask={onCreateTask}
@@ -191,6 +207,7 @@ export function TasksPage({
       <TaskEditModal
         task={editingTask}
         tasks={tasks}
+        principals={principals}
         relationshipDraft={relationshipDrafts[editingTaskId]}
         savingTaskId={savingTaskId}
         commentingTaskId={commentingTaskId}

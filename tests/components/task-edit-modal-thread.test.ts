@@ -18,10 +18,19 @@ function renderTaskEditModalMarkup(taskOverrides: Record<string, unknown> = {}, 
     React.createElement(TaskEditModal, {
       task,
       tasks: [task],
+      principals: [
+        {
+          id: "principal-user-1",
+          kind: "user",
+          displayName: "Jane Doe",
+        },
+      ],
       relationshipDraft: {
         dependencyTaskIds: [],
         parentTaskId: "",
         childTaskIds: [],
+        assigneePrincipalId: "",
+        status: "draft",
       },
       savingTaskId: null,
       commentingTaskId: null,
@@ -47,4 +56,31 @@ test("TaskEditModal shows the thread id and open action when task thread exists"
 
   assert.match(markup, /thread-123/);
   assert.match(markup, /Open thread chat/);
+});
+
+test("TaskEditModal shows assignee and status controls", () => {
+  const markup = renderTaskEditModalMarkup();
+
+  assert.match(markup, />Assignee</);
+  assert.match(markup, />Status</);
+});
+
+test("TaskEditModal shows comment creator principal and type badge", () => {
+  const markup = renderTaskEditModalMarkup({
+    comments: [
+      {
+        id: "comment-1",
+        comment: "Needs review",
+        createdAt: "2026-03-05T08:00:00.000Z",
+        authorPrincipal: {
+          id: "principal-user-1",
+          kind: "user",
+          displayName: "Jane Doe",
+        },
+      },
+    ],
+  });
+
+  assert.match(markup, /Jane Doe/);
+  assert.match(markup, /Human/);
 });

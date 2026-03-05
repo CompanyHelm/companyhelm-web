@@ -6,10 +6,10 @@ test("buildTaskExecutionPlan uses task assignees first and fallback for unassign
   const executionPlan = buildTaskExecutionPlan({
     taskIds: ["task-1", "task-2", "task-3", "task-4"],
     tasks: [
-      { id: "task-1", assigneePrincipalId: "agent-a" },
-      { id: "task-2", assigneePrincipalId: "" },
-      { id: "task-3", assigneePrincipalId: "agent-b" },
-      { id: "task-4", assigneePrincipalId: null },
+      { id: "task-1", assigneeAgentId: "agent-a" },
+      { id: "task-2", assigneeAgentId: "" },
+      { id: "task-3", assigneeAgentId: "agent-b" },
+      { id: "task-4", assigneeAgentId: null },
     ],
     fallbackAgentId: " fallback-agent ",
   });
@@ -28,8 +28,8 @@ test("buildTaskExecutionPlan marks tasks as missing when there is no assignee an
   const executionPlan = buildTaskExecutionPlan({
     taskIds: ["task-1", "task-2"],
     tasks: [
-      { id: "task-1", assigneePrincipalId: "agent-a" },
-      { id: "task-2", assigneePrincipalId: "" },
+      { id: "task-1", assigneeAgentId: "agent-a" },
+      { id: "task-2", assigneeAgentId: "" },
     ],
     fallbackAgentId: "",
   });
@@ -44,8 +44,8 @@ test("buildTaskExecutionPlan normalizes task ids and treats unknown task ids as 
   const executionPlan = buildTaskExecutionPlan({
     taskIds: [" task-1 ", "task-1", "task-2", "task-3"],
     tasks: [
-      { id: "task-1", assigneePrincipalId: "agent-a" },
-      { id: "task-2", assigneePrincipalId: "agent-b" },
+      { id: "task-1", assigneeAgentId: "agent-a" },
+      { id: "task-2", assigneeAgentId: "agent-b" },
     ],
     fallbackAgentId: "fallback-agent",
   });
@@ -56,5 +56,21 @@ test("buildTaskExecutionPlan normalizes task ids and treats unknown task ids as 
       { agentId: "agent-a", taskIds: ["task-1"] },
       { agentId: "agent-b", taskIds: ["task-2"] },
     ],
+  });
+});
+
+test("buildTaskExecutionPlan treats user-assigned tasks as missing without fallback", () => {
+  const executionPlan = buildTaskExecutionPlan({
+    taskIds: ["task-1", "task-2"],
+    tasks: [
+      { id: "task-1", assigneeAgentId: null },
+      { id: "task-2", assigneeAgentId: "agent-b" },
+    ],
+    fallbackAgentId: "",
+  });
+
+  assert.deepEqual(executionPlan, {
+    missingTaskIds: ["task-1"],
+    groups: [{ agentId: "agent-b", taskIds: ["task-2"] }],
   });
 });
