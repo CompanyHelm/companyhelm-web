@@ -22,6 +22,8 @@ export function createRelationshipDrafts(tasks: unknown): Record<string, {
   dependencyTaskIds: string[];
   parentTaskId: string;
   childTaskIds: string[];
+  assigneePrincipalId: string;
+  status: string;
 }> {
   const taskList = Array.isArray(tasks) ? tasks.map(toRecord) : [];
   const childTaskIdsByParentTaskId = new Map<string, string[]>();
@@ -40,7 +42,13 @@ export function createRelationshipDrafts(tasks: unknown): Record<string, {
     }
   }
 
-  return taskList.reduce<Record<string, { dependencyTaskIds: string[]; parentTaskId: string; childTaskIds: string[] }>>((drafts, task) => {
+  return taskList.reduce<Record<string, {
+    dependencyTaskIds: string[];
+    parentTaskId: string;
+    childTaskIds: string[];
+    assigneePrincipalId: string;
+    status: string;
+  }>>((drafts, task) => {
     const taskId = String(task?.id || "").trim();
     if (!taskId) {
       return drafts;
@@ -51,6 +59,8 @@ export function createRelationshipDrafts(tasks: unknown): Record<string, {
         .filter((dependencyTaskId) => dependencyTaskId !== taskId),
       parentTaskId: String(task?.parentTaskId || "").trim(),
       childTaskIds: normalizeUniqueStringList(childTaskIdsByParentTaskId.get(taskId) || []),
+      assigneePrincipalId: String(task?.assigneePrincipalId || "").trim(),
+      status: String(task?.status || "").trim() || "draft",
     };
     return drafts;
   }, {});

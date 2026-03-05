@@ -2,7 +2,7 @@ import { normalizeUniqueStringList } from "./normalization.ts";
 
 interface TaskExecutionPlanTask {
   id: string | number;
-  assigneePrincipalId?: string | null;
+  assigneeAgentId?: string | null;
 }
 
 interface BuildTaskExecutionPlanInput {
@@ -47,7 +47,7 @@ export function buildTaskExecutionPlan({
       missingTaskIds.push(taskId);
       continue;
     }
-    const assignedAgentId = String(task?.assigneePrincipalId || "").trim();
+    const assignedAgentId = String(task?.assigneeAgentId || "").trim();
     const effectiveAgentId = assignedAgentId || normalizedFallbackAgentId;
     if (!effectiveAgentId) {
       missingTaskIds.push(taskId);

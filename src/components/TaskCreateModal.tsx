@@ -11,18 +11,29 @@ interface AgentOption {
   name: string;
 }
 
+interface PrincipalOption {
+  id: string | number;
+  kind: "agent" | "user";
+  displayName: string;
+}
+
 interface TaskCreateModalProps {
   isOpen: boolean;
   onClose: () => void;
   tasks: TaskOption[];
   agents: AgentOption[];
+  principals: PrincipalOption[];
   name: string;
   description: string;
+  assigneePrincipalId: string;
+  status: string;
   parentTaskId: string;
   dependencyTaskIds: string[];
   isSubmittingTask: boolean;
   onNameChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
+  onAssigneePrincipalIdChange: (value: string) => void;
+  onStatusChange: (value: string) => void;
   onParentTaskIdChange: (value: string) => void;
   onDependencyTaskIdsChange: (value: string[]) => void;
   onCreateTask: (event: FormEvent<HTMLFormElement>) => Promise<boolean> | boolean;
@@ -34,13 +45,18 @@ export function TaskCreateModal({
   onClose,
   tasks,
   agents,
+  principals,
   name,
   description,
+  assigneePrincipalId,
+  status,
   parentTaskId,
   dependencyTaskIds,
   isSubmittingTask,
   onNameChange,
   onDescriptionChange,
+  onAssigneePrincipalIdChange,
+  onStatusChange,
   onParentTaskIdChange,
   onDependencyTaskIdsChange,
   onCreateTask,
@@ -95,7 +111,36 @@ export function TaskCreateModal({
           onChange={(event: ChangeEvent<HTMLTextAreaElement>) => onDescriptionChange(event.target.value)}
         />
 
-        <label htmlFor="task-agent">Agent</label>
+        <label htmlFor="task-assignee">Assignee</label>
+        <select
+          id="task-assignee"
+          name="assigneePrincipalId"
+          value={String(assigneePrincipalId || "")}
+          onChange={(event: ChangeEvent<HTMLSelectElement>) => onAssigneePrincipalIdChange(event.target.value)}
+        >
+          <option value="">Unassigned</option>
+          {principals.map((principal) => (
+            <option key={`create-assignee-${principal.id}`} value={String(principal.id)}>
+              {principal.displayName} ({principal.kind === "agent" ? "Agent" : "Human"})
+            </option>
+          ))}
+        </select>
+        <p className="chat-card-meta">Assign this task to an agent or teammate.</p>
+
+        <label htmlFor="task-status">Status</label>
+        <select
+          id="task-status"
+          name="status"
+          value={String(status || "draft")}
+          onChange={(event: ChangeEvent<HTMLSelectElement>) => onStatusChange(event.target.value)}
+        >
+          <option value="draft">draft</option>
+          <option value="pending">pending</option>
+          <option value="in_progress">in_progress</option>
+          <option value="completed">completed</option>
+        </select>
+
+        <label htmlFor="task-agent">Execute with agent</label>
         <select
           id="task-agent"
           name="agentId"

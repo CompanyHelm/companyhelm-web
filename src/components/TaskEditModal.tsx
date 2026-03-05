@@ -5,11 +5,20 @@ import type { TaskItem, TaskRelationshipDraft } from "../types/domain.ts";
 interface TaskEditModalProps {
   task: TaskItem | null;
   tasks: TaskItem[];
+  principals: Array<{
+    id: string;
+    kind: "agent" | "user";
+    displayName: string;
+  }>;
   relationshipDraft?: TaskRelationshipDraft;
   savingTaskId: string | null;
   commentingTaskId: string | null;
   deletingTaskId: string | null;
-  onDraftChange: (taskId: string, field: "dependencyTaskIds" | "parentTaskId" | "childTaskIds", value: string | string[]) => void;
+  onDraftChange: (
+    taskId: string,
+    field: "dependencyTaskIds" | "parentTaskId" | "childTaskIds" | "assigneePrincipalId" | "status",
+    value: string | string[],
+  ) => void;
   onSaveRelationships: (taskId: string) => Promise<boolean> | boolean;
   onCreateTaskComment: (taskId: string, comment: string) => Promise<boolean> | boolean;
   onDeleteTask: (taskId: string, taskName: string) => void;
@@ -20,6 +29,7 @@ interface TaskEditModalProps {
 export function TaskEditModal({
   task,
   tasks,
+  principals,
   relationshipDraft,
   savingTaskId,
   commentingTaskId,
@@ -47,10 +57,14 @@ export function TaskEditModal({
     dependencyTaskIds: Array.isArray(task?.dependencyTaskIds) ? task.dependencyTaskIds : [],
     parentTaskId: String(task?.parentTaskId || "").trim(),
     childTaskIds: currentChildTaskIds,
+    assigneePrincipalId: String(task?.assigneePrincipalId || "").trim(),
+    status: String(task?.status || "").trim() || "draft",
   };
   const selectedChildTaskIds = Array.isArray(draft?.childTaskIds) ? draft.childTaskIds : [];
   const draftDependencyTaskIds = Array.isArray(draft?.dependencyTaskIds) ? draft.dependencyTaskIds : [];
   const parentTaskId = String(draft?.parentTaskId || "").trim();
+  const assigneePrincipalId = String(draft?.assigneePrincipalId || "").trim();
+  const status = String(draft?.status || "").trim() || "draft";
   const taskThreadId = String(task?.threadId || "").trim();
   const isBusy = savingTaskId === taskId || deletingTaskId === taskId;
 
@@ -129,6 +143,32 @@ export function TaskEditModal({
           className="task-form-readonly"
           placeholder="No description provided."
         />
+
+        <label htmlFor="edit-task-assignee">Assignee</label>
+        <select
+          id="edit-task-assignee"
+          value={assigneePrincipalId}
+          onChange={(event: ChangeEvent<HTMLSelectElement>) => onDraftChange(taskId, "assigneePrincipalId", event.target.value)}
+        >
+          <option value="">Unassigned</option>
+          {principals.map((principal) => (
+            <option key={`edit-assignee-${principal.id}`} value={principal.id}>
+              {principal.displayName} ({principal.kind === "agent" ? "Agent" : "Human"})
+            </option>
+          ))}
+        </select>
+
+        <label htmlFor="edit-task-status">Status</label>
+        <select
+          id="edit-task-status"
+          value={status}
+          onChange={(event: ChangeEvent<HTMLSelectElement>) => onDraftChange(taskId, "status", event.target.value)}
+        >
+          <option value="draft">draft</option>
+          <option value="pending">pending</option>
+          <option value="in_progress">in_progress</option>
+          <option value="completed">completed</option>
+        </select>
 
         <label>Thread</label>
         {taskThreadId ? (
@@ -236,6 +276,8 @@ export function TaskEditModal({
               <li key={`task-comment-${comment.id}`} className="task-comment-item">
                 <p>{comment.comment}</p>
                 <span className="chat-card-meta">
+                  {comment.authorPrincipal?.displayName || comment.authorPrincipalId || "Unknown principal"} · {" "}
+                  {comment.authorPrincipal?.kind === "agent" ? "Agent" : "Human"} · {" "}
                   {comment.createdAt ? new Date(comment.createdAt).toLocaleString() : ""}
                 </span>
               </li>

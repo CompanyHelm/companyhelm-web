@@ -8,6 +8,7 @@ interface TaskTableTask {
   status?: string;
   description?: string;
   assigneePrincipalId?: string | null;
+  assigneeAgentId?: string | null;
   dependencyTaskIds?: Array<string | number>;
   comments?: unknown[];
   createdAt?: string;
