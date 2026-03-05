@@ -3084,7 +3084,8 @@ function App() {
   const shouldSubscribeChatSessions =
     activePage === "agents" && (agentsRoute.view === "agent" || agentsRoute.view === "chats" || agentsRoute.view === "chat");
   const shouldSubscribeChatTurns = isChatConversationRoute;
-  const shouldLoadGithubData = activePage === "settings" || activePage === "repos";
+  const shouldLoadGithubPageData = activePage === "settings" || activePage === "repos";
+  const shouldLoadGithubRepositoryData = activePage === "repos";
   const shouldLoadCurrentUserData = activePage === "profile";
   const shouldLoadTaskData = activePage === "dashboard" || activePage === "tasks" || activePage === "profile";
   const shouldLoadSkillData =
@@ -4393,23 +4394,32 @@ function App() {
   }, [hasLoadedSecrets, secrets]);
 
   useEffect(() => {
-    if (!shouldLoadGithubData) {
+    if (!shouldLoadGithubPageData) {
       return;
     }
     loadGithubAppConfig();
-  }, [loadGithubAppConfig, shouldLoadGithubData]);
+  }, [loadGithubAppConfig, shouldLoadGithubPageData]);
 
   useEffect(() => {
-    if (!selectedCompanyId || !shouldLoadGithubData) {
+    if (!selectedCompanyId || !shouldLoadGithubPageData) {
       return;
     }
     loadGithubInstallations();
-    loadGithubRepositories();
   }, [
     loadGithubInstallations,
+    selectedCompanyId,
+    shouldLoadGithubPageData,
+  ]);
+
+  useEffect(() => {
+    if (!selectedCompanyId || !shouldLoadGithubRepositoryData) {
+      return;
+    }
+    loadGithubRepositories();
+  }, [
     loadGithubRepositories,
     selectedCompanyId,
-    shouldLoadGithubData,
+    shouldLoadGithubRepositoryData,
   ]);
 
   useEffect(() => {
@@ -4832,7 +4842,6 @@ function App() {
         if (!isCancelled) {
           setGithubInstallationNotice(`Linked GitHub installation ${installationId}.`);
           await loadGithubInstallations();
-          await loadGithubRepositories();
         }
       } catch (linkError: any) {
         if (!isCancelled) {
@@ -4855,7 +4864,6 @@ function App() {
     companies,
     isLoadingCompanies,
     loadGithubInstallations,
-    loadGithubRepositories,
     pendingGithubInstallCallback,
     selectedCompanyId,
   ]);
@@ -4969,7 +4977,9 @@ function App() {
       }
       setGithubInstallationNotice(`Deleted GitHub installation ${resolvedInstallationId}.`);
       await loadGithubInstallations();
-      await loadGithubRepositories();
+      if (activePage === "repos") {
+        await loadGithubRepositories();
+      }
     } catch (deleteError: any) {
       setGithubInstallationError(deleteError.message);
     } finally {
@@ -8680,17 +8690,13 @@ function App() {
             isLoadingGithubAppConfig={isLoadingGithubAppConfig}
             githubAppConfigError={githubAppConfigError}
             githubInstallations={githubInstallations}
-            githubRepositories={githubRepositories}
             isLoadingGithubInstallations={isLoadingGithubInstallations}
-            isLoadingGithubRepositories={isLoadingGithubRepositories}
             githubInstallationError={githubInstallationError}
             githubInstallationNotice={githubInstallationNotice}
             isAddingGithubInstallationFromCallback={isAddingGithubInstallationFromCallback}
             pendingGithubInstallCallback={pendingGithubInstallCallback}
             deletingGithubInstallationId={deletingGithubInstallationId}
-            refreshingGithubInstallationId={refreshingGithubInstallationId}
             onDeleteGithubInstallation={handleDeleteGithubInstallation}
-            onRefreshGithubInstallationRepositories={handleRefreshGithubInstallationRepositories}
           />
         ) : null}
 
