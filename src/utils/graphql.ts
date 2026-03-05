@@ -1707,7 +1707,9 @@ export const AGENT_RUNNERS_SUBSCRIPTION = `
       edges {
         node {
           id
-          companyId
+          company {
+            id
+          }
           agentSdks {
             name
             models {
@@ -1728,13 +1730,24 @@ export const AGENT_THREADS_SUBSCRIPTION = `
       edges {
         node {
           id
-          companyId
-          agentId
           title
           additionalModelInstructions
           status
-          currentModelId
           currentReasoningLevel
+          errorMessage
+          tasks {
+            id
+            name
+            status
+            createdAt
+            updatedAt
+          }
+          company {
+            id
+          }
+          agent {
+            id
+          }
           currentModel {
             id
             name
@@ -1757,18 +1770,22 @@ export const AGENT_TURNS_SUBSCRIPTION = `
         node {
           id
           sdkTurnId
-          companyId
-          threadId
-          agentId
           status
           reasoningText
           startedAt
           endedAt
+          company {
+            id
+          }
+          thread {
+            id
+          }
+          agent {
+            id
+          }
           items {
             id
             sdkItemId
-            companyId
-            turnId
             type
             status
             text
@@ -1777,6 +1794,15 @@ export const AGENT_TURNS_SUBSCRIPTION = `
             processId
             startedAt
             completedAt
+            company {
+              id
+            }
+            turn {
+              id
+              thread {
+                id
+              }
+            }
           }
         }
       }
@@ -1800,10 +1826,14 @@ export const AGENT_QUEUED_USER_MESSAGES_SUBSCRIPTION = `
       id
       status
       sdkTurnId
-      companyId
-      threadId
       allowSteer
       text
+      company {
+        id
+      }
+      thread {
+        id
+      }
     }
   }
 `;
