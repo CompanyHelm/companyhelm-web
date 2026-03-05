@@ -1250,7 +1250,6 @@ async function executeGraphQL(query: any, variables: any = {}) {
         provisionedAuthSecret: secret,
         runnerLaunchCommand: secret
           ? buildRunnerStartCommand({
-              backendGrpcTarget: DEFAULT_RUNNER_GRPC_TARGET,
               runnerSecret: secret,
             })
           : null,
@@ -1273,7 +1272,6 @@ async function executeGraphQL(query: any, variables: any = {}) {
         provisionedAuthSecret: secret,
         runnerLaunchCommand: secret
           ? buildRunnerStartCommand({
-              backendGrpcTarget: DEFAULT_RUNNER_GRPC_TARGET,
               runnerSecret: secret,
             })
           : null,

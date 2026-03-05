@@ -7,13 +7,10 @@ export function quoteShellArg(value: any) {
 }
 
 export function buildRunnerStartCommand({
-  backendGrpcTarget,
   runnerSecret,
 }: any) {
   return [
     "companyhelm",
-    "--server-url",
-    quoteShellArg(backendGrpcTarget),
     "--secret",
     quoteShellArg(runnerSecret),
   ].join(" ");

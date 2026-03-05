@@ -4,6 +4,7 @@ import { formatTimestamp, normalizeRunnerStatus } from "../utils/formatting.ts";
 import { normalizeRunnerAvailableAgentSdks, normalizeRunnerCodexAvailableModels } from "../utils/normalization.ts";
 import { DEFAULT_AGENT_SDK } from "../utils/constants.ts";
 import { getChatsPath, setBrowserPath } from "../utils/path.ts";
+import { buildRunnerStartCommand } from "../utils/shell.ts";
 
 export function AgentRunnerDetailPage({
   runner,
@@ -30,9 +31,8 @@ export function AgentRunnerDetailPage({
 
   const runnerCommand = useMemo(() => {
     const secret = runnerSecret || "<RUNNER_SECRET>";
-    const target = runnerGrpcTarget || "<GRPC_TARGET>";
-    return `companyhelm --server-url ${target} --secret ${secret}`;
-  }, [runnerGrpcTarget, runnerSecret]);
+    return buildRunnerStartCommand({ runnerSecret: secret });
+  }, [runnerSecret]);
 
   return (
     <Page><div className="page-stack">
