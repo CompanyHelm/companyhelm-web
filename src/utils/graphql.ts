@@ -151,14 +151,6 @@ export const LIST_TASKS_QUERY = `
       description
       acceptanceCriteria
       assigneePrincipalId
-      assigneePrincipal {
-        id
-        kind
-        displayName
-        agentId
-        userId
-        email
-      }
       threadId
       parentTaskId
       status
@@ -971,14 +963,6 @@ export const CREATE_TASK_MUTATION = `
         description
         acceptanceCriteria
         assigneePrincipalId
-        assigneePrincipal {
-          id
-          kind
-          displayName
-          agentId
-          userId
-          email
-        }
         threadId
         parentTaskId
         status
@@ -1025,14 +1009,6 @@ export const ADD_TASK_DEPENDENCY_MUTATION = `
         description
         acceptanceCriteria
         assigneePrincipalId
-        assigneePrincipal {
-          id
-          kind
-          displayName
-          agentId
-          userId
-          email
-        }
         threadId
         parentTaskId
         status
@@ -1079,14 +1055,6 @@ export const REMOVE_TASK_DEPENDENCY_MUTATION = `
         description
         acceptanceCriteria
         assigneePrincipalId
-        assigneePrincipal {
-          id
-          kind
-          displayName
-          agentId
-          userId
-          email
-        }
         threadId
         parentTaskId
         status
@@ -1133,14 +1101,6 @@ export const SET_TASK_PARENT_MUTATION = `
         description
         acceptanceCriteria
         assigneePrincipalId
-        assigneePrincipal {
-          id
-          kind
-          displayName
-          agentId
-          userId
-          email
-        }
         threadId
         parentTaskId
         status
@@ -1239,14 +1199,6 @@ export const BATCH_EXECUTE_TASKS_MUTATION = `
         description
         acceptanceCriteria
         assigneePrincipalId
-        assigneePrincipal {
-          id
-          kind
-          displayName
-          agentId
-          userId
-          email
-        }
         threadId
         parentTaskId
         status
@@ -2188,14 +2140,6 @@ export const COMPANY_API_LIST_TASKS_QUERY = `
       description
       acceptanceCriteria
       assigneePrincipalId
-      assigneePrincipal {
-        id
-        kind
-        displayName
-        agentId
-        userId
-        email
-      }
       threadId
       parentTaskId
       status
@@ -2268,14 +2212,6 @@ export const COMPANY_API_CREATE_TASK_MUTATION = `
         description
         acceptanceCriteria
         assigneePrincipalId
-        assigneePrincipal {
-          id
-          kind
-          displayName
-          agentId
-          userId
-          email
-        }
         threadId
         parentTaskId
         status
@@ -2362,14 +2298,6 @@ export const COMPANY_API_SET_TASK_PARENT_MUTATION = `
         description
         acceptanceCriteria
         assigneePrincipalId
-        assigneePrincipal {
-          id
-          kind
-          displayName
-          agentId
-          userId
-          email
-        }
         threadId
         parentTaskId
         status
@@ -2472,14 +2400,6 @@ export const COMPANY_API_BATCH_EXECUTE_TASKS_MUTATION = `
         description
         acceptanceCriteria
         assigneePrincipalId
-        assigneePrincipal {
-          id
-          kind
-          displayName
-          agentId
-          userId
-          email
-        }
         threadId
         parentTaskId
         status
