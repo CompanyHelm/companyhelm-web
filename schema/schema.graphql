@@ -132,6 +132,12 @@ type DeleteGitSkillPackagePayload {
   ok: Boolean!
 }
 
+type DeleteGithubInstallationPayload {
+  deletedInstallationId: ID
+  error: String
+  ok: Boolean!
+}
+
 type DeleteMcpServerPayload {
   deletedMcpServerId: ID
   error: String
@@ -252,6 +258,7 @@ type Mutation {
   deleteAgentRunner(agentRunnerId: ID!): Boolean!
   deleteCompany(companyId: ID): Boolean!
   deleteGitSkillPackage(companyId: ID, id: ID!): DeleteGitSkillPackagePayload!
+  deleteGithubInstallation(companyId: ID, installationId: ID!): DeleteGithubInstallationPayload!
   deleteMcpServer(companyId: ID, id: ID!): DeleteMcpServerPayload!
   deleteQueuedUserMessage(queuedMessageId: ID!): Boolean!
   deleteRole(companyId: ID, id: ID!): DeleteRolePayload!

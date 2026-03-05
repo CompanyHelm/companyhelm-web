@@ -113,6 +113,7 @@ import {
   COMPANY_API_LIST_GITHUB_INSTALLATIONS_QUERY,
   COMPANY_API_LIST_REPOSITORIES_CONNECTION_QUERY,
   COMPANY_API_ADD_GITHUB_INSTALLATION_MUTATION,
+  COMPANY_API_DELETE_GITHUB_INSTALLATION_MUTATION,
   COMPANY_API_REFRESH_GITHUB_INSTALLATION_REPOSITORIES_MUTATION,
   COMPANY_API_LIST_TASKS_QUERY,
   COMPANY_API_CREATE_TASK_MUTATION,
@@ -2051,11 +2052,16 @@ async function executeGraphQL(query: any, variables: any = {}) {
   }
 
   if (query === DELETE_GITHUB_INSTALLATION_MUTATION) {
+    const data = await executeRawGraphQL(COMPANY_API_DELETE_GITHUB_INSTALLATION_MUTATION, {
+      companyId: resolveLegacyId(variables?.companyId),
+      installationId: resolveLegacyId(variables?.installationId),
+    });
+    const payload = data?.deleteGithubInstallation;
     return {
-      ...unsupportedMutation("deleteGithubInstallation"),
       deleteGithubInstallation: {
-        ...unsupportedMutation("deleteGithubInstallation").deleteGithubInstallation,
-        deletedInstallationId: null,
+        ok: Boolean(payload?.ok),
+        error: payload?.error ? String(payload.error) : null,
+        deletedInstallationId: resolveLegacyId(payload?.deletedInstallationId) || null,
       },
     };
   }

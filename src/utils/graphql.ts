@@ -1945,6 +1945,22 @@ export const COMPANY_API_ADD_GITHUB_INSTALLATION_MUTATION = `
   }
 `;
 
+export const COMPANY_API_DELETE_GITHUB_INSTALLATION_MUTATION = `
+  mutation CompanyApiDeleteGithubInstallation(
+    $companyId: ID!
+    $installationId: ID!
+  ) {
+    deleteGithubInstallation(
+      companyId: $companyId
+      installationId: $installationId
+    ) {
+      ok
+      error
+      deletedInstallationId
+    }
+  }
+`;
+
 export const COMPANY_API_REFRESH_GITHUB_INSTALLATION_REPOSITORIES_MUTATION = `
   mutation CompanyApiRefreshGithubInstallationRepositories(
     $companyId: ID!
