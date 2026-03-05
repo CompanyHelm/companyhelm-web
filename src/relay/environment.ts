@@ -104,6 +104,22 @@ function normalizeOperationKind(rawKind: unknown): OperationKind {
   return "query";
 }
 
+function resolveCompanyIdFromVariables(variables: Variables): string {
+  if (!variables || typeof variables !== "object") {
+    return "";
+  }
+  const variableMap = variables as Record<string, unknown>;
+  const fromCompanyId = String(variableMap.companyId || "").trim();
+  if (fromCompanyId) {
+    return fromCompanyId;
+  }
+  const input = variableMap.input;
+  if (input && typeof input === "object") {
+    return String((input as Record<string, unknown>).companyId || "").trim();
+  }
+  return "";
+}
+
 function toGraphQLPayload(value: unknown): GraphQLPayload | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return null;
@@ -129,7 +145,7 @@ async function performHttpGraphQLRequest(
   if (authorization) {
     headers.Authorization = authorization;
   }
-  const activeCompanyId = getActiveCompanyId();
+  const activeCompanyId = getActiveCompanyId() || resolveCompanyIdFromVariables(variables);
   if (activeCompanyId) {
     headers["x-company-id"] = activeCompanyId;
   }
