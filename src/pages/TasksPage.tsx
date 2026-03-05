@@ -40,6 +40,7 @@ interface TasksPageProps {
   onDeleteTask: (taskId: string, taskName: string) => void;
   onBatchDeleteTasks: (taskIds: string[]) => Promise<boolean> | boolean;
   onBatchExecuteTasks: (taskIds: string[], fallbackAgentId?: string) => Promise<boolean> | boolean;
+  onOpenTaskThread: (threadId: string) => Promise<void> | void;
   renderTaskLink: (task: TaskItem) => ReactNode;
 }
 
@@ -72,6 +73,7 @@ export function TasksPage({
   onDeleteTask,
   onBatchDeleteTasks,
   onBatchExecuteTasks,
+  onOpenTaskThread,
   renderTaskLink,
 }: TasksPageProps) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -197,6 +199,7 @@ export function TasksPage({
         onSaveRelationships={onSaveRelationships}
         onCreateTaskComment={onCreateTaskComment}
         onDeleteTask={handleDeleteTask}
+        onOpenTaskThread={onOpenTaskThread}
         onClose={closeEditTaskModal}
       />
     </Page>

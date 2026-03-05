@@ -13,6 +13,7 @@ interface TaskEditModalProps {
   onSaveRelationships: (taskId: string) => Promise<boolean> | boolean;
   onCreateTaskComment: (taskId: string, comment: string) => Promise<boolean> | boolean;
   onDeleteTask: (taskId: string, taskName: string) => void;
+  onOpenTaskThread: (threadId: string) => Promise<void> | void;
   onClose: () => void;
 }
 
@@ -27,6 +28,7 @@ export function TaskEditModal({
   onSaveRelationships,
   onCreateTaskComment,
   onDeleteTask,
+  onOpenTaskThread,
   onClose,
 }: TaskEditModalProps) {
   const [commentDraft, setCommentDraft] = useState("");
@@ -49,6 +51,7 @@ export function TaskEditModal({
   const selectedChildTaskIds = Array.isArray(draft?.childTaskIds) ? draft.childTaskIds : [];
   const draftDependencyTaskIds = Array.isArray(draft?.dependencyTaskIds) ? draft.dependencyTaskIds : [];
   const parentTaskId = String(draft?.parentTaskId || "").trim();
+  const taskThreadId = String(task?.threadId || "").trim();
   const isBusy = savingTaskId === taskId || deletingTaskId === taskId;
 
   function removeDependency(depId: string) {
@@ -126,6 +129,22 @@ export function TaskEditModal({
           className="task-form-readonly"
           placeholder="No description provided."
         />
+
+        <label>Thread</label>
+        {taskThreadId ? (
+          <div className="task-thread-row">
+            <button
+              type="button"
+              className="task-thread-open-btn"
+              onClick={() => void onOpenTaskThread(taskThreadId)}
+            >
+              Open thread chat
+            </button>
+            <code className="task-thread-id">{taskThreadId}</code>
+          </div>
+        ) : (
+          <p className="chat-card-meta">Thread not present.</p>
+        )}
 
         <label htmlFor="edit-parent-task">Parent task</label>
         <div className="task-parent-row">

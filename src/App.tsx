@@ -8031,6 +8031,40 @@ function App() {
     },
     [taskLookup],
   );
+
+  const handleOpenTaskThread = useCallback(async (threadId: string) => {
+    const resolvedThreadId = String(threadId || "").trim();
+    if (!resolvedThreadId) {
+      return;
+    }
+
+    const findAgentIdForThread = (sessionsByAgentSnapshot: any) => {
+      const agentEntries = Object.entries(sessionsByAgentSnapshot || {});
+      for (const [agentId, sessions] of agentEntries) {
+        const hasThread = Array.isArray(sessions)
+          && sessions.some((session: any) => String(session?.id || "").trim() === resolvedThreadId);
+        if (hasThread) {
+          return String(agentId || "").trim();
+        }
+      }
+      return "";
+    };
+
+    let targetAgentId = findAgentIdForThread(chatSessionsByAgent);
+
+    if (!targetAgentId && selectedCompanyId) {
+      const bootstrapPayload = await loadChatsBootstrapData({ silently: true });
+      targetAgentId = findAgentIdForThread(bootstrapPayload.sessionsByAgent || {});
+    }
+
+    setBrowserPath(
+      getChatsPath({
+        agentId: targetAgentId,
+        threadId: resolvedThreadId,
+      }),
+    );
+  }, [chatSessionsByAgent, loadChatsBootstrapData, selectedCompanyId]);
+
   const activePrimaryNavItemId =
     activePage === "agents" && agentsRoute.view === "chat" ? "chats" : activePage;
   const showFirstCompanyOnboarding = !isLoadingCompanies && !hasCompanies;
@@ -8212,6 +8246,7 @@ function App() {
             onDeleteTask={handleDeleteTask}
             onBatchDeleteTasks={handleBatchDeleteTasks}
             onBatchExecuteTasks={handleBatchExecuteTasks}
+            onOpenTaskThread={handleOpenTaskThread}
             renderTaskLink={renderTaskLink}
           />
         ) : null}

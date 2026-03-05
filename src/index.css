@@ -2797,6 +2797,35 @@ button:disabled {
   gap: 0.4rem;
 }
 
+.task-thread-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.task-thread-open-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.36rem 0.66rem;
+  border: 1px solid rgba(26, 32, 38, 0.18);
+  border-radius: 8px;
+  background: rgba(26, 32, 38, 0.04);
+  color: var(--ink-0);
+  font-size: 0.8rem;
+}
+
+.task-thread-id {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.76rem;
+  color: var(--ink-1);
+  padding: 0.12rem 0.42rem;
+  border-radius: 999px;
+  background: rgba(26, 32, 38, 0.06);
+  border: 1px solid rgba(26, 32, 38, 0.12);
+}
+
 .task-parent-row select {
   flex: 1;
   min-width: 0;
