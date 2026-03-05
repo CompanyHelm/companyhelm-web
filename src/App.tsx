@@ -202,6 +202,7 @@ import {
 
 import { normalizeRunnerStatus, normalizeChatStatus } from "./utils/formatting.ts";
 import { buildTaskExecutionPlan } from "./utils/task-execution.ts";
+import { normalizeThreadTaskList } from "./utils/thread-tasks.ts";
 
 import {
   hasRunningChatTurns,
@@ -939,6 +940,20 @@ function toLegacyThreadPayload(thread: any, {
     explicitErrorMessage === undefined
       ? normalizeOptionalInstructions(currentMetadata.errorMessage)
       : normalizeOptionalInstructions(explicitErrorMessage);
+  const overrideProvidesTasks = Boolean(
+    metadataOverride && Object.prototype.hasOwnProperty.call(metadataOverride, "tasks"),
+  );
+  const threadProvidesTasks = Boolean(
+    thread && Object.prototype.hasOwnProperty.call(thread, "tasks"),
+  );
+  const explicitTasks = overrideProvidesTasks
+    ? metadataOverride.tasks
+    : threadProvidesTasks
+      ? thread.tasks
+      : undefined;
+  const resolvedTasks = explicitTasks === undefined
+    ? normalizeThreadTaskList(currentMetadata.tasks || [])
+    : normalizeThreadTaskList(explicitTasks);
   const nextMetadata = {
     createdAt: currentMetadata.createdAt || nowIso,
     updatedAt: nowIso,
@@ -949,6 +964,7 @@ function toLegacyThreadPayload(thread: any, {
     currentReasoningLevel: resolvedCurrentReasoningLevel,
     additionalModelInstructions: resolvedAdditionalModelInstructions,
     errorMessage: resolvedErrorMessage,
+    tasks: resolvedTasks,
   };
   if (threadId) {
     companyApiThreadMetadataById.set(threadId, nextMetadata);
@@ -967,6 +983,7 @@ function toLegacyThreadPayload(thread: any, {
     currentModelName: nextMetadata.currentModelName,
     currentReasoningLevel: nextMetadata.currentReasoningLevel,
     additionalModelInstructions: nextMetadata.additionalModelInstructions,
+    tasks: nextMetadata.tasks,
     createdAt: nextMetadata.createdAt,
     updatedAt: nextMetadata.updatedAt,
   };

@@ -3,6 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CreationModal } from "../components/CreationModal.tsx";
 import { ChatSessionRunningBadge } from "../components/ChatSessionRunningBadge.tsx";
+import { ThreadTaskSummary } from "../components/ThreadTaskSummary.tsx";
 import { useSetPageActions } from "../components/PageActionsContext.tsx";
 import { formatTimestamp } from "../utils/formatting.ts";
 import {
@@ -586,6 +587,11 @@ export function AgentChatPage({
                                   <p className="chat-card-title chat-sidebar-chat-title">
                                     <strong>{sidebarSession?.title || "Untitled chat"}</strong>
                                   </p>
+                                  <ThreadTaskSummary
+                                    tasks={sidebarSession?.tasks}
+                                    threadTitle={sidebarSession?.title}
+                                    modalId={`chat-sidebar-${sidebarAgentId}-${sidebarSessionId}`}
+                                  />
                                 </div>
                               </li>
                             );

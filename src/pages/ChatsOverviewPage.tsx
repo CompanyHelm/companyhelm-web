@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { Page } from "../components/Page.tsx";
 import { ChatSessionRunningBadge } from "../components/ChatSessionRunningBadge.tsx";
+import { ThreadTaskSummary } from "../components/ThreadTaskSummary.tsx";
 import { isChatSessionRunning, compareTurnsByTimestamp } from "../utils/chat.ts";
 import { formatTimestamp } from "../utils/formatting.ts";
 
@@ -123,6 +124,11 @@ export function ChatsOverviewPage({
                               <p className="chat-card-meta">
                                 {formatTimestamp(chatSession.updatedAt)} · {sessionModelLabel} · {reasoningLabel}
                               </p>
+                              <ThreadTaskSummary
+                                tasks={chatSession?.tasks}
+                                threadTitle={chatSession?.title}
+                                modalId={`chats-overview-${agent.id}-${chatSession.id}`}
+                              />
                               {isError && threadErrorMessage ? (
                                 <p className="chat-thread-error-text">{threadErrorMessage}</p>
                               ) : null}
