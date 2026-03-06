@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { isChatSessionRunning } from "../../src/utils/chat.ts";
+import { isChatSessionRunning, resolveChatSendMode } from "../../src/utils/chat.ts";
 
 test("isChatSessionRunning returns true for running status", () => {
   const result = isChatSessionRunning(
@@ -38,4 +38,28 @@ test("isChatSessionRunning honors local running override even when session statu
   );
 
   assert.equal(result, true);
+});
+
+test("resolveChatSendMode uses steer when local running override is true", () => {
+  const result = resolveChatSendMode({
+    modeOverride: "steer",
+    hasRunningTurn: false,
+    sessionId: "thread-1",
+    chatSessionRunningById: {
+      "thread-1": true,
+    },
+  });
+
+  assert.equal(result, "steer");
+});
+
+test("resolveChatSendMode uses queue when no running turn or override exists", () => {
+  const result = resolveChatSendMode({
+    modeOverride: "steer",
+    hasRunningTurn: false,
+    sessionId: "thread-1",
+    chatSessionRunningById: {},
+  });
+
+  assert.equal(result, "queue");
 });

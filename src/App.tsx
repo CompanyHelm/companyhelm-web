@@ -217,6 +217,7 @@ import {
   compareTurnsByTimestamp,
   getTurnLifecycleSignature,
   mergeChatSessionsByAgentSnapshot,
+  resolveChatSendMode,
   isSameChatSelection,
 } from "./utils/chat.ts";
 
@@ -7376,9 +7377,12 @@ function App() {
       setIsSendingChatMessage(true);
       setChatError("");
       const runnerId = selectedAgentForChat?.agentRunnerId || null;
-      const normalizedModeOverride = String(modeOverride || "").trim().toLowerCase();
-      const shouldSteerMode = normalizedModeOverride === "steer" || normalizedModeOverride === "turn";
-      const nextMode = hasRunningTurn && shouldSteerMode ? "steer" : "queue";
+      const nextMode = resolveChatSendMode({
+        modeOverride,
+        hasRunningTurn,
+        sessionId: targetSessionId,
+        chatSessionRunningById,
+      });
       const payloadText = chatDraftMessage.trim();
       const data =
         nextMode === "steer"
