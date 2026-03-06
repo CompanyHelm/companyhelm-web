@@ -145,6 +145,7 @@ export function AgentChatPage({
   const selectedSessionId = String(session?.id || "").trim();
   const sessionStatus = String(session?.status || "").trim().toLowerCase();
   const isSessionError = canChat && sessionStatus === "error";
+  const isSessionDeleting = canChat && sessionStatus === "deleting";
   const sessionErrorMessage = String(session?.errorMessage || "").trim();
   const sortedSidebarAgents = useMemo(() => {
     return [...(Array.isArray(agents) ? agents : [])].sort((leftAgent: any, rightAgent: any) =>
@@ -153,8 +154,10 @@ export function AgentChatPage({
   }, [agents]);
   const currentChatSessionKey = canChat ? `${agent.id}:${session.id}` : "";
   const isDeletingCurrentChat = Boolean(
-    currentChatSessionKey && deletingChatSessionKey === currentChatSessionKey,
+    currentChatSessionKey
+      && (deletingChatSessionKey === currentChatSessionKey || isSessionDeleting),
   );
+  const canInteractWithSession = canChat && !isSessionDeleting;
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<any>(false);
   const [isInstructionsExpanded, setIsInstructionsExpanded] = useState<any>(false);
   const [selectedCommandOutputItem, setSelectedCommandOutputItem] = useState<any>(null);
@@ -306,7 +309,7 @@ export function AgentChatPage({
     if (event.key !== "Enter" || event.shiftKey || event.isComposing) {
       return;
     }
-    if (!canChat || isSendingChatMessage || !chatDraftMessage.trim()) {
+    if (!canInteractWithSession || isSendingChatMessage || !chatDraftMessage.trim()) {
       return;
     }
     event.preventDefault();
@@ -338,14 +341,11 @@ export function AgentChatPage({
     if (!canChat || isDeletingCurrentChat) {
       return;
     }
-    const deleted = await onDeleteChat({
+    await onDeleteChat({
       agentId: agent.id,
       sessionId: session.id,
       title: session.title,
     });
-    if (deleted) {
-      onBackToChats();
-    }
   }
 
   function handleOpenSettingsModal() {
@@ -555,6 +555,7 @@ export function AgentChatPage({
                             const isRunningSession = isChatSessionRunning(sidebarSession, chatSessionRunningById);
                             const sidebarSessionStatus = String(sidebarSession?.status || "").trim().toLowerCase();
                             const isErrorSession = sidebarSessionStatus === "error";
+                            const isDeletingSession = sidebarSessionStatus === "deleting";
                             const isSelectedSession =
                               sidebarAgentId === selectedAgentId && sidebarSessionId === selectedSessionId;
                             return (
@@ -582,6 +583,9 @@ export function AgentChatPage({
                               >
                                 <div className="chat-card-status">
                                   {isRunningSession ? <ChatSessionRunningBadge /> : null}
+                                  {!isRunningSession && isDeletingSession ? (
+                                    <span className="chat-thread-status chat-thread-status-deleting">deleting</span>
+                                  ) : null}
                                   {!isRunningSession && isErrorSession ? (
                                     <span className="chat-thread-status chat-thread-status-error">error</span>
                                   ) : null}
@@ -628,10 +632,13 @@ export function AgentChatPage({
             {sessionErrorMessage ? ` ${sessionErrorMessage}` : ""}
           </p>
         ) : null}
+        {isSessionDeleting ? (
+          <p className="empty-hint">Thread is deleting. Waiting for runner confirmation.</p>
+        ) : null}
         {!agent ? <p className="empty-hint">Agent not found.</p> : null}
         {agent && !session ? <p className="empty-hint">Chat not found.</p> : null}
         {canChat && isLoadingChat ? <p className="empty-hint">Loading chat messages...</p> : null}
-        {canChat && !isLoadingChat && !hasTranscriptContent ? (
+        {canChat && !isLoadingChat && !hasTranscriptContent && !isSessionDeleting ? (
           <p className="empty-hint">No messages yet. Send the first prompt below.</p>
         ) : null}
         {hasTranscriptContent ? (
@@ -1008,13 +1015,13 @@ export function AgentChatPage({
                   }
                 }}
                 autoFocus
-                disabled={!canChat || isSendingChatMessage || isInterruptingChatTurn}
+                disabled={!canInteractWithSession || isSendingChatMessage || isInterruptingChatTurn}
               />
               <div className="chat-composer-fullscreen-footer">
                 <span className="subcopy">Esc to close</span>
                 <button
                   type="button"
-                  disabled={!canChat || !chatDraftMessage.trim() || isSendingChatMessage}
+                  disabled={!canInteractWithSession || !chatDraftMessage.trim() || isSendingChatMessage}
                   onClick={(event: any) => {
                     setIsComposerExpanded(false);
                     onSendChatMessage(event, "steer");
@@ -1046,13 +1053,13 @@ export function AgentChatPage({
                 value={chatDraftMessage}
                 onChange={(event: any) => onChatDraftMessageChange(event.target.value)}
                 onKeyDown={handleChatMessageKeyDown}
-                disabled={!canChat || isSendingChatMessage || isInterruptingChatTurn}
+                disabled={!canInteractWithSession || isSendingChatMessage || isInterruptingChatTurn}
               />
               <button
                 type="button"
                 className="chat-composer-expand-btn"
                 onClick={() => setIsComposerExpanded(true)}
-                disabled={!canChat}
+                disabled={!canInteractWithSession}
                 title="Expand editor"
                 aria-label="Expand editor to fullscreen"
               >
@@ -1077,7 +1084,7 @@ export function AgentChatPage({
                     <button
                       type="button"
                       className="secondary-btn chat-action-btn"
-                      disabled={!canChat || !chatDraftMessage.trim() || isSendingChatMessage || isInterruptingChatTurn}
+                      disabled={!canInteractWithSession || !chatDraftMessage.trim() || isSendingChatMessage || isInterruptingChatTurn}
                       onClick={(event: any) => onSendChatMessage(event, "queue")}
                     >
                       <span className="chat-action-btn-content">
@@ -1096,7 +1103,7 @@ export function AgentChatPage({
                     <button
                       type="button"
                       className="secondary-btn chat-action-btn"
-                      disabled={!canChat || !chatDraftMessage.trim() || isSendingChatMessage || isInterruptingChatTurn}
+                      disabled={!canInteractWithSession || !chatDraftMessage.trim() || isSendingChatMessage || isInterruptingChatTurn}
                       onClick={(event: any) => onSendChatMessage(event, "steer")}
                       title="Steer the active turn"
                     >
@@ -1119,7 +1126,7 @@ export function AgentChatPage({
                     <button
                       type="button"
                       className="chat-stop-btn"
-                      disabled={!canChat || isSendingChatMessage || isInterruptingChatTurn}
+                      disabled={!canInteractWithSession || isSendingChatMessage || isInterruptingChatTurn}
                       onClick={onInterruptChatTurn}
                       aria-label={isInterruptingChatTurn ? "Stopping turn..." : "Stop running turn"}
                       title={isInterruptingChatTurn ? "Stopping turn..." : "Stop running turn"}
@@ -1130,7 +1137,7 @@ export function AgentChatPage({
                 ) : (
                   <button
                     type="submit"
-                    disabled={!canChat || !chatDraftMessage.trim() || isSendingChatMessage || isInterruptingChatTurn}
+                    disabled={!canInteractWithSession || !chatDraftMessage.trim() || isSendingChatMessage || isInterruptingChatTurn}
                   >
                     {isSendingChatMessage ? "Sending..." : "Send message"}
                   </button>

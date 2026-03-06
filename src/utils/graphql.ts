@@ -1644,6 +1644,22 @@ export const DELETE_AGENT_THREAD_MUTATION = `
       ok
       error
       deletedThreadId
+      thread {
+        id
+        threadId
+        companyId
+        agentId
+        runnerId
+        title
+        additionalModelInstructions
+        status
+        errorMessage
+        currentModelId
+        currentModelName
+        currentReasoningLevel
+        createdAt
+        updatedAt
+      }
     }
   }
 `;
@@ -3499,7 +3515,20 @@ export const COMPANY_API_UPDATE_THREAD_TITLE_MUTATION = `
 
 export const COMPANY_API_DELETE_THREAD_MUTATION = `
   mutation CompanyApiDeleteThread($threadId: ID!) {
-    deleteThread(threadId: $threadId)
+    deleteThread(threadId: $threadId) {
+      id
+      title
+      status
+      errorMessage
+      currentReasoningLevel
+      additionalModelInstructions
+      company {
+        id
+      }
+      agent {
+        id
+      }
+    }
   }
 `;
 

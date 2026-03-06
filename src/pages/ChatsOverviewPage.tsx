@@ -84,9 +84,10 @@ export function ChatsOverviewPage({
                         const isRunning = isChatSessionRunning(chatSession, chatSessionRunningById);
                         const sessionStatus = String(chatSession?.status || "").trim().toLowerCase();
                         const isError = sessionStatus === "error";
+                        const isDeletingSession = sessionStatus === "deleting";
                         const threadErrorMessage = String(chatSession?.errorMessage || "").trim();
                         const chatSessionKey = `${agent.id}:${chatSession.id}`;
-                        const isDeletingChat = deletingChatSessionKey === chatSessionKey;
+                        const isDeletingChat = deletingChatSessionKey === chatSessionKey || isDeletingSession;
                         const sessionModelLabel =
                           String(chatSession?.currentModelName || chatSession?.currentModelId || "").trim() || "n/a";
                         const reasoningLabel = String(chatSession?.currentReasoningLevel || "").trim() || "n/a";
@@ -115,6 +116,9 @@ export function ChatsOverviewPage({
                           >
                             <div className="chat-card-status">
                               {isRunning ? <ChatSessionRunningBadge /> : null}
+                              {!isRunning && isDeletingSession ? (
+                                <span className="chat-thread-status chat-thread-status-deleting">deleting</span>
+                              ) : null}
                               {!isRunning && isError ? <span className="chat-thread-status chat-thread-status-error">error</span> : null}
                             </div>
                             <div className="chat-card-main">

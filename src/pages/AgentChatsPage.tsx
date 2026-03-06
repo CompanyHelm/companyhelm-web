@@ -413,9 +413,10 @@ export function AgentChatsPage({
                       const isRunning = isChatSessionRunning(session, chatSessionRunningById);
                       const sessionStatus = String(session?.status || "").trim().toLowerCase();
                       const isError = sessionStatus === "error";
+                      const isDeletingSession = sessionStatus === "deleting";
                       const threadErrorMessage = String(session?.errorMessage || "").trim();
                       const chatSessionKey = `${agent.id}:${session.id}`;
-                      const isDeletingChat = deletingChatSessionKey === chatSessionKey;
+                      const isDeletingChat = deletingChatSessionKey === chatSessionKey || isDeletingSession;
                       const modelLabel = String(session?.currentModelName || session?.currentModelId || "").trim() || "n/a";
                       const reasoningLabel = String(session?.currentReasoningLevel || "").trim() || "n/a";
                       return (
@@ -434,6 +435,9 @@ export function AgentChatsPage({
                           <div className="agent-detail-chat-item-main">
                             <p className="agent-detail-chat-item-title">
                               {isRunning ? "● " : ""}{session.title || "Untitled chat"}
+                              {!isRunning && isDeletingSession ? (
+                                <span className="chat-thread-status chat-thread-status-deleting">deleting</span>
+                              ) : null}
                               {isError ? <span className="chat-thread-status chat-thread-status-error">error</span> : null}
                             </p>
                             <p className="agent-detail-chat-item-meta">

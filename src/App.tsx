@@ -1542,15 +1542,16 @@ async function executeGraphQL(query: any, variables: any = {}) {
     const data = await executeRawGraphQL(COMPANY_API_DELETE_THREAD_MUTATION, {
       threadId,
     });
-    const ok = Boolean(data?.deleteThread);
-    if (ok && threadId) {
-      companyApiThreadMetadataById.delete(threadId);
-    }
+    const deletingThread = data?.deleteThread
+      ? toLegacyThreadPayload(data.deleteThread)
+      : null;
+    const ok = Boolean(deletingThread?.id);
     return {
       deleteAgentThread: {
         ok,
         error: ok ? null : "Failed to delete chat.",
         deletedThreadId: ok ? threadId : null,
+        thread: deletingThread,
       },
     };
   }
@@ -7671,9 +7672,6 @@ function App() {
     const agentSessions = Array.isArray(chatSessionsByAgent[targetAgentId])
       ? chatSessionsByAgent[targetAgentId]
       : [];
-    const remainingSessionsForTargetAgent = agentSessions.filter(
-      (session: any) => String(session?.id || "").trim() !== targetSessionId,
-    );
     const matchingSession = agentSessions.find((session: any) => String(session?.id || "").trim() === targetSessionId)
       || chatSessions.find((session: any) => String(session?.id || "").trim() === targetSessionId)
       || null;
@@ -7687,7 +7685,6 @@ function App() {
     }
 
     const targetChatSessionKey = `${targetAgentId}:${targetSessionId}`;
-    const isOverviewRoute = activePage === "chats" && !resolvedChatSessionId;
     try {
       setDeletingChatSessionKey(targetChatSessionKey);
       setChatError("");
@@ -7702,107 +7699,72 @@ function App() {
         throw new Error(result?.error || "Chat deletion failed.");
       }
 
-      companyApiThreadMetadataById.delete(targetSessionId);
+      const nowIso = new Date().toISOString();
+      const deletingSession = result?.thread
+        ? {
+            ...matchingSession,
+            ...result.thread,
+            id: resolveLegacyId(result?.thread?.id) || targetSessionId,
+            threadId: resolveLegacyId(result?.thread?.threadId, result?.thread?.id) || targetSessionId,
+            agentId: resolveLegacyId(result?.thread?.agentId, targetAgentId) || targetAgentId,
+            title:
+              resolveLegacyId(result?.thread?.title)
+              || resolvedTitle
+              || String(matchingSession?.title || "").trim()
+              || `Thread ${targetSessionId.slice(0, 8)}`,
+            status: "deleting",
+            updatedAt: resolveLegacyId(result?.thread?.updatedAt) || nowIso,
+          }
+        : {
+            ...matchingSession,
+            id: targetSessionId,
+            threadId: targetSessionId,
+            agentId: targetAgentId,
+            title: resolvedTitle || String(matchingSession?.title || "").trim() || `Thread ${targetSessionId.slice(0, 8)}`,
+            status: "deleting",
+            updatedAt: nowIso,
+          };
+
+      const upsertDeletingSession = (sessions: any) => {
+        const nextSessions = Array.isArray(sessions) ? [...sessions] : [];
+        const targetIndex = nextSessions.findIndex(
+          (session: any) => String(session?.id || "").trim() === targetSessionId,
+        );
+
+        if (targetIndex >= 0) {
+          nextSessions[targetIndex] = {
+            ...nextSessions[targetIndex],
+            ...deletingSession,
+            status: "deleting",
+          };
+        } else {
+          nextSessions.unshift(deletingSession);
+        }
+
+        return sortChatSessionsForChatNavigation(nextSessions);
+      };
+
       setChatSessionRunningState(targetSessionId, false);
-      setChatSessions((currentSessions: any) =>
-        currentSessions.filter((session: any) => String(session?.id || "").trim() !== targetSessionId),
-      );
+      setChatSessions((currentSessions: any) => {
+        if (targetAgentId !== chatAgentId) {
+          return currentSessions;
+        }
+        return upsertDeletingSession(currentSessions);
+      });
       setChatSessionsByAgent((currentSessionsByAgent: any) => {
-        const existingSessions = Array.isArray(currentSessionsByAgent[targetAgentId])
-          ? currentSessionsByAgent[targetAgentId]
-          : [];
         return {
           ...currentSessionsByAgent,
-          [targetAgentId]: existingSessions.filter(
-            (session: any) => String(session?.id || "").trim() !== targetSessionId,
-          ),
+          [targetAgentId]: upsertDeletingSession(currentSessionsByAgent[targetAgentId]),
         };
       });
 
       if (resolvedChatSessionId === targetSessionId) {
-        const sortedRemainingSessionsForTargetAgent =
-          sortChatSessionsForChatNavigation(remainingSessionsForTargetAgent);
-        const firstRemainingSessionForTargetAgent = sortedRemainingSessionsForTargetAgent[0] || null;
-        let fallbackChatTarget = firstRemainingSessionForTargetAgent
-          ? {
-              agentId: targetAgentId,
-              threadId: String(firstRemainingSessionForTargetAgent?.id || "").trim(),
-            }
-          : null;
-
-        if (!fallbackChatTarget) {
-          const sessionsByAgentAfterDelete = {
-            ...chatSessionsByAgent,
-            [targetAgentId]: remainingSessionsForTargetAgent,
-          };
-          const sortedAgents = sortAgentsForChatNavigation(agents);
-          for (const agentEntry of sortedAgents) {
-            const fallbackAgentId = String(agentEntry?.id || "").trim();
-            if (!fallbackAgentId) {
-              continue;
-            }
-            const fallbackSessionsForAgent = sortChatSessionsForChatNavigation(
-              Array.isArray(sessionsByAgentAfterDelete[fallbackAgentId])
-                ? sessionsByAgentAfterDelete[fallbackAgentId]
-                : [],
-            );
-            const fallbackSession = fallbackSessionsForAgent[0] || null;
-            const fallbackThreadId = String(fallbackSession?.id || "").trim();
-            if (fallbackThreadId) {
-              fallbackChatTarget = {
-                agentId: fallbackAgentId,
-                threadId: fallbackThreadId,
-              };
-              break;
-            }
-          }
-        }
-
-        setChatSessionId("");
-        setChatTurns([]);
-        setQueuedChatMessages([]);
-        if (activePage === "chats") {
-          if (fallbackChatTarget?.agentId && fallbackChatTarget?.threadId) {
-            setChatAgentId(fallbackChatTarget.agentId);
-            setChatSessionId(fallbackChatTarget.threadId);
-            setBrowserPath(
-              getChatsPath({
-                agentId: fallbackChatTarget.agentId,
-                threadId: fallbackChatTarget.threadId,
-              }),
-              { replace: true },
-            );
-          } else {
-            setBrowserPath(getChatsPath({ agentId: targetAgentId }), { replace: true });
-          }
-        }
-        if (
-          activePage === "agents"
-          && agentsRoute.view === "chat"
-          && String(agentsRoute.agentId || "").trim() === targetAgentId
-        ) {
-          setBrowserPath(`/agents/${targetAgentId}`);
-        }
-      }
-
-      if (isOverviewRoute) {
-        if (activePage === "chats") {
-          await loadChatsBootstrapData({ silently: true });
-        } else {
-          await loadChatSessionIndexByAgent({ silently: true });
-        }
-      } else {
-        await loadAgentChatSessions({
-          silently: true,
-          agentIdOverride: targetAgentId,
-        });
+        setChatSessionId(targetSessionId);
       }
       return true;
     } catch (deleteError: any) {
       const errorMessage = deleteError?.message || "Chat deletion failed.";
-      if (isOverviewRoute) {
-        setChatIndexError(errorMessage);
-      }
+      setChatIndexError(errorMessage);
       setChatError(errorMessage);
       return false;
     } finally {
