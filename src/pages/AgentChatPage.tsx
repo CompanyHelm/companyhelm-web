@@ -182,7 +182,10 @@ export function AgentChatPage({
     () => [...(Array.isArray(chatTurns) ? chatTurns : [])].sort(compareTurnsByTimestamp),
     [chatTurns],
   );
-  const hasRunningTurn = useMemo(() => Boolean(getLatestRunningChatTurn(orderedTurns)), [orderedTurns]);
+  const hasRunningTurn = useMemo(
+    () => Boolean(getLatestRunningChatTurn(orderedTurns)) || isChatSessionRunning(session, chatSessionRunningById),
+    [orderedTurns, session, chatSessionRunningById],
+  );
   const latestReasoning = useMemo(() => {
     for (let turnIndex = orderedTurns.length - 1; turnIndex >= 0; turnIndex -= 1) {
       const turn = orderedTurns[turnIndex];

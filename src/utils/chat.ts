@@ -116,6 +116,30 @@ export function isChatSessionRunning(session: unknown, chatSessionRunningById: R
   return Boolean(sessionId && chatSessionRunningById?.[sessionId]);
 }
 
+export function resolveChatSendMode({
+  modeOverride,
+  hasRunningTurn,
+  sessionId,
+  chatSessionRunningById,
+}: {
+  modeOverride?: unknown;
+  hasRunningTurn?: unknown;
+  sessionId?: unknown;
+  chatSessionRunningById?: Record<string, boolean>;
+} = {}): "queue" | "steer" {
+  const normalizedModeOverride = String(modeOverride || "").trim().toLowerCase();
+  const shouldSteerMode = normalizedModeOverride === "steer" || normalizedModeOverride === "turn";
+  const resolvedSessionId = String(sessionId || "").trim();
+  const isSessionRunning = Boolean(
+    hasRunningTurn || (resolvedSessionId && chatSessionRunningById?.[resolvedSessionId]),
+  );
+
+  if (isSessionRunning && shouldSteerMode) {
+    return "steer";
+  }
+  return "queue";
+}
+
 const CODEX_STREAM_DEFAULT_TURN_KEY = "__default_turn__";
 const CODEX_TURN_COMPLETION_TYPES = new Set([
   "turn.completed",
