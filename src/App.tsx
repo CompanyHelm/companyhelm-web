@@ -1106,6 +1106,12 @@ function toLegacyQueuedUserMessagePayload(queuedMessage: any) {
   };
 }
 
+function getVisibleQueuedChatMessages(queuedMessages: any[] = []) {
+  return queuedMessages.filter((queuedMessage: any) =>
+    String(queuedMessage?.status || "").trim().toLowerCase() !== "processed",
+  );
+}
+
 function unsupportedMutation(resultKey: any) {
   return {
     [resultKey]: {
@@ -3955,8 +3961,10 @@ function App() {
           toLegacyTurnPayload(turnNode, { runnerId }),
         );
         const nextQueuedMessages = Array.isArray(threadSnapshotPayload?.queuedUserMessages)
-          ? threadSnapshotPayload.queuedUserMessages.map((queuedMessage: any) =>
-              toLegacyQueuedUserMessagePayload(queuedMessage),
+          ? getVisibleQueuedChatMessages(
+              threadSnapshotPayload.queuedUserMessages.map((queuedMessage: any) =>
+                toLegacyQueuedUserMessagePayload(queuedMessage),
+              ),
             )
           : [];
         const nextTurnLifecycleSignature = getTurnLifecycleSignature(nextTurns);
@@ -4156,8 +4164,10 @@ function App() {
     }
 
     const nextQueuedMessages = Array.isArray(payload.queuedUserMessagesUpdated)
-      ? payload.queuedUserMessagesUpdated.map((queuedMessage: any) =>
-          toLegacyQueuedUserMessagePayload(queuedMessage),
+      ? getVisibleQueuedChatMessages(
+          payload.queuedUserMessagesUpdated.map((queuedMessage: any) =>
+            toLegacyQueuedUserMessagePayload(queuedMessage),
+          ),
         )
       : [];
 
