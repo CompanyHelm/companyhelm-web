@@ -152,6 +152,14 @@ export function AgentChatPage({
       String(leftAgent?.name || "").localeCompare(String(rightAgent?.name || "")),
     );
   }, [agents]);
+  const selectedAgentSessions = useMemo(() => {
+    if (!selectedAgentId) {
+      return [];
+    }
+    const sessionsForAgent = chatSessionsByAgent?.[selectedAgentId];
+    return Array.isArray(sessionsForAgent) ? sessionsForAgent : [];
+  }, [chatSessionsByAgent, selectedAgentId]);
+  const hasKnownChatsForAgent = selectedAgentSessions.length > 0;
   const currentChatSessionKey = canChat ? `${agent.id}:${session.id}` : "";
   const isDeletingCurrentChat = Boolean(
     currentChatSessionKey
@@ -636,7 +644,7 @@ export function AgentChatPage({
           <p className="empty-hint">Thread is deleting. Waiting for runner confirmation.</p>
         ) : null}
         {!agent ? <p className="empty-hint">Agent not found.</p> : null}
-        {agent && !session ? <p className="empty-hint">Chat not found.</p> : null}
+        {agent && !session && hasKnownChatsForAgent ? <p className="empty-hint">Chat not found.</p> : null}
         {canChat && isLoadingChat ? <p className="empty-hint">Loading chat messages...</p> : null}
         {canChat && !isLoadingChat && !hasTranscriptContent && !isSessionDeleting ? (
           <p className="empty-hint">No messages yet. Send the first prompt below.</p>
