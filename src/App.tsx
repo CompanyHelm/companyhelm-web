@@ -4173,7 +4173,7 @@ function App() {
   useGraphQLSubscription({
     enabled: Boolean(selectedCompanyId && shouldSubscribeAgentRunners && hasLoadedAgentRunners),
     query: AGENT_RUNNERS_SUBSCRIPTION,
-    variables: selectedCompanyId ? { companyId: selectedCompanyId, first: 200 } : undefined,
+    variables: selectedCompanyId ? { first: 200 } : undefined,
     onData: handleAgentRunnersSubscriptionData,
     onError: handleAgentRunnersSubscriptionError,
   });
@@ -4184,7 +4184,6 @@ function App() {
     variables:
       selectedCompanyId
         ? {
-            companyId: selectedCompanyId,
             first: 500,
             ...(shouldSubscribeChatIndex
               ? {}
@@ -4203,7 +4202,6 @@ function App() {
     variables:
       selectedCompanyId && chatAgentId && resolvedChatSessionId
         ? {
-            companyId: selectedCompanyId,
             agentId: chatAgentId,
             threadId: resolvedChatSessionId,
             first: 100,
@@ -4219,7 +4217,6 @@ function App() {
     variables:
       selectedCompanyId && chatAgentId && resolvedChatSessionId
         ? {
-            companyId: selectedCompanyId,
             agentId: chatAgentId,
             threadId: resolvedChatSessionId,
             first: 200,

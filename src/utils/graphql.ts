@@ -36,7 +36,6 @@ export const DELETE_COMPANY_MUTATION = `
     deleteCompany(id: $id) {
       ok
       error
-      companyId
     }
   }
 `;
@@ -51,10 +50,9 @@ export const LIST_GITHUB_APP_CONFIG_QUERY = `
 `;
 
 export const LIST_GITHUB_INSTALLATIONS_QUERY = `
-  query ListGithubInstallations($companyId: String!) {
-    githubInstallations(companyId: $companyId) {
+  query ListGithubInstallations {
+    githubInstallations {
       installationId
-      companyId
       createdAt
     }
   }
@@ -62,12 +60,10 @@ export const LIST_GITHUB_INSTALLATIONS_QUERY = `
 
 export const ADD_GITHUB_INSTALLATION_MUTATION = `
   mutation AddGithubInstallation(
-    $companyId: String!
     $installationId: String!
     $setupAction: String
   ) {
     addGithubInstallation(
-      companyId: $companyId
       installationId: $installationId
       setupAction: $setupAction
     ) {
@@ -75,7 +71,6 @@ export const ADD_GITHUB_INSTALLATION_MUTATION = `
       error
       githubInstallation {
         installationId
-        companyId
         createdAt
       }
     }
@@ -83,8 +78,8 @@ export const ADD_GITHUB_INSTALLATION_MUTATION = `
 `;
 
 export const DELETE_GITHUB_INSTALLATION_MUTATION = `
-  mutation DeleteGithubInstallation($companyId: String!, $installationId: String!) {
-    deleteGithubInstallation(companyId: $companyId, installationId: $installationId) {
+  mutation DeleteGithubInstallation($installationId: String!) {
+    deleteGithubInstallation(installationId: $installationId) {
       ok
       error
       deletedInstallationId
@@ -93,14 +88,12 @@ export const DELETE_GITHUB_INSTALLATION_MUTATION = `
 `;
 
 export const LIST_REPOSITORIES_QUERY = `
-  query ListRepositories($companyId: String!, $provider: String, $githubInstallationId: String) {
+  query ListRepositories($provider: String, $githubInstallationId: String) {
     repositories(
-      companyId: $companyId
       provider: $provider
       githubInstallationId: $githubInstallationId
     ) {
       id
-      companyId
       provider
       externalId
       githubInstallationId
@@ -117,13 +110,12 @@ export const LIST_REPOSITORIES_QUERY = `
 `;
 
 export const REFRESH_GITHUB_INSTALLATION_REPOSITORIES_MUTATION = `
-  mutation RefreshGithubInstallationRepositories($companyId: String!, $installationId: String!) {
-    refreshGithubInstallationRepositories(companyId: $companyId, installationId: $installationId) {
+  mutation RefreshGithubInstallationRepositories($installationId: String!) {
+    refreshGithubInstallationRepositories(installationId: $installationId) {
       ok
       error
       repositories {
         id
-        companyId
         provider
         externalId
         githubInstallationId
@@ -141,8 +133,8 @@ export const REFRESH_GITHUB_INSTALLATION_REPOSITORIES_MUTATION = `
 `;
 
 export const LIST_TASKS_QUERY = `
-  query ListTasks($companyId: String!) {
-    tasks(companyId: $companyId) {
+  query ListTasks {
+    tasks {
       id
       company {
         id
@@ -160,7 +152,6 @@ export const LIST_TASKS_QUERY = `
       comments {
         id
         taskId
-        companyId
         comment
         authorPrincipalId
         authorPrincipal {
@@ -179,8 +170,8 @@ export const LIST_TASKS_QUERY = `
 `;
 
 export const LIST_TASK_ASSIGNABLE_PRINCIPALS_QUERY = `
-  query ListTaskAssignablePrincipals($companyId: String!) {
-    taskAssignablePrincipals(companyId: $companyId) {
+  query ListTaskAssignablePrincipals {
+    taskAssignablePrincipals {
       id
       kind
       displayName
@@ -192,10 +183,9 @@ export const LIST_TASK_ASSIGNABLE_PRINCIPALS_QUERY = `
 `;
 
 export const LIST_AGENT_RUNNERS_QUERY = `
-  query ListAgentRunners($companyId: String!) {
-    agentRunners(companyId: $companyId) {
+  query ListAgentRunners {
+    agentRunners {
       id
-      companyId
       name
       callbackUrl
       hasAuthSecret
@@ -217,11 +207,9 @@ export const LIST_AGENT_RUNNERS_QUERY = `
 
 export const CREATE_AGENT_RUNNER_MUTATION = `
   mutation CreateAgentRunner(
-    $companyId: String!
     $name: String!
   ) {
     createAgentRunner(
-      companyId: $companyId
       name: $name
     ) {
       ok
@@ -230,7 +218,6 @@ export const CREATE_AGENT_RUNNER_MUTATION = `
       runnerLaunchCommand
       agentRunner {
         id
-        companyId
         name
         callbackUrl
         hasAuthSecret
@@ -252,15 +239,14 @@ export const CREATE_AGENT_RUNNER_MUTATION = `
 `;
 
 export const REGENERATE_AGENT_RUNNER_SECRET_MUTATION = `
-  mutation RegenerateAgentRunnerSecret($companyId: String!, $id: String!) {
-    regenerateAgentRunnerSecret(companyId: $companyId, id: $id) {
+  mutation RegenerateAgentRunnerSecret($id: String!) {
+    regenerateAgentRunnerSecret(id: $id) {
       ok
       error
       provisionedAuthSecret
       runnerLaunchCommand
       agentRunner {
       id
-      companyId
       name
       callbackUrl
       hasAuthSecret
@@ -282,8 +268,8 @@ export const REGENERATE_AGENT_RUNNER_SECRET_MUTATION = `
 `;
 
 export const LIST_AGENTS_QUERY = `
-  query ListAgents($companyId: String!) {
-    agents(companyId: $companyId) {
+  query ListAgents {
+    agents {
       id
       name
       status
@@ -301,8 +287,8 @@ export const LIST_AGENTS_QUERY = `
 `;
 
 export const LIST_SKILLS_QUERY = `
-  query ListSkills($companyId: String!) {
-    skills(companyId: $companyId) {
+  query ListSkills {
+    skills {
       id
       name
       description
@@ -326,8 +312,8 @@ export const LIST_SKILLS_QUERY = `
 `;
 
 export const LIST_ROLES_QUERY = `
-  query ListRoles($companyId: String!) {
-    roles: roles(companyId: $companyId) {
+  query ListRoles {
+    roles: roles {
       id
       name
       company {
@@ -366,8 +352,8 @@ export const LIST_ROLES_QUERY = `
 `;
 
 export const LIST_SKILL_GROUPS_QUERY = `
-  query ListSkillGroups($companyId: String!) {
-    skillGroups(companyId: $companyId) {
+  query ListSkillGroups {
+    skillGroups {
       id
       name
       company {
@@ -386,8 +372,8 @@ export const LIST_SKILL_GROUPS_QUERY = `
 `;
 
 export const LIST_GIT_SKILL_PACKAGES_QUERY = `
-  query ListGitSkillPackages($companyId: String!) {
-    gitSkillPackages(companyId: $companyId) {
+  query ListGitSkillPackages {
+    gitSkillPackages {
       id
       packageName
       gitRepositoryUrl
@@ -428,12 +414,10 @@ export const PREVIEW_GIT_SKILL_PACKAGE_MUTATION = `
 
 export const CREATE_GIT_SKILL_PACKAGE_MUTATION = `
   mutation CreateGitSkillPackage(
-    $companyId: ID!
     $gitRepositoryUrl: String!
     $gitReference: String!
   ) {
     createGitSkillPackage(
-      companyId: $companyId
       gitRepositoryUrl: $gitRepositoryUrl
       gitReference: $gitReference
     ) {
@@ -468,8 +452,8 @@ export const CREATE_GIT_SKILL_PACKAGE_MUTATION = `
 `;
 
 export const DELETE_GIT_SKILL_PACKAGE_MUTATION = `
-  mutation DeleteGitSkillPackage($companyId: ID!, $id: ID!) {
-    deleteGitSkillPackage(companyId: $companyId, id: $id) {
+  mutation DeleteGitSkillPackage($id: ID!) {
+    deleteGitSkillPackage(id: $id) {
       ok
       error
       deletedGitSkillPackageId
@@ -478,9 +462,8 @@ export const DELETE_GIT_SKILL_PACKAGE_MUTATION = `
 `;
 
 export const CREATE_SKILL_GROUP_MUTATION = `
-  mutation CreateSkillGroup($companyId: ID!, $name: String!, $parentSkillGroupId: ID) {
+  mutation CreateSkillGroup($name: String!, $parentSkillGroupId: ID) {
     createSkillGroup(
-      companyId: $companyId
       name: $name
       parentSkillGroupId: $parentSkillGroupId
     ) {
@@ -503,13 +486,11 @@ export const CREATE_SKILL_GROUP_MUTATION = `
 
 export const UPDATE_SKILL_GROUP_MUTATION = `
   mutation UpdateSkillGroup(
-    $companyId: ID!
     $id: ID!
     $name: String!
     $parentSkillGroupId: ID
   ) {
     updateSkillGroup(
-      companyId: $companyId
       id: $id
       name: $name
       parentSkillGroupId: $parentSkillGroupId
@@ -532,8 +513,8 @@ export const UPDATE_SKILL_GROUP_MUTATION = `
 `;
 
 export const DELETE_SKILL_GROUP_MUTATION = `
-  mutation DeleteSkillGroup($companyId: ID!, $id: ID!) {
-    deleteSkillGroup(companyId: $companyId, id: $id) {
+  mutation DeleteSkillGroup($id: ID!) {
+    deleteSkillGroup(id: $id) {
       ok
       error
       deletedSkillGroupId
@@ -542,9 +523,8 @@ export const DELETE_SKILL_GROUP_MUTATION = `
 `;
 
 export const ADD_SKILL_TO_GROUP_MUTATION = `
-  mutation AddSkillToGroup($companyId: ID!, $skillGroupId: ID!, $skillId: ID!) {
+  mutation AddSkillToGroup($skillGroupId: ID!, $skillId: ID!) {
     addSkillToSkillGroup(
-      companyId: $companyId
       skillGroupId: $skillGroupId
       skillId: $skillId
     ) {
@@ -558,9 +538,8 @@ export const ADD_SKILL_TO_GROUP_MUTATION = `
 `;
 
 export const REMOVE_SKILL_FROM_GROUP_MUTATION = `
-  mutation RemoveSkillFromGroup($companyId: ID!, $skillGroupId: ID!, $skillId: ID!) {
+  mutation RemoveSkillFromGroup($skillGroupId: ID!, $skillId: ID!) {
     removeSkillFromSkillGroup(
-      companyId: $companyId
       skillGroupId: $skillGroupId
       skillId: $skillId
     ) {
@@ -574,9 +553,8 @@ export const REMOVE_SKILL_FROM_GROUP_MUTATION = `
 `;
 
 export const CREATE_ROLE_MUTATION = `
-  mutation CreateRole($companyId: ID!, $name: String!, $parentRoleId: ID) {
+  mutation CreateRole($name: String!, $parentRoleId: ID) {
     createRole: createRole(
-      companyId: $companyId
       name: $name
       parentRoleId: $parentRoleId
     ) {
@@ -599,13 +577,11 @@ export const CREATE_ROLE_MUTATION = `
 
 export const UPDATE_ROLE_MUTATION = `
   mutation UpdateRole(
-    $companyId: ID!
     $id: ID!
     $name: String!
     $parentRoleId: ID
   ) {
     updateRole: updateRole(
-      companyId: $companyId
       id: $id
       name: $name
       parentRoleId: $parentRoleId
@@ -628,8 +604,8 @@ export const UPDATE_ROLE_MUTATION = `
 `;
 
 export const DELETE_ROLE_MUTATION = `
-  mutation DeleteRole($companyId: ID!, $id: ID!) {
-    deleteRole: deleteRole(companyId: $companyId, id: $id) {
+  mutation DeleteRole($id: ID!) {
+    deleteRole: deleteRole(id: $id) {
       ok
       error
       deletedRoleId: deletedRoleId
@@ -638,9 +614,8 @@ export const DELETE_ROLE_MUTATION = `
 `;
 
 export const ADD_SKILL_TO_ROLE_MUTATION = `
-  mutation AddSkillToRole($companyId: ID!, $roleId: ID!, $skillId: ID!) {
+  mutation AddSkillToRole($roleId: ID!, $skillId: ID!) {
     addSkillToRole: addSkillToRole(
-      companyId: $companyId
       roleId: $roleId
       skillId: $skillId
     ) {
@@ -654,9 +629,8 @@ export const ADD_SKILL_TO_ROLE_MUTATION = `
 `;
 
 export const REMOVE_SKILL_FROM_ROLE_MUTATION = `
-  mutation RemoveSkillFromRole($companyId: ID!, $roleId: ID!, $skillId: ID!) {
+  mutation RemoveSkillFromRole($roleId: ID!, $skillId: ID!) {
     removeSkillFromRole: removeSkillFromRole(
-      companyId: $companyId
       roleId: $roleId
       skillId: $skillId
     ) {
@@ -670,9 +644,8 @@ export const REMOVE_SKILL_FROM_ROLE_MUTATION = `
 `;
 
 export const ADD_SKILL_GROUP_TO_ROLE_MUTATION = `
-  mutation AddSkillGroupToRole($companyId: ID!, $roleId: ID!, $skillGroupId: ID!) {
+  mutation AddSkillGroupToRole($roleId: ID!, $skillGroupId: ID!) {
     addSkillGroupToRole(
-      companyId: $companyId
       roleId: $roleId
       skillGroupId: $skillGroupId
     ) {
@@ -686,9 +659,8 @@ export const ADD_SKILL_GROUP_TO_ROLE_MUTATION = `
 `;
 
 export const REMOVE_SKILL_GROUP_FROM_ROLE_MUTATION = `
-  mutation RemoveSkillGroupFromRole($companyId: ID!, $roleId: ID!, $skillGroupId: ID!) {
+  mutation RemoveSkillGroupFromRole($roleId: ID!, $skillGroupId: ID!) {
     removeSkillGroupFromRole(
-      companyId: $companyId
       roleId: $roleId
       skillGroupId: $skillGroupId
     ) {
@@ -702,9 +674,8 @@ export const REMOVE_SKILL_GROUP_FROM_ROLE_MUTATION = `
 `;
 
 export const ADD_MCP_SERVER_TO_ROLE_MUTATION = `
-  mutation AddMcpServerToRole($companyId: ID!, $roleId: ID!, $mcpServerId: ID!) {
+  mutation AddMcpServerToRole($roleId: ID!, $mcpServerId: ID!) {
     addMcpServerToRole(
-      companyId: $companyId
       roleId: $roleId
       mcpServerId: $mcpServerId
     ) {
@@ -718,9 +689,8 @@ export const ADD_MCP_SERVER_TO_ROLE_MUTATION = `
 `;
 
 export const REMOVE_MCP_SERVER_FROM_ROLE_MUTATION = `
-  mutation RemoveMcpServerFromRole($companyId: ID!, $roleId: ID!, $mcpServerId: ID!) {
+  mutation RemoveMcpServerFromRole($roleId: ID!, $mcpServerId: ID!) {
     removeMcpServerFromRole(
-      companyId: $companyId
       roleId: $roleId
       mcpServerId: $mcpServerId
     ) {
@@ -734,10 +704,9 @@ export const REMOVE_MCP_SERVER_FROM_ROLE_MUTATION = `
 `;
 
 export const LIST_MCP_SERVERS_QUERY = `
-  query ListMcpServers($companyId: String!) {
-    mcpServers(companyId: $companyId) {
+  query ListMcpServers {
+    mcpServers {
       id
-      companyId
       name
       transportType
       url
@@ -759,10 +728,9 @@ export const LIST_MCP_SERVERS_QUERY = `
 `;
 
 export const LIST_SECRETS_QUERY = `
-  query ListSecrets($companyId: String!) {
-    secrets(companyId: $companyId) {
+  query ListSecrets {
+    secrets {
       id
-      companyId
       name
       description
       createdAt
@@ -772,8 +740,8 @@ export const LIST_SECRETS_QUERY = `
 `;
 
 export const LIST_SECRET_VALUE_QUERY = `
-  query ListSecretValue($companyId: String!, $secretId: String!) {
-    secretValue(companyId: $companyId, secretId: $secretId) {
+  query ListSecretValue($secretId: String!) {
+    secretValue(secretId: $secretId) {
       ok
       error
       value
@@ -782,10 +750,9 @@ export const LIST_SECRET_VALUE_QUERY = `
 `;
 
 export const LIST_SECRET_ACCESS_LOGS_QUERY = `
-  query ListSecretAccessLogs($companyId: String!, $secretId: String!, $first: Int) {
-    secretAccessLogs(companyId: $companyId, secretId: $secretId, first: $first) {
+  query ListSecretAccessLogs($secretId: String!, $first: Int) {
+    secretAccessLogs(secretId: $secretId, first: $first) {
       id
-      companyId
       secretId
       threadId
       agentId
@@ -809,10 +776,9 @@ export const LIST_SECRET_ACCESS_LOGS_QUERY = `
 `;
 
 export const LIST_APPROVALS_QUERY = `
-  query ListApprovals($companyId: String!, $status: String, $first: Int) {
-    approvals(companyId: $companyId, status: $status, first: $first) {
+  query ListApprovals($status: String, $first: Int) {
+    approvals(status: $status, first: $first) {
       id
-      companyId
       type
       status
       secretId
@@ -832,8 +798,8 @@ export const LIST_APPROVALS_QUERY = `
 `;
 
 export const APPROVE_APPROVAL_MUTATION = `
-  mutation ApproveApproval($companyId: String!, $id: String!) {
-    approveApproval(companyId: $companyId, id: $id) {
+  mutation ApproveApproval($id: String!) {
+    approveApproval(id: $id) {
       ok
       error
       approval {
@@ -844,8 +810,8 @@ export const APPROVE_APPROVAL_MUTATION = `
 `;
 
 export const REJECT_APPROVAL_MUTATION = `
-  mutation RejectApproval($companyId: String!, $id: String!, $rejectionReason: String) {
-    rejectApproval(companyId: $companyId, id: $id, rejectionReason: $rejectionReason) {
+  mutation RejectApproval($id: String!, $rejectionReason: String) {
+    rejectApproval(id: $id, rejectionReason: $rejectionReason) {
       ok
       error
       approval {
@@ -856,8 +822,8 @@ export const REJECT_APPROVAL_MUTATION = `
 `;
 
 export const DELETE_APPROVAL_MUTATION = `
-  mutation DeleteApproval($companyId: String!, $id: String!) {
-    deleteApproval(companyId: $companyId, id: $id) {
+  mutation DeleteApproval($id: String!) {
+    deleteApproval(id: $id) {
       ok
       error
       deletedApprovalId
@@ -867,13 +833,11 @@ export const DELETE_APPROVAL_MUTATION = `
 
 export const CREATE_SECRET_MUTATION = `
   mutation CreateSecret(
-    $companyId: String!
     $name: String!
     $description: String!
     $value: String!
   ) {
     createSecret(
-      companyId: $companyId
       name: $name
       description: $description
       value: $value
@@ -882,7 +846,6 @@ export const CREATE_SECRET_MUTATION = `
       error
       secret {
         id
-        companyId
         name
         description
         createdAt
@@ -894,14 +857,12 @@ export const CREATE_SECRET_MUTATION = `
 
 export const UPDATE_SECRET_MUTATION = `
   mutation UpdateSecret(
-    $companyId: String!
     $id: String!
     $name: String!
     $description: String!
     $value: String
   ) {
     updateSecret(
-      companyId: $companyId
       id: $id
       name: $name
       description: $description
@@ -911,7 +872,6 @@ export const UPDATE_SECRET_MUTATION = `
       error
       secret {
         id
-        companyId
         name
         description
         createdAt
@@ -922,8 +882,8 @@ export const UPDATE_SECRET_MUTATION = `
 `;
 
 export const DELETE_SECRET_MUTATION = `
-  mutation DeleteSecret($companyId: String!, $id: String!) {
-    deleteSecret(companyId: $companyId, id: $id) {
+  mutation DeleteSecret($id: String!) {
+    deleteSecret(id: $id) {
       ok
       error
       deletedSecretId
@@ -933,7 +893,6 @@ export const DELETE_SECRET_MUTATION = `
 
 export const CREATE_TASK_MUTATION = `
   mutation CreateTask(
-    $companyId: String!
     $name: String!
     $description: String
     $acceptanceCriteria: String
@@ -943,7 +902,6 @@ export const CREATE_TASK_MUTATION = `
     $dependencyTaskIds: [ID!]
   ) {
     createTask(
-      companyId: $companyId
       name: $name
       description: $description
       acceptanceCriteria: $acceptanceCriteria
@@ -972,7 +930,6 @@ export const CREATE_TASK_MUTATION = `
         comments {
           id
           taskId
-          companyId
           comment
           authorPrincipalId
           authorPrincipal {
@@ -992,9 +949,8 @@ export const CREATE_TASK_MUTATION = `
 `;
 
 export const ADD_TASK_DEPENDENCY_MUTATION = `
-  mutation AddTaskDependency($companyId: ID!, $taskId: ID!, $dependencyTaskId: ID!) {
+  mutation AddTaskDependency($taskId: ID!, $dependencyTaskId: ID!) {
     addTaskDependency(
-      companyId: $companyId
       taskId: $taskId
       dependencyTaskId: $dependencyTaskId
     ) {
@@ -1018,7 +974,6 @@ export const ADD_TASK_DEPENDENCY_MUTATION = `
         comments {
           id
           taskId
-          companyId
           comment
           authorPrincipalId
           authorPrincipal {
@@ -1038,9 +993,8 @@ export const ADD_TASK_DEPENDENCY_MUTATION = `
 `;
 
 export const REMOVE_TASK_DEPENDENCY_MUTATION = `
-  mutation RemoveTaskDependency($companyId: ID!, $taskId: ID!, $dependencyTaskId: ID!) {
+  mutation RemoveTaskDependency($taskId: ID!, $dependencyTaskId: ID!) {
     removeTaskDependency(
-      companyId: $companyId
       taskId: $taskId
       dependencyTaskId: $dependencyTaskId
     ) {
@@ -1064,7 +1018,6 @@ export const REMOVE_TASK_DEPENDENCY_MUTATION = `
         comments {
           id
           taskId
-          companyId
           comment
           authorPrincipalId
           authorPrincipal {
@@ -1084,9 +1037,8 @@ export const REMOVE_TASK_DEPENDENCY_MUTATION = `
 `;
 
 export const SET_TASK_PARENT_MUTATION = `
-  mutation SetTaskParent($companyId: ID!, $taskId: ID!, $parentTaskId: ID) {
+  mutation SetTaskParent($taskId: ID!, $parentTaskId: ID) {
     setTaskParent(
-      companyId: $companyId
       taskId: $taskId
       parentTaskId: $parentTaskId
     ) {
@@ -1110,7 +1062,6 @@ export const SET_TASK_PARENT_MUTATION = `
         comments {
           id
           taskId
-          companyId
           comment
           authorPrincipalId
           authorPrincipal {
@@ -1130,9 +1081,8 @@ export const SET_TASK_PARENT_MUTATION = `
 `;
 
 export const SET_TASK_ASSIGNEE_PRINCIPAL_MUTATION = `
-  mutation SetTaskAssigneePrincipal($companyId: ID!, $taskId: ID!, $assigneePrincipalId: ID) {
+  mutation SetTaskAssigneePrincipal($taskId: ID!, $assigneePrincipalId: ID) {
     setTaskAssigneePrincipal(
-      companyId: $companyId
       taskId: $taskId
       assigneePrincipalId: $assigneePrincipalId
     ) {
@@ -1148,9 +1098,8 @@ export const SET_TASK_ASSIGNEE_PRINCIPAL_MUTATION = `
 `;
 
 export const SET_TASK_STATUS_MUTATION = `
-  mutation SetTaskStatus($companyId: ID!, $taskId: ID!, $status: TaskStatus!) {
+  mutation SetTaskStatus($taskId: ID!, $status: TaskStatus!) {
     setTaskStatus(
-      companyId: $companyId
       taskId: $taskId
       status: $status
     ) {
@@ -1166,8 +1115,8 @@ export const SET_TASK_STATUS_MUTATION = `
 `;
 
 export const DELETE_TASK_MUTATION = `
-  mutation DeleteTask($companyId: ID!, $id: ID!) {
-    deleteTask(companyId: $companyId, id: $id) {
+  mutation DeleteTask($id: ID!) {
+    deleteTask(id: $id) {
       ok
       error
       deletedTaskId
@@ -1176,8 +1125,8 @@ export const DELETE_TASK_MUTATION = `
 `;
 
 export const BATCH_DELETE_TASKS_MUTATION = `
-  mutation BatchDeleteTasks($companyId: ID!, $ids: [ID!]!) {
-    batchDeleteTasks(companyId: $companyId, ids: $ids) {
+  mutation BatchDeleteTasks($ids: [ID!]!) {
+    batchDeleteTasks(ids: $ids) {
       ok
       error
       deletedTaskIds
@@ -1208,7 +1157,6 @@ export const BATCH_EXECUTE_TASKS_MUTATION = `
         comments {
           id
           taskId
-          companyId
           comment
           authorPrincipalId
           authorPrincipal {
@@ -1228,14 +1176,13 @@ export const BATCH_EXECUTE_TASKS_MUTATION = `
 `;
 
 export const CREATE_TASK_COMMENT_MUTATION = `
-  mutation CreateTaskComment($companyId: ID!, $taskId: ID!, $comment: String!) {
-    createTaskComment(companyId: $companyId, taskId: $taskId, comment: $comment) {
+  mutation CreateTaskComment($taskId: ID!, $comment: String!) {
+    createTaskComment(taskId: $taskId, comment: $comment) {
       ok
       error
       taskComment {
         id
         taskId
-        companyId
         comment
         authorPrincipalId
         authorPrincipal {
@@ -1254,8 +1201,8 @@ export const CREATE_TASK_COMMENT_MUTATION = `
 `;
 
 export const DELETE_AGENT_RUNNER_MUTATION = `
-  mutation DeleteAgentRunner($companyId: String!, $id: String!) {
-    deleteAgentRunner(companyId: $companyId, id: $id) {
+  mutation DeleteAgentRunner($id: String!) {
+    deleteAgentRunner(id: $id) {
       ok
       error
       deletedAgentRunnerId
@@ -1265,7 +1212,6 @@ export const DELETE_AGENT_RUNNER_MUTATION = `
 
 export const CREATE_AGENT_MUTATION = `
   mutation CreateAgent(
-    $companyId: String!
     $agentRunnerId: String
     $skillIds: [String!]
     $mcpServerIds: [String!]
@@ -1276,7 +1222,6 @@ export const CREATE_AGENT_MUTATION = `
     $modelReasoningLevel: String!
   ) {
     createAgent(
-      companyId: $companyId
       agentRunnerId: $agentRunnerId
       skillIds: $skillIds
       mcpServerIds: $mcpServerIds
@@ -1290,7 +1235,6 @@ export const CREATE_AGENT_MUTATION = `
       error
       agent {
         id
-        companyId
         agentRunnerId
         skillIds
         mcpServerIds
@@ -1306,7 +1250,6 @@ export const CREATE_AGENT_MUTATION = `
 
 export const UPDATE_AGENT_MUTATION = `
   mutation UpdateAgent(
-    $companyId: String!
     $id: String!
     $agentRunnerId: String
     $skillIds: [String!]
@@ -1318,7 +1261,6 @@ export const UPDATE_AGENT_MUTATION = `
     $modelReasoningLevel: String!
   ) {
     updateAgent(
-      companyId: $companyId
       id: $id
       agentRunnerId: $agentRunnerId
       skillIds: $skillIds
@@ -1333,7 +1275,6 @@ export const UPDATE_AGENT_MUTATION = `
       error
       agent {
         id
-        companyId
         agentRunnerId
         skillIds
         mcpServerIds
@@ -1348,8 +1289,8 @@ export const UPDATE_AGENT_MUTATION = `
 `;
 
 export const DELETE_AGENT_MUTATION = `
-  mutation DeleteAgent($companyId: String!, $id: String!) {
-    deleteAgent(companyId: $companyId, id: $id) {
+  mutation DeleteAgent($id: String!) {
+    deleteAgent(id: $id) {
       ok
       error
       deletedAgentId
@@ -1359,7 +1300,6 @@ export const DELETE_AGENT_MUTATION = `
 
 export const CREATE_SKILL_MUTATION = `
   mutation CreateSkill(
-    $companyId: String!
     $name: String!
     $skillType: String
     $skillsMpPackageName: String
@@ -1367,7 +1307,6 @@ export const CREATE_SKILL_MUTATION = `
     $instructions: String
   ) {
     createSkill(
-      companyId: $companyId
       name: $name
       skillType: $skillType
       skillsMpPackageName: $skillsMpPackageName
@@ -1378,7 +1317,6 @@ export const CREATE_SKILL_MUTATION = `
       error
       skill {
         id
-        companyId
         name
         skillType
         skillsMpPackageName
@@ -1391,7 +1329,6 @@ export const CREATE_SKILL_MUTATION = `
 
 export const UPDATE_SKILL_MUTATION = `
   mutation UpdateSkill(
-    $companyId: String!
     $id: String!
     $name: String!
     $skillType: String
@@ -1400,7 +1337,6 @@ export const UPDATE_SKILL_MUTATION = `
     $instructions: String
   ) {
     updateSkill(
-      companyId: $companyId
       id: $id
       name: $name
       skillType: $skillType
@@ -1412,7 +1348,6 @@ export const UPDATE_SKILL_MUTATION = `
       error
       skill {
         id
-        companyId
         name
         skillType
         skillsMpPackageName
@@ -1424,8 +1359,8 @@ export const UPDATE_SKILL_MUTATION = `
 `;
 
 export const DELETE_SKILL_MUTATION = `
-  mutation DeleteSkill($companyId: String!, $id: String!) {
-    deleteSkill(companyId: $companyId, id: $id) {
+  mutation DeleteSkill($id: String!) {
+    deleteSkill(id: $id) {
       ok
       error
       deletedSkillId
@@ -1435,7 +1370,6 @@ export const DELETE_SKILL_MUTATION = `
 
 export const CREATE_MCP_SERVER_MUTATION = `
   mutation CreateMcpServer(
-    $companyId: String!
     $name: String!
     $transportType: String
     $url: String
@@ -1448,7 +1382,6 @@ export const CREATE_MCP_SERVER_MUTATION = `
     $enabled: Boolean
   ) {
     createMcpServer(
-      companyId: $companyId
       name: $name
       transportType: $transportType
       url: $url
@@ -1464,7 +1397,6 @@ export const CREATE_MCP_SERVER_MUTATION = `
       error
       mcpServer {
         id
-        companyId
         name
         transportType
         url
@@ -1488,7 +1420,6 @@ export const CREATE_MCP_SERVER_MUTATION = `
 
 export const UPDATE_MCP_SERVER_MUTATION = `
   mutation UpdateMcpServer(
-    $companyId: String!
     $id: String!
     $name: String!
     $transportType: String
@@ -1502,7 +1433,6 @@ export const UPDATE_MCP_SERVER_MUTATION = `
     $enabled: Boolean
   ) {
     updateMcpServer(
-      companyId: $companyId
       id: $id
       name: $name
       transportType: $transportType
@@ -1519,7 +1449,6 @@ export const UPDATE_MCP_SERVER_MUTATION = `
       error
       mcpServer {
         id
-        companyId
         name
         transportType
         url
@@ -1542,8 +1471,8 @@ export const UPDATE_MCP_SERVER_MUTATION = `
 `;
 
 export const DELETE_MCP_SERVER_MUTATION = `
-  mutation DeleteMcpServer($companyId: String!, $id: String!) {
-    deleteMcpServer(companyId: $companyId, id: $id) {
+  mutation DeleteMcpServer($id: String!) {
+    deleteMcpServer(id: $id) {
       ok
       error
       deletedMcpServerId
@@ -1552,8 +1481,8 @@ export const DELETE_MCP_SERVER_MUTATION = `
 `;
 
 export const INITIALIZE_AGENT_MUTATION = `
-  mutation InitializeAgentRunner($companyId: String!, $runnerId: String!, $agentId: String!) {
-    initializeAgentRunner(companyId: $companyId, runnerId: $runnerId, agentId: $agentId) {
+  mutation InitializeAgentRunner($runnerId: String!, $agentId: String!) {
+    initializeAgentRunner(runnerId: $runnerId, agentId: $agentId) {
       ok
       error
       commandId
@@ -1566,13 +1495,11 @@ export const INITIALIZE_AGENT_MUTATION = `
 
 export const RETRY_AGENT_SKILL_INSTALL_MUTATION = `
   mutation RetryAgentSkillInstall(
-    $companyId: String!
     $agentId: String!
     $skillId: String!
     $runnerId: String
   ) {
     retryAgentSkillInstall(
-      companyId: $companyId
       agentId: $agentId
       skillId: $skillId
       runnerId: $runnerId
@@ -1584,7 +1511,6 @@ export const RETRY_AGENT_SKILL_INSTALL_MUTATION = `
       agentId
       skillId
       installedSkill {
-        companyId
         agentId
         skillId
         skillName
@@ -1604,20 +1530,17 @@ export const RETRY_AGENT_SKILL_INSTALL_MUTATION = `
 
 export const LIST_AGENT_TURNS_QUERY = `
   query ListAgentTurns(
-    $companyId: String!
     $agentId: String!
     $threadId: String
     $limit: Int
   ) {
     agentTurns(
-      companyId: $companyId
       agentId: $agentId
       threadId: $threadId
       limit: $limit
     ) {
       id
       threadId
-      companyId
       agentId
       runnerId
       status
@@ -1630,7 +1553,6 @@ export const LIST_AGENT_TURNS_QUERY = `
         id
         turnId
         threadId
-        companyId
         agentId
         runnerId
         providerItemId
@@ -1651,11 +1573,10 @@ export const LIST_AGENT_TURNS_QUERY = `
 `;
 
 export const LIST_AGENT_THREADS_QUERY = `
-  query ListAgentThreads($companyId: String!, $agentId: String!, $limit: Int) {
-    agentThreads(companyId: $companyId, agentId: $agentId, limit: $limit) {
+  query ListAgentThreads($agentId: String!, $limit: Int) {
+    agentThreads(agentId: $agentId, limit: $limit) {
       id
       threadId
-      companyId
       agentId
       runnerId
       title
@@ -1669,14 +1590,12 @@ export const LIST_AGENT_THREADS_QUERY = `
 
 export const CREATE_AGENT_THREAD_MUTATION = `
   mutation CreateAgentThread(
-    $companyId: String!
     $agentId: String!
     $title: String
     $additionalModelInstructions: String
     $runnerId: String
   ) {
     createAgentThread(
-      companyId: $companyId
       agentId: $agentId
       title: $title
       additionalModelInstructions: $additionalModelInstructions
@@ -1687,7 +1606,6 @@ export const CREATE_AGENT_THREAD_MUTATION = `
       thread {
         id
         threadId
-        companyId
         agentId
         runnerId
         title
@@ -1708,7 +1626,6 @@ export const UPDATE_AGENT_THREAD_MUTATION = `
       thread {
         id
         threadId
-        companyId
         agentId
         runnerId
         title
@@ -1722,8 +1639,8 @@ export const UPDATE_AGENT_THREAD_MUTATION = `
 `;
 
 export const DELETE_AGENT_THREAD_MUTATION = `
-  mutation DeleteAgentThread($companyId: String!, $agentId: String!, $threadId: String!) {
-    deleteAgentThread(companyId: $companyId, agentId: $agentId, threadId: $threadId) {
+  mutation DeleteAgentThread($agentId: String!, $threadId: String!) {
+    deleteAgentThread(agentId: $agentId, threadId: $threadId) {
       ok
       error
       deletedThreadId
@@ -1733,14 +1650,12 @@ export const DELETE_AGENT_THREAD_MUTATION = `
 
 export const CREATE_AGENT_TURN_MUTATION = `
   mutation CreateAgentTurn(
-    $companyId: String!
     $agentId: String!
     $threadId: String!
     $text: String!
     $runnerId: String
   ) {
     createAgentTurn(
-      companyId: $companyId
       agentId: $agentId
       threadId: $threadId
       text: $text
@@ -1760,7 +1675,6 @@ export const CREATE_AGENT_TURN_MUTATION = `
 
 export const STEER_AGENT_TURN_MUTATION = `
   mutation SteerAgentTurn(
-    $companyId: String!
     $agentId: String!
     $threadId: String!
     $turnId: String!
@@ -1768,7 +1682,6 @@ export const STEER_AGENT_TURN_MUTATION = `
     $runnerId: String
   ) {
     steerAgentTurn(
-      companyId: $companyId
       agentId: $agentId
       threadId: $threadId
       turnId: $turnId
@@ -1788,13 +1701,11 @@ export const STEER_AGENT_TURN_MUTATION = `
 
 export const INTERRUPT_AGENT_TURN_MUTATION = `
   mutation InterruptAgentTurn(
-    $companyId: String!
     $agentId: String!
     $threadId: String!
     $runnerId: String
   ) {
     interruptAgentTurn(
-      companyId: $companyId
       agentId: $agentId
       threadId: $threadId
       runnerId: $runnerId
@@ -1809,8 +1720,8 @@ export const INTERRUPT_AGENT_TURN_MUTATION = `
 `;
 
 export const AGENT_RUNNERS_SUBSCRIPTION = `
-  subscription AgentRunnersUpdated($companyId: ID!, $first: Int = 200) {
-    agentRunnersUpdated(companyId: $companyId, first: $first) {
+  subscription AgentRunnersUpdated($first: Int = 200) {
+    agentRunnersUpdated(first: $first) {
       edges {
         node {
           id
@@ -1832,8 +1743,8 @@ export const AGENT_RUNNERS_SUBSCRIPTION = `
 `;
 
 export const AGENT_THREADS_SUBSCRIPTION = `
-  subscription AgentThreadsUpdated($companyId: ID!, $agentId: ID, $first: Int = 500) {
-    agentThreadsUpdated(companyId: $companyId, agentId: $agentId, first: $first) {
+  subscription AgentThreadsUpdated($agentId: ID, $first: Int = 500) {
+    agentThreadsUpdated(agentId: $agentId, first: $first) {
       edges {
         node {
           id
@@ -1867,12 +1778,11 @@ export const AGENT_THREADS_SUBSCRIPTION = `
 
 export const AGENT_TURNS_SUBSCRIPTION = `
   subscription AgentTurnsUpdated(
-    $companyId: ID!
     $agentId: ID!
     $threadId: ID!
     $first: Int = 100
   ) {
-    agentTurnsUpdated(companyId: $companyId, agentId: $agentId, threadId: $threadId, first: $first) {
+    agentTurnsUpdated(agentId: $agentId, threadId: $threadId, first: $first) {
       edges {
         node {
           id
@@ -1919,13 +1829,11 @@ export const AGENT_TURNS_SUBSCRIPTION = `
 
 export const AGENT_QUEUED_USER_MESSAGES_SUBSCRIPTION = `
   subscription AgentQueuedUserMessagesUpdated(
-    $companyId: ID!
     $agentId: ID!
     $threadId: ID!
     $first: Int = 200
   ) {
     queuedUserMessagesUpdated(
-      companyId: $companyId
       agentId: $agentId
       threadId: $threadId
       first: $first
@@ -1990,8 +1898,8 @@ export const COMPANY_API_CREATE_COMPANY_MUTATION = `
 `;
 
 export const COMPANY_API_DELETE_COMPANY_MUTATION = `
-  mutation CompanyApiDeleteCompany($companyId: ID!) {
-    deleteCompany(companyId: $companyId)
+  mutation CompanyApiDeleteCompany {
+    deleteCompany
   }
 `;
 
@@ -2005,8 +1913,8 @@ export const COMPANY_API_GITHUB_APP_CONFIG_QUERY = `
 `;
 
 export const COMPANY_API_LIST_GITHUB_INSTALLATIONS_QUERY = `
-  query CompanyApiListGithubInstallations($companyId: ID!) {
-    githubInstallations(companyId: $companyId) {
+  query CompanyApiListGithubInstallations {
+    githubInstallations {
       installationId
       company {
         id
@@ -2018,13 +1926,11 @@ export const COMPANY_API_LIST_GITHUB_INSTALLATIONS_QUERY = `
 
 export const COMPANY_API_LIST_REPOSITORIES_CONNECTION_QUERY = `
   query CompanyApiListRepositories(
-    $companyId: ID!
     $githubInstallationId: ID
     $first: Int!
     $after: String
   ) {
     repositories(
-      companyId: $companyId
       githubInstallationId: $githubInstallationId
       first: $first
       after: $after
@@ -2060,12 +1966,10 @@ export const COMPANY_API_LIST_REPOSITORIES_CONNECTION_QUERY = `
 
 export const COMPANY_API_ADD_GITHUB_INSTALLATION_MUTATION = `
   mutation CompanyApiAddGithubInstallation(
-    $companyId: ID!
     $installationId: ID!
     $setupAction: String
   ) {
     addGithubInstallation(
-      companyId: $companyId
       installationId: $installationId
       setupAction: $setupAction
     ) {
@@ -2084,11 +1988,9 @@ export const COMPANY_API_ADD_GITHUB_INSTALLATION_MUTATION = `
 
 export const COMPANY_API_DELETE_GITHUB_INSTALLATION_MUTATION = `
   mutation CompanyApiDeleteGithubInstallation(
-    $companyId: ID!
     $installationId: ID!
   ) {
     deleteGithubInstallation(
-      companyId: $companyId
       installationId: $installationId
     ) {
       ok
@@ -2100,11 +2002,9 @@ export const COMPANY_API_DELETE_GITHUB_INSTALLATION_MUTATION = `
 
 export const COMPANY_API_REFRESH_GITHUB_INSTALLATION_REPOSITORIES_MUTATION = `
   mutation CompanyApiRefreshGithubInstallationRepositories(
-    $companyId: ID!
     $installationId: ID!
   ) {
     refreshGithubInstallationRepositories(
-      companyId: $companyId
       installationId: $installationId
     ) {
       ok
@@ -2133,8 +2033,8 @@ export const COMPANY_API_REFRESH_GITHUB_INSTALLATION_REPOSITORIES_MUTATION = `
 `;
 
 export const COMPANY_API_LIST_TASKS_QUERY = `
-  query CompanyApiListTasks($companyId: ID!) {
-    tasks(companyId: $companyId) {
+  query CompanyApiListTasks {
+    tasks {
       id
       name
       description
@@ -2149,7 +2049,6 @@ export const COMPANY_API_LIST_TASKS_QUERY = `
       comments {
         id
         taskId
-        companyId
         comment
         authorPrincipalId
         authorPrincipal {
@@ -2171,8 +2070,8 @@ export const COMPANY_API_LIST_TASKS_QUERY = `
 `;
 
 export const COMPANY_API_LIST_TASK_ASSIGNABLE_PRINCIPALS_QUERY = `
-  query CompanyApiListTaskAssignablePrincipals($companyId: ID!) {
-    taskAssignablePrincipals(companyId: $companyId) {
+  query CompanyApiListTaskAssignablePrincipals {
+    taskAssignablePrincipals {
       id
       kind
       displayName
@@ -2185,7 +2084,6 @@ export const COMPANY_API_LIST_TASK_ASSIGNABLE_PRINCIPALS_QUERY = `
 
 export const COMPANY_API_CREATE_TASK_MUTATION = `
   mutation CompanyApiCreateTask(
-    $companyId: ID!
     $name: String!
     $description: String
     $acceptanceCriteria: String
@@ -2195,7 +2093,6 @@ export const COMPANY_API_CREATE_TASK_MUTATION = `
     $dependencyTaskIds: [ID!]
   ) {
     createTask(
-      companyId: $companyId
       name: $name
       description: $description
       acceptanceCriteria: $acceptanceCriteria
@@ -2221,7 +2118,6 @@ export const COMPANY_API_CREATE_TASK_MUTATION = `
         comments {
           id
           taskId
-          companyId
           comment
           authorPrincipalId
           authorPrincipal {
@@ -2245,12 +2141,10 @@ export const COMPANY_API_CREATE_TASK_MUTATION = `
 
 export const COMPANY_API_ADD_TASK_DEPENDENCY_MUTATION = `
   mutation CompanyApiAddTaskDependency(
-    $companyId: ID!
     $taskId: ID!
     $dependencyTaskId: ID!
   ) {
     addTaskDependency(
-      companyId: $companyId
       taskId: $taskId
       dependencyTaskId: $dependencyTaskId
     ) {
@@ -2265,12 +2159,10 @@ export const COMPANY_API_ADD_TASK_DEPENDENCY_MUTATION = `
 
 export const COMPANY_API_REMOVE_TASK_DEPENDENCY_MUTATION = `
   mutation CompanyApiRemoveTaskDependency(
-    $companyId: ID!
     $taskId: ID!
     $dependencyTaskId: ID!
   ) {
     removeTaskDependency(
-      companyId: $companyId
       taskId: $taskId
       dependencyTaskId: $dependencyTaskId
     ) {
@@ -2284,9 +2176,8 @@ export const COMPANY_API_REMOVE_TASK_DEPENDENCY_MUTATION = `
 `;
 
 export const COMPANY_API_SET_TASK_PARENT_MUTATION = `
-  mutation CompanyApiSetTaskParent($companyId: ID!, $taskId: ID!, $parentTaskId: ID) {
+  mutation CompanyApiSetTaskParent($taskId: ID!, $parentTaskId: ID) {
     setTaskParent(
-      companyId: $companyId
       taskId: $taskId
       parentTaskId: $parentTaskId
     ) {
@@ -2307,7 +2198,6 @@ export const COMPANY_API_SET_TASK_PARENT_MUTATION = `
         comments {
           id
           taskId
-          companyId
           comment
           authorPrincipalId
           authorPrincipal {
@@ -2331,12 +2221,10 @@ export const COMPANY_API_SET_TASK_PARENT_MUTATION = `
 
 export const COMPANY_API_SET_TASK_ASSIGNEE_PRINCIPAL_MUTATION = `
   mutation CompanyApiSetTaskAssigneePrincipal(
-    $companyId: ID!
     $taskId: ID!
     $assigneePrincipalId: ID
   ) {
     setTaskAssigneePrincipal(
-      companyId: $companyId
       taskId: $taskId
       assigneePrincipalId: $assigneePrincipalId
     ) {
@@ -2352,9 +2240,8 @@ export const COMPANY_API_SET_TASK_ASSIGNEE_PRINCIPAL_MUTATION = `
 `;
 
 export const COMPANY_API_SET_TASK_STATUS_MUTATION = `
-  mutation CompanyApiSetTaskStatus($companyId: ID!, $taskId: ID!, $status: TaskStatus!) {
+  mutation CompanyApiSetTaskStatus($taskId: ID!, $status: TaskStatus!) {
     setTaskStatus(
-      companyId: $companyId
       taskId: $taskId
       status: $status
     ) {
@@ -2370,8 +2257,8 @@ export const COMPANY_API_SET_TASK_STATUS_MUTATION = `
 `;
 
 export const COMPANY_API_DELETE_TASK_MUTATION = `
-  mutation CompanyApiDeleteTask($companyId: ID!, $id: ID!) {
-    deleteTask(companyId: $companyId, id: $id) {
+  mutation CompanyApiDeleteTask($id: ID!) {
+    deleteTask(id: $id) {
       ok
       error
       deletedTaskId
@@ -2380,8 +2267,8 @@ export const COMPANY_API_DELETE_TASK_MUTATION = `
 `;
 
 export const COMPANY_API_BATCH_DELETE_TASKS_MUTATION = `
-  mutation CompanyApiBatchDeleteTasks($companyId: ID!, $ids: [ID!]!) {
-    batchDeleteTasks(companyId: $companyId, ids: $ids) {
+  mutation CompanyApiBatchDeleteTasks($ids: [ID!]!) {
+    batchDeleteTasks(ids: $ids) {
       ok
       error
       deletedTaskIds
@@ -2409,7 +2296,6 @@ export const COMPANY_API_BATCH_EXECUTE_TASKS_MUTATION = `
         comments {
           id
           taskId
-          companyId
           comment
           authorPrincipalId
           authorPrincipal {
@@ -2432,14 +2318,13 @@ export const COMPANY_API_BATCH_EXECUTE_TASKS_MUTATION = `
 `;
 
 export const COMPANY_API_CREATE_TASK_COMMENT_MUTATION = `
-  mutation CompanyApiCreateTaskComment($companyId: ID!, $taskId: ID!, $comment: String!) {
-    createTaskComment(companyId: $companyId, taskId: $taskId, comment: $comment) {
+  mutation CompanyApiCreateTaskComment($taskId: ID!, $comment: String!) {
+    createTaskComment(taskId: $taskId, comment: $comment) {
       ok
       error
       taskComment {
         id
         taskId
-        companyId
         comment
         authorPrincipalId
         authorPrincipal {
@@ -2458,8 +2343,8 @@ export const COMPANY_API_CREATE_TASK_COMMENT_MUTATION = `
 `;
 
 export const COMPANY_API_LIST_SKILLS_QUERY = `
-  query CompanyApiListSkills($companyId: ID!) {
-    skills(companyId: $companyId) {
+  query CompanyApiListSkills {
+    skills {
       id
       name
       description
@@ -2483,8 +2368,8 @@ export const COMPANY_API_LIST_SKILLS_QUERY = `
 `;
 
 export const COMPANY_API_LIST_ROLES_QUERY = `
-  query CompanyApiListRoles($companyId: ID!) {
-    roles: roles(companyId: $companyId) {
+  query CompanyApiListRoles {
+    roles: roles {
       id
       name
       company {
@@ -2523,8 +2408,8 @@ export const COMPANY_API_LIST_ROLES_QUERY = `
 `;
 
 export const COMPANY_API_LIST_SKILL_GROUPS_QUERY = `
-  query CompanyApiListSkillGroups($companyId: ID!) {
-    skillGroups(companyId: $companyId) {
+  query CompanyApiListSkillGroups {
+    skillGroups {
       id
       name
       company {
@@ -2543,8 +2428,8 @@ export const COMPANY_API_LIST_SKILL_GROUPS_QUERY = `
 `;
 
 export const COMPANY_API_LIST_GIT_SKILL_PACKAGES_QUERY = `
-  query CompanyApiListGitSkillPackages($companyId: ID!) {
-    gitSkillPackages(companyId: $companyId) {
+  query CompanyApiListGitSkillPackages {
+    gitSkillPackages {
       id
       packageName
       gitRepositoryUrl
@@ -2585,12 +2470,10 @@ export const COMPANY_API_PREVIEW_GIT_SKILL_PACKAGE_MUTATION = `
 
 export const COMPANY_API_CREATE_GIT_SKILL_PACKAGE_MUTATION = `
   mutation CompanyApiCreateGitSkillPackage(
-    $companyId: ID!
     $gitRepositoryUrl: String!
     $gitReference: String!
   ) {
     createGitSkillPackage(
-      companyId: $companyId
       gitRepositoryUrl: $gitRepositoryUrl
       gitReference: $gitReference
     ) {
@@ -2634,8 +2517,8 @@ export const COMPANY_API_CREATE_GIT_SKILL_PACKAGE_MUTATION = `
 `;
 
 export const COMPANY_API_DELETE_GIT_SKILL_PACKAGE_MUTATION = `
-  mutation CompanyApiDeleteGitSkillPackage($companyId: ID!, $id: ID!) {
-    deleteGitSkillPackage(companyId: $companyId, id: $id) {
+  mutation CompanyApiDeleteGitSkillPackage($id: ID!) {
+    deleteGitSkillPackage(id: $id) {
       ok
       error
       deletedGitSkillPackageId
@@ -2644,9 +2527,8 @@ export const COMPANY_API_DELETE_GIT_SKILL_PACKAGE_MUTATION = `
 `;
 
 export const COMPANY_API_CREATE_SKILL_GROUP_MUTATION = `
-  mutation CompanyApiCreateSkillGroup($companyId: ID!, $name: String!, $parentSkillGroupId: ID) {
+  mutation CompanyApiCreateSkillGroup($name: String!, $parentSkillGroupId: ID) {
     createSkillGroup(
-      companyId: $companyId
       name: $name
       parentSkillGroupId: $parentSkillGroupId
     ) {
@@ -2661,13 +2543,11 @@ export const COMPANY_API_CREATE_SKILL_GROUP_MUTATION = `
 
 export const COMPANY_API_UPDATE_SKILL_GROUP_MUTATION = `
   mutation CompanyApiUpdateSkillGroup(
-    $companyId: ID!
     $id: ID!
     $name: String!
     $parentSkillGroupId: ID
   ) {
     updateSkillGroup(
-      companyId: $companyId
       id: $id
       name: $name
       parentSkillGroupId: $parentSkillGroupId
@@ -2682,8 +2562,8 @@ export const COMPANY_API_UPDATE_SKILL_GROUP_MUTATION = `
 `;
 
 export const COMPANY_API_DELETE_SKILL_GROUP_MUTATION = `
-  mutation CompanyApiDeleteSkillGroup($companyId: ID!, $id: ID!) {
-    deleteSkillGroup(companyId: $companyId, id: $id) {
+  mutation CompanyApiDeleteSkillGroup($id: ID!) {
+    deleteSkillGroup(id: $id) {
       ok
       error
       deletedSkillGroupId
@@ -2692,9 +2572,8 @@ export const COMPANY_API_DELETE_SKILL_GROUP_MUTATION = `
 `;
 
 export const COMPANY_API_ADD_SKILL_TO_GROUP_MUTATION = `
-  mutation CompanyApiAddSkillToGroup($companyId: ID!, $skillGroupId: ID!, $skillId: ID!) {
+  mutation CompanyApiAddSkillToGroup($skillGroupId: ID!, $skillId: ID!) {
     addSkillToSkillGroup(
-      companyId: $companyId
       skillGroupId: $skillGroupId
       skillId: $skillId
     ) {
@@ -2708,9 +2587,8 @@ export const COMPANY_API_ADD_SKILL_TO_GROUP_MUTATION = `
 `;
 
 export const COMPANY_API_REMOVE_SKILL_FROM_GROUP_MUTATION = `
-  mutation CompanyApiRemoveSkillFromGroup($companyId: ID!, $skillGroupId: ID!, $skillId: ID!) {
+  mutation CompanyApiRemoveSkillFromGroup($skillGroupId: ID!, $skillId: ID!) {
     removeSkillFromSkillGroup(
-      companyId: $companyId
       skillGroupId: $skillGroupId
       skillId: $skillId
     ) {
@@ -2724,9 +2602,8 @@ export const COMPANY_API_REMOVE_SKILL_FROM_GROUP_MUTATION = `
 `;
 
 export const COMPANY_API_CREATE_ROLE_MUTATION = `
-  mutation CompanyApiCreateRole($companyId: ID!, $name: String!, $parentRoleId: ID) {
+  mutation CompanyApiCreateRole($name: String!, $parentRoleId: ID) {
     createRole: createRole(
-      companyId: $companyId
       name: $name
       parentRoleId: $parentRoleId
     ) {
@@ -2741,13 +2618,11 @@ export const COMPANY_API_CREATE_ROLE_MUTATION = `
 
 export const COMPANY_API_UPDATE_ROLE_MUTATION = `
   mutation CompanyApiUpdateRole(
-    $companyId: ID!
     $id: ID!
     $name: String!
     $parentRoleId: ID
   ) {
     updateRole: updateRole(
-      companyId: $companyId
       id: $id
       name: $name
       parentRoleId: $parentRoleId
@@ -2762,8 +2637,8 @@ export const COMPANY_API_UPDATE_ROLE_MUTATION = `
 `;
 
 export const COMPANY_API_DELETE_ROLE_MUTATION = `
-  mutation CompanyApiDeleteRole($companyId: ID!, $id: ID!) {
-    deleteRole: deleteRole(companyId: $companyId, id: $id) {
+  mutation CompanyApiDeleteRole($id: ID!) {
+    deleteRole: deleteRole(id: $id) {
       ok
       error
       deletedRoleId: deletedRoleId
@@ -2772,9 +2647,8 @@ export const COMPANY_API_DELETE_ROLE_MUTATION = `
 `;
 
 export const COMPANY_API_ADD_SKILL_TO_ROLE_MUTATION = `
-  mutation CompanyApiAddSkillToRole($companyId: ID!, $roleId: ID!, $skillId: ID!) {
+  mutation CompanyApiAddSkillToRole($roleId: ID!, $skillId: ID!) {
     addSkillToRole: addSkillToRole(
-      companyId: $companyId
       roleId: $roleId
       skillId: $skillId
     ) {
@@ -2788,9 +2662,8 @@ export const COMPANY_API_ADD_SKILL_TO_ROLE_MUTATION = `
 `;
 
 export const COMPANY_API_REMOVE_SKILL_FROM_ROLE_MUTATION = `
-  mutation CompanyApiRemoveSkillFromRole($companyId: ID!, $roleId: ID!, $skillId: ID!) {
+  mutation CompanyApiRemoveSkillFromRole($roleId: ID!, $skillId: ID!) {
     removeSkillFromRole: removeSkillFromRole(
-      companyId: $companyId
       roleId: $roleId
       skillId: $skillId
     ) {
@@ -2804,9 +2677,8 @@ export const COMPANY_API_REMOVE_SKILL_FROM_ROLE_MUTATION = `
 `;
 
 export const COMPANY_API_ADD_SKILL_GROUP_TO_ROLE_MUTATION = `
-  mutation CompanyApiAddSkillGroupToRole($companyId: ID!, $roleId: ID!, $skillGroupId: ID!) {
+  mutation CompanyApiAddSkillGroupToRole($roleId: ID!, $skillGroupId: ID!) {
     addSkillGroupToRole(
-      companyId: $companyId
       roleId: $roleId
       skillGroupId: $skillGroupId
     ) {
@@ -2820,9 +2692,8 @@ export const COMPANY_API_ADD_SKILL_GROUP_TO_ROLE_MUTATION = `
 `;
 
 export const COMPANY_API_REMOVE_SKILL_GROUP_FROM_ROLE_MUTATION = `
-  mutation CompanyApiRemoveSkillGroupFromRole($companyId: ID!, $roleId: ID!, $skillGroupId: ID!) {
+  mutation CompanyApiRemoveSkillGroupFromRole($roleId: ID!, $skillGroupId: ID!) {
     removeSkillGroupFromRole(
-      companyId: $companyId
       roleId: $roleId
       skillGroupId: $skillGroupId
     ) {
@@ -2836,9 +2707,8 @@ export const COMPANY_API_REMOVE_SKILL_GROUP_FROM_ROLE_MUTATION = `
 `;
 
 export const COMPANY_API_ADD_MCP_SERVER_TO_ROLE_MUTATION = `
-  mutation CompanyApiAddMcpServerToRole($companyId: ID!, $roleId: ID!, $mcpServerId: ID!) {
+  mutation CompanyApiAddMcpServerToRole($roleId: ID!, $mcpServerId: ID!) {
     addMcpServerToRole(
-      companyId: $companyId
       roleId: $roleId
       mcpServerId: $mcpServerId
     ) {
@@ -2852,9 +2722,8 @@ export const COMPANY_API_ADD_MCP_SERVER_TO_ROLE_MUTATION = `
 `;
 
 export const COMPANY_API_REMOVE_MCP_SERVER_FROM_ROLE_MUTATION = `
-  mutation CompanyApiRemoveMcpServerFromRole($companyId: ID!, $roleId: ID!, $mcpServerId: ID!) {
+  mutation CompanyApiRemoveMcpServerFromRole($roleId: ID!, $mcpServerId: ID!) {
     removeMcpServerFromRole(
-      companyId: $companyId
       roleId: $roleId
       mcpServerId: $mcpServerId
     ) {
@@ -2868,10 +2737,9 @@ export const COMPANY_API_REMOVE_MCP_SERVER_FROM_ROLE_MUTATION = `
 `;
 
 export const COMPANY_API_LIST_MCP_SERVERS_QUERY = `
-  query CompanyApiListMcpServers($companyId: ID!) {
-    mcpServers(companyId: $companyId) {
+  query CompanyApiListMcpServers {
+    mcpServers {
       id
-      companyId
       name
       transportType
       url
@@ -2893,10 +2761,9 @@ export const COMPANY_API_LIST_MCP_SERVERS_QUERY = `
 `;
 
 export const COMPANY_API_LIST_SECRETS_QUERY = `
-  query CompanyApiListSecrets($companyId: ID!) {
-    secrets(companyId: $companyId) {
+  query CompanyApiListSecrets {
+    secrets {
       id
-      companyId
       name
       description
       createdAt
@@ -2906,8 +2773,8 @@ export const COMPANY_API_LIST_SECRETS_QUERY = `
 `;
 
 export const COMPANY_API_LIST_SECRET_VALUE_QUERY = `
-  query CompanyApiListSecretValue($companyId: ID!, $secretId: ID!) {
-    secretValue(companyId: $companyId, secretId: $secretId) {
+  query CompanyApiListSecretValue($secretId: ID!) {
+    secretValue(secretId: $secretId) {
       ok
       error
       value
@@ -2916,10 +2783,9 @@ export const COMPANY_API_LIST_SECRET_VALUE_QUERY = `
 `;
 
 export const COMPANY_API_LIST_SECRET_ACCESS_LOGS_QUERY = `
-  query CompanyApiListSecretAccessLogs($companyId: ID!, $secretId: ID!, $first: Int) {
-    secretAccessLogs(companyId: $companyId, secretId: $secretId, first: $first) {
+  query CompanyApiListSecretAccessLogs($secretId: ID!, $first: Int) {
+    secretAccessLogs(secretId: $secretId, first: $first) {
       id
-      companyId
       secretId
       threadId
       agentId
@@ -2943,10 +2809,9 @@ export const COMPANY_API_LIST_SECRET_ACCESS_LOGS_QUERY = `
 `;
 
 export const COMPANY_API_LIST_APPROVALS_QUERY = `
-  query CompanyApiListApprovals($companyId: ID!, $status: ApprovalStatus, $first: Int) {
-    approvals(companyId: $companyId, status: $status, first: $first) {
+  query CompanyApiListApprovals($status: ApprovalStatus, $first: Int) {
+    approvals(status: $status, first: $first) {
       id
-      companyId
       type
       status
       secretId
@@ -2966,8 +2831,8 @@ export const COMPANY_API_LIST_APPROVALS_QUERY = `
 `;
 
 export const COMPANY_API_APPROVE_APPROVAL_MUTATION = `
-  mutation CompanyApiApproveApproval($companyId: ID!, $id: ID!) {
-    approveApproval(companyId: $companyId, id: $id) {
+  mutation CompanyApiApproveApproval($id: ID!) {
+    approveApproval(id: $id) {
       ok
       error
       approval {
@@ -2978,8 +2843,8 @@ export const COMPANY_API_APPROVE_APPROVAL_MUTATION = `
 `;
 
 export const COMPANY_API_REJECT_APPROVAL_MUTATION = `
-  mutation CompanyApiRejectApproval($companyId: ID!, $id: ID!, $rejectionReason: String) {
-    rejectApproval(companyId: $companyId, id: $id, rejectionReason: $rejectionReason) {
+  mutation CompanyApiRejectApproval($id: ID!, $rejectionReason: String) {
+    rejectApproval(id: $id, rejectionReason: $rejectionReason) {
       ok
       error
       approval {
@@ -2990,8 +2855,8 @@ export const COMPANY_API_REJECT_APPROVAL_MUTATION = `
 `;
 
 export const COMPANY_API_DELETE_APPROVAL_MUTATION = `
-  mutation CompanyApiDeleteApproval($companyId: ID!, $id: ID!) {
-    deleteApproval(companyId: $companyId, id: $id) {
+  mutation CompanyApiDeleteApproval($id: ID!) {
+    deleteApproval(id: $id) {
       ok
       error
       deletedApprovalId
@@ -3001,13 +2866,11 @@ export const COMPANY_API_DELETE_APPROVAL_MUTATION = `
 
 export const COMPANY_API_CREATE_SECRET_MUTATION = `
   mutation CompanyApiCreateSecret(
-    $companyId: ID!
     $name: String!
     $description: String!
     $value: String!
   ) {
     createSecret(
-      companyId: $companyId
       name: $name
       description: $description
       value: $value
@@ -3016,7 +2879,6 @@ export const COMPANY_API_CREATE_SECRET_MUTATION = `
       error
       secret {
         id
-        companyId
         name
         description
         createdAt
@@ -3028,14 +2890,12 @@ export const COMPANY_API_CREATE_SECRET_MUTATION = `
 
 export const COMPANY_API_UPDATE_SECRET_MUTATION = `
   mutation CompanyApiUpdateSecret(
-    $companyId: ID!
     $id: ID!
     $name: String!
     $description: String!
     $value: String
   ) {
     updateSecret(
-      companyId: $companyId
       id: $id
       name: $name
       description: $description
@@ -3045,7 +2905,6 @@ export const COMPANY_API_UPDATE_SECRET_MUTATION = `
       error
       secret {
         id
-        companyId
         name
         description
         createdAt
@@ -3056,8 +2915,8 @@ export const COMPANY_API_UPDATE_SECRET_MUTATION = `
 `;
 
 export const COMPANY_API_DELETE_SECRET_MUTATION = `
-  mutation CompanyApiDeleteSecret($companyId: ID!, $id: ID!) {
-    deleteSecret(companyId: $companyId, id: $id) {
+  mutation CompanyApiDeleteSecret($id: ID!) {
+    deleteSecret(id: $id) {
       ok
       error
       deletedSecretId
@@ -3067,7 +2926,6 @@ export const COMPANY_API_DELETE_SECRET_MUTATION = `
 
 export const COMPANY_API_CREATE_MCP_SERVER_MUTATION = `
   mutation CompanyApiCreateMcpServer(
-    $companyId: ID!
     $name: String!
     $transportType: String
     $url: String
@@ -3080,7 +2938,6 @@ export const COMPANY_API_CREATE_MCP_SERVER_MUTATION = `
     $enabled: Boolean
   ) {
     createMcpServer(
-      companyId: $companyId
       name: $name
       transportType: $transportType
       url: $url
@@ -3096,7 +2953,6 @@ export const COMPANY_API_CREATE_MCP_SERVER_MUTATION = `
       error
       mcpServer {
         id
-        companyId
         name
         transportType
         url
@@ -3120,7 +2976,6 @@ export const COMPANY_API_CREATE_MCP_SERVER_MUTATION = `
 
 export const COMPANY_API_UPDATE_MCP_SERVER_MUTATION = `
   mutation CompanyApiUpdateMcpServer(
-    $companyId: ID!
     $id: ID!
     $name: String!
     $transportType: String
@@ -3134,7 +2989,6 @@ export const COMPANY_API_UPDATE_MCP_SERVER_MUTATION = `
     $enabled: Boolean
   ) {
     updateMcpServer(
-      companyId: $companyId
       id: $id
       name: $name
       transportType: $transportType
@@ -3151,7 +3005,6 @@ export const COMPANY_API_UPDATE_MCP_SERVER_MUTATION = `
       error
       mcpServer {
         id
-        companyId
         name
         transportType
         url
@@ -3174,8 +3027,8 @@ export const COMPANY_API_UPDATE_MCP_SERVER_MUTATION = `
 `;
 
 export const COMPANY_API_DELETE_MCP_SERVER_MUTATION = `
-  mutation CompanyApiDeleteMcpServer($companyId: ID!, $id: ID!) {
-    deleteMcpServer(companyId: $companyId, id: $id) {
+  mutation CompanyApiDeleteMcpServer($id: ID!) {
+    deleteMcpServer(id: $id) {
       ok
       error
       deletedMcpServerId
@@ -3184,8 +3037,8 @@ export const COMPANY_API_DELETE_MCP_SERVER_MUTATION = `
 `;
 
 export const COMPANY_API_LIST_AGENT_RUNNERS_CONNECTION_QUERY = `
-  query CompanyApiListAgentRunners($companyId: ID, $first: Int!, $after: String) {
-    agentRunners(companyId: $companyId, first: $first, after: $after) {
+  query CompanyApiListAgentRunners($first: Int!, $after: String) {
+    agentRunners(first: $first, after: $after) {
       edges {
         node {
           id
@@ -3226,8 +3079,8 @@ export const COMPANY_API_LIST_AGENT_RUNNERS_CONNECTION_QUERY = `
 `;
 
 export const COMPANY_API_CREATE_AGENT_RUNNER_MUTATION = `
-  mutation CompanyApiCreateAgentRunner($companyId: ID!, $name: String!) {
-    createAgentRunner(companyId: $companyId, name: $name) {
+  mutation CompanyApiCreateAgentRunner($name: String!) {
+    createAgentRunner(name: $name) {
       secret
       agentRunner {
         id
@@ -3306,8 +3159,8 @@ export const COMPANY_API_DELETE_AGENT_RUNNER_MUTATION = `
 `;
 
 export const COMPANY_API_LIST_AGENTS_CONNECTION_QUERY = `
-  query CompanyApiListAgents($companyId: ID, $first: Int!, $after: String) {
-    agents(companyId: $companyId, first: $first, after: $after) {
+  query CompanyApiListAgents($first: Int!, $after: String) {
+    agents(first: $first, after: $after) {
       edges {
         node {
           id
@@ -3370,12 +3223,11 @@ export const COMPANY_API_LIST_AGENTS_CONNECTION_QUERY = `
 
 export const COMPANY_API_LIST_AGENTS_WITH_THREADS_CONNECTION_QUERY = `
   query CompanyApiListAgentsWithThreads(
-    $companyId: ID
     $first: Int!
     $after: String
     $firstThreads: Int = 500
   ) {
-    agents(companyId: $companyId, first: $first, after: $after) {
+    agents(first: $first, after: $after) {
       edges {
         node {
           id
@@ -3468,7 +3320,6 @@ export const COMPANY_API_LIST_AGENTS_WITH_THREADS_CONNECTION_QUERY = `
 export const COMPANY_API_CREATE_AGENT_MUTATION = `
   mutation CompanyApiCreateAgent(
     $name: String!
-    $companyId: ID!
     $agentRunnerId: ID!
     $agentRunnerSdkId: ID!
     $defaultModelId: ID!
@@ -3479,7 +3330,6 @@ export const COMPANY_API_CREATE_AGENT_MUTATION = `
   ) {
     createAgent(
       name: $name
-      companyId: $companyId
       agentRunnerId: $agentRunnerId
       agentRunnerSdkId: $agentRunnerSdkId
       defaultModelId: $defaultModelId
@@ -3571,8 +3421,8 @@ export const COMPANY_API_DELETE_AGENT_MUTATION = `
 `;
 
 export const COMPANY_API_LIST_THREADS_CONNECTION_QUERY = `
-  query CompanyApiListThreads($companyId: ID, $agentId: ID, $first: Int!, $after: String) {
-    threads(companyId: $companyId, agentId: $agentId, first: $first, after: $after) {
+  query CompanyApiListThreads($agentId: ID, $first: Int!, $after: String) {
+    threads(agentId: $agentId, first: $first, after: $after) {
       edges {
         node {
           id
@@ -3610,13 +3460,11 @@ export const COMPANY_API_LIST_THREADS_CONNECTION_QUERY = `
 
 export const COMPANY_API_CREATE_THREAD_MUTATION = `
   mutation CompanyApiCreateThread(
-    $companyId: ID!
     $agentId: ID!
     $title: String
     $additionalModelInstructions: String
   ) {
     createThread(
-      companyId: $companyId
       agentId: $agentId
       title: $title
       additionalModelInstructions: $additionalModelInstructions

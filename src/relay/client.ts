@@ -34,6 +34,23 @@ function toRecord(value: unknown): Record<string, unknown> {
   return isRecord(value) ? value : {};
 }
 
+function sanitizeGraphQLVariables(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((entry) => sanitizeGraphQLVariables(entry));
+  }
+  if (!isRecord(value)) {
+    return value;
+  }
+  const sanitized: Record<string, unknown> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (key === "companyId") {
+      continue;
+    }
+    sanitized[key] = sanitizeGraphQLVariables(entry);
+  }
+  return sanitized;
+}
+
 function inferOperationKind(query: string): OperationKind {
   const operationSource = String(query || "").trim();
   const match = operationSource.match(/^(query|mutation|subscription)\b/i);
@@ -118,12 +135,13 @@ function executeRelayOperation({
 }: RelayExecuteOptions): Promise<GraphQLPayload> {
   const kind = operationKind || inferOperationKind(query);
   const params = createRequestParameters(query, kind);
+  const sanitizedVariables = sanitizeGraphQLVariables(variables || {}) as Variables;
 
   return new Promise((resolve, reject) => {
     let latestPayload: GraphQLPayload | null = null;
     relayEnvironment
       .getNetwork()
-      .execute(params, variables || {}, { force: Boolean(force) }, null)
+      .execute(params, sanitizedVariables, { force: Boolean(force) }, null)
       .subscribe({
         next: (payload) => {
           latestPayload = toGraphQLPayload(payload);
@@ -166,9 +184,10 @@ export function subscribeRelayGraphQL({
   onError,
 }: RelaySubscribeOptions): () => void {
   const params = createRequestParameters(query, "subscription");
+  const sanitizedVariables = sanitizeGraphQLVariables(variables || {}) as Variables;
   const subscription = relayEnvironment
     .getNetwork()
-    .execute(params, variables || {}, { force: true }, null)
+    .execute(params, sanitizedVariables, { force: true }, null)
     .subscribe({
       next: (payload) => {
         const normalizedPayload = toGraphQLPayload(payload);
