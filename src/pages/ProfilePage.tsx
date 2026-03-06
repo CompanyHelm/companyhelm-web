@@ -9,6 +9,7 @@ export function ProfilePage({
   skills,
   agents,
   agentRunners,
+  onSignOut,
 }: any) {
   const firstName = String(currentUser?.firstName || "").trim();
   const lastName = String(currentUser?.lastName || "").trim();
@@ -19,7 +20,10 @@ export function ProfilePage({
     <Page><div className="page-stack">
       <section className="panel profile-user-panel">
         <header className="panel-header">
-          <h2>User Profile</h2>
+          <div className="panel-header-row">
+            <h2>User Profile</h2>
+            <button type="button" className="danger-btn" onClick={onSignOut}>Log out</button>
+          </div>
         </header>
         {isLoadingCurrentUser ? <p className="empty-hint">Loading profile...</p> : null}
         {currentUserError ? <p className="error-banner">{currentUserError}</p> : null}
