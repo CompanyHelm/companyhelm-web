@@ -4488,11 +4488,11 @@ function App() {
   }, [hasLoadedSecrets, secrets]);
 
   useEffect(() => {
-    if (!shouldLoadGithubPageData) {
+    if (!shouldLoadGithubPageData || !selectedCompanyId) {
       return;
     }
     loadGithubAppConfig();
-  }, [loadGithubAppConfig, shouldLoadGithubPageData]);
+  }, [loadGithubAppConfig, selectedCompanyId, shouldLoadGithubPageData]);
 
   useEffect(() => {
     if (!selectedCompanyId || !shouldLoadGithubPageData) {
