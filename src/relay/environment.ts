@@ -104,6 +104,14 @@ function normalizeOperationKind(rawKind: unknown): OperationKind {
   return "query";
 }
 
+function shouldAttachCompanyHeader(operationKind: OperationKind, queryText: string) {
+  if (operationKind !== "query") {
+    return true;
+  }
+  // Company directory queries must stay unscoped so users can list/select companies.
+  return !/\b(?:companies|company)\s*\(/.test(queryText);
+}
+
 function toGraphQLPayload(value: unknown): GraphQLPayload | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return null;
@@ -130,7 +138,7 @@ async function performHttpGraphQLRequest(
     headers.Authorization = authorization;
   }
   const activeCompanyId = getActiveCompanyId();
-  if (activeCompanyId) {
+  if (activeCompanyId && shouldAttachCompanyHeader(operationKind, queryText)) {
     headers["x-company-id"] = activeCompanyId;
   }
 
