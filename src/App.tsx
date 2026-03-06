@@ -254,6 +254,7 @@ import {
 
 import { subscribeGraphQL, useGraphQLSubscription } from "./hooks/useGraphQLSubscription.ts";
 import { executeRelayGraphQL } from "./relay/client.ts";
+import { authProvider } from "./auth/runtime.ts";
 
 import { Breadcrumbs } from "./components/Breadcrumbs.tsx";
 import { PageActionsProvider } from "./components/PageActionsContext.tsx";
@@ -8886,6 +8887,7 @@ function App() {
             skills={skills}
             agents={agents}
             agentRunners={agentRunners}
+            onSignOut={() => authProvider.signOut()}
           />
         ) : null}
           </>
