@@ -3198,6 +3198,7 @@ function App() {
     || activePage === "profile";
   const shouldLoadRunnerData =
     activePage === "dashboard" ||
+    activePage === "agents" ||
     activePage === "agent-runner" ||
     activePage === "profile";
   const shouldLoadAgentData =
