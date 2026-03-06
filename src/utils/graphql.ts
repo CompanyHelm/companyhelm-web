@@ -1725,9 +1725,6 @@ export const AGENT_RUNNERS_SUBSCRIPTION = `
       edges {
         node {
           id
-          company {
-            id
-          }
           agentSdks {
             name
             models {
@@ -1760,9 +1757,6 @@ export const AGENT_THREADS_SUBSCRIPTION = `
             createdAt
             updatedAt
           }
-          company {
-            id
-          }
           agent {
             id
           }
@@ -1791,9 +1785,6 @@ export const AGENT_TURNS_SUBSCRIPTION = `
           reasoningText
           startedAt
           endedAt
-          company {
-            id
-          }
           thread {
             id
           }
@@ -1811,9 +1802,6 @@ export const AGENT_TURNS_SUBSCRIPTION = `
             processId
             startedAt
             completedAt
-            company {
-              id
-            }
             turn {
               id
               thread {
@@ -1843,9 +1831,6 @@ export const AGENT_QUEUED_USER_MESSAGES_SUBSCRIPTION = `
       sdkTurnId
       allowSteer
       text
-      company {
-        id
-      }
       thread {
         id
       }
