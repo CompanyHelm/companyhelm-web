@@ -3056,7 +3056,11 @@ function App() {
     }
 
     if (activePage === "tasks" && tasksRoute.view === "detail" && tasksRoute.taskId) {
-      const matchingTask = tasks.find((task: any) => task.id === tasksRoute.taskId);
+      const matchingTask = (
+        taskPageTasks.find((task: any) => task.id === tasksRoute.taskId)
+        || taskOptions.find((task: any) => task.id === tasksRoute.taskId)
+        || tasks.find((task: any) => task.id === tasksRoute.taskId)
+      );
       return [
         { label: "Tasks", href: "/tasks" },
         {
@@ -3111,6 +3115,8 @@ function App() {
     gitSkillPackagesRoute.packageId,
     gitSkillPackagesRoute.view,
     resolvedChatSessionId,
+    taskOptions,
+    taskPageTasks,
     tasks,
     tasksRoute.taskId,
     tasksRoute.view,

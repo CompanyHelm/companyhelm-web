@@ -410,46 +410,7 @@ export function TasksPage({
         ) : null}
 
         {!isLoadingTasks && activeTask ? (
-          <>
-            <section className="panel task-focus-panel">
-              <div className="task-focus-header">
-                <div className="task-focus-copy">
-                  <p className="task-focus-kicker">Task detail</p>
-                  <div className="task-focus-title-row">
-                    <h2 className="task-focus-title">{activeTask.name || `Task ${activeTask.id}`}</h2>
-                    <span className={`task-status-pill task-status-pill-${activeTask.status || "draft"}`}>
-                      {activeTask.status || "draft"}
-                    </span>
-                  </div>
-                  <p className="task-focus-description">
-                    {activeTask.description || "No description provided."}
-                  </p>
-                </div>
-
-                <div className="task-focus-metrics">
-                  <div className="task-focus-metric">
-                    <span className="task-focus-metric-label">Direct</span>
-                    <strong className="task-focus-metric-value">{directChildCount}</strong>
-                  </div>
-                  <div className="task-focus-metric">
-                    <span className="task-focus-metric-label">Total</span>
-                    <strong className="task-focus-metric-value">{totalSubtaskCount}</strong>
-                  </div>
-                  <div className="task-focus-metric">
-                    <span className="task-focus-metric-label">Visible</span>
-                    <strong className="task-focus-metric-value">{visibleSubtaskCount}</strong>
-                  </div>
-                  <div className="task-focus-metric">
-                    <span className="task-focus-metric-label">Comments</span>
-                    <strong className="task-focus-metric-value">
-                      {Array.isArray(activeTask.comments) ? activeTask.comments.length : 0}
-                    </strong>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <section className="panel task-detail-panel">
+          <section className="panel task-detail-panel">
               <div className="task-detail-header">
                 <div className="task-view-tabs">
                   <button
@@ -679,7 +640,6 @@ export function TasksPage({
                 ) : null}
               </div>
             </section>
-          </>
         ) : null}
       </div>
 
