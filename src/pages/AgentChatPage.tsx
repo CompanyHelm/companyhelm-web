@@ -152,6 +152,7 @@ export function AgentChatPage({
   isUpdatingChatTitle,
   deletingChatSessionKey,
   steeringQueuedMessageId,
+  retryingQueuedMessageId,
   deletingQueuedMessageId,
   getCreateChatDisabledReason,
   onChatSessionRenameDraftChange,
@@ -162,6 +163,7 @@ export function AgentChatPage({
   onSendChatMessage,
   onInterruptChatTurn,
   onSteerQueuedMessage,
+  onRetryQueuedMessage,
   onDeleteQueuedMessage,
   onCreateChatForAgent,
   onOpenChatFromList,
@@ -824,15 +826,20 @@ export function AgentChatPage({
             <ul className="chat-queued-list">
               {queuedMessages.map((queuedMessage: any) => {
                 const queuedMessageId = String(queuedMessage?.id || "").trim();
-                const queuedMessageStatus = String(queuedMessage?.status || "").trim().toLowerCase() === "submitted"
+                const normalizedQueuedMessageStatus = String(queuedMessage?.status || "").trim().toLowerCase();
+                const queuedMessageStatus = normalizedQueuedMessageStatus === "submitted"
                   ? "submitted"
-                  : String(queuedMessage?.status || "").trim().toLowerCase() === "processed"
+                  : normalizedQueuedMessageStatus === "processed"
                     ? "processed"
-                    : "queued";
+                    : normalizedQueuedMessageStatus === "failed"
+                      ? "failed"
+                      : "queued";
+                const queuedMessageError = String(queuedMessage?.errorMessage || "").trim();
                 const queuedMessageSdkTurnId = String(queuedMessage?.sdkTurnId || "").trim();
                 const isLockedMessage = queuedMessageStatus === "submitted" || queuedMessageStatus === "processed";
                 const isSteerMode = Boolean(queuedMessage?.allowSteer);
                 const isSteeringThisMessage = steeringQueuedMessageId === queuedMessageId;
+                const isRetryingThisMessage = retryingQueuedMessageId === queuedMessageId;
                 const isDeletingThisMessage = deletingQueuedMessageId === queuedMessageId;
                 const queuedMessagePreview = getQueuedMessagePreview(queuedMessage?.text);
 
@@ -855,6 +862,7 @@ export function AgentChatPage({
                           || isSendingChatMessage
                           || isInterruptingChatTurn
                           || isSteeringThisMessage
+                          || isRetryingThisMessage
                           || isDeletingThisMessage
                           || isLockedMessage
                         }
@@ -888,7 +896,12 @@ export function AgentChatPage({
                         </button>
                       ) : null}
                     </div>
-                    {!isSteerMode ? (
+                    {queuedMessageStatus === "failed" ? (
+                      <p className="chat-message-error">
+                        {queuedMessageError || "Message dispatch failed. Retry or delete this queued message."}
+                      </p>
+                    ) : null}
+                    {queuedMessageStatus === "failed" ? (
                       <div className="task-card-actions">
                         <button
                           type="button"
@@ -898,6 +911,25 @@ export function AgentChatPage({
                             || isSendingChatMessage
                             || isInterruptingChatTurn
                             || isSteeringThisMessage
+                            || isRetryingThisMessage
+                            || isDeletingThisMessage
+                          }
+                          onClick={() => onRetryQueuedMessage(queuedMessageId)}
+                        >
+                          {isRetryingThisMessage ? "Retrying..." : "Retry"}
+                        </button>
+                      </div>
+                    ) : !isSteerMode ? (
+                      <div className="task-card-actions">
+                        <button
+                          type="button"
+                          className="secondary-btn"
+                          disabled={
+                            !canChat
+                            || isSendingChatMessage
+                            || isInterruptingChatTurn
+                            || isSteeringThisMessage
+                            || isRetryingThisMessage
                             || isDeletingThisMessage
                             || isLockedMessage
                           }
