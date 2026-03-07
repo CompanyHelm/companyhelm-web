@@ -134,6 +134,111 @@ function clampThreadTitle(value: any) {
   return String(value || "").slice(0, THREAD_TITLE_MAX_LENGTH);
 }
 
+function SidebarChatSessionItem({
+  agentId,
+  session,
+  sessionsForAgent,
+  isSelected = false,
+  chatSessionRunningById,
+  deletingChatSessionKey,
+  onOpen,
+  onDelete,
+  taskSummaryModalId = "",
+  showTaskSummary = true,
+  showPendingStatus = true,
+}: any) {
+  const normalizedAgentId = String(agentId || "").trim();
+  const normalizedSessionId = String(session?.id || "").trim();
+  if (!normalizedAgentId || !normalizedSessionId) {
+    return null;
+  }
+
+  const isRunningSession = isChatSessionRunning(session, chatSessionRunningById);
+  const sessionStatus = String(session?.status || "").trim().toLowerCase();
+  const isErrorSession = sessionStatus === "error";
+  const isDeletingSession = sessionStatus === "deleting";
+  const isPendingSession = sessionStatus === "pending";
+  const chatSessionKey = `${normalizedAgentId}:${normalizedSessionId}`;
+  const isDeletingChat = deletingChatSessionKey === chatSessionKey || isDeletingSession;
+  const deleteLabel = isDeletingChat ? "Deleting chat..." : "Delete chat";
+
+  function handleOpen() {
+    if (isDeletingChat) {
+      return;
+    }
+    onOpen?.({
+      agentId: normalizedAgentId,
+      sessionId: normalizedSessionId,
+      sessionsForAgent,
+    });
+  }
+
+  return (
+    <li
+      className={`chat-card${isSelected ? " chat-card-active" : ""}`}
+      onClick={handleOpen}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(event: any) => {
+        if (event.key === "Enter") {
+          handleOpen();
+        }
+      }}
+    >
+      <div className="chat-card-status">
+        {isRunningSession ? <ChatSessionRunningBadge /> : null}
+        {!isRunningSession && showPendingStatus && isPendingSession ? (
+          <span className="chat-thread-status chat-thread-status-pending">pending</span>
+        ) : null}
+        {!isRunningSession && isDeletingSession ? (
+          <span className="chat-thread-status chat-thread-status-deleting">deleting</span>
+        ) : null}
+        {!isRunningSession && isErrorSession ? (
+          <span className="chat-thread-status chat-thread-status-error">error</span>
+        ) : null}
+      </div>
+      <div className="chat-card-main">
+        <p className="chat-card-title chat-sidebar-chat-title">
+          <strong>{session?.title || "Untitled chat"}</strong>
+        </p>
+        {showTaskSummary ? (
+          <ThreadTaskSummary
+            tasks={session?.tasks}
+            threadTitle={session?.title}
+            modalId={taskSummaryModalId || `chat-sidebar-${normalizedAgentId}-${normalizedSessionId}`}
+          />
+        ) : null}
+      </div>
+      <div className="chat-card-actions">
+        <button
+          type="button"
+          className="chat-card-icon-btn chat-card-icon-btn-danger"
+          onClick={(event: any) => {
+            event.preventDefault();
+            event.stopPropagation();
+            void onDelete?.({
+              agentId: normalizedAgentId,
+              sessionId: normalizedSessionId,
+              title: session?.title,
+            });
+          }}
+          disabled={!onDelete || isDeletingChat}
+          aria-label={deleteLabel}
+          title={deleteLabel}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M3 6h18" />
+            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+            <line x1="10" y1="11" x2="10" y2="17" />
+            <line x1="14" y1="11" x2="14" y2="17" />
+          </svg>
+        </button>
+      </div>
+    </li>
+  );
+}
+
 export function AgentChatPage({
   selectedCompanyId,
   agent,
@@ -623,53 +728,19 @@ export function AgentChatPage({
                       <ul className="chat-card-list chat-sidebar-chat-list">
                         {sortedSidebarSessions.map((sidebarSession: any) => {
                           const sidebarSessionId = String(sidebarSession?.id || "").trim();
-                          const isRunningSession = isChatSessionRunning(sidebarSession, chatSessionRunningById);
-                          const sidebarSessionStatus = String(sidebarSession?.status || "").trim().toLowerCase();
-                          const isErrorSession = sidebarSessionStatus === "error";
-                          const isDeletingSession = sidebarSessionStatus === "deleting";
                           return (
-                            <li
+                            <SidebarChatSessionItem
                               key={`mobile-session-${sidebarAgentId}-${sidebarSessionId}`}
-                              className="chat-card"
-                              onClick={() =>
-                                onOpenChatFromList?.({
-                                  agentId: sidebarAgentId,
-                                  sessionId: sidebarSessionId,
-                                  sessionsForAgent: sortedSidebarSessions,
-                                })
-                              }
-                              role="button"
-                              tabIndex={0}
-                              onKeyDown={(event: any) => {
-                                if (event.key === "Enter") {
-                                  onOpenChatFromList?.({
-                                    agentId: sidebarAgentId,
-                                    sessionId: sidebarSessionId,
-                                    sessionsForAgent: sortedSidebarSessions,
-                                  });
-                                }
-                              }}
-                            >
-                              <div className="chat-card-status">
-                                {isRunningSession ? <ChatSessionRunningBadge /> : null}
-                                {!isRunningSession && isDeletingSession ? (
-                                  <span className="chat-thread-status chat-thread-status-deleting">deleting</span>
-                                ) : null}
-                                {!isRunningSession && isErrorSession ? (
-                                  <span className="chat-thread-status chat-thread-status-error">error</span>
-                                ) : null}
-                              </div>
-                              <div className="chat-card-main">
-                                <p className="chat-card-title chat-sidebar-chat-title">
-                                  <strong>{sidebarSession?.title || "Untitled chat"}</strong>
-                                </p>
-                                <ThreadTaskSummary
-                                  tasks={sidebarSession?.tasks}
-                                  threadTitle={sidebarSession?.title}
-                                  modalId={`mobile-sidebar-${sidebarAgentId}-${sidebarSessionId}`}
-                                />
-                              </div>
-                            </li>
+                              agentId={sidebarAgentId}
+                              session={sidebarSession}
+                              sessionsForAgent={sortedSidebarSessions}
+                              chatSessionRunningById={chatSessionRunningById}
+                              deletingChatSessionKey={deletingChatSessionKey}
+                              onOpen={onOpenChatFromList}
+                              onDelete={onDeleteChat}
+                              taskSummaryModalId={`mobile-sidebar-${sidebarAgentId}-${sidebarSessionId}`}
+                              showPendingStatus={false}
+                            />
                           );
                         })}
                       </ul>
@@ -760,48 +831,22 @@ export function AgentChatPage({
                         <ul className="chat-card-list chat-sidebar-chat-list">
                           {sortedSidebarSessions.map((sidebarSession: any) => {
                             const sidebarSessionId = String(sidebarSession?.id || "").trim();
-                            const isRunningSession = isChatSessionRunning(sidebarSession, chatSessionRunningById);
-                            const sidebarSessionStatus = String(sidebarSession?.status || "").trim().toLowerCase();
-                            const isErrorSession = sidebarSessionStatus === "error";
-                            const isDeletingSession = sidebarSessionStatus === "deleting";
                             const isSelectedSession =
                               sidebarAgentId === selectedAgentId && sidebarSessionId === selectedSessionId;
                             return (
-                              <li
+                              <SidebarChatSessionItem
                                 key={`overlay-session-${sidebarAgentId}-${sidebarSessionId}`}
-                                className={`chat-card${isSelectedSession ? " chat-card-active" : ""}`}
-                                onClick={() => handleMobileChatOpen({
-                                  agentId: sidebarAgentId,
-                                  sessionId: sidebarSessionId,
-                                  sessionsForAgent: sortedSidebarSessions,
-                                })}
-                                role="button"
-                                tabIndex={0}
-                                onKeyDown={(event: any) => {
-                                  if (event.key === "Enter") {
-                                    handleMobileChatOpen({
-                                      agentId: sidebarAgentId,
-                                      sessionId: sidebarSessionId,
-                                      sessionsForAgent: sortedSidebarSessions,
-                                    });
-                                  }
-                                }}
-                              >
-                                <div className="chat-card-status">
-                                  {isRunningSession ? <ChatSessionRunningBadge /> : null}
-                                  {!isRunningSession && isDeletingSession ? (
-                                    <span className="chat-thread-status chat-thread-status-deleting">deleting</span>
-                                  ) : null}
-                                  {!isRunningSession && isErrorSession ? (
-                                    <span className="chat-thread-status chat-thread-status-error">error</span>
-                                  ) : null}
-                                </div>
-                                <div className="chat-card-main">
-                                  <p className="chat-card-title chat-sidebar-chat-title">
-                                    <strong>{sidebarSession?.title || "Untitled chat"}</strong>
-                                  </p>
-                                </div>
-                              </li>
+                                agentId={sidebarAgentId}
+                                session={sidebarSession}
+                                sessionsForAgent={sortedSidebarSessions}
+                                isSelected={isSelectedSession}
+                                chatSessionRunningById={chatSessionRunningById}
+                                deletingChatSessionKey={deletingChatSessionKey}
+                                onOpen={handleMobileChatOpen}
+                                onDelete={onDeleteChat}
+                                showTaskSummary={false}
+                                showPendingStatus={false}
+                              />
                             );
                           })}
                         </ul>
@@ -887,59 +932,21 @@ export function AgentChatPage({
                         <ul className="chat-card-list chat-sidebar-chat-list">
                           {sortedSidebarSessions.map((sidebarSession: any) => {
                             const sidebarSessionId = String(sidebarSession?.id || "").trim();
-                            const isRunningSession = isChatSessionRunning(sidebarSession, chatSessionRunningById);
-                            const sidebarSessionStatus = String(sidebarSession?.status || "").trim().toLowerCase();
-                            const isErrorSession = sidebarSessionStatus === "error";
-                            const isDeletingSession = sidebarSessionStatus === "deleting";
-                            const isPendingSession = sidebarSessionStatus === "pending";
                             const isSelectedSession =
                               sidebarAgentId === selectedAgentId && sidebarSessionId === selectedSessionId;
                             return (
-                              <li
+                              <SidebarChatSessionItem
                                 key={`chat-sidebar-session-${sidebarAgentId}-${sidebarSessionId}`}
-                                className={`chat-card${isSelectedSession ? " chat-card-active" : ""}`}
-                                onClick={() =>
-                                  onOpenChatFromList?.({
-                                    agentId: sidebarAgentId,
-                                    sessionId: sidebarSessionId,
-                                    sessionsForAgent: sortedSidebarSessions,
-                                  })
-                                }
-                                role="button"
-                                tabIndex={0}
-                                onKeyDown={(event: any) => {
-                                  if (event.key === "Enter") {
-                                    onOpenChatFromList?.({
-                                      agentId: sidebarAgentId,
-                                      sessionId: sidebarSessionId,
-                                      sessionsForAgent: sortedSidebarSessions,
-                                    });
-                                  }
-                                }}
-                              >
-                                <div className="chat-card-status">
-                                  {isRunningSession ? <ChatSessionRunningBadge /> : null}
-                                  {!isRunningSession && isPendingSession ? (
-                                    <span className="chat-thread-status chat-thread-status-pending">pending</span>
-                                  ) : null}
-                                  {!isRunningSession && isDeletingSession ? (
-                                    <span className="chat-thread-status chat-thread-status-deleting">deleting</span>
-                                  ) : null}
-                                  {!isRunningSession && isErrorSession ? (
-                                    <span className="chat-thread-status chat-thread-status-error">error</span>
-                                  ) : null}
-                                </div>
-                                <div className="chat-card-main">
-                                  <p className="chat-card-title chat-sidebar-chat-title">
-                                    <strong>{sidebarSession?.title || "Untitled chat"}</strong>
-                                  </p>
-                                  <ThreadTaskSummary
-                                    tasks={sidebarSession?.tasks}
-                                    threadTitle={sidebarSession?.title}
-                                    modalId={`chat-sidebar-${sidebarAgentId}-${sidebarSessionId}`}
-                                  />
-                                </div>
-                              </li>
+                                agentId={sidebarAgentId}
+                                session={sidebarSession}
+                                sessionsForAgent={sortedSidebarSessions}
+                                isSelected={isSelectedSession}
+                                chatSessionRunningById={chatSessionRunningById}
+                                deletingChatSessionKey={deletingChatSessionKey}
+                                onOpen={onOpenChatFromList}
+                                onDelete={onDeleteChat}
+                                taskSummaryModalId={`chat-sidebar-${sidebarAgentId}-${sidebarSessionId}`}
+                              />
                             );
                           })}
                         </ul>
