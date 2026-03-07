@@ -4361,6 +4361,10 @@ button:disabled {
     padding: 0 0 0.75rem 2.5rem;
   }
 
+  .side-brand-lockup > div {
+    display: none;
+  }
+
   /* Close button: top-left, same position as hamburger */
   .side-menu-collapse-btn {
     position: absolute;
