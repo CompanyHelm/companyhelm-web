@@ -25,6 +25,7 @@ type TaskDetailTab = "overview" | "graph" | "tree" | "table";
 
 interface TasksPageProps {
   tasks: TaskItem[];
+  taskOptions: TaskItem[];
   agents: Agent[];
   principals: Principal[];
   isLoadingTasks: boolean;
@@ -58,6 +59,8 @@ interface TasksPageProps {
   onBatchExecuteTasks: (taskIds: string[], fallbackAgentId?: string) => Promise<boolean> | boolean;
   onOpenTaskThread: (threadId: string) => Promise<void> | void;
   activeTaskId: string;
+  visibleDepth: string;
+  onVisibleDepthChange: (value: string) => void;
   onOpenTask: (taskId: string) => void;
   onBackToTasks: () => void;
 }
@@ -76,6 +79,7 @@ function toCountLabel(count: number, singularLabel: string, pluralLabel?: string
 
 export function TasksPage({
   tasks,
+  taskOptions,
   agents,
   principals,
   isLoadingTasks,
@@ -109,59 +113,68 @@ export function TasksPage({
   onBatchExecuteTasks,
   onOpenTaskThread,
   activeTaskId,
+  visibleDepth,
+  onVisibleDepthChange,
   onOpenTask,
   onBackToTasks,
 }: TasksPageProps) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState("");
   const [activeTab, setActiveTab] = useState<TaskDetailTab>("overview");
-  const [visibleDepth, setVisibleDepth] = useState<string>("5");
   const [isExecuteFallbackModalOpen, setIsExecuteFallbackModalOpen] = useState(false);
   const [executeFallbackAgentId, setExecuteFallbackAgentId] = useState("");
   const [isExecutingTask, setIsExecutingTask] = useState(false);
 
-  const taskById = useMemo(() => {
+  const visibleTaskById = useMemo(() => {
     return tasks.reduce((map, task) => {
       map.set(String(task.id || "").trim(), task);
       return map;
     }, new Map<string, TaskItem>());
   }, [tasks]);
 
-  const topLevelTasks = useMemo(() => getTopLevelTasks(tasks), [tasks]);
+  const taskLookup = useMemo(() => {
+    const map = new Map<string, TaskItem>();
+    for (const task of taskOptions) {
+      map.set(String(task.id || "").trim(), task);
+    }
+    for (const task of tasks) {
+      map.set(String(task.id || "").trim(), task);
+    }
+    return map;
+  }, [taskOptions, tasks]);
+
+  const topLevelTasks = useMemo(() => getTopLevelTasks(taskOptions), [taskOptions]);
   const activeTask = useMemo(() => {
     const normalizedTaskId = String(activeTaskId || "").trim();
-    return normalizedTaskId ? taskById.get(normalizedTaskId) || null : null;
-  }, [activeTaskId, taskById]);
-  const editingTask = editingTaskId ? taskById.get(editingTaskId) || null : null;
+    return normalizedTaskId ? visibleTaskById.get(normalizedTaskId) || null : null;
+  }, [activeTaskId, visibleTaskById]);
+  const editingTask = editingTaskId ? visibleTaskById.get(editingTaskId) || null : null;
 
   const directChildTasks = useMemo(
-    () => (activeTask ? getDirectChildTasks(tasks, activeTask.id) : []),
-    [activeTask, tasks],
+    () => (activeTask ? getDirectChildTasks(taskOptions, activeTask.id) : []),
+    [activeTask, taskOptions],
   );
   const directChildCount = directChildTasks.length;
   const fullDescendantTree = useMemo(
-    () => (activeTask ? getDescendantTaskTree(tasks, activeTask.id) : []),
-    [activeTask, tasks],
+    () => (activeTask ? getDescendantTaskTree(taskOptions, activeTask.id) : []),
+    [activeTask, taskOptions],
   );
   const totalSubtaskCount = fullDescendantTree.length;
   const maxAvailableDepth = useMemo(
     () => fullDescendantTree.reduce((maxDepth, entry) => Math.max(maxDepth, entry.depth + 1), 0),
     [fullDescendantTree],
   );
-  const depthLimit = visibleDepth === "all"
-    ? Number.POSITIVE_INFINITY
-    : Number.parseInt(visibleDepth, 10) || 5;
   const visibleDescendantTree = useMemo(
-    () => (activeTask ? getDescendantTaskTree(tasks, activeTask.id, depthLimit) : []),
-    [activeTask, depthLimit, tasks],
+    () => (activeTask ? getDescendantTaskTree(tasks, activeTask.id) : []),
+    [activeTask, tasks],
   );
   const visibleDescendantTasks = useMemo(
     () => visibleDescendantTree.map((entry) => entry.task),
     [visibleDescendantTree],
   );
   const graphTasks = useMemo(
-    () => (activeTask ? getTaskSubtree(tasks, activeTask.id, depthLimit) : []),
-    [activeTask, depthLimit, tasks],
+    () => (activeTask ? getTaskSubtree(tasks, activeTask.id) : []),
+    [activeTask, tasks],
   );
 
   const activeTaskDraft = useMemo(() => {
@@ -202,7 +215,6 @@ export function TasksPage({
 
   useEffect(() => {
     setActiveTab("overview");
-    setVisibleDepth("5");
     setIsExecuteFallbackModalOpen(false);
   }, [activeTaskId]);
 
@@ -269,10 +281,10 @@ export function TasksPage({
   const visibleSubtaskCount = visibleDescendantTasks.length;
   const hiddenSubtaskCount = Math.max(totalSubtaskCount - visibleSubtaskCount, 0);
   const currentParentTask = activeTaskDraft?.parentTaskId
-    ? taskById.get(String(activeTaskDraft.parentTaskId || "").trim()) || null
+    ? taskLookup.get(String(activeTaskDraft.parentTaskId || "").trim()) || null
     : null;
   const dependencyLabels = (activeTaskDraft?.dependencyTaskIds || [])
-    .map((taskId) => taskById.get(String(taskId || "").trim())?.name || String(taskId || "").trim())
+    .map((taskId) => taskLookup.get(String(taskId || "").trim())?.name || String(taskId || "").trim())
     .filter(Boolean);
   const isOverviewSavePending = activeTask ? savingTaskId === activeTask.id : false;
   const executeButtonDisabled = !activeTask
@@ -364,9 +376,9 @@ export function TasksPage({
 
         {!isLoadingTasks && !activeTaskId ? (
           <section className="panel task-list-panel">
-            {topLevelTasks.length > 0 ? (
+            {tasks.length > 0 ? (
               <TaskTableView
-                tasks={topLevelTasks}
+                tasks={tasks}
                 agents={agents}
                 onTaskClick={onOpenTask}
                 onDeleteTask={handleDeleteTask}
@@ -475,7 +487,7 @@ export function TasksPage({
                   <select
                     id="task-depth-select"
                     value={visibleDepth}
-                    onChange={(event) => setVisibleDepth(event.target.value)}
+                    onChange={(event) => onVisibleDepthChange(event.target.value)}
                   >
                     {DEPTH_OPTIONS.map((option) => (
                       <option key={`task-depth-${option}`} value={option}>
@@ -638,9 +650,8 @@ export function TasksPage({
                 {activeTab === "tree" ? (
                   visibleDescendantTasks.length > 0 ? (
                     <TaskTreeView
-                      tasks={tasks}
+                      tasks={graphTasks}
                       rootTaskId={activeTask.id}
-                      maxDepth={depthLimit}
                       onTaskClick={onOpenTask}
                     />
                   ) : (
@@ -675,7 +686,7 @@ export function TasksPage({
       <TaskCreateModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        tasks={tasks}
+        tasks={taskOptions}
         principals={principals}
         name={name}
         description={description}
@@ -697,7 +708,7 @@ export function TasksPage({
 
       <TaskEditModal
         task={editingTask}
-        tasks={tasks}
+        tasks={taskOptions}
         agents={agents}
         principals={principals}
         relationshipDraft={editingTaskId ? relationshipDrafts[editingTaskId] : undefined}

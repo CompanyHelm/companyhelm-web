@@ -35,6 +35,8 @@ import {
   LIST_REPOSITORIES_QUERY,
   REFRESH_GITHUB_INSTALLATION_REPOSITORIES_MUTATION,
   LIST_TASKS_QUERY,
+  LIST_TASK_PAGE_TASKS_QUERY,
+  LIST_TASK_OPTIONS_QUERY,
   LIST_TASK_ASSIGNABLE_PRINCIPALS_QUERY,
   LIST_AGENT_RUNNERS_QUERY,
   CREATE_AGENT_RUNNER_MUTATION,
@@ -119,6 +121,7 @@ import {
   COMPANY_API_DELETE_GITHUB_INSTALLATION_MUTATION,
   COMPANY_API_REFRESH_GITHUB_INSTALLATION_REPOSITORIES_MUTATION,
   COMPANY_API_LIST_TASKS_QUERY,
+  COMPANY_API_LIST_TASK_OPTIONS_QUERY,
   COMPANY_API_LIST_TASK_ASSIGNABLE_PRINCIPALS_QUERY,
   COMPANY_API_CREATE_TASK_MUTATION,
   COMPANY_API_ADD_TASK_DEPENDENCY_MUTATION,
@@ -1994,10 +1997,42 @@ async function executeGraphQL(query: any, variables: any = {}) {
   if (query === LIST_TASKS_QUERY) {
     const data = await executeRawGraphQL(COMPANY_API_LIST_TASKS_QUERY, {
       companyId: resolveLegacyId(variables?.companyId),
+      topLevelOnly: Boolean(variables?.topLevelOnly),
+      rootTaskId: resolveLegacyId(variables?.rootTaskId) || null,
+      maxDepth: typeof variables?.maxDepth === "number" ? variables.maxDepth : null,
     });
     return {
       tasks: Array.isArray(data?.tasks)
         ? data.tasks.map((task: any) => toTaskPayload(task))
+        : [],
+    };
+  }
+
+  if (query === LIST_TASK_PAGE_TASKS_QUERY) {
+    const data = await executeRawGraphQL(COMPANY_API_LIST_TASKS_QUERY, {
+      companyId: resolveLegacyId(variables?.companyId),
+      topLevelOnly: Boolean(variables?.topLevelOnly),
+      rootTaskId: resolveLegacyId(variables?.rootTaskId) || null,
+      maxDepth: typeof variables?.maxDepth === "number" ? variables.maxDepth : null,
+    });
+    return {
+      tasks: Array.isArray(data?.tasks)
+        ? data.tasks.map((task: any) => toTaskPayload(task))
+        : [],
+    };
+  }
+
+  if (query === LIST_TASK_OPTIONS_QUERY) {
+    const data = await executeRawGraphQL(COMPANY_API_LIST_TASK_OPTIONS_QUERY, {
+      companyId: resolveLegacyId(variables?.companyId),
+    });
+    return {
+      taskOptions: Array.isArray(data?.taskOptions)
+        ? data.taskOptions.map((task: any) => ({
+          id: resolveLegacyId(task?.id),
+          name: resolveLegacyId(task?.name),
+          parentTaskId: resolveLegacyId(task?.parentTaskId) || null,
+        }))
         : [],
     };
   }
@@ -2587,6 +2622,8 @@ function App() {
   const [isLoadingCurrentUser, setIsLoadingCurrentUser] = useState<any>(false);
   const [currentUserError, setCurrentUserError] = useState<any>("");
   const [tasks, setTasks] = useState<any>([]);
+  const [taskPageTasks, setTaskPageTasks] = useState<any>([]);
+  const [taskOptions, setTaskOptions] = useState<any>([]);
   const [skills, setSkills] = useState<any>([]);
   const [roles, setRoles] = useState<any>([]);
   const [skillGroups, setSkillGroups] = useState<any>([]);
@@ -2604,6 +2641,7 @@ function App() {
   const [agents, setAgents] = useState<any>([]);
   const [taskAssignablePrincipals, setTaskAssignablePrincipals] = useState<any>([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState<any>(false);
+  const [isLoadingTaskPageTasks, setIsLoadingTaskPageTasks] = useState<any>(false);
   const [isLoadingSkills, setIsLoadingSkills] = useState<any>(false);
   const [isLoadingRoles, setIsLoadingRoles] = useState<any>(false);
   const [isLoadingSkillGroups, setIsLoadingSkillGroups] = useState<any>(false);
@@ -2642,6 +2680,7 @@ function App() {
   const [runnerNameDraft, setRunnerNameDraft] = useState<any>("");
   const [runnerSecretsById, setRunnerSecretsById] = useState<any>({});
   const [isCreatingAgent, setIsCreatingAgent] = useState<any>(false);
+  const [taskPageDepth, setTaskPageDepth] = useState<any>("5");
   const [savingAgentId, setSavingAgentId] = useState<any>(null);
   const [deletingAgentId, setDeletingAgentId] = useState<any>(null);
   const [initializingAgentId, setInitializingAgentId] = useState<any>(null);
@@ -3097,7 +3136,9 @@ function App() {
   const shouldLoadGithubPageData = activePage === "settings" || activePage === "repos";
   const shouldLoadGithubRepositoryData = activePage === "repos";
   const shouldLoadCurrentUserData = activePage === "profile";
-  const shouldLoadTaskData = activePage === "dashboard" || activePage === "tasks" || activePage === "profile";
+  const shouldLoadAllTaskData = activePage === "dashboard" || activePage === "profile";
+  const shouldLoadTaskPageData = activePage === "tasks";
+  const shouldLoadTaskAssignablePrincipalData = activePage === "tasks";
   const shouldLoadSkillData =
     activePage === "skills"
     || activePage === "roles"
@@ -3280,7 +3321,6 @@ function App() {
     if (!selectedCompanyId) {
       setTaskError("");
       setTasks([]);
-      setRelationshipDrafts({});
       setIsLoadingTasks(false);
       return;
     }
@@ -3291,13 +3331,61 @@ function App() {
       const data = await executeGraphQL(LIST_TASKS_QUERY, { companyId: selectedCompanyId });
       const nextTasks = data.tasks || [];
       setTasks(nextTasks);
-      setRelationshipDrafts(createRelationshipDrafts(nextTasks));
     } catch (loadError: any) {
       setTaskError(loadError.message);
     } finally {
       setIsLoadingTasks(false);
     }
   }, [selectedCompanyId]);
+
+  const loadTaskOptions = useCallback(async () => {
+    if (!selectedCompanyId) {
+      setTaskOptions([]);
+      return [];
+    }
+
+    const data = await executeGraphQL(LIST_TASK_OPTIONS_QUERY, { companyId: selectedCompanyId });
+    const nextTaskOptions = Array.isArray(data?.taskOptions) ? data.taskOptions : [];
+    setTaskOptions(nextTaskOptions);
+    return nextTaskOptions;
+  }, [selectedCompanyId]);
+
+  const loadTaskPageTasks = useCallback(async () => {
+    if (!selectedCompanyId) {
+      setTaskError("");
+      setTaskPageTasks([]);
+      setTaskOptions([]);
+      setRelationshipDrafts({});
+      setIsLoadingTaskPageTasks(false);
+      return;
+    }
+
+    const isTaskDetailRoute = tasksRoute.view === "detail" && Boolean(String(tasksRoute.taskId || "").trim());
+    const normalizedMaxDepth = String(taskPageDepth || "").trim().toLowerCase() === "all"
+      ? null
+      : Number.parseInt(String(taskPageDepth || "5"), 10) || 5;
+
+    try {
+      setTaskError("");
+      setIsLoadingTaskPageTasks(true);
+      const [taskPageData, nextTaskOptions] = await Promise.all([
+        executeGraphQL(LIST_TASK_PAGE_TASKS_QUERY, {
+          companyId: selectedCompanyId,
+          topLevelOnly: !isTaskDetailRoute,
+          rootTaskId: isTaskDetailRoute ? tasksRoute.taskId : null,
+          maxDepth: isTaskDetailRoute ? normalizedMaxDepth : null,
+        }),
+        loadTaskOptions(),
+      ]);
+      const nextTaskPageTasks = Array.isArray(taskPageData?.tasks) ? taskPageData.tasks : [];
+      setTaskPageTasks(nextTaskPageTasks);
+      setRelationshipDrafts(createRelationshipDrafts(nextTaskPageTasks, nextTaskOptions));
+    } catch (loadError: any) {
+      setTaskError(loadError.message);
+    } finally {
+      setIsLoadingTaskPageTasks(false);
+    }
+  }, [loadTaskOptions, selectedCompanyId, taskPageDepth, tasksRoute.taskId, tasksRoute.view]);
 
   const loadTaskAssignablePrincipals = useCallback(async () => {
     if (!selectedCompanyId) {
@@ -3317,6 +3405,16 @@ function App() {
       setTaskError(loadError.message);
     }
   }, [selectedCompanyId]);
+
+  const refreshVisibleTaskData = useCallback(async () => {
+    if (shouldLoadTaskPageData) {
+      await loadTaskPageTasks();
+      return;
+    }
+    if (shouldLoadAllTaskData) {
+      await loadTasks();
+    }
+  }, [loadTaskPageTasks, loadTasks, shouldLoadAllTaskData, shouldLoadTaskPageData]);
 
   const loadSkills = useCallback(async () => {
     if (!selectedCompanyId) {
@@ -4466,12 +4564,35 @@ function App() {
       setTaskAssignablePrincipals([]);
       return;
     }
-    if (!shouldLoadTaskData) {
+    if (!shouldLoadAllTaskData) {
       return;
     }
     loadTasks();
+  }, [loadTasks, selectedCompanyId, shouldLoadAllTaskData]);
+
+  useEffect(() => {
+    if (!selectedCompanyId) {
+      setTaskPageTasks([]);
+      setTaskOptions([]);
+      setRelationshipDrafts({});
+      return;
+    }
+    if (!shouldLoadTaskPageData) {
+      return;
+    }
+    loadTaskPageTasks();
+  }, [loadTaskPageTasks, selectedCompanyId, shouldLoadTaskPageData]);
+
+  useEffect(() => {
+    if (!selectedCompanyId) {
+      setTaskAssignablePrincipals([]);
+      return;
+    }
+    if (!shouldLoadTaskAssignablePrincipalData) {
+      return;
+    }
     loadTaskAssignablePrincipals();
-  }, [loadTaskAssignablePrincipals, loadTasks, selectedCompanyId, shouldLoadTaskData]);
+  }, [loadTaskAssignablePrincipals, selectedCompanyId, shouldLoadTaskAssignablePrincipalData]);
 
   useEffect(() => {
     if (!selectedCompanyId || !shouldLoadSkillData) {
@@ -4762,6 +4883,10 @@ function App() {
   }, []);
 
   useEffect(() => {
+    setTaskPageDepth("5");
+  }, [selectedCompanyId, tasksRoute.taskId, tasksRoute.view]);
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
     const mobileQuery = window.matchMedia("(max-width: 760px)");
     if (mobileQuery.matches && !isSideMenuCollapsed) {
@@ -5001,6 +5126,9 @@ function App() {
       }
 
       setTasks([]);
+      setTaskPageTasks([]);
+      setTaskOptions([]);
+      setTaskAssignablePrincipals([]);
       setRelationshipDrafts({});
       setSkills([]);
       setSkillDrafts({});
@@ -5138,7 +5266,7 @@ function App() {
       setTaskStatus("draft");
       setParentTaskId("");
       setDependencyTaskIds([]);
-      await loadTasks();
+      await refreshVisibleTaskData();
       return true;
     } catch (submitError: any) {
       setTaskError(submitError.message);
@@ -5202,7 +5330,7 @@ function App() {
       setTaskStatus("draft");
       setParentTaskId("");
       setDependencyTaskIds([]);
-      await loadTasks();
+      await refreshVisibleTaskData();
       return true;
     } catch (submitError: any) {
       setTaskError(submitError.message);
@@ -5234,7 +5362,7 @@ function App() {
       if (!result.ok) {
         throw new Error(result.error || "Task deletion failed.");
       }
-      await loadTasks();
+      await refreshVisibleTaskData();
     } catch (deleteError: any) {
       setTaskError(deleteError.message);
     } finally {
@@ -5272,7 +5400,7 @@ function App() {
       if (!result.ok) {
         throw new Error(result.error || "Batch task deletion failed.");
       }
-      await loadTasks();
+      await refreshVisibleTaskData();
       return true;
     } catch (deleteError: any) {
       setTaskError(deleteError.message);
@@ -5318,7 +5446,7 @@ function App() {
           throw new Error(result.error || "Batch task execution failed.");
         }
       }
-      await loadTasks();
+      await refreshVisibleTaskData();
       return true;
     } catch (executeError: any) {
       setTaskError(executeError.message);
@@ -5503,7 +5631,7 @@ function App() {
         }
       }
 
-      await loadTasks();
+      await refreshVisibleTaskData();
       return true;
     } catch (updateError: any) {
       setTaskError(updateError.message);
@@ -5529,7 +5657,7 @@ function App() {
       });
       const addResult = addData.addTaskDependency;
       if (!addResult.ok) throw new Error(addResult.error || "Failed to add dependency.");
-      await loadTasks();
+      await refreshVisibleTaskData();
     } catch (err: any) {
       setTaskError(err.message);
     } finally {
@@ -5566,7 +5694,7 @@ function App() {
       if (!result.ok) {
         throw new Error(result.error || "Task comment creation failed.");
       }
-      await loadTasks();
+      await refreshVisibleTaskData();
       return true;
     } catch (createError: any) {
       setTaskError(createError.message);
@@ -8440,10 +8568,11 @@ function App() {
 
         {selectedCompanyId && activePage === "tasks" ? (
           <TasksPage
-            tasks={tasks}
+            tasks={taskPageTasks}
+            taskOptions={taskOptions}
             agents={agents}
             principals={taskAssignablePrincipals}
-            isLoadingTasks={isLoadingTasks}
+            isLoadingTasks={isLoadingTaskPageTasks}
             taskError={taskError}
             isSubmittingTask={isSubmittingTask}
             savingTaskId={savingTaskId}
@@ -8474,6 +8603,8 @@ function App() {
             onBatchExecuteTasks={handleBatchExecuteTasks}
             onOpenTaskThread={handleOpenTaskThread}
             activeTaskId={tasksRoute.view === "detail" ? tasksRoute.taskId : ""}
+            visibleDepth={taskPageDepth}
+            onVisibleDepthChange={setTaskPageDepth}
             onOpenTask={(taskId: string) => setBrowserPath(`/tasks/${taskId}`)}
             onBackToTasks={() => setBrowserPath("/tasks")}
           />

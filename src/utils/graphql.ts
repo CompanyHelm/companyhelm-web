@@ -169,6 +169,53 @@ export const LIST_TASKS_QUERY = `
   }
 `;
 
+export const LIST_TASK_PAGE_TASKS_QUERY = `
+  query ListTaskPageTasks($topLevelOnly: Boolean, $rootTaskId: ID, $maxDepth: Int) {
+    tasks(topLevelOnly: $topLevelOnly, rootTaskId: $rootTaskId, maxDepth: $maxDepth) {
+      id
+      company {
+        id
+      }
+      name
+      description
+      acceptanceCriteria
+      assigneePrincipalId
+      threadId
+      parentTaskId
+      status
+      createdAt
+      updatedAt
+      dependencyTaskIds
+      comments {
+        id
+        taskId
+        comment
+        authorPrincipalId
+        authorPrincipal {
+          id
+          kind
+          displayName
+          agentId
+          userId
+          email
+        }
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`;
+
+export const LIST_TASK_OPTIONS_QUERY = `
+  query ListTaskOptions {
+    taskOptions {
+      id
+      name
+      parentTaskId
+    }
+  }
+`;
+
 export const LIST_TASK_ASSIGNABLE_PRINCIPALS_QUERY = `
   query ListTaskAssignablePrincipals {
     taskAssignablePrincipals {
@@ -2035,8 +2082,8 @@ export const COMPANY_API_REFRESH_GITHUB_INSTALLATION_REPOSITORIES_MUTATION = `
 `;
 
 export const COMPANY_API_LIST_TASKS_QUERY = `
-  query CompanyApiListTasks {
-    tasks {
+  query CompanyApiListTasks($topLevelOnly: Boolean, $rootTaskId: ID, $maxDepth: Int) {
+    tasks(topLevelOnly: $topLevelOnly, rootTaskId: $rootTaskId, maxDepth: $maxDepth) {
       id
       name
       description
@@ -2067,6 +2114,16 @@ export const COMPANY_API_LIST_TASKS_QUERY = `
       company {
         id
       }
+    }
+  }
+`;
+
+export const COMPANY_API_LIST_TASK_OPTIONS_QUERY = `
+  query CompanyApiListTaskOptions {
+    taskOptions {
+      id
+      name
+      parentTaskId
     }
   }
 `;
