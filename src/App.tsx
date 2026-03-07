@@ -4721,6 +4721,15 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mobileQuery = window.matchMedia("(max-width: 760px)");
+    if (mobileQuery.matches && !isSideMenuCollapsed) {
+      document.body.style.overflow = "hidden";
+      return () => { document.body.style.overflow = ""; };
+    }
+  }, [isSideMenuCollapsed]);
+
+  useEffect(() => {
     if (activePage !== "agents" || agentsRoute.view !== "chat") {
       return;
     }
