@@ -23,7 +23,7 @@ import {
 const MOBILE_MEDIA_QUERY = "(max-width: 1080px)";
 
 const CHAT_COMPOSER_MIN_LINES = 2;
-const CHAT_COMPOSER_MAX_LINES = 10;
+const CHAT_COMPOSER_MAX_LINES = 50;
 const CHAT_SIDEBAR_MIN_WIDTH_PX = 176;
 const CHAT_SIDEBAR_MAX_WIDTH_PX = 480;
 const CHAT_SIDEBAR_DEFAULT_WIDTH_PX = 224;
@@ -1439,7 +1439,7 @@ export function AgentChatPage({
           </p>
         ) : null}
         <form className="chat-composer-form" onSubmit={onSendChatMessage}>
-          <div className="chat-composer-input-row">
+          <div className={`chat-composer-input-row${hasRunningTurn ? " chat-composer-input-row-running" : " chat-composer-input-row-idle"}`}>
             <div className="chat-composer-input-wrapper">
               <textarea
                 id="chat-message-input"
@@ -1534,6 +1534,7 @@ export function AgentChatPage({
                 ) : (
                   <button
                     type="submit"
+                    className="chat-composer-send-btn"
                     disabled={!canInteractWithSession || !chatDraftMessage.trim() || isSendingChatMessage || isInterruptingChatTurn}
                   >
                     {isSendingChatMessage ? "Sending..." : "Send"}
