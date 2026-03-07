@@ -52,25 +52,12 @@ export function mergeChatSessionsByAgentSnapshot({
   snapshotSessionsByAgent?: unknown;
   knownAgentIds?: unknown;
 } = {}): SessionMap {
-  const currentByAgent = (
-    currentSessionsByAgent && typeof currentSessionsByAgent === "object"
-      ? currentSessionsByAgent
-      : {}
-  ) as SessionMap;
   const snapshotByAgent = (
     snapshotSessionsByAgent && typeof snapshotSessionsByAgent === "object"
       ? snapshotSessionsByAgent
       : {}
   ) as SessionMap;
-  const nextByAgent: SessionMap = { ...currentByAgent };
-
-  for (const [rawAgentId, sessions] of Object.entries(snapshotByAgent)) {
-    const agentId = String(rawAgentId || "").trim();
-    if (!agentId) {
-      continue;
-    }
-    nextByAgent[agentId] = Array.isArray(sessions) ? sessions : [];
-  }
+  const nextByAgent: SessionMap = {};
 
   for (const rawKnownAgentId of Array.isArray(knownAgentIds) ? knownAgentIds : []) {
     const knownAgentId = String(rawKnownAgentId || "").trim();
@@ -80,6 +67,14 @@ export function mergeChatSessionsByAgentSnapshot({
     if (!Object.prototype.hasOwnProperty.call(nextByAgent, knownAgentId)) {
       nextByAgent[knownAgentId] = [];
     }
+  }
+
+  for (const [rawAgentId, sessions] of Object.entries(snapshotByAgent)) {
+    const agentId = String(rawAgentId || "").trim();
+    if (!agentId) {
+      continue;
+    }
+    nextByAgent[agentId] = Array.isArray(sessions) ? sessions : [];
   }
 
   return nextByAgent;

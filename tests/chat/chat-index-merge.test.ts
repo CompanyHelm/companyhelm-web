@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { mergeChatSessionsByAgentSnapshot } from "../../src/utils/chat.ts";
 
-test("mergeChatSessionsByAgentSnapshot preserves existing sessions for agents missing from snapshot", () => {
+test("mergeChatSessionsByAgentSnapshot clears known agents missing from the latest snapshot", () => {
   const result = mergeChatSessionsByAgentSnapshot({
     currentSessionsByAgent: {
       "agent-1": [{ id: "thread-1" }],
@@ -16,7 +16,7 @@ test("mergeChatSessionsByAgentSnapshot preserves existing sessions for agents mi
 
   assert.deepEqual(result, {
     "agent-1": [{ id: "thread-1-updated" }],
-    "agent-2": [{ id: "thread-2" }],
+    "agent-2": [],
   });
 });
 
@@ -34,11 +34,11 @@ test("mergeChatSessionsByAgentSnapshot applies explicit empty snapshots for an a
 
   assert.deepEqual(result, {
     "agent-1": [],
-    "agent-2": [{ id: "thread-2" }],
+    "agent-2": [],
   });
 });
 
-test("mergeChatSessionsByAgentSnapshot initializes known agents missing from both maps", () => {
+test("mergeChatSessionsByAgentSnapshot clears known agents when the latest snapshot is empty", () => {
   const result = mergeChatSessionsByAgentSnapshot({
     currentSessionsByAgent: {
       "agent-1": [{ id: "thread-1" }],
@@ -48,7 +48,7 @@ test("mergeChatSessionsByAgentSnapshot initializes known agents missing from bot
   });
 
   assert.deepEqual(result, {
-    "agent-1": [{ id: "thread-1" }],
+    "agent-1": [],
     "agent-2": [],
   });
 });
