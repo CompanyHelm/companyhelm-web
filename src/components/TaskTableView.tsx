@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useState, type ChangeEvent, type KeyboardEvent, type MouseEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ChangeEvent,
+  type CSSProperties,
+  type KeyboardEvent,
+  type MouseEvent,
+} from "react";
 import { CreationModal } from "./CreationModal.tsx";
 import { buildTaskExecutionPlan } from "../utils/task-execution.ts";
 
@@ -26,6 +34,7 @@ interface TaskTableViewProps {
   onDeleteTask: (taskId: string, taskName?: string) => void;
   onBatchDeleteTasks: (taskIds: string[]) => Promise<boolean> | boolean;
   onBatchExecuteTasks: (taskIds: string[], fallbackAgentId?: string) => Promise<boolean> | boolean;
+  taskDepthById?: Map<string, number>;
 }
 
 function buildDependencyMaps(tasks: TaskTableTask[]) {
@@ -59,6 +68,7 @@ export function TaskTableView({
   onDeleteTask,
   onBatchDeleteTasks,
   onBatchExecuteTasks,
+  taskDepthById,
 }: TaskTableViewProps) {
   const taskArray = Array.isArray(tasks) ? tasks : [];
   const agentArray = Array.isArray(agents) ? agents : [];
@@ -266,6 +276,7 @@ export function TaskTableView({
           <tbody>
             {taskArray.map((task) => {
               const taskId = String(task.id);
+              const taskDepth = taskDepthById?.get(taskId) || 0;
               const deps = (Array.isArray(task.dependencyTaskIds) ? task.dependencyTaskIds : [])
                 .filter((id) => nameById.has(String(id)) && String(id) !== taskId);
               const blocking = blocksMap.get(taskId) || [];
@@ -294,7 +305,15 @@ export function TaskTableView({
                       onChange={(event) => toggleTaskSelection(taskId, event.target.checked)}
                     />
                   </td>
-                  <td className="task-table-name">{task.name}</td>
+                  <td className="task-table-name">
+                    <div
+                      className="task-table-name-cell"
+                      style={{ "--task-depth": taskDepth } as CSSProperties}
+                    >
+                      {taskDepth > 0 ? <span className="task-table-tree-branch" aria-hidden="true" /> : null}
+                      <span className="task-table-name-text">{task.name || `Task ${taskId}`}</span>
+                    </div>
+                  </td>
                   <td>
                     <span className={`task-status-pill task-status-pill-${task.status || "draft"}`}>
                       {task.status || "draft"}

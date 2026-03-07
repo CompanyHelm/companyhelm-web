@@ -230,6 +230,7 @@ import {
   getRolesRouteFromPathname,
   getGitSkillPackagesRouteFromPathname,
   getRunnersRouteFromPathname,
+  getTasksRouteFromPathname,
   getChatsRouteFromLocation,
   getChatsPath,
   setBrowserPath,
@@ -2551,6 +2552,7 @@ function App() {
   const [agentsRoute, setAgentsRoute] = useState<any>(() => getAgentsRouteFromPathname());
   const [skillsRoute, setSkillsRoute] = useState<any>(() => getSkillsRouteFromPathname());
   const [rolesRoute, setRolesRoute] = useState<any>(() => getRolesRouteFromPathname());
+  const [tasksRoute, setTasksRoute] = useState<any>(() => getTasksRouteFromPathname());
   const [gitSkillPackagesRoute, setGitSkillPackagesRoute] = useState<any>(
     () => getGitSkillPackagesRouteFromPathname(),
   );
@@ -3014,6 +3016,17 @@ function App() {
       ];
     }
 
+    if (activePage === "tasks" && tasksRoute.view === "detail" && tasksRoute.taskId) {
+      const matchingTask = tasks.find((task: any) => task.id === tasksRoute.taskId);
+      return [
+        { label: "Tasks", href: "/tasks" },
+        {
+          label: matchingTask?.name || `Task ${String(tasksRoute.taskId || "").slice(0, 8)}`,
+          href: `/tasks/${tasksRoute.taskId}`,
+        },
+      ];
+    }
+
     if (
       activePage === "gitskillpackages"
       && gitSkillPackagesRoute.view === "detail"
@@ -3059,6 +3072,9 @@ function App() {
     gitSkillPackagesRoute.packageId,
     gitSkillPackagesRoute.view,
     resolvedChatSessionId,
+    tasks,
+    tasksRoute.taskId,
+    tasksRoute.view,
     runnersRoute.runnerId,
     runnersRoute.view,
     skills,
@@ -4713,6 +4729,7 @@ function App() {
       setAgentsRoute(getAgentsRouteFromPathname());
       setSkillsRoute(getSkillsRouteFromPathname());
       setRolesRoute(getRolesRouteFromPathname());
+      setTasksRoute(getTasksRouteFromPathname());
       setGitSkillPackagesRoute(getGitSkillPackagesRouteFromPathname());
       setRunnersRoute(getRunnersRouteFromPathname());
       setChatsRoute(getChatsRouteFromLocation());
@@ -8423,7 +8440,6 @@ function App() {
 
         {selectedCompanyId && activePage === "tasks" ? (
           <TasksPage
-            selectedCompanyId={selectedCompanyId}
             tasks={tasks}
             agents={agents}
             principals={taskAssignablePrincipals}
@@ -8440,7 +8456,6 @@ function App() {
             parentTaskId={parentTaskId}
             dependencyTaskIds={dependencyTaskIds}
             relationshipDrafts={relationshipDrafts}
-            taskCountLabel={taskCountLabel}
             onNameChange={setName}
             onDescriptionChange={setDescription}
             onAssigneePrincipalIdChange={setTaskAssigneePrincipalId}
@@ -8458,7 +8473,9 @@ function App() {
             onBatchDeleteTasks={handleBatchDeleteTasks}
             onBatchExecuteTasks={handleBatchExecuteTasks}
             onOpenTaskThread={handleOpenTaskThread}
-            renderTaskLink={renderTaskLink}
+            activeTaskId={tasksRoute.view === "detail" ? tasksRoute.taskId : ""}
+            onOpenTask={(taskId: string) => setBrowserPath(`/tasks/${taskId}`)}
+            onBackToTasks={() => setBrowserPath("/tasks")}
           />
         ) : null}
 
