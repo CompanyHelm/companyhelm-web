@@ -41,6 +41,7 @@ interface TasksPageProps {
   onCreateAndExecuteTask: (event: FormEvent<HTMLFormElement>, agentId: string) => Promise<boolean> | boolean;
   onDraftChange: (taskId: string, field: string, value: string | string[]) => void;
   onSaveRelationships: (taskId: string) => Promise<boolean> | boolean;
+  onExecuteTask: (taskId: string, agentId: string) => Promise<boolean> | boolean;
   onAddDependency?: (taskId: string, dependencyTaskId: string) => void;
   onCreateTaskComment: (taskId: string, comment: string) => Promise<boolean> | boolean;
   onDeleteTask: (taskId: string, taskName: string) => void;
@@ -79,6 +80,7 @@ export function TasksPage({
   onCreateAndExecuteTask,
   onDraftChange,
   onSaveRelationships,
+  onExecuteTask,
   onAddDependency,
   onCreateTaskComment,
   onDeleteTask,
@@ -207,6 +209,7 @@ export function TasksPage({
       <TaskEditModal
         task={editingTask}
         tasks={tasks}
+        agents={agents}
         principals={principals}
         relationshipDraft={relationshipDrafts[editingTaskId]}
         savingTaskId={savingTaskId}
@@ -214,6 +217,7 @@ export function TasksPage({
         deletingTaskId={deletingTaskId}
         onDraftChange={onDraftChange}
         onSaveRelationships={onSaveRelationships}
+        onExecuteTask={onExecuteTask}
         onCreateTaskComment={onCreateTaskComment}
         onDeleteTask={handleDeleteTask}
         onOpenTaskThread={onOpenTaskThread}

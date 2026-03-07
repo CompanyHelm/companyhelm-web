@@ -5287,6 +5287,44 @@ function App() {
     }
   }
 
+  async function handleExecuteTask(taskId: any, agentId: any) {
+    if (!selectedCompanyId) {
+      setTaskError("Select a company before executing tasks.");
+      return false;
+    }
+
+    const normalizedTaskId = String(taskId || "").trim();
+    const normalizedAgentId = String(agentId || "").trim();
+    if (!normalizedTaskId) {
+      setTaskError("Task not found.");
+      return false;
+    }
+    if (!normalizedAgentId) {
+      setTaskError("Select an agent to execute the task.");
+      return false;
+    }
+
+    try {
+      setSavingTaskId(normalizedTaskId);
+      setTaskError("");
+      const data = await executeGraphQL(BATCH_EXECUTE_TASKS_MUTATION, {
+        taskIds: [normalizedTaskId],
+        agentId: normalizedAgentId,
+      });
+      const result = data.batchExecuteTasks;
+      if (!result.ok) {
+        throw new Error(result.error || "Task execution failed.");
+      }
+      await loadTasks();
+      return true;
+    } catch (executeError: any) {
+      setTaskError(executeError.message);
+      return false;
+    } finally {
+      setSavingTaskId(null);
+    }
+  }
+
   async function handleRelationshipSave(taskId: any) {
     if (!selectedCompanyId) {
       setTaskError("Select a company before updating tasks.");
@@ -8390,6 +8428,7 @@ function App() {
             onCreateAndExecuteTask={handleCreateAndExecuteTask}
             onDraftChange={handleDraftChange}
             onSaveRelationships={handleRelationshipSave}
+            onExecuteTask={handleExecuteTask}
             onAddDependency={handleAddTaskDependency}
             onCreateTaskComment={handleCreateTaskComment}
             onDeleteTask={handleDeleteTask}

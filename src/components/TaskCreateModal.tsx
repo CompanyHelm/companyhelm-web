@@ -15,6 +15,7 @@ interface PrincipalOption {
   id: string | number;
   kind: "agent" | "user";
   displayName: string;
+  agentId?: string | null;
 }
 
 interface TaskCreateModalProps {
@@ -63,6 +64,11 @@ export function TaskCreateModal({
   onCreateAndExecuteTask,
 }: TaskCreateModalProps) {
   const [selectedAgentId, setSelectedAgentId] = useState("");
+  const assignedAgentId = String(
+    principals.find((principal) => String(principal.id) === String(assigneePrincipalId) && principal.kind === "agent")
+      ?.agentId || "",
+  ).trim();
+  const effectiveExecuteAgentId = String(selectedAgentId || assignedAgentId).trim();
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -74,7 +80,7 @@ export function TaskCreateModal({
 
   async function handleCreateAndExecute(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const didCreate = await onCreateAndExecuteTask(event, selectedAgentId);
+    const didCreate = await onCreateAndExecuteTask(event, effectiveExecuteAgentId);
     if (didCreate) {
       setSelectedAgentId("");
       onClose();
@@ -147,7 +153,9 @@ export function TaskCreateModal({
           value={selectedAgentId}
           onChange={(event: ChangeEvent<HTMLSelectElement>) => setSelectedAgentId(event.target.value)}
         >
-          <option value="">No agent</option>
+          <option value="">
+            {assignedAgentId ? "Use assigned agent" : "No agent"}
+          </option>
           {agents.map((agent) => (
             <option key={`create-agent-${agent.id}`} value={String(agent.id)}>
               {agent.name}
@@ -198,9 +206,9 @@ export function TaskCreateModal({
           </button>
           <button
             type="button"
-            disabled={isSubmittingTask || !selectedAgentId}
+            disabled={isSubmittingTask || !effectiveExecuteAgentId}
             onClick={(event: any) => handleCreateAndExecute(event)}
-            title={!selectedAgentId ? "Select an agent above to create & execute" : ""}
+            title={!effectiveExecuteAgentId ? "Select an agent above or assign the task to an agent." : ""}
           >
             {isSubmittingTask ? "Creating..." : "Create & Execute"}
           </button>
