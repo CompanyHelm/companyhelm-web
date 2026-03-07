@@ -25,6 +25,32 @@ const CHAT_SIDEBAR_MIN_WIDTH_PX = 176;
 const CHAT_SIDEBAR_MAX_WIDTH_PX = 480;
 const CHAT_SIDEBAR_DEFAULT_WIDTH_PX = 224;
 const CHAT_SIDEBAR_WIDTH_STORAGE_KEY = "agent-chat-sidebar-width-px";
+export const CHAT_EMPTY_STATE_PROMPTS = [
+  "Summarize this repository",
+  "Find the most likely bug in this codebase",
+  "Write an implementation plan for the next feature",
+  "Explain how this project is structured",
+];
+
+export function applyChatPromptSuggestion({
+  prompt,
+  onChatDraftMessageChange,
+  inputRef,
+}: any) {
+  const normalizedPrompt = String(prompt || "").trim();
+  if (!normalizedPrompt || typeof onChatDraftMessageChange !== "function") {
+    return;
+  }
+
+  onChatDraftMessageChange(normalizedPrompt);
+  const inputNode = inputRef?.current;
+  if (inputNode && typeof inputNode.focus === "function") {
+    inputNode.focus();
+    if (typeof inputNode.setSelectionRange === "function") {
+      inputNode.setSelectionRange(normalizedPrompt.length, normalizedPrompt.length);
+    }
+  }
+}
 
 function clampChatSidebarWidth(value: any) {
   if (!Number.isFinite(value)) {
@@ -228,6 +254,8 @@ export function AgentChatPage({
   }, [visibleTurns]);
   const isShowingPartialTranscript = visibleMessageCount < totalMessageCount;
   const hasTranscriptContent = orderedTurns.length > 0 || queuedMessages.length > 0;
+  const showTranscriptLoadingState = canChat && isLoadingChat && !hasTranscriptContent && !isSessionDeleting;
+  const showTranscriptEmptyState = canChat && !isLoadingChat && !hasTranscriptContent && !isSessionDeleting;
 
   useEffect(() => {
     setVisibleMessageCount(CHAT_MESSAGE_BATCH_SIZE);
@@ -645,9 +673,34 @@ export function AgentChatPage({
         ) : null}
         {!agent ? <p className="empty-hint">Agent not found.</p> : null}
         {agent && !session && hasKnownChatsForAgent ? <p className="empty-hint">Chat not found.</p> : null}
-        {canChat && isLoadingChat ? <p className="empty-hint">Loading chat messages...</p> : null}
-        {canChat && !isLoadingChat && !hasTranscriptContent && !isSessionDeleting ? (
-          <p className="empty-hint">No messages yet. Send the first prompt below.</p>
+        {showTranscriptLoadingState ? (
+          <div className="chat-transcript-state chat-transcript-state-loading" role="status" aria-live="polite">
+            <span className="chat-turn-spinner chat-transcript-state-spinner" aria-hidden="true" />
+            <p className="chat-transcript-state-title">Loading messages...</p>
+          </div>
+        ) : null}
+        {showTranscriptEmptyState ? (
+          <div className="chat-transcript-state chat-transcript-state-empty">
+            <p className="chat-transcript-state-title">No messages yet. Start with one of these prompts.</p>
+            <div className="chat-empty-prompt-list">
+              {CHAT_EMPTY_STATE_PROMPTS.map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  className="secondary-btn chat-empty-prompt-btn"
+                  onClick={() =>
+                    applyChatPromptSuggestion({
+                      prompt,
+                      onChatDraftMessageChange,
+                      inputRef: chatMessageInputRef,
+                    })}
+                  disabled={!canInteractWithSession}
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          </div>
         ) : null}
         {hasTranscriptContent ? (
           <div
