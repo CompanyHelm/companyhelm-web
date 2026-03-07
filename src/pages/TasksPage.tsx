@@ -3,7 +3,6 @@ import { Page } from "../components/Page.tsx";
 import { CreationModal } from "../components/CreationModal.tsx";
 import { useSetPageActions } from "../components/PageActionsContext.tsx";
 import { TaskGraphView } from "../components/TaskGraphView.tsx";
-import { TaskTreeView } from "../components/TaskTreeView.tsx";
 import { TaskTableView } from "../components/TaskTableView.tsx";
 import { TaskCreateModal } from "../components/TaskCreateModal.tsx";
 import { TaskEditModal } from "../components/TaskEditModal.tsx";
@@ -11,7 +10,6 @@ import { buildTaskExecutionPlan } from "../utils/task-execution.ts";
 import {
   getDescendantTaskTree,
   getDirectChildTasks,
-  getTaskSubtree,
   getTopLevelTasks,
 } from "../utils/task-hierarchy.ts";
 import type {
@@ -21,7 +19,7 @@ import type {
   TaskRelationshipDraftById,
 } from "../types/domain.ts";
 
-type TaskDetailTab = "overview" | "graph" | "tree" | "table";
+type TaskDetailTab = "overview" | "graph" | "table";
 
 interface TasksPageProps {
   tasks: TaskItem[];
@@ -172,8 +170,18 @@ export function TasksPage({
     () => visibleDescendantTree.map((entry) => entry.task),
     [visibleDescendantTree],
   );
+  const visibleTaskDepthById = useMemo(
+    () =>
+      new Map(
+        visibleDescendantTree.map((entry) => [
+          String(entry.task.id || "").trim(),
+          entry.depth + 1,
+        ]),
+      ),
+    [visibleDescendantTree],
+  );
   const graphTasks = useMemo(
-    () => (activeTask ? getTaskSubtree(tasks, activeTask.id) : []),
+    () => (activeTask ? tasks : []),
     [activeTask, tasks],
   );
 
@@ -329,6 +337,15 @@ export function TasksPage({
       return (
         <>
           <span className="chat-card-meta">{detailTaskCountLabel}</span>
+          {currentParentTask ? (
+            <button
+              type="button"
+              className="secondary-btn"
+              onClick={() => onOpenTask(String(currentParentTask.id || "").trim())}
+            >
+              Parent: {currentParentTask.name || `Task ${currentParentTask.id}`}
+            </button>
+          ) : null}
           <button type="button" className="secondary-btn" onClick={onBackToTasks}>
             All tasks
           </button>
@@ -365,7 +382,16 @@ export function TasksPage({
         </button>
       </>
     );
-  }, [activeTask, activeTaskId, detailTaskCountLabel, onBackToTasks, openCreateModal, topLevelTaskCountLabel]);
+  }, [
+    activeTask,
+    activeTaskId,
+    currentParentTask,
+    detailTaskCountLabel,
+    onBackToTasks,
+    onOpenTask,
+    openCreateModal,
+    topLevelTaskCountLabel,
+  ]);
   useSetPageActions(pageActions);
 
   return (
@@ -426,13 +452,6 @@ export function TasksPage({
                     onClick={() => setActiveTab("graph")}
                   >
                     Graph
-                  </button>
-                  <button
-                    type="button"
-                    className={`task-view-tab${activeTab === "tree" ? " task-view-tab-active" : ""}`}
-                    onClick={() => setActiveTab("tree")}
-                  >
-                    Tree
                   </button>
                   <button
                     type="button"
@@ -608,20 +627,6 @@ export function TasksPage({
                   />
                 ) : null}
 
-                {activeTab === "tree" ? (
-                  visibleDescendantTasks.length > 0 ? (
-                    <TaskTreeView
-                      tasks={graphTasks}
-                      rootTaskId={activeTask.id}
-                      onTaskClick={onOpenTask}
-                    />
-                  ) : (
-                    <div className="task-empty-panel">
-                      <p className="empty-hint">No subtasks are visible at the current depth.</p>
-                    </div>
-                  )
-                ) : null}
-
                 {activeTab === "table" ? (
                   visibleDescendantTasks.length > 0 ? (
                     <TaskTableView
@@ -631,6 +636,7 @@ export function TasksPage({
                       onDeleteTask={handleDeleteTask}
                       onBatchDeleteTasks={onBatchDeleteTasks}
                       onBatchExecuteTasks={onBatchExecuteTasks}
+                      taskDepthById={visibleTaskDepthById}
                     />
                   ) : (
                     <div className="task-empty-panel">
