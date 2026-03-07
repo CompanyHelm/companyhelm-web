@@ -7938,7 +7938,10 @@ function App() {
     }
   }, []);
 
-  async function navigateToChatsConversation({ replace = false }: any = {}) {
+  async function navigateToChatsConversation({
+    replace = false,
+    openFirstThread = !matchesMediaQuery(SIDEBAR_COLLAPSE_MEDIA_QUERY),
+  }: any = {}) {
     if (isNavigatingToChatsRef.current) {
       return;
     }
@@ -8014,6 +8017,18 @@ function App() {
           return;
         }
       }
+
+      if (!openFirstThread) {
+        setChatAgentId(targetAgentId);
+        setChatSessionId("");
+        setChatTurns([]);
+        setQueuedChatMessages([]);
+        setIsLoadingChat(false);
+        setChatError("");
+        setBrowserPath(getChatsPath({ agentId: targetAgentId }), { replace });
+        return;
+      }
+
       const firstSessionId = String(sessionsForAgent[0]?.id || "").trim();
 
       if (firstSessionId) {
