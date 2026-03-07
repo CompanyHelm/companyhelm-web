@@ -1598,6 +1598,49 @@ button:disabled {
   flex-direction: column;
 }
 
+.chat-transcript-state {
+  flex: 1 1 auto;
+  min-height: min(44vh, 24rem);
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 0.9rem;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.chat-transcript-state-loading {
+  color: var(--ink-1);
+}
+
+.chat-transcript-state-empty {
+  max-width: 36rem;
+  margin-inline: auto;
+}
+
+.chat-transcript-state-title {
+  margin: 0;
+  color: var(--ink-1);
+  font-size: 0.96rem;
+  line-height: 1.5;
+}
+
+.chat-transcript-state-spinner {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.chat-empty-prompt-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.55rem;
+}
+
+.chat-empty-prompt-btn {
+  min-height: 2.2rem;
+}
+
 .chat-transcript-scroll {
   max-height: min(68vh, 880px);
   overflow-y: auto;
