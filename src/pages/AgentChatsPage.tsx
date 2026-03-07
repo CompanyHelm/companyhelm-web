@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Page } from "../components/Page.tsx";
 import { CreationModal } from "../components/CreationModal.tsx";
 import { AgentEditModal } from "../components/AgentEditModal.tsx";
+import { ChatSessionRunningBadge } from "../components/ChatSessionRunningBadge.tsx";
 import { ThreadTaskSummary } from "../components/ThreadTaskSummary.tsx";
 import { isChatSessionRunning } from "../utils/chat.ts";
 import { formatRunnerLabel, formatTimestamp } from "../utils/formatting.ts";
@@ -435,7 +436,7 @@ export function AgentChatsPage({
                         >
                           <div className="agent-detail-chat-item-main">
                             <p className="agent-detail-chat-item-title">
-                              {isRunning ? "● " : ""}{session.title || "Untitled chat"}
+                              {isRunning ? <ChatSessionRunningBadge /> : null} {session.title || "Untitled chat"}
                               {!isRunning && isPendingSession ? (
                                 <span className="chat-thread-status chat-thread-status-pending">pending</span>
                               ) : null}
