@@ -239,6 +239,18 @@ function SidebarChatSessionItem({
   );
 }
 
+export function resolveChatPageActionVisibility({
+  canChat,
+  showChatSidebar,
+  isMobileViewport,
+}: any) {
+  return {
+    showChatListToggle: Boolean(showChatSidebar && canChat && isMobileViewport),
+    showDeleteAction: Boolean(canChat),
+    showSettingsAction: Boolean(canChat),
+  };
+}
+
 export function AgentChatPage({
   selectedCompanyId,
   agent,
@@ -370,6 +382,10 @@ export function AgentChatPage({
   const showTranscriptEmptyState = canChat && !isLoadingChat && !hasTranscriptContent && !isSessionDeleting;
 
   const isMobileViewport = useMemo(() => matchesMediaQuery(MOBILE_MEDIA_QUERY), []);
+  const pageActionVisibility = useMemo(
+    () => resolveChatPageActionVisibility({ canChat, showChatSidebar, isMobileViewport }),
+    [canChat, isMobileViewport, showChatSidebar],
+  );
 
   useEffect(() => {
     if (session?.id) {
@@ -493,7 +509,7 @@ export function AgentChatPage({
     );
   }
 
-  async function handleDeleteCurrentChat() {
+  const handleDeleteCurrentChat = useCallback(async () => {
     if (!canChat || isDeletingCurrentChat) {
       return;
     }
@@ -502,27 +518,27 @@ export function AgentChatPage({
       sessionId: session.id,
       title: session.title,
     });
-  }
+  }, [agent, canChat, isDeletingCurrentChat, onDeleteChat, session]);
 
-  function handleOpenSettingsModal() {
+  const handleOpenSettingsModal = useCallback(() => {
     if (!session) {
       return;
     }
     onChatSessionRenameDraftChange(clampThreadTitle(session.title));
     setIsSettingsModalOpen(true);
-  }
+  }, [onChatSessionRenameDraftChange, session]);
 
-  function handleCloseSettingsModal() {
+  const handleCloseSettingsModal = useCallback(() => {
     onChatSessionRenameDraftChange(clampThreadTitle(session?.title));
     setIsSettingsModalOpen(false);
-  }
+  }, [onChatSessionRenameDraftChange, session?.title]);
 
-  async function handleSaveSettings(event: any) {
+  const handleSaveSettings = useCallback(async (event: any) => {
     const updated = await onSaveChatSessionTitle(event);
     if (updated) {
       setIsSettingsModalOpen(false);
     }
-  }
+  }, [onSaveChatSessionTitle]);
 
   const handleSidebarResizeStart = useCallback((event: any) => {
     if (event.button !== 0) {
@@ -596,59 +612,81 @@ export function AgentChatPage({
     ? { "--chat-sidebar-width": `${clampChatSidebarWidth(chatSidebarWidth)}px` }
     : undefined;
 
-  const pageActions = useMemo(() => (
-    <>
-      {showChatSidebar ? (
-        <button
-          type="button"
-          className="chat-minimal-header-icon-btn chat-mobile-chatlist-toggle-btn"
-          onClick={() => setIsMobileChatListOpen((open: any) => !open)}
-          aria-label="Toggle chat list"
-          title="Toggle chat list"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-          </svg>
-        </button>
-      ) : null}
-      {hasRunningTurn ? (
-        <span
-          className="chat-turn-spinner chat-minimal-header-spinner"
-          aria-label="Turn is running"
-          title="Turn in progress"
-        />
-      ) : null}
-      <button
-        type="button"
-        className="chat-minimal-header-icon-btn"
-        onClick={handleDeleteCurrentChat}
-        disabled={!canChat || isDeletingCurrentChat}
-        aria-label={isDeletingCurrentChat ? "Deleting chat..." : "Delete chat"}
-        title={isDeletingCurrentChat ? "Deleting chat..." : "Delete chat"}
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <path d="M3 6h18" />
-          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-          <line x1="10" y1="11" x2="10" y2="17" />
-          <line x1="14" y1="11" x2="14" y2="17" />
-        </svg>
-      </button>
-      <button
-        type="button"
-        className="chat-minimal-header-icon-btn"
-        onClick={handleOpenSettingsModal}
-        disabled={!session}
-        aria-label="Chat settings"
-        title="Chat settings"
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <circle cx="12" cy="12" r="3" />
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-        </svg>
-      </button>
-    </>
-  ), [canChat, isDeletingCurrentChat, hasRunningTurn, session, showChatSidebar]);
+  const hasPageActions =
+    pageActionVisibility.showChatListToggle
+    || pageActionVisibility.showDeleteAction
+    || pageActionVisibility.showSettingsAction
+    || hasRunningTurn;
+  const pageActions = useMemo(() => {
+    if (!hasPageActions) {
+      return null;
+    }
+    return (
+      <>
+        {pageActionVisibility.showChatListToggle ? (
+          <button
+            type="button"
+            className="chat-minimal-header-icon-btn chat-mobile-chatlist-toggle-btn"
+            onClick={() => setIsMobileChatListOpen((open: any) => !open)}
+            aria-label="Toggle chat list"
+            title="Toggle chat list"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+          </button>
+        ) : null}
+        {hasRunningTurn ? (
+          <span
+            className="chat-turn-spinner chat-minimal-header-spinner"
+            aria-label="Turn is running"
+            title="Turn in progress"
+          />
+        ) : null}
+        {pageActionVisibility.showDeleteAction ? (
+          <button
+            type="button"
+            className="chat-minimal-header-icon-btn"
+            onClick={handleDeleteCurrentChat}
+            disabled={isDeletingCurrentChat}
+            aria-label={isDeletingCurrentChat ? "Deleting chat..." : "Delete chat"}
+            title={isDeletingCurrentChat ? "Deleting chat..." : "Delete chat"}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M3 6h18" />
+              <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+              <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+              <line x1="10" y1="11" x2="10" y2="17" />
+              <line x1="14" y1="11" x2="14" y2="17" />
+            </svg>
+          </button>
+        ) : null}
+        {pageActionVisibility.showSettingsAction ? (
+          <button
+            type="button"
+            className="chat-minimal-header-icon-btn"
+            onClick={handleOpenSettingsModal}
+            aria-label="Chat settings"
+            title="Chat settings"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+          </button>
+        ) : null}
+      </>
+    );
+  }, [
+    handleDeleteCurrentChat,
+    handleOpenSettingsModal,
+    hasPageActions,
+    hasRunningTurn,
+    isDeletingCurrentChat,
+    pageActionVisibility.showChatListToggle,
+    pageActionVisibility.showDeleteAction,
+    pageActionVisibility.showSettingsAction,
+  ]);
   useSetPageActions(pageActions);
 
   const showMobileNoSession = showChatSidebar && isMobileViewport && !session;
