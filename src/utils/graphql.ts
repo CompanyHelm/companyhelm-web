@@ -1844,6 +1844,7 @@ export const AGENT_QUEUED_USER_MESSAGES_SUBSCRIPTION = `
     ) {
       id
       status
+      errorMessage
       sdkTurnId
       allowSteer
       text
@@ -3628,6 +3629,7 @@ export const COMPANY_API_LIST_THREAD_TURNS_WITH_QUEUED_QUERY = `
     queuedUserMessages(threadId: $threadId, first: $firstQueuedUserMessages) {
       id
       status
+      errorMessage
       sdkTurnId
       allowSteer
       text
@@ -3658,6 +3660,7 @@ export const COMPANY_API_QUEUE_USER_MESSAGE_MUTATION = `
     ) {
       id
       status
+      errorMessage
       sdkTurnId
       allowSteer
       text
@@ -3676,6 +3679,26 @@ export const COMPANY_API_STEER_QUEUED_USER_MESSAGE_MUTATION = `
     steerQueuedUserMessage(queuedMessageId: $queuedMessageId) {
       id
       status
+      errorMessage
+      sdkTurnId
+      allowSteer
+      text
+      company {
+        id
+      }
+      thread {
+        id
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_RETRY_QUEUED_USER_MESSAGE_MUTATION = `
+  mutation CompanyApiRetryQueuedUserMessage($queuedMessageId: ID!) {
+    retryQueuedUserMessage(queuedMessageId: $queuedMessageId) {
+      id
+      status
+      errorMessage
       sdkTurnId
       allowSteer
       text

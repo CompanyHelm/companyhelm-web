@@ -182,6 +182,7 @@ import {
   COMPANY_API_LIST_THREAD_TURNS_WITH_QUEUED_QUERY,
   COMPANY_API_QUEUE_USER_MESSAGE_MUTATION,
   COMPANY_API_STEER_QUEUED_USER_MESSAGE_MUTATION,
+  COMPANY_API_RETRY_QUEUED_USER_MESSAGE_MUTATION,
   COMPANY_API_DELETE_QUEUED_USER_MESSAGE_MUTATION,
   COMPANY_API_INTERRUPT_TURN_MUTATION,
 } from "./utils/graphql.ts";
@@ -1090,6 +1091,7 @@ function toLegacyTurnPayload(turn: any, {
 
 function toLegacyQueuedUserMessagePayload(queuedMessage: any) {
   const normalizedStatus = String(queuedMessage?.status || "").trim().toLowerCase();
+  const errorMessage = resolveLegacyId(queuedMessage?.errorMessage) || null;
   return {
     id: resolveLegacyId(queuedMessage?.id),
     companyId: resolveLegacyId(queuedMessage?.company?.id),
@@ -1099,7 +1101,10 @@ function toLegacyQueuedUserMessagePayload(queuedMessage: any) {
         ? "processed"
         : normalizedStatus === "submitted"
           ? "submitted"
+          : normalizedStatus === "failed"
+            ? "failed"
           : "queued",
+    errorMessage,
     sdkTurnId: resolveLegacyId(queuedMessage?.sdkTurnId) || null,
     allowSteer: Boolean(queuedMessage?.allowSteer),
     text: resolveLegacyId(queuedMessage?.text),
@@ -2807,6 +2812,7 @@ function App() {
   const [isInterruptingChatTurn, setIsInterruptingChatTurn] = useState<any>(false);
   const [isUpdatingChatTitle, setIsUpdatingChatTitle] = useState<any>(false);
   const [steeringQueuedMessageId, setSteeringQueuedMessageId] = useState<any>(null);
+  const [retryingQueuedMessageId, setRetryingQueuedMessageId] = useState<any>(null);
   const [deletingQueuedMessageId, setDeletingQueuedMessageId] = useState<any>(null);
   const [isSideMenuCollapsed, setIsSideMenuCollapsed] = useState<any>(() =>
     matchesMediaQuery(SIDEBAR_COLLAPSE_MEDIA_QUERY),
@@ -7337,6 +7343,51 @@ function App() {
     }
   }
 
+  async function handleRetryQueuedChatMessage(queuedMessageId: any) {
+    const resolvedQueuedMessageId = String(queuedMessageId || "").trim();
+    if (!resolvedQueuedMessageId) {
+      return;
+    }
+    if (!selectedCompanyId) {
+      setChatError("Select a company before retrying queued messages.");
+      return;
+    }
+    if (!chatAgentId) {
+      setChatError("Select an agent before retrying queued messages.");
+      return;
+    }
+    if (!resolvedChatSessionId) {
+      setChatError("Select a chat before retrying queued messages.");
+      return;
+    }
+
+    const queuedMessage = queuedChatMessages.find((entry: any) => String(entry?.id || "").trim() === resolvedQueuedMessageId);
+    const queuedMessageStatus = String(queuedMessage?.status || "").trim().toLowerCase();
+    if (queuedMessageStatus !== "failed") {
+      setChatError("Only failed queued messages can be retried.");
+      return;
+    }
+
+    try {
+      setRetryingQueuedMessageId(resolvedQueuedMessageId);
+      setChatError("");
+      const data = await executeRawGraphQL(COMPANY_API_RETRY_QUEUED_USER_MESSAGE_MUTATION, {
+        queuedMessageId: resolvedQueuedMessageId,
+      });
+      if (!data?.retryQueuedUserMessage?.id) {
+        throw new Error("Failed to retry queued message.");
+      }
+      await loadAgentChatTurns({
+        agentIdOverride: chatAgentId,
+        sessionIdOverride: resolvedChatSessionId,
+      });
+    } catch (retryError: any) {
+      setChatError(retryError.message);
+    } finally {
+      setRetryingQueuedMessageId(null);
+    }
+  }
+
   async function handleDeleteQueuedChatMessage(queuedMessageId: any) {
     const resolvedQueuedMessageId = String(queuedMessageId || "").trim();
     if (!resolvedQueuedMessageId) {
@@ -8692,6 +8743,7 @@ function App() {
             isUpdatingChatTitle={isUpdatingChatTitle}
             deletingChatSessionKey={deletingChatSessionKey}
             steeringQueuedMessageId={steeringQueuedMessageId}
+            retryingQueuedMessageId={retryingQueuedMessageId}
             deletingQueuedMessageId={deletingQueuedMessageId}
             getCreateChatDisabledReason={getChatCreateBlockedReasonByAgentId}
             onChatSessionRenameDraftChange={handleChatSessionRenameDraftChange}
@@ -8702,6 +8754,7 @@ function App() {
             onSendChatMessage={handleSendChatMessage}
             onInterruptChatTurn={handleInterruptChatTurn}
             onSteerQueuedMessage={handleSteerQueuedChatMessage}
+            onRetryQueuedMessage={handleRetryQueuedChatMessage}
             onDeleteQueuedMessage={handleDeleteQueuedChatMessage}
             onCreateChatForAgent={handleCreateChatForAgent}
             onOpenChatFromList={handleOpenChatFromList}
@@ -8774,6 +8827,7 @@ function App() {
               isUpdatingChatTitle={isUpdatingChatTitle}
               deletingChatSessionKey={deletingChatSessionKey}
               steeringQueuedMessageId={steeringQueuedMessageId}
+              retryingQueuedMessageId={retryingQueuedMessageId}
               deletingQueuedMessageId={deletingQueuedMessageId}
               getCreateChatDisabledReason={getChatCreateBlockedReasonByAgentId}
               onChatSessionRenameDraftChange={handleChatSessionRenameDraftChange}
@@ -8790,6 +8844,7 @@ function App() {
               onSendChatMessage={handleSendChatMessage}
               onInterruptChatTurn={handleInterruptChatTurn}
               onSteerQueuedMessage={handleSteerQueuedChatMessage}
+              onRetryQueuedMessage={handleRetryQueuedChatMessage}
               onDeleteQueuedMessage={handleDeleteQueuedChatMessage}
               onCreateChatForAgent={handleCreateChatForAgent}
               onOpenChatFromList={handleOpenChatFromList}

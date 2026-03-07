@@ -421,6 +421,7 @@ export function toLegacyTurnPayload(turn: LooseRecord | null | undefined, {
 export function toLegacyQueuedUserMessagePayload(queuedMessage: LooseRecord | null | undefined) {
   const queuedMessageRecord = toRecord(queuedMessage);
   const normalizedStatus = String(queuedMessageRecord.status || "").trim().toLowerCase();
+  const errorMessage = resolveLegacyId(queuedMessageRecord.errorMessage) || null;
   return {
     id: resolveLegacyId(queuedMessageRecord.id),
     companyId: resolveLegacyId(toRecord(queuedMessageRecord.company).id),
@@ -430,7 +431,10 @@ export function toLegacyQueuedUserMessagePayload(queuedMessage: LooseRecord | nu
         ? "processed"
         : normalizedStatus === "submitted"
           ? "submitted"
+          : normalizedStatus === "failed"
+            ? "failed"
           : "queued",
+    errorMessage,
     sdkTurnId: resolveLegacyId(queuedMessageRecord.sdkTurnId) || null,
     allowSteer: Boolean(queuedMessageRecord.allowSteer),
     text: resolveLegacyId(queuedMessageRecord.text),
