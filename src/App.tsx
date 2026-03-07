@@ -7941,6 +7941,7 @@ function App() {
   async function navigateToChatsConversation({
     replace = false,
     openFirstThread = !matchesMediaQuery(SIDEBAR_COLLAPSE_MEDIA_QUERY),
+    forceList = false,
   }: any = {}) {
     if (isNavigatingToChatsRef.current) {
       return;
@@ -7954,7 +7955,7 @@ function App() {
       }
 
       const requestedAgentId = String(chatsRoute.agentId || "").trim();
-      const requestedThreadId = String(chatsRoute.threadId || "").trim();
+      const requestedThreadId = forceList ? "" : String(chatsRoute.threadId || "").trim();
       if (requestedAgentId && requestedThreadId) {
         setChatAgentId(requestedAgentId);
         setChatSessionId(requestedThreadId);
@@ -8056,11 +8057,15 @@ function App() {
 
   function navigateTo(pageId: any) {
     if (String(pageId || "").trim().toLowerCase() === "chats") {
+      const shouldForceChatsList = matchesMediaQuery(SIDEBAR_COLLAPSE_MEDIA_QUERY);
       setChatSessionId("");
       setChatTurns([]);
       setQueuedChatMessages([]);
       setIsLoadingChat(false);
-      void navigateToChatsConversation();
+      void navigateToChatsConversation({
+        openFirstThread: !shouldForceChatsList,
+        forceList: shouldForceChatsList,
+      });
       return;
     }
     setBrowserPath(getPathForPage(pageId));
