@@ -146,6 +146,19 @@ export function getRunnersRouteFromPathname(pathname: string = window.location.p
   return { view: "detail", runnerId };
 }
 
+export function getTasksRouteFromPathname(pathname: string = window.location.pathname): DetailRoute & { taskId: string } {
+  const segments = normalizePathname(pathname).split("/").filter(Boolean);
+  if (String(segments[0] || "").toLowerCase() !== "tasks") {
+    return { view: "list", taskId: "" };
+  }
+
+  const taskId = String(segments[1] || "").trim();
+  if (!taskId) {
+    return { view: "list", taskId: "" };
+  }
+  return { view: "detail", taskId };
+}
+
 export function getGitSkillPackagesRouteFromPathname(pathname: string = window.location.pathname): DetailRoute & { packageId: string } {
   const segments = normalizePathname(pathname).split("/").filter(Boolean);
   if (String(segments[0] || "").toLowerCase() !== "gitskillpackages") {

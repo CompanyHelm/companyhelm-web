@@ -18,7 +18,7 @@ function toRecord(value: unknown): LooseRecord {
   return value as LooseRecord;
 }
 
-export function createRelationshipDrafts(tasks: unknown): Record<string, {
+export function createRelationshipDrafts(tasks: unknown, hierarchyTasks: unknown = tasks): Record<string, {
   dependencyTaskIds: string[];
   parentTaskId: string;
   childTaskIds: string[];
@@ -26,9 +26,10 @@ export function createRelationshipDrafts(tasks: unknown): Record<string, {
   status: string;
 }> {
   const taskList = Array.isArray(tasks) ? tasks.map(toRecord) : [];
+  const hierarchyTaskList = Array.isArray(hierarchyTasks) ? hierarchyTasks.map(toRecord) : taskList;
   const childTaskIdsByParentTaskId = new Map<string, string[]>();
 
-  for (const task of taskList) {
+  for (const task of hierarchyTaskList) {
     const taskId = String(task?.id || "").trim();
     const parentTaskId = String(task?.parentTaskId || "").trim();
     if (!taskId || !parentTaskId || parentTaskId === taskId) {

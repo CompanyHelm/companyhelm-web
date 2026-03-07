@@ -49,3 +49,29 @@ test("createRelationshipDrafts normalizes dependencyTaskIds and parent/child rel
     },
   });
 });
+
+test("createRelationshipDrafts can source child relationships from a broader task list", () => {
+  const drafts = createRelationshipDrafts(
+    [
+      {
+        id: "task-1",
+        parentTaskId: null,
+        dependencyTaskIds: [],
+        assigneePrincipalId: null,
+        status: "draft",
+      },
+    ],
+    [
+      {
+        id: "task-1",
+        parentTaskId: null,
+      },
+      {
+        id: "task-2",
+        parentTaskId: "task-1",
+      },
+    ],
+  );
+
+  assert.deepEqual(drafts["task-1"]?.childTaskIds, ["task-2"]);
+});

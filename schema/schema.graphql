@@ -80,6 +80,40 @@ enum AgentStatus {
   ready
 }
 
+type Approval {
+  createdAt: String!
+  createdByPrincipalId: ID
+  id: ID!
+  reason: String!
+  rejectionReason: String
+  requestingAgentId: ID
+  requestingAgentName: String
+  resolvedAt: String
+  resolvedByPrincipalId: ID
+  secretId: ID!
+  secretName: String
+  status: ApprovalStatus!
+  threadId: ID!
+  type: ApprovalType!
+  updatedAt: String!
+}
+
+type ApprovalMutationPayload {
+  approval: Approval
+  error: String
+  ok: Boolean!
+}
+
+enum ApprovalStatus {
+  approved
+  pending
+  rejected
+}
+
+enum ApprovalType {
+  secret
+}
+
 type AuthPayload {
   token: String!
   user: AuthUser!
@@ -90,6 +124,18 @@ type AuthUser {
   firstName: String!
   id: ID!
   lastName: String
+}
+
+type BatchDeleteTasksPayload {
+  deletedTaskIds: [ID!]!
+  error: String
+  ok: Boolean!
+}
+
+type BatchTaskMutationPayload {
+  error: String
+  ok: Boolean!
+  tasks: [Task!]!
 }
 
 type Company {
@@ -126,6 +172,12 @@ type DeleteAgentPayload {
   ok: Boolean!
 }
 
+type DeleteApprovalPayload {
+  deletedApprovalId: ID
+  error: String
+  ok: Boolean!
+}
+
 type DeleteGitSkillPackagePayload {
   deletedGitSkillPackageId: ID
   error: String
@@ -146,6 +198,12 @@ type DeleteMcpServerPayload {
 
 type DeleteRolePayload {
   deletedRoleId: ID
+  error: String
+  ok: Boolean!
+}
+
+type DeleteSecretPayload {
+  deletedSecretId: ID
   error: String
   ok: Boolean!
 }
@@ -218,10 +276,9 @@ input McpHeaderInput {
 type McpServer {
   args: [String!]!
   authType: String!
-  bearerToken: String
+  bearerTokenSecretId: ID
   command: String
   company: Company!
-  companyId: ID!
   customHeaders: [McpHeader!]!
   enabled: Boolean!
   envVars: [McpEnvVar!]!
@@ -238,52 +295,63 @@ type McpServerMutationPayload {
 }
 
 type Mutation {
-  addGithubInstallation(companyId: ID, installationId: ID!, setupAction: String): AddGithubInstallationPayload!
-  addMcpServerToRole(companyId: ID, mcpServerId: ID!, roleId: ID!): RoleMutationPayload!
-  addSkillGroupToRole(companyId: ID, roleId: ID!, skillGroupId: ID!): RoleMutationPayload!
-  addSkillToRole(companyId: ID, roleId: ID!, skillId: ID!): RoleMutationPayload!
-  addSkillToSkillGroup(companyId: ID, skillGroupId: ID!, skillId: ID!): SkillGroupMutationPayload!
-  addTaskDependency(companyId: ID!, dependencyTaskId: ID!, taskId: ID!): TaskMutationPayload!
-  createAgent(agentRunnerId: ID!, agentRunnerSdkId: ID!, companyId: ID, defaultAdditionalModelInstructions: String, defaultModelId: ID!, defaultReasoningLevel: String, mcpServerIds: [ID!], name: String!, roleIds: [ID!]): Agent!
-  createAgentRunner(companyId: ID, name: String!): AgentRunnerSecretPayload!
+  addGithubInstallation(installationId: ID!, setupAction: String): AddGithubInstallationPayload!
+  addMcpServerToRole(mcpServerId: ID!, roleId: ID!): RoleMutationPayload!
+  addSkillGroupToRole(roleId: ID!, skillGroupId: ID!): RoleMutationPayload!
+  addSkillToRole(roleId: ID!, skillId: ID!): RoleMutationPayload!
+  addSkillToSkillGroup(skillGroupId: ID!, skillId: ID!): SkillGroupMutationPayload!
+  addTaskDependency(dependencyTaskId: ID!, taskId: ID!): TaskMutationPayload!
+  approveApproval(id: ID!): ApprovalMutationPayload!
+  batchDeleteTasks(ids: [ID!]!): BatchDeleteTasksPayload!
+  batchExecuteTasks(agentId: ID!, taskIds: [ID!]!): BatchTaskMutationPayload!
+  createAgent(agentRunnerId: ID!, agentRunnerSdkId: ID!, defaultAdditionalModelInstructions: String, defaultModelId: ID!, defaultReasoningLevel: String, mcpServerIds: [ID!], name: String!, roleIds: [ID!]): Agent!
+  createAgentRunner(name: String!): AgentRunnerSecretPayload!
   createCompany(name: String!): Company!
-  createGitSkillPackage(companyId: ID, gitReference: String!, gitRepositoryUrl: String!): CreateGitSkillPackagePayload!
-  createMcpServer(args: [String!], authType: String, bearerToken: String, command: String, companyId: ID, customHeaders: [McpHeaderInput!], enabled: Boolean, envVars: [McpEnvVarInput!], name: String!, transportType: String, url: String): McpServerMutationPayload!
-  createRole(companyId: ID, name: String!, parentRoleId: ID): RoleMutationPayload!
-  createSkillGroup(companyId: ID, name: String!, parentSkillGroupId: ID): SkillGroupMutationPayload!
-  createTask(acceptanceCriteria: String, companyId: ID!, dependencyTaskIds: [ID!], description: String, name: String!, parentTaskId: ID, status: TaskStatus): TaskMutationPayload!
-  createTaskComment(comment: String!, companyId: ID!, taskId: ID!): TaskCommentMutationPayload!
-  createThread(additionalModelInstructions: String, agentId: ID!, companyId: ID, title: String): Thread!
+  createGitSkillPackage(gitReference: String!, gitRepositoryUrl: String!): CreateGitSkillPackagePayload!
+  createMcpServer(args: [String!], authType: String, bearerTokenSecretId: ID, command: String, customHeaders: [McpHeaderInput!], enabled: Boolean, envVars: [McpEnvVarInput!], name: String!, transportType: String, url: String): McpServerMutationPayload!
+  createRole(name: String!, parentRoleId: ID): RoleMutationPayload!
+  createSecret(description: String!, name: String!, value: String!): SecretMutationPayload!
+  createSkillGroup(name: String!, parentSkillGroupId: ID): SkillGroupMutationPayload!
+  createTask(acceptanceCriteria: String, assigneePrincipalId: ID, dependencyTaskIds: [ID!], description: String, name: String!, parentTaskId: ID, status: TaskStatus): TaskMutationPayload!
+  createTaskComment(comment: String!, taskId: ID!): TaskCommentMutationPayload!
+  createThread(additionalModelInstructions: String, agentId: ID!, title: String): Thread!
   deleteAgent(input: DeleteAgentInput!): DeleteAgentPayload!
   deleteAgentRunner(agentRunnerId: ID!): Boolean!
-  deleteCompany(companyId: ID): Boolean!
-  deleteGitSkillPackage(companyId: ID, id: ID!): DeleteGitSkillPackagePayload!
-  deleteGithubInstallation(companyId: ID, installationId: ID!): DeleteGithubInstallationPayload!
-  deleteMcpServer(companyId: ID, id: ID!): DeleteMcpServerPayload!
+  deleteApproval(id: ID!): DeleteApprovalPayload!
+  deleteCompany: Boolean!
+  deleteGitSkillPackage(id: ID!): DeleteGitSkillPackagePayload!
+  deleteGithubInstallation(installationId: ID!): DeleteGithubInstallationPayload!
+  deleteMcpServer(id: ID!): DeleteMcpServerPayload!
   deleteQueuedUserMessage(queuedMessageId: ID!): Boolean!
-  deleteRole(companyId: ID, id: ID!): DeleteRolePayload!
-  deleteSkillGroup(companyId: ID, id: ID!): DeleteSkillGroupPayload!
-  deleteTask(companyId: ID!, id: ID!): DeleteTaskPayload!
-  deleteThread(threadId: ID!): Boolean!
+  deleteRole(id: ID!): DeleteRolePayload!
+  deleteSecret(id: ID!): DeleteSecretPayload!
+  deleteSkillGroup(id: ID!): DeleteSkillGroupPayload!
+  deleteTask(id: ID!): DeleteTaskPayload!
+  deleteThread(threadId: ID!): Thread!
   executeTask(agentId: ID!, taskId: ID!): TaskMutationPayload!
   interruptTurn(threadId: ID!): Boolean!
   previewGitSkillPackage(gitRepositoryUrl: String!): PreviewGitSkillPackagePayload!
   queueUserMessage(allowSteer: Boolean!, modelId: ID, reasoningLevel: String, text: String!, threadId: ID!): QueuedUserMessage!
-  refreshGithubInstallationRepositories(companyId: ID, installationId: ID!): RefreshGithubInstallationRepositoriesPayload!
+  refreshGithubInstallationRepositories(installationId: ID!): RefreshGithubInstallationRepositoriesPayload!
   regenerateAgentRunnerSecret(agentRunnerId: ID!): AgentRunnerSecretPayload!
-  removeMcpServerFromRole(companyId: ID, mcpServerId: ID!, roleId: ID!): RoleMutationPayload!
-  removeSkillFromRole(companyId: ID, roleId: ID!, skillId: ID!): RoleMutationPayload!
-  removeSkillFromSkillGroup(companyId: ID, skillGroupId: ID!, skillId: ID!): SkillGroupMutationPayload!
-  removeSkillGroupFromRole(companyId: ID, roleId: ID!, skillGroupId: ID!): RoleMutationPayload!
-  removeTaskDependency(companyId: ID!, dependencyTaskId: ID!, taskId: ID!): TaskMutationPayload!
-  setTaskParent(companyId: ID!, parentTaskId: ID, taskId: ID!): TaskMutationPayload!
+  rejectApproval(id: ID!, rejectionReason: String): ApprovalMutationPayload!
+  removeMcpServerFromRole(mcpServerId: ID!, roleId: ID!): RoleMutationPayload!
+  removeSkillFromRole(roleId: ID!, skillId: ID!): RoleMutationPayload!
+  removeSkillFromSkillGroup(skillGroupId: ID!, skillId: ID!): SkillGroupMutationPayload!
+  removeSkillGroupFromRole(roleId: ID!, skillGroupId: ID!): RoleMutationPayload!
+  removeTaskDependency(dependencyTaskId: ID!, taskId: ID!): TaskMutationPayload!
+  retryQueuedUserMessage(queuedMessageId: ID!): QueuedUserMessage!
+  setTaskAssigneePrincipal(assigneePrincipalId: ID, taskId: ID!): TaskMutationPayload!
+  setTaskParent(parentTaskId: ID, taskId: ID!): TaskMutationPayload!
+  setTaskStatus(status: TaskStatus!, taskId: ID!): TaskMutationPayload!
   signIn(email: String!, password: String!): AuthPayload!
   signUp(email: String!, firstName: String!, lastName: String, password: String!): AuthPayload!
   steerQueuedUserMessage(queuedMessageId: ID!): QueuedUserMessage!
   updateAgent(agentId: ID!, agentRunnerId: ID!, agentRunnerSdkId: ID!, defaultAdditionalModelInstructions: String, defaultModelId: ID!, defaultReasoningLevel: String, mcpServerIds: [ID!], name: String!, roleIds: [ID!]): Agent!
-  updateMcpServer(args: [String!], authType: String, bearerToken: String, command: String, companyId: ID, customHeaders: [McpHeaderInput!], enabled: Boolean, envVars: [McpEnvVarInput!], id: ID!, name: String!, transportType: String, url: String): McpServerMutationPayload!
-  updateRole(companyId: ID, id: ID!, name: String!, parentRoleId: ID): RoleMutationPayload!
-  updateSkillGroup(companyId: ID, id: ID!, name: String!, parentSkillGroupId: ID): SkillGroupMutationPayload!
+  updateMcpServer(args: [String!], authType: String, bearerTokenSecretId: ID, command: String, customHeaders: [McpHeaderInput!], enabled: Boolean, envVars: [McpEnvVarInput!], id: ID!, name: String!, transportType: String, url: String): McpServerMutationPayload!
+  updateRole(id: ID!, name: String!, parentRoleId: ID): RoleMutationPayload!
+  updateSecret(description: String!, id: ID!, name: String!, value: String): SecretMutationPayload!
+  updateSkillGroup(id: ID!, name: String!, parentSkillGroupId: ID): SkillGroupMutationPayload!
   updateThreadTitle(threadId: ID!, title: String): Thread!
 }
 
@@ -301,34 +369,55 @@ type PreviewGitSkillPackagePayload {
   tags: [GitSkillReference!]!
 }
 
+type Principal {
+  agentId: ID
+  displayName: String!
+  email: String
+  id: ID!
+  kind: PrincipalKind!
+  userId: ID
+}
+
+enum PrincipalKind {
+  agent
+  user
+}
+
 type Query {
   agent(id: ID!): Agent
   agentRunner(id: ID!): AgentRunner
-  agentRunners(after: String, companyId: ID, first: Int = 20): AgentRunnerConnection!
-  agents(after: String, companyId: ID, first: Int = 20): AgentConnection!
+  agentRunners(after: String, first: Int = 20): AgentRunnerConnection!
+  agents(after: String, first: Int = 20): AgentConnection!
+  approvals(first: Int = 50, status: ApprovalStatus): [Approval!]!
   companies(after: String, first: Int = 20): CompanyConnection!
   company(id: ID!): Company
   gitSkillPackage(id: ID!): GitSkillPackage
-  gitSkillPackages(companyId: ID): [GitSkillPackage!]!
+  gitSkillPackages: [GitSkillPackage!]!
   githubAppConfig: GithubAppConfig!
-  githubInstallations(companyId: ID): [GithubInstallation!]!
-  mcpServers(companyId: ID): [McpServer!]!
+  githubInstallations: [GithubInstallation!]!
+  mcpServers: [McpServer!]!
   me: AuthUser!
   queuedUserMessages(first: Int = 20, threadId: ID!): [QueuedUserMessage!]!
-  repositories(after: String, companyId: ID, first: Int = 20, githubInstallationId: ID): RepositoryConnection!
-  roles(companyId: ID): [Role!]!
+  repositories(after: String, first: Int = 20, githubInstallationId: ID): RepositoryConnection!
+  roles: [Role!]!
+  secretAccessLogs(first: Int = 50, secretId: ID): [SecretAccessLog!]!
+  secretValue(secretId: ID!): SecretValuePayload!
+  secrets: [Secret!]!
   skill(id: ID!): Skill
-  skillGroups(companyId: ID): [SkillGroup!]!
-  skills(companyId: ID): [Skill!]!
-  tasks(companyId: ID!): [Task!]!
+  skillGroups: [SkillGroup!]!
+  skills: [Skill!]!
+  taskAssignablePrincipals: [Principal!]!
+  taskOptions: [TaskOption!]!
+  tasks(maxDepth: Int, rootTaskId: ID, topLevelOnly: Boolean): [Task!]!
   thread(id: ID!): Thread
   threadTurns(after: String, first: Int = 20, threadId: ID!): ThreadTurnConnection!
-  threads(after: String, agentId: ID, companyId: ID, first: Int = 20): ThreadConnection!
+  threads(after: String, agentId: ID, first: Int = 20): ThreadConnection!
 }
 
 type QueuedUserMessage {
   allowSteer: Boolean!
   company: Company!
+  errorMessage: String
   id: ID!
   sdkTurnId: String
   status: QueuedUserMessageStatus!
@@ -337,6 +426,7 @@ type QueuedUserMessage {
 }
 
 enum QueuedUserMessageStatus {
+  failed
   processed
   queued
   submitted
@@ -393,6 +483,54 @@ type RoleMutationPayload {
   role: Role
 }
 
+type Secret {
+  createdAt: String!
+  description: String!
+  id: ID!
+  name: String!
+  updatedAt: String!
+}
+
+type SecretAccessLog {
+  accessReason: String!
+  accessedAt: String!
+  agent: SecretAccessLogAgent
+  agentId: ID
+  id: ID!
+  mcpServer: SecretAccessLogMcpServer
+  mcpServerId: ID
+  secretId: ID
+  thread: SecretAccessLogThread
+  threadId: ID
+}
+
+type SecretAccessLogAgent {
+  id: ID!
+  name: String!
+}
+
+type SecretAccessLogMcpServer {
+  id: ID!
+  name: String!
+}
+
+type SecretAccessLogThread {
+  id: ID!
+  title: String
+}
+
+type SecretMutationPayload {
+  error: String
+  ok: Boolean!
+  secret: Secret
+}
+
+type SecretValuePayload {
+  error: String
+  ok: Boolean!
+  value: String
+}
+
 type Skill {
   company: Company!
   content: String
@@ -421,14 +559,16 @@ type SkillGroupMutationPayload {
 }
 
 type Subscription {
-  agentRunnersUpdated(after: String, companyId: ID, first: Int = 20): AgentRunnerConnection!
-  agentThreadsUpdated(after: String, agentId: ID, companyId: ID, first: Int = 20): ThreadConnection!
-  agentTurnsUpdated(after: String, agentId: ID!, companyId: ID, first: Int = 20, threadId: ID!): ThreadTurnConnection!
+  agentRunnersUpdated(after: String, first: Int = 20): AgentRunnerConnection!
+  agentThreadsUpdated(after: String, agentId: ID, first: Int = 20): ThreadConnection!
+  agentTurnsUpdated(after: String, agentId: ID!, first: Int = 20, threadId: ID!): ThreadTurnConnection!
+  queuedUserMessagesUpdated(agentId: ID!, first: Int = 200, threadId: ID!): [QueuedUserMessage!]!
 }
 
 type Task {
   acceptanceCriteria: String
   agentId: ID
+  assigneePrincipal: Principal
   assigneePrincipalId: ID
   comments: [TaskComment!]!
   company: Company!
@@ -444,9 +584,9 @@ type Task {
 }
 
 type TaskComment {
+  authorPrincipal: Principal
   authorPrincipalId: ID!
   comment: String!
-  companyId: ID!
   createdAt: String!
   id: ID!
   taskId: ID!
@@ -465,6 +605,12 @@ type TaskMutationPayload {
   task: Task
 }
 
+type TaskOption {
+  id: ID!
+  name: String!
+  parentTaskId: ID
+}
+
 enum TaskStatus {
   completed
   draft
@@ -481,6 +627,7 @@ type Thread {
   errorMessage: String
   id: ID!
   status: ThreadStatus!
+  tasks: [Task!]!
   title: String
 }
 
