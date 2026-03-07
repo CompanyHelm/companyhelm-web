@@ -1,14 +1,19 @@
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { CreationModal } from "./CreationModal.tsx";
 import type { TaskItem, TaskRelationshipDraft } from "../types/domain.ts";
 
 interface TaskEditModalProps {
   task: TaskItem | null;
   tasks: TaskItem[];
+  agents: Array<{
+    id: string;
+    name: string;
+  }>;
   principals: Array<{
     id: string;
     kind: "agent" | "user";
     displayName: string;
+    agentId?: string | null;
   }>;
   relationshipDraft?: TaskRelationshipDraft;
   savingTaskId: string | null;
@@ -20,6 +25,7 @@ interface TaskEditModalProps {
     value: string | string[],
   ) => void;
   onSaveRelationships: (taskId: string) => Promise<boolean> | boolean;
+  onExecuteTask: (taskId: string, agentId: string) => Promise<boolean> | boolean;
   onCreateTaskComment: (taskId: string, comment: string) => Promise<boolean> | boolean;
   onDeleteTask: (taskId: string, taskName: string) => void;
   onOpenTaskThread: (threadId: string) => Promise<void> | void;
@@ -29,6 +35,7 @@ interface TaskEditModalProps {
 export function TaskEditModal({
   task,
   tasks,
+  agents,
   principals,
   relationshipDraft,
   savingTaskId,
@@ -36,12 +43,14 @@ export function TaskEditModal({
   deletingTaskId,
   onDraftChange,
   onSaveRelationships,
+  onExecuteTask,
   onCreateTaskComment,
   onDeleteTask,
   onOpenTaskThread,
   onClose,
 }: TaskEditModalProps) {
   const [commentDraft, setCommentDraft] = useState("");
+  const [selectedExecuteAgentId, setSelectedExecuteAgentId] = useState("");
 
   if (!task) {
     return null;
@@ -67,6 +76,37 @@ export function TaskEditModal({
   const status = String(draft?.status || "").trim() || "draft";
   const taskThreadId = String(task?.threadId || "").trim();
   const isBusy = savingTaskId === taskId || deletingTaskId === taskId;
+  const currentAssigneePrincipalId = String(task?.assigneePrincipalId || "").trim();
+  const currentAssigneeAgentId = String(task?.assigneeAgentId || "").trim();
+  const draftAssigneeAgentId = String(
+    principals.find((principal) => principal.id === assigneePrincipalId && principal.kind === "agent")?.agentId || "",
+  ).trim();
+  const derivedExecuteAgentId = selectedExecuteAgentId.trim()
+    || draftAssigneeAgentId
+    || (assigneePrincipalId === currentAssigneePrincipalId ? currentAssigneeAgentId : "");
+  const normalizedCurrentDependencyTaskIds = [...(Array.isArray(task?.dependencyTaskIds) ? task.dependencyTaskIds : [])]
+    .map((value) => String(value).trim())
+    .filter(Boolean)
+    .sort();
+  const normalizedDraftDependencyTaskIds = [...draftDependencyTaskIds]
+    .map((value) => String(value).trim())
+    .filter(Boolean)
+    .sort();
+  const normalizedCurrentChildTaskIds = [...currentChildTaskIds].sort();
+  const normalizedDraftChildTaskIds = [...selectedChildTaskIds]
+    .map((value) => String(value).trim())
+    .filter(Boolean)
+    .sort();
+  const hasDraftChanges = JSON.stringify(normalizedCurrentDependencyTaskIds) !== JSON.stringify(normalizedDraftDependencyTaskIds)
+    || parentTaskId !== String(task?.parentTaskId || "").trim()
+    || JSON.stringify(normalizedCurrentChildTaskIds) !== JSON.stringify(normalizedDraftChildTaskIds)
+    || assigneePrincipalId !== currentAssigneePrincipalId
+    || status !== (String(task?.status || "").trim() || "draft");
+
+  useEffect(() => {
+    setCommentDraft("");
+    setSelectedExecuteAgentId("");
+  }, [taskId]);
 
   function removeDependency(depId: string) {
     onDraftChange(taskId, "dependencyTaskIds", draftDependencyTaskIds.filter((id) => id !== depId));
@@ -103,6 +143,21 @@ export function TaskEditModal({
     if (didSave) {
       onClose();
     }
+  }
+
+  async function handleExecute() {
+    if (isBusy || taskThreadId || !derivedExecuteAgentId) {
+      return;
+    }
+
+    if (hasDraftChanges) {
+      const didSave = await onSaveRelationships(taskId);
+      if (!didSave) {
+        return;
+      }
+    }
+
+    await onExecuteTask(taskId, derivedExecuteAgentId);
   }
 
   async function handleCommentSubmit(event: FormEvent<HTMLFormElement>) {
@@ -185,6 +240,29 @@ export function TaskEditModal({
         ) : (
           <p className="chat-card-meta">Thread not present.</p>
         )}
+
+        {!taskThreadId ? (
+          <>
+            <label htmlFor="edit-task-execute-agent">Execute with agent</label>
+            <select
+              id="edit-task-execute-agent"
+              value={selectedExecuteAgentId}
+              onChange={(event: ChangeEvent<HTMLSelectElement>) => setSelectedExecuteAgentId(event.target.value)}
+            >
+              <option value="">
+                {draftAssigneeAgentId || (assigneePrincipalId === currentAssigneePrincipalId && currentAssigneeAgentId)
+                  ? "Use assigned agent"
+                  : "Select agent"}
+              </option>
+              {agents.map((agent) => (
+                <option key={`edit-execute-agent-${agent.id}`} value={agent.id}>
+                  {agent.name}
+                </option>
+              ))}
+            </select>
+            <p className="chat-card-meta">Uses the assigned agent by default. Choose another agent to override it.</p>
+          </>
+        ) : null}
 
         <label htmlFor="edit-parent-task">Parent task</label>
         <div className="task-parent-row">
@@ -306,6 +384,18 @@ export function TaskEditModal({
         </form>
 
         <div className="task-form-actions">
+          <button
+            type="button"
+            disabled={isBusy || Boolean(taskThreadId) || !derivedExecuteAgentId}
+            onClick={() => void handleExecute()}
+            title={taskThreadId
+              ? "Task already has a linked execution thread."
+              : !derivedExecuteAgentId
+                ? "Select an agent above or assign the task to an agent."
+                : ""}
+          >
+            {savingTaskId === taskId && hasDraftChanges ? "Saving..." : hasDraftChanges ? "Save & Execute" : "Execute task"}
+          </button>
           <button
             type="button"
             className="secondary-btn"

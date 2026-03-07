@@ -18,6 +18,12 @@ function renderTaskEditModalMarkup(taskOverrides: Record<string, unknown> = {}, 
     React.createElement(TaskEditModal, {
       task,
       tasks: [task],
+      agents: [
+        {
+          id: "agent-1",
+          name: "Agent One",
+        },
+      ],
       principals: [
         {
           id: "principal-user-1",
@@ -37,6 +43,7 @@ function renderTaskEditModalMarkup(taskOverrides: Record<string, unknown> = {}, 
       deletingTaskId: null,
       onDraftChange: () => {},
       onSaveRelationships: () => true,
+      onExecuteTask: () => true,
       onCreateTaskComment: () => true,
       onDeleteTask: () => {},
       onOpenTaskThread,
@@ -63,6 +70,7 @@ test("TaskEditModal shows assignee and status controls", () => {
 
   assert.match(markup, />Assignee</);
   assert.match(markup, />Status</);
+  assert.match(markup, /Execute task/);
 });
 
 test("TaskEditModal shows comment creator principal and type badge", () => {
