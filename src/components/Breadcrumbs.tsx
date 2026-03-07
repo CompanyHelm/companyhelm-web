@@ -1,6 +1,6 @@
 import { usePageActions } from "./PageActionsContext.tsx";
 
-export function Breadcrumbs({ items, onNavigate }: any) {
+export function Breadcrumbs({ items, onNavigate, hideTitleRowOnMobile = false }: any) {
   const pageActionsCtx = usePageActions();
   const actions = pageActionsCtx?.actions || null;
 
@@ -46,7 +46,7 @@ export function Breadcrumbs({ items, onNavigate }: any) {
         })}
       </ol>
       {pageTitle ? (
-        <div className="breadcrumb-title-row">
+        <div className={`breadcrumb-title-row${hideTitleRowOnMobile ? " breadcrumb-title-row-mobile-hidden" : ""}`}>
           <h1 className="breadcrumb-page-title">{pageTitle}</h1>
           {actions ? <div className="breadcrumb-page-actions">{actions}</div> : null}
         </div>

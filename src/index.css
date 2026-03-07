@@ -209,6 +209,10 @@ h3 {
   gap: 0.55rem;
 }
 
+.mobile-page-header {
+  display: none;
+}
+
 .side-brand-logo {
   width: 2rem;
   height: 2rem;
@@ -4435,6 +4439,46 @@ button:disabled {
   /* Smaller collapsed top bar on narrow mobile */
   .layout-shell-menu-collapsed .side-menu {
     padding: 0.38rem 0.72rem;
+  }
+
+  .layout-shell-menu-collapsed .side-brand {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .layout-shell-menu-collapsed .side-brand-lockup-mobile-hidden {
+    display: none;
+  }
+
+  .mobile-page-header {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .mobile-page-title {
+    margin: 0;
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 1rem;
+    line-height: 1.2;
+    color: var(--ink-0);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mobile-page-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex: 0 0 auto;
+  }
+
+  .breadcrumb-title-row-mobile-hidden {
+    display: none;
   }
 
   .page-shell {

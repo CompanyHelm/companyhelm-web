@@ -258,7 +258,7 @@ import { executeRelayGraphQL } from "./relay/client.ts";
 import { authProvider } from "./auth/runtime.ts";
 
 import { Breadcrumbs } from "./components/Breadcrumbs.tsx";
-import { PageActionsProvider } from "./components/PageActionsContext.tsx";
+import { PageActionsProvider, usePageActions } from "./components/PageActionsContext.tsx";
 import { CompanyRequiredPanel } from "./components/CompanyRequiredPanel.tsx";
 import { FirstCompanyOnboardingPage } from "./components/FirstCompanyOnboardingPage.tsx";
 
@@ -355,6 +355,30 @@ function toConnectionNodes(connection: any) {
     return [];
   }
   return connection.edges.map((edge: any) => edge?.node).filter(Boolean);
+}
+
+function SideBrandHeader({ activePage, pageTitle }: any) {
+  const pageActionsCtx = usePageActions();
+  const actions = pageActionsCtx?.actions || null;
+  const isDashboardPage = activePage === "dashboard";
+
+  return (
+    <>
+      <div className={`side-brand-lockup${isDashboardPage ? "" : " side-brand-lockup-mobile-hidden"}`}>
+        <img className="side-brand-logo" src="/logos/logo-only.svg" alt="CompanyHelm logo" />
+        <div>
+          <p className="side-overline">Control Plane</p>
+          <h2>CompanyHelm</h2>
+        </div>
+      </div>
+      {!isDashboardPage && pageTitle ? (
+        <div className="mobile-page-header">
+          <h1 className="mobile-page-title">{pageTitle}</h1>
+          {actions ? <div className="mobile-page-actions">{actions}</div> : null}
+        </div>
+      ) : null}
+    </>
+  );
 }
 
 async function fetchCompanyApiConnectionNodes({
@@ -8212,6 +8236,7 @@ function App() {
   const activePrimaryNavItemId =
     activePage === "agents" && agentsRoute.view === "chat" ? "chats" : activePage;
   const showFirstCompanyOnboarding = !isLoadingCompanies && !hasCompanies;
+  const mobilePageTitle = String(breadcrumbItems[breadcrumbItems.length - 1]?.label || "").trim();
 
   return (
     <PageActionsProvider>
@@ -8235,13 +8260,7 @@ function App() {
               </button>
             ) : null}
             <div className="side-brand">
-              <div className="side-brand-lockup">
-                <img className="side-brand-logo" src="/logos/logo-only.svg" alt="CompanyHelm logo" />
-                <div>
-                  <p className="side-overline">Control Plane</p>
-                  <h2>CompanyHelm</h2>
-                </div>
-              </div>
+              <SideBrandHeader activePage={activePage} pageTitle={mobilePageTitle} />
             </div>
             <button
               type="button"
@@ -8340,7 +8359,11 @@ function App() {
             />
           ) : (
             <>
-              <Breadcrumbs items={breadcrumbItems} onNavigate={setBrowserPath} />
+              <Breadcrumbs
+                items={breadcrumbItems}
+                onNavigate={setBrowserPath}
+                hideTitleRowOnMobile={activePage !== "dashboard"}
+              />
 
               {!isLoadingCompanies && !selectedCompanyId && activePage !== "settings" && activePage !== "profile" ? (
                 <CompanyRequiredPanel hasCompanies={hasCompanies} />
