@@ -253,7 +253,7 @@ import {
   createSecretDrafts,
 } from "./utils/drafts.ts";
 
-import { subscribeGraphQL, useGraphQLSubscription } from "./hooks/useGraphQLSubscription.ts";
+import { useGraphQLSubscription } from "./hooks/useGraphQLSubscription.ts";
 import { executeRelayGraphQL } from "./relay/client.ts";
 import { authProvider } from "./auth/runtime.ts";
 
@@ -913,6 +913,11 @@ function toLegacyThreadPayload(thread: any, {
   const threadId = resolveLegacyId(thread?.id);
   const nowIso = new Date().toISOString();
   const currentMetadata = companyApiThreadMetadataById.get(threadId) || {};
+  const resolvedStatus = resolveLegacyId(
+    metadataOverride?.status,
+    thread?.status,
+    currentMetadata.status,
+  );
   const resolvedCurrentModelId = resolveLegacyId(
     metadataOverride?.currentModelId,
     metadataOverride?.currentModel?.id,
@@ -991,6 +996,7 @@ function toLegacyThreadPayload(thread: any, {
     createdAt: currentMetadata.createdAt || nowIso,
     updatedAt: nowIso,
     title: resolvedTitle,
+    status: resolvedStatus,
     runnerId: resolveLegacyId(metadataOverride?.runnerId, currentMetadata.runnerId) || null,
     currentModelId: resolvedCurrentModelId,
     currentModelName: resolvedCurrentModelName,
@@ -1010,7 +1016,7 @@ function toLegacyThreadPayload(thread: any, {
     agentId: resolveLegacyId(thread?.agent?.id),
     runnerId: nextMetadata.runnerId,
     title: nextMetadata.title,
-    status: resolveLegacyId(thread?.status) || "pending",
+    status: nextMetadata.status,
     errorMessage: nextMetadata.errorMessage,
     currentModelId: nextMetadata.currentModelId,
     currentModelName: nextMetadata.currentModelName,
@@ -1445,35 +1451,11 @@ async function executeGraphQL(query: any, variables: any = {}) {
   }
 
   if (query === CREATE_AGENT_THREAD_MUTATION) {
-    const companyId = resolveLegacyId(variables?.companyId);
     const agentId = resolveLegacyId(variables?.agentId);
     const additionalModelInstructions = normalizeOptionalInstructions(
       variables?.additionalModelInstructions,
     );
-    const loadThreadsForAgent = async () =>
-      fetchCompanyApiConnectionNodes({
-        query: COMPANY_API_LIST_THREADS_CONNECTION_QUERY,
-        rootField: "threads",
-        variables: {
-          companyId,
-          agentId,
-        },
-        limit: 500,
-      });
-
-    const previousThreads = await fetchCompanyApiConnectionNodes({
-      query: COMPANY_API_LIST_THREADS_CONNECTION_QUERY,
-      rootField: "threads",
-      variables: {
-        companyId,
-        agentId,
-      },
-      limit: 500,
-    });
-    const previousThreadIds = new Set(previousThreads.map((thread: any) => resolveLegacyId(thread?.id)));
-
     const createThreadVariables = {
-      companyId,
       agentId,
       title: resolveLegacyId(variables?.title) || null,
     };
@@ -1487,39 +1469,10 @@ async function executeGraphQL(query: any, variables: any = {}) {
     if (additionalModelInstructions !== null) {
       metadata.additionalModelInstructions = additionalModelInstructions;
     }
-    const requestedThreadId = resolveLegacyId(data?.createThread?.id);
-
-    const pickCanonicalThread = (threadsSnapshot: any) => {
-      const requestedThread = threadsSnapshot.find(
-        (thread: any) => resolveLegacyId(thread?.id) === requestedThreadId,
-      );
-      const newlyCreatedThreads = threadsSnapshot.filter(
-        (thread: any) => !previousThreadIds.has(resolveLegacyId(thread?.id)),
-      );
-      const readyRequestedThread = requestedThread
-        && resolveLegacyId(requestedThread?.status) === "ready"
-        ? requestedThread
-        : null;
-      const readyCreatedThread = newlyCreatedThreads.find(
-        (thread: any) => resolveLegacyId(thread?.status) === "ready",
-      );
-      const idChangedCreatedThread = newlyCreatedThreads.find(
-        (thread: any) => resolveLegacyId(thread?.id) !== requestedThreadId,
-      );
-
-      return readyRequestedThread
-        || readyCreatedThread
-        || idChangedCreatedThread
-        || requestedThread
-        || (newlyCreatedThreads.length === 1 ? newlyCreatedThreads[0] : null)
-        || newlyCreatedThreads[0]
-        || data?.createThread;
-    };
-
-    const updatedThreads = await loadThreadsForAgent();
-    const canonicalThread = pickCanonicalThread(updatedThreads);
-
-    const legacyThread = toLegacyThreadPayload(canonicalThread, { metadataOverride: metadata });
+    if (!data?.createThread?.id) {
+      throw new Error("Failed to create chat.");
+    }
+    const legacyThread = toLegacyThreadPayload(data.createThread, { metadataOverride: metadata });
     return {
       createAgentThread: {
         ok: true,
@@ -2569,80 +2522,6 @@ async function executeGraphQL(query: any, variables: any = {}) {
   throw new Error("Unsupported frontend operation for companyhelm-api.");
 }
 
-function waitForCanonicalThreadViaSubscription({
-  companyId,
-  agentId,
-  requestedThreadId,
-  knownThreadIds,
-  timeoutMs = 15000,
-}: any) {
-  return new Promise((resolve: any) => {
-    let settled = false;
-    const knownIds = new Set(
-      (Array.isArray(knownThreadIds) ? knownThreadIds : [])
-        .map((threadId: any) => String(threadId || "").trim())
-        .filter(Boolean),
-    );
-
-    const finalize = (threadOrNull: any) => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      clearTimeout(timeoutId);
-      unsubscribe();
-      resolve(threadOrNull);
-    };
-
-    const resolveFromThreadNodes = (threadNodes: any) => {
-      const nextSessions = threadNodes.map((threadNode: any) => toLegacyThreadPayload(threadNode));
-      const readyRequestedThread = nextSessions.find(
-        (thread: any) => thread.id === requestedThreadId && thread.status === "ready",
-      );
-      const readyNewThread = nextSessions.find(
-        (thread: any) => !knownIds.has(thread.id) && thread.status === "ready",
-      );
-      const remappedThread = nextSessions.find(
-        (thread: any) => !knownIds.has(thread.id) && thread.id !== requestedThreadId,
-      );
-      const resolvedThread = readyRequestedThread || readyNewThread || remappedThread || null;
-      if (resolvedThread) {
-        finalize(resolvedThread);
-      }
-    };
-
-    const timeoutId = setTimeout(() => finalize(null), timeoutMs);
-
-    const unsubscribe = subscribeGraphQL({
-      query: AGENT_THREADS_SUBSCRIPTION,
-      variables: {
-        companyId,
-        agentId,
-        first: 500,
-      },
-      onData: (payload: any) => {
-        const nextThreadNodes = toConnectionNodes(payload?.agentThreadsUpdated);
-        resolveFromThreadNodes(nextThreadNodes);
-      },
-      onError: () => {},
-    });
-
-    executeRawGraphQL(COMPANY_API_LIST_THREADS_CONNECTION_QUERY, {
-      companyId,
-      agentId,
-      first: 500,
-    })
-      .then((data: any) => {
-        if (settled) {
-          return;
-        }
-        const initialThreadNodes = toConnectionNodes(data?.threads);
-        resolveFromThreadNodes(initialThreadNodes);
-      })
-      .catch(() => {});
-  });
-}
-
 function App() {
   const [activePage, setActivePage] = useState<any>(() => getPageFromPathname());
   const [agentsRoute, setAgentsRoute] = useState<any>(() => getAgentsRouteFromPathname());
@@ -2919,7 +2798,7 @@ function App() {
       agentId: chatAgentId,
       runnerId: resolveLegacyId(metadata.runnerId) || null,
       title: resolveLegacyId(metadata.title) || `Thread ${resolvedSessionId.slice(0, 8)}`,
-      status: "ready",
+      status: resolveLegacyId(metadata.status),
       currentModelId: resolveLegacyId(metadata.currentModelId) || null,
       currentModelName: resolveLegacyId(metadata.currentModelName) || null,
       currentReasoningLevel: resolveLegacyId(metadata.currentReasoningLevel) || null,
@@ -7548,11 +7427,6 @@ function App() {
     const normalizedAdditionalModelInstructions = normalizeOptionalInstructions(
       additionalModelInstructions,
     );
-    const knownThreadIds = new Set(
-      (Array.isArray(chatSessionsByAgent[targetAgentId]) ? chatSessionsByAgent[targetAgentId] : []).map(
-        (session: any) => String(session?.id || "").trim(),
-      ),
-    );
     const createChatSessionKey = `${selectedCompanyId}:${targetAgentId}`;
 
     return runCreateChatSessionSingleFlight(createChatSessionKey, async () => {
@@ -7570,73 +7444,64 @@ function App() {
         if (!result.ok || !result.thread) {
           throw new Error(result.error || "Failed to create chat.");
         }
-
-        let canonicalThread = result.thread;
-        if (String(canonicalThread?.status || "").trim().toLowerCase() !== "ready") {
-          const resolvedThread = await waitForCanonicalThreadViaSubscription({
-            companyId: selectedCompanyId,
-            agentId: targetAgentId,
-            requestedThreadId: canonicalThread.id,
-            knownThreadIds: [...knownThreadIds],
-            timeoutMs: 15000,
-          });
-          if (resolvedThread) {
-            canonicalThread = {
-              ...canonicalThread,
-              ...resolvedThread,
-              title: canonicalThread.title || resolvedThread.title,
-              additionalModelInstructions:
-                canonicalThread.additionalModelInstructions
-                  || resolvedThread.additionalModelInstructions
-                  || normalizedAdditionalModelInstructions,
-              runnerId: canonicalThread.runnerId || resolvedThread.runnerId || null,
+        const createdThreadId = String(result.thread?.id || "").trim();
+        if (!createdThreadId) {
+          throw new Error("Created chat is missing an id.");
+        }
+        const createdThread = {
+          ...result.thread,
+          id: createdThreadId,
+          threadId: createdThreadId,
+          companyId: resolveLegacyId(result.thread?.companyId, selectedCompanyId),
+          agentId: resolveLegacyId(result.thread?.agentId, targetAgentId),
+          runnerId: resolveLegacyId(
+            result.thread?.runnerId,
+            preferredRunnerId,
+            selectedAgentForChat?.agentRunnerId,
+          ) || null,
+          title:
+            String(result.thread?.title || "").trim()
+              || `Thread ${createdThreadId.slice(0, 8)}`,
+          status: resolveLegacyId(result.thread?.status),
+          additionalModelInstructions:
+            normalizeOptionalInstructions(
+              result.thread?.additionalModelInstructions ?? normalizedAdditionalModelInstructions,
+            ),
+        };
+        const upsertSessionList = (sessions: any) => {
+          let matched = false;
+          const nextSessions = (Array.isArray(sessions) ? sessions : []).map((session: any) => {
+            const sessionId = String(session?.id || "").trim();
+            if (sessionId !== createdThreadId) {
+              return session;
+            }
+            matched = true;
+            return {
+              ...session,
+              ...createdThread,
             };
+          });
+
+          if (!matched) {
+            nextSessions.unshift(createdThread);
           }
-        }
-
-        const sessionsForAgent = await loadCompanyApiAgentThreads({
-          companyId: selectedCompanyId,
-          agentId: targetAgentId,
-          limit: 200,
-        });
-        const requestedThreadId = String(canonicalThread?.id || result.thread.id || "").trim();
-
-        const isReadySession = (session: any) => String(session?.status || "").trim().toLowerCase() === "ready";
-        const isNewSession = (session: any) => !knownThreadIds.has(String(session?.id || "").trim());
-        const requestedSession = sessionsForAgent.find(
-          (session: any) => String(session?.id || "").trim() === requestedThreadId,
-        );
-        const readyRequestedSession = requestedSession && isReadySession(requestedSession) ? requestedSession : null;
-        const readyNewSession = sessionsForAgent.find((session: any) => isNewSession(session) && isReadySession(session));
-        const remappedSession = sessionsForAgent.find(
-          (session: any) =>
-            isNewSession(session) && String(session?.id || "").trim() !== requestedThreadId,
-        );
-        const resolvedThread =
-          readyRequestedSession || readyNewSession || remappedSession || requestedSession || canonicalThread;
-        const resolvedThreadId = String(resolvedThread?.id || requestedThreadId || "").trim();
-
-        let nextSessionsForAgent = sessionsForAgent;
-        if (
-          resolvedThreadId
-          && !sessionsForAgent.some((session: any) => String(session?.id || "").trim() === resolvedThreadId)
-        ) {
-          nextSessionsForAgent = [resolvedThread, ...sessionsForAgent];
-        }
+          return nextSessions;
+        };
+        const nextSessionsForAgent = upsertSessionList(chatSessionsByAgent[targetAgentId]);
 
         setChatAgentId(targetAgentId);
         setChatSessions(nextSessionsForAgent);
         setChatSessionsByAgent((currentSessionsByAgent: any) => ({
           ...currentSessionsByAgent,
-          [targetAgentId]: nextSessionsForAgent,
+          [targetAgentId]: upsertSessionList(currentSessionsByAgent[targetAgentId]),
         }));
         setChatSessionTitleDraft("");
         setChatSessionAdditionalModelInstructionsDraft("");
         setChatTurns([]);
         setQueuedChatMessages([]);
-        setIsLoadingChat(Boolean(resolvedThreadId));
-        setChatSessionId(resolvedThreadId);
-        return resolvedThreadId;
+        setIsLoadingChat(false);
+        setChatSessionId(createdThreadId);
+        return createdThreadId;
       } catch (createError: any) {
         setChatError(createError.message);
         return null;

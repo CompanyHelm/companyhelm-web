@@ -2376,6 +2376,12 @@ button:disabled {
   background: rgba(220, 38, 38, 0.12);
 }
 
+.chat-thread-status-pending {
+  color: #155e75;
+  border-color: rgba(8, 145, 178, 0.35);
+  background: rgba(34, 211, 238, 0.14);
+}
+
 .chat-thread-status-deleting {
   color: #92400e;
   border-color: rgba(217, 119, 6, 0.35);

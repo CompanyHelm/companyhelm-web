@@ -15,6 +15,16 @@ test("toLegacyThreadPayload includes thread error status and message", () => {
   assert.equal(payload.errorMessage, "Failed to provision thread runtime container.");
 });
 
+test("toLegacyThreadPayload preserves missing thread status", () => {
+  const payload = toLegacyThreadPayload({
+    id: "thread-2",
+    company: { id: "company-1" },
+    agent: { id: "agent-1" },
+  });
+
+  assert.equal(payload.status, "");
+});
+
 test("toLegacyQueuedUserMessagePayload maps failed status and error message", () => {
   const payload = toLegacyQueuedUserMessagePayload({
     id: "queued-1",
