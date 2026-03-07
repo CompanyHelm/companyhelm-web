@@ -64,6 +64,7 @@ function renderAgentChatPageMarkup(overrides: Record<string, unknown> = {}) {
       isUpdatingChatTitle: false,
       deletingChatSessionKey: "",
       steeringQueuedMessageId: "",
+      retryingQueuedMessageId: "",
       deletingQueuedMessageId: "",
       getCreateChatDisabledReason: () => "",
       onChatSessionRenameDraftChange: () => {},
@@ -74,6 +75,7 @@ function renderAgentChatPageMarkup(overrides: Record<string, unknown> = {}) {
       onSendChatMessage: () => {},
       onInterruptChatTurn: () => {},
       onSteerQueuedMessage: () => {},
+      onRetryQueuedMessage: () => {},
       onDeleteQueuedMessage: () => {},
       onCreateChatForAgent: async () => {},
       onOpenChatFromList: () => {},
@@ -102,6 +104,28 @@ test("AgentChatPage shows starter prompts after an empty transcript resolves", (
   for (const prompt of CHAT_EMPTY_STATE_PROMPTS) {
     assert.match(markup, new RegExp(escapeRegExp(prompt)));
   }
+});
+
+test("AgentChatPage shows pending thread copy while the thread is still provisioning", () => {
+  const markup = renderAgentChatPageMarkup({
+    session: {
+      id: "thread-pending",
+      title: "Pending thread",
+      status: "pending",
+    },
+    chatSessionsByAgent: {
+      "agent-1": [
+        {
+          id: "thread-pending",
+          title: "Pending thread",
+          status: "pending",
+        },
+      ],
+    },
+  });
+
+  assert.match(markup, /Thread is pending\. Messages sent now will queue until it is ready\./);
+  assert.match(markup, /pending/);
 });
 
 test("applyChatPromptSuggestion updates the draft and focuses the composer", () => {

@@ -414,6 +414,7 @@ export function AgentChatsPage({
                       const sessionStatus = String(session?.status || "").trim().toLowerCase();
                       const isError = sessionStatus === "error";
                       const isDeletingSession = sessionStatus === "deleting";
+                      const isPendingSession = sessionStatus === "pending";
                       const threadErrorMessage = String(session?.errorMessage || "").trim();
                       const chatSessionKey = `${agent.id}:${session.id}`;
                       const isDeletingChat = deletingChatSessionKey === chatSessionKey || isDeletingSession;
@@ -435,6 +436,9 @@ export function AgentChatsPage({
                           <div className="agent-detail-chat-item-main">
                             <p className="agent-detail-chat-item-title">
                               {isRunning ? "● " : ""}{session.title || "Untitled chat"}
+                              {!isRunning && isPendingSession ? (
+                                <span className="chat-thread-status chat-thread-status-pending">pending</span>
+                              ) : null}
                               {!isRunning && isDeletingSession ? (
                                 <span className="chat-thread-status chat-thread-status-deleting">deleting</span>
                               ) : null}

@@ -174,6 +174,7 @@ export function AgentChatPage({
   const sessionStatus = String(session?.status || "").trim().toLowerCase();
   const isSessionError = canChat && sessionStatus === "error";
   const isSessionDeleting = canChat && sessionStatus === "deleting";
+  const isSessionPending = canChat && sessionStatus === "pending";
   const sessionErrorMessage = String(session?.errorMessage || "").trim();
   const sortedSidebarAgents = useMemo(() => {
     return [...(Array.isArray(agents) ? agents : [])].sort((leftAgent: any, rightAgent: any) =>
@@ -594,6 +595,7 @@ export function AgentChatPage({
                             const sidebarSessionStatus = String(sidebarSession?.status || "").trim().toLowerCase();
                             const isErrorSession = sidebarSessionStatus === "error";
                             const isDeletingSession = sidebarSessionStatus === "deleting";
+                            const isPendingSession = sidebarSessionStatus === "pending";
                             const isSelectedSession =
                               sidebarAgentId === selectedAgentId && sidebarSessionId === selectedSessionId;
                             return (
@@ -621,6 +623,9 @@ export function AgentChatPage({
                               >
                                 <div className="chat-card-status">
                                   {isRunningSession ? <ChatSessionRunningBadge /> : null}
+                                  {!isRunningSession && isPendingSession ? (
+                                    <span className="chat-thread-status chat-thread-status-pending">pending</span>
+                                  ) : null}
                                   {!isRunningSession && isDeletingSession ? (
                                     <span className="chat-thread-status chat-thread-status-deleting">deleting</span>
                                   ) : null}
@@ -672,6 +677,9 @@ export function AgentChatPage({
         ) : null}
         {isSessionDeleting ? (
           <p className="empty-hint">Thread is deleting. Waiting for runner confirmation.</p>
+        ) : null}
+        {isSessionPending ? (
+          <p className="empty-hint">Thread is pending. Messages sent now will queue until it is ready.</p>
         ) : null}
         {!agent ? <p className="empty-hint">Agent not found.</p> : null}
         {agent && !session && hasKnownChatsForAgent ? <p className="empty-hint">Chat not found.</p> : null}

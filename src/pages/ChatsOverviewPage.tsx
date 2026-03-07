@@ -85,6 +85,7 @@ export function ChatsOverviewPage({
                         const sessionStatus = String(chatSession?.status || "").trim().toLowerCase();
                         const isError = sessionStatus === "error";
                         const isDeletingSession = sessionStatus === "deleting";
+                        const isPendingSession = sessionStatus === "pending";
                         const threadErrorMessage = String(chatSession?.errorMessage || "").trim();
                         const chatSessionKey = `${agent.id}:${chatSession.id}`;
                         const isDeletingChat = deletingChatSessionKey === chatSessionKey || isDeletingSession;
@@ -116,6 +117,9 @@ export function ChatsOverviewPage({
                           >
                             <div className="chat-card-status">
                               {isRunning ? <ChatSessionRunningBadge /> : null}
+                              {!isRunning && isPendingSession ? (
+                                <span className="chat-thread-status chat-thread-status-pending">pending</span>
+                              ) : null}
                               {!isRunning && isDeletingSession ? (
                                 <span className="chat-thread-status chat-thread-status-deleting">deleting</span>
                               ) : null}
