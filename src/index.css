@@ -2728,6 +2728,11 @@ button:disabled {
   font-size: 0.85rem;
 }
 
+.task-graph-surface {
+  height: 100%;
+  min-height: 32rem;
+}
+
 .task-graph-node {
   padding: 0.55rem 0.65rem;
   border-radius: 10px;
@@ -2876,10 +2881,13 @@ button:disabled {
 }
 
 .task-table-tree-branch {
-  width: 0.7rem;
-  min-width: 0.7rem;
-  height: 1px;
-  background: rgba(26, 32, 38, 0.28);
+  width: 0.75rem;
+  min-width: 0.75rem;
+  height: 0.72rem;
+  border-left: 1px solid rgba(26, 32, 38, 0.28);
+  border-bottom: 1px solid rgba(26, 32, 38, 0.28);
+  border-bottom-left-radius: 0.24rem;
+  transform: translateY(-0.04rem);
 }
 
 .task-table-desc {
@@ -3038,82 +3046,6 @@ button:disabled {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--ink-2);
-}
-
-.task-tree-scroll {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-}
-
-.task-tree-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.6rem;
-  flex-wrap: wrap;
-  padding: 0.75rem 0.85rem 0.55rem;
-  border-bottom: 1px solid var(--panel-border);
-  background: var(--bg-base);
-}
-
-.task-tree-toolbar-copy {
-  font-size: 0.75rem;
-  color: var(--ink-1);
-}
-
-.task-tree-toolbar-actions {
-  display: flex;
-  gap: 0.45rem;
-  flex-wrap: wrap;
-}
-
-.task-tree-table {
-  min-width: 760px;
-}
-
-.task-tree-name {
-  max-width: 420px;
-}
-
-.task-tree-name-cell {
-  --task-depth: 0;
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  min-width: 0;
-  padding-left: calc(var(--task-depth) * 1.15rem);
-}
-
-.task-tree-toggle,
-.task-tree-toggle-spacer {
-  width: 1.15rem;
-  height: 1.15rem;
-  flex-shrink: 0;
-}
-
-.task-tree-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(26, 32, 38, 0.14);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.82);
-  color: var(--ink-1);
-  font-size: 0.84rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.task-tree-toggle:hover {
-  border-color: rgba(15, 118, 110, 0.34);
-  color: var(--action);
-}
-
-.task-tree-name-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* ── Task form improvements ─────────────────────── */

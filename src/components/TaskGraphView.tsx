@@ -591,27 +591,29 @@ export function TaskGraphView({ tasks, onTaskClick, onAddDependency }: TaskGraph
   }
 
   return (
-    <ReactFlow
-      nodes={nodes}
-      edges={edges}
-      onNodesChange={onNodesChange}
-      onEdgesChange={onEdgesChange}
-      onNodeClick={handleNodeClick}
-      onConnect={handleConnect}
-      isValidConnection={isValidConnection}
-      nodeTypes={nodeTypes}
-      fitView
-      fitViewOptions={{ padding: 0.2 }}
-      proOptions={{ hideAttribution: true }}
-      minZoom={0.1}
-      maxZoom={2}
-    >
-      <Controls />
-      <MiniMap
-        nodeStrokeWidth={3}
-        pannable
-        zoomable
-      />
-    </ReactFlow>
+    <div className="task-graph-surface">
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onNodeClick={handleNodeClick}
+        onConnect={handleConnect}
+        isValidConnection={isValidConnection}
+        nodeTypes={nodeTypes}
+        fitView
+        fitViewOptions={{ padding: 0.2 }}
+        proOptions={{ hideAttribution: true }}
+        minZoom={0.1}
+        maxZoom={2}
+      >
+        <Controls />
+        <MiniMap
+          nodeStrokeWidth={3}
+          pannable
+          zoomable
+        />
+      </ReactFlow>
+    </div>
   );
 }
