@@ -10,6 +10,7 @@ import { buildTaskExecutionPlan } from "../utils/task-execution.ts";
 import {
   getDescendantTaskTree,
   getDirectChildTasks,
+  getTaskSubtree,
   getTopLevelTasks,
 } from "../utils/task-hierarchy.ts";
 import type {
@@ -122,6 +123,7 @@ export function TasksPage({
   const [isExecuteFallbackModalOpen, setIsExecuteFallbackModalOpen] = useState(false);
   const [executeFallbackAgentId, setExecuteFallbackAgentId] = useState("");
   const [isExecutingTask, setIsExecutingTask] = useState(false);
+  const [overviewCommentDraft, setOverviewCommentDraft] = useState("");
 
   const visibleTaskById = useMemo(() => {
     return tasks.reduce((map, task) => {
@@ -181,9 +183,10 @@ export function TasksPage({
     [visibleDescendantTree],
   );
   const graphTasks = useMemo(
-    () => (activeTask ? tasks : []),
+    () => (activeTask ? getTaskSubtree(tasks, activeTask.id) : []),
     [activeTask, tasks],
   );
+  const activeTaskComments = Array.isArray(activeTask?.comments) ? activeTask.comments : [];
 
   const activeTaskDraft = useMemo(() => {
     if (!activeTask) {
@@ -224,6 +227,7 @@ export function TasksPage({
   useEffect(() => {
     setActiveTab("overview");
     setIsExecuteFallbackModalOpen(false);
+    setOverviewCommentDraft("");
   }, [activeTaskId]);
 
   useEffect(() => {
@@ -254,6 +258,23 @@ export function TasksPage({
       return;
     }
     await onSaveRelationships(activeTask.id);
+  }
+
+  async function handleOverviewCommentSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!activeTask) {
+      return;
+    }
+
+    const nextComment = overviewCommentDraft.trim();
+    if (!nextComment) {
+      return;
+    }
+
+    const didCreate = await onCreateTaskComment(activeTask.id, nextComment);
+    if (didCreate) {
+      setOverviewCommentDraft("");
+    }
   }
 
   async function executeActiveTask(fallbackAgentId = "") {
@@ -295,6 +316,7 @@ export function TasksPage({
     .map((taskId) => taskLookup.get(String(taskId || "").trim())?.name || String(taskId || "").trim())
     .filter(Boolean);
   const isOverviewSavePending = activeTask ? savingTaskId === activeTask.id : false;
+  const isOverviewCommentPending = activeTask ? commentingTaskId === activeTask.id : false;
   const executeButtonDisabled = !activeTask
     || isExecutingTask
     || (activeTaskExecutionPlan.missingTaskIds.length > 0 && availableFallbackAgents.length === 0);
@@ -605,6 +627,10 @@ export function TasksPage({
                           <span className="task-overview-stat-label">Depth</span>
                           <strong>{visibleDepth === "all" ? "All" : visibleDepth}</strong>
                         </div>
+                        <div className="task-overview-stat">
+                          <span className="task-overview-stat-label">Comments</span>
+                          <strong>{activeTaskComments.length}</strong>
+                        </div>
                       </div>
 
                       <div className="task-overview-field">
@@ -615,6 +641,50 @@ export function TasksPage({
                         <span className="task-overview-field-label">Coverage</span>
                         <span>{depthSummaryText}</span>
                       </div>
+                    </section>
+
+                    <section className="task-overview-card task-overview-card-wide">
+                      <div className="task-overview-card-header">
+                        <h3>Comments</h3>
+                        <p className="chat-card-meta">Capture execution context, blockers, and handoff notes without leaving the overview.</p>
+                      </div>
+
+                      {activeTaskComments.length > 0 ? (
+                        <ul className="task-comments-list">
+                          {activeTaskComments.map((comment) => (
+                            <li key={`overview-task-comment-${comment.id}`} className="task-comment-item">
+                              <p>{comment.comment}</p>
+                              <span className="chat-card-meta">
+                                {comment.authorPrincipal?.displayName || comment.authorPrincipalId || "Unknown principal"} · {" "}
+                                {comment.authorPrincipal?.kind === "agent" ? "Agent" : "Human"} · {" "}
+                                {comment.createdAt ? new Date(comment.createdAt).toLocaleString() : ""}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="chat-card-meta">No comments yet.</p>
+                      )}
+
+                      <form className="task-comment-form" onSubmit={handleOverviewCommentSubmit}>
+                        <label htmlFor="overview-task-comment-draft">Add comment</label>
+                        <textarea
+                          id="overview-task-comment-draft"
+                          rows={3}
+                          placeholder="Document context, blockers, or handoff notes."
+                          value={overviewCommentDraft}
+                          onChange={(event) => setOverviewCommentDraft(event.target.value)}
+                        />
+                        <div className="task-form-actions">
+                          <button
+                            type="submit"
+                            className="secondary-btn"
+                            disabled={isOverviewCommentPending || !overviewCommentDraft.trim()}
+                          >
+                            {isOverviewCommentPending ? "Adding comment..." : "Add comment"}
+                          </button>
+                        </div>
+                      </form>
                     </section>
                   </div>
                 ) : null}
