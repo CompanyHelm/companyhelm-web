@@ -27,6 +27,8 @@ const CHAT_COMPOSER_MAX_LINES = 50;
 const CHAT_SIDEBAR_MIN_WIDTH_PX = 176;
 const CHAT_SIDEBAR_MAX_WIDTH_PX = 480;
 const CHAT_SIDEBAR_DEFAULT_WIDTH_PX = 224;
+const CHAT_TRANSCRIPT_COLLAPSE_LINE_THRESHOLD = 8;
+const CHAT_TRANSCRIPT_APPROX_CHARS_PER_LINE = 72;
 const CHAT_SIDEBAR_WIDTH_STORAGE_KEY = "agent-chat-sidebar-width-px";
 const CHAT_MESSAGE_META_TOGGLE_IGNORE_SELECTOR = "button, a, input, textarea, select, summary";
 export const CHAT_EMPTY_STATE_PROMPTS = [
@@ -110,6 +112,20 @@ function resolveChatItemBodyText(item: any, itemType: any) {
   }
 
   return toItemTypePlaceholder(itemType);
+}
+
+function isLongTranscriptItemBodyText(rawText: any) {
+  const normalizedText = String(rawText || "").trim();
+  if (!normalizedText) {
+    return false;
+  }
+
+  const estimatedLineCount = normalizedText.split(/\r?\n/).reduce((totalLineCount: number, line: string) => {
+    const estimatedWrappedLineCount = Math.max(1, Math.ceil(line.length / CHAT_TRANSCRIPT_APPROX_CHARS_PER_LINE));
+    return totalLineCount + estimatedWrappedLineCount;
+  }, 0);
+
+  return estimatedLineCount > CHAT_TRANSCRIPT_COLLAPSE_LINE_THRESHOLD;
 }
 
 function getQueuedMessagePreview(rawText: any) {
@@ -318,6 +334,7 @@ export function AgentChatPage({
   const [isComposerExpanded, setIsComposerExpanded] = useState<any>(false);
   const [isMobileChatListOpen, setIsMobileChatListOpen] = useState<any>(false);
   const [expandedMessageMetaId, setExpandedMessageMetaId] = useState<any>("");
+  const [expandedTranscriptItemIds, setExpandedTranscriptItemIds] = useState<any>({});
   const expandedTextareaRef = useRef<any>(null);
   const [chatSidebarWidth, setChatSidebarWidth] = useState<any>(() => {
     if (typeof window === "undefined") {
@@ -397,6 +414,7 @@ export function AgentChatPage({
     pendingTranscriptScrollRestoreRef.current = null;
     previousTotalMessageCountRef.current = null;
     setExpandedMessageMetaId("");
+    setExpandedTranscriptItemIds({});
   }, [session?.id]);
 
   useEffect(() => {
@@ -1071,6 +1089,7 @@ export function AgentChatPage({
                   }
 
                   for (const item of turnItems) {
+                    const itemId = String(item?.id || "").trim();
                     const itemRole = String(item?.role || "").toLowerCase();
                     const roleLabel = itemRole === "user" || itemRole === "human" ? "human" : "llm";
                     const itemType = String(item?.itemType || item?.type || "").trim().toLowerCase() || "unknown";
@@ -1082,6 +1101,9 @@ export function AgentChatPage({
                         : "completed";
                     const isCommandExecution = itemType === "command_execution";
                     const bodyText = resolveChatItemBodyText(item, itemType);
+                    const isLongTranscriptItem = isLongTranscriptItemBodyText(bodyText);
+                    const isTranscriptItemExpanded = Boolean(itemId) && Boolean(expandedTranscriptItemIds[itemId]);
+                    const shouldClampTranscriptItem = isLongTranscriptItem && !isTranscriptItemExpanded;
 
                     elements.push(
                       <li
@@ -1096,14 +1118,33 @@ export function AgentChatPage({
                       >
                         <div className="chat-message-body">
                           {isCommandExecution ? (
-                            <p className="chat-message-content chat-message-content-command">
+                            <p className={`chat-message-content chat-message-content-command${shouldClampTranscriptItem ? " chat-message-content-clamped" : ""}`}>
                               <code>{bodyText}</code>
                             </p>
                           ) : (
-                            <div className="chat-message-content chat-message-content-markdown">
+                            <div className={`chat-message-content chat-message-content-markdown${shouldClampTranscriptItem ? " chat-message-content-clamped" : ""}`}>
                               <ReactMarkdown remarkPlugins={[remarkGfm]}>{bodyText}</ReactMarkdown>
                             </div>
                           )}
+
+                          {isLongTranscriptItem && itemId ? (
+                            <button
+                              type="button"
+                              className="chat-inline-toggle-btn chat-message-show-all-btn"
+                              onClick={() =>
+                                setExpandedTranscriptItemIds((currentState: any) => {
+                                  const nextState = { ...(currentState || {}) };
+                                  if (nextState[itemId]) {
+                                    delete nextState[itemId];
+                                  } else {
+                                    nextState[itemId] = true;
+                                  }
+                                  return nextState;
+                                })}
+                            >
+                              {isTranscriptItemExpanded ? "Show less" : "Show all"}
+                            </button>
+                          ) : null}
 
                           {isCommandExecution ? (
                             <div className="chat-message-actions">

@@ -1878,6 +1878,7 @@ button:disabled {
   text-overflow: ellipsis;
 }
 
+.chat-inline-toggle-btn,
 .chat-queued-show-all-btn {
   flex: 0 0 auto;
   padding: 0;
@@ -1890,8 +1891,10 @@ button:disabled {
   text-underline-offset: 2px;
   font-size: 0.78rem;
   font-weight: 600;
+  cursor: pointer;
 }
 
+.chat-inline-toggle-btn:hover,
 .chat-queued-show-all-btn:hover {
   filter: none;
   transform: none;
@@ -4165,6 +4168,16 @@ button:disabled {
 .chat-message-content-command {
   max-width: 100%;
   overflow-x: auto;
+}
+
+.chat-message-content-clamped {
+  max-height: calc(1.45em * 8);
+  overflow: hidden;
+}
+
+.chat-message-show-all-btn {
+  align-self: flex-start;
+  margin-top: 0.35rem;
 }
 
 .chat-message-content-command code {
