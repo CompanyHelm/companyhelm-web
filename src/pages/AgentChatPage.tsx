@@ -1087,9 +1087,6 @@ export function AgentChatPage({
                         key={item.id}
                         className={`chat-message chat-message-${roleLabel}${itemStatus === "running" ? " chat-message-running" : ""}${expandedMessageMetaId === item.id ? " chat-message-meta-expanded" : ""}`}
                         onClick={(event: any) => {
-                          if (!isMobileViewport) {
-                            return;
-                          }
                           if (event.target instanceof Element && event.target.closest(CHAT_MESSAGE_META_TOGGLE_IGNORE_SELECTOR)) {
                             return;
                           }
