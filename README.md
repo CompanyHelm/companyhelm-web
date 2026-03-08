@@ -72,7 +72,7 @@ npm run preview
 - `main` pushes build an immutable `main-<shortsha>` image and deploy it to the
   dev ECS service.
 - `v*` tags promote the already-built `main-<shortsha>` image to prod.
-- Dev frontend traffic is expected at `https://dev.app.companyhelm.com`.
+- Dev frontend traffic is expected at `https://app.dev.companyhelm.com`.
 
 ## Relay client
 
