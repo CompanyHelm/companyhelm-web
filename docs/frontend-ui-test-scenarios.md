@@ -247,17 +247,17 @@
 2. Click the `Add package` action.
 3. In the `Import git skill package` modal, enter `https://github.com/obra/superpowers.git` in `Git repository URL`.
 4. Click `Preview refs`.
-5. Verify the preview shows package name `superpowers`.
+5. Verify the preview shows package name `obra/superpowers`.
 6. In `Branch or tag`, select `main (branch)`.
 7. Click `Add skill package`.
 8. Verify the app opens the imported package detail view.
-9. Verify the detail view shows the repository URL and selected reference `main`.
+9. Verify the detail view shows the repository URL and selected reference `refs/heads/main`.
 10. Verify imported skills are listed for the package.
-11. Open an imported skill and verify the skill detail links back to package `superpowers`.
+11. Open an imported skill and verify the skill detail links back to package `obra/superpowers`.
 
 **Expected Results:**
 - The package import succeeds without an error banner.
-- A new Git skill package named `superpowers` appears in the package list.
+- A new Git skill package named `obra/superpowers` appears in the package list.
 - The package detail shows the imported GitHub repository metadata and selected branch.
 - Imported skills remain associated with the package from both package and skill detail views.
 
