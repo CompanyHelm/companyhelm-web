@@ -11,7 +11,6 @@ test("resolveChatPageActionVisibility hides inert actions when no chat is select
 
   assert.deepEqual(visibility, {
     showChatListToggle: false,
-    showDeleteAction: false,
     showSettingsAction: false,
   });
 });
@@ -25,7 +24,6 @@ test("resolveChatPageActionVisibility shows all conversation actions for an acti
 
   assert.deepEqual(visibility, {
     showChatListToggle: true,
-    showDeleteAction: true,
     showSettingsAction: true,
   });
 });
@@ -39,7 +37,6 @@ test("resolveChatPageActionVisibility hides the mobile chat toggle outside the m
     }),
     {
       showChatListToggle: false,
-      showDeleteAction: true,
       showSettingsAction: true,
     },
   );
@@ -52,7 +49,6 @@ test("resolveChatPageActionVisibility hides the mobile chat toggle outside the m
     }),
     {
       showChatListToggle: false,
-      showDeleteAction: true,
       showSettingsAction: true,
     },
   );
