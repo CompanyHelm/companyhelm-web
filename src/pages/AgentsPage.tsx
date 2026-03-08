@@ -249,6 +249,14 @@ export function AgentsPage({
     }
   }
 
+  async function handleSaveEditedAgent(agentId: string) {
+    const didSave = await onSaveAgent(agentId);
+    if (didSave) {
+      setEditingAgentId("");
+    }
+    return didSave;
+  }
+
   function openDeleteAgentModal(agentId: string, agentName: string) {
     setPendingDeleteAgent({
       id: agentId,
@@ -639,7 +647,7 @@ export function AgentsPage({
         deletingAgentId={deletingAgentId}
         initializingAgentId={initializingAgentId}
         onAgentDraftChange={onAgentDraftChange}
-        onSaveAgent={onSaveAgent}
+        onSaveAgent={handleSaveEditedAgent}
         onEnsureAgentEditorData={onEnsureAgentEditorData}
         editingAgentId={editingAgentId}
         onClose={() => setEditingAgentId("")}
