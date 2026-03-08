@@ -247,6 +247,7 @@ export function resolveChatPageActionVisibility({
 }: any) {
   return {
     showChatListToggle: Boolean(showChatSidebar && canChat && isMobileViewport),
+    showDeleteAction: Boolean(canChat),
     showSettingsAction: Boolean(canChat),
   };
 }

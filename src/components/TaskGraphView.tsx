@@ -16,7 +16,6 @@ import {
   type NodeProps,
   type NodeTypes,
 } from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
 import ELK from "elkjs/lib/elk.bundled.js";
 
 import type { TaskItem } from "../types/domain.ts";
@@ -487,6 +486,33 @@ function routeDependencyEdges(edges: TaskGraphEdge[], nodesWithPositions: TaskGr
   });
 }
 
+function computeFallbackLayout(nodes: TaskGraphNode[], edges: TaskGraphEdge[]) {
+  const levelById = computeParentChildLevels(nodes, edges);
+  const nextColumnByLevel = new Map<number, number>();
+
+  return [...nodes]
+    .sort((leftNode, rightNode) => {
+      const levelDiff = (levelById.get(leftNode.id) || 0) - (levelById.get(rightNode.id) || 0);
+      if (levelDiff !== 0) {
+        return levelDiff;
+      }
+      return leftNode.id.localeCompare(rightNode.id);
+    })
+    .map((node) => {
+      const level = levelById.get(node.id) || 0;
+      const columnIndex = nextColumnByLevel.get(level) || 0;
+      nextColumnByLevel.set(level, columnIndex + 1);
+
+      return {
+        ...node,
+        position: {
+          x: columnIndex * (NODE_WIDTH + HORIZONTAL_GAP * 2),
+          y: level * VERTICAL_LEVEL_GAP,
+        },
+      };
+    });
+}
+
 async function computeElkLayout(nodes: TaskGraphNode[], edges: TaskGraphEdge[]) {
   const depEdges = edges.filter((edge) => edge.id.startsWith("dependency-"));
   const levelById = computeParentChildLevels(nodes, edges);
@@ -535,15 +561,23 @@ export function TaskGraphView({ tasks, onTaskClick, onAddDependency }: TaskGraph
   );
 
   useEffect(() => {
+    let isCancelled = false;
+
     if (rawNodes.length === 0) {
       setNodes([]);
       setEdges([]);
       setIsLayoutReady(true);
-      return;
+      return () => {
+        isCancelled = true;
+      };
     }
 
     setIsLayoutReady(false);
-    computeElkLayout(rawNodes, rawEdges).then((layoutNodes) => {
+
+    const applyLayoutNodes = (layoutNodes: TaskGraphNode[]) => {
+      if (isCancelled) {
+        return;
+      }
       const nodesWithHandlers: TaskGraphNode[] = layoutNodes.map((node) => ({
         ...node,
         data: {
@@ -555,7 +589,20 @@ export function TaskGraphView({ tasks, onTaskClick, onAddDependency }: TaskGraph
       setNodes(nodesWithHandlers);
       setEdges(routedEdges);
       setIsLayoutReady(true);
-    });
+    };
+
+    void computeElkLayout(rawNodes, rawEdges)
+      .then((layoutNodes) => {
+        applyLayoutNodes(layoutNodes);
+      })
+      .catch((error) => {
+        console.error("Task graph layout failed. Falling back to a basic layout.", error);
+        applyLayoutNodes(computeFallbackLayout(rawNodes, rawEdges));
+      });
+
+    return () => {
+      isCancelled = true;
+    };
   }, [rawNodes, rawEdges, onTaskClick, setNodes, setEdges]);
 
   const handleNodeClick = useCallback<NodeMouseHandler<TaskGraphNode>>(
@@ -585,6 +632,14 @@ export function TaskGraphView({ tasks, onTaskClick, onAddDependency }: TaskGraph
     (connection) => connection.sourceHandle === "right" && connection.targetHandle === "left",
     [],
   );
+
+  if (rawNodes.length === 0) {
+    return (
+      <div className="task-empty-panel task-graph-empty-panel">
+        <p className="empty-hint">No tasks are available for this graph.</p>
+      </div>
+    );
+  }
 
   if (!isLayoutReady && rawNodes.length > 0) {
     return <div className="task-graph-loading">Computing layout...</div>;

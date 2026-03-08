@@ -1,5 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import "@xyflow/react/dist/style.css";
 import { clearConfigCache } from "./config/config.ts";
 import runtimeConfig from "./generated/config.js";
 import "./index.css";
