@@ -1108,17 +1108,17 @@ export function AgentChatPage({
                           ) : null}
 
                           {item.error ? <p className="chat-message-error">{item.error}</p> : null}
-                        </div>
-                        <div className="chat-message-footer">
-                          <span className="chat-message-kind">{itemType}</span>
-                          {itemStatus === "running" ? (
-                            <span
-                              className="chat-turn-spinner chat-item-spinner"
-                              aria-label="Item is running"
-                              title="Item in progress"
-                            />
-                          ) : null}
-                          <span>{formatTimestamp(item.startedAt || item.createdAt)}</span>
+                          <div className="chat-message-footer">
+                            <span className="chat-message-kind">{itemType}</span>
+                            {itemStatus === "running" ? (
+                              <span
+                                className="chat-turn-spinner chat-item-spinner"
+                                aria-label="Item is running"
+                                title="Item in progress"
+                              />
+                            ) : null}
+                            <span>{formatTimestamp(item.startedAt || item.createdAt)}</span>
+                          </div>
                         </div>
                       </li>,
                     );
