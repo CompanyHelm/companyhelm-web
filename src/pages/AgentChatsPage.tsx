@@ -202,6 +202,14 @@ export function AgentChatsPage({
     }
   }
 
+  async function handleSaveEditedAgent(agentId: string) {
+    const didSave = await onSaveAgent(agentId);
+    if (didSave) {
+      setIsEditAgentModalOpen(false);
+    }
+    return didSave;
+  }
+
   const pageActions = useMemo(() => (
     <>
       <button
@@ -545,7 +553,7 @@ export function AgentChatsPage({
             deletingAgentId={deletingAgentId}
             initializingAgentId={initializingAgentId}
             onAgentDraftChange={onAgentDraftChange}
-            onSaveAgent={onSaveAgent}
+            onSaveAgent={handleSaveEditedAgent}
             onEnsureAgentEditorData={onEnsureAgentEditorData}
             editingAgentId={isEditAgentModalOpen && agent ? agent.id : ""}
             onClose={() => setIsEditAgentModalOpen(false)}
