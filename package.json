@@ -17,6 +17,7 @@
     "dev": "npm run config:generate -- --environment local && vite dev",
     "build": "npm run config:generate -- --environment prod && vite build",
     "preview": "npm run config:generate -- --environment prod && vite preview",
+    "preview:container": "node scripts/start-preview-container.js",
     "test": "tsx --test tests/**/*.test.ts"
   },
   "dependencies": {

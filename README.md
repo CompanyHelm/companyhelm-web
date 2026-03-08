@@ -42,6 +42,11 @@ npm run config:generate -- --environment local
 
 The app bootstraps by importing `src/generated/config.js` at startup.
 
+In containers, the frontend image remains environment-agnostic. The container
+entrypoint rebuilds the static bundle on startup using
+`COMPANYHELM_ENVIRONMENT=<dev|prod>`, which still flows through
+`config/<environment>.yaml` and `src/generated/config.js`.
+
 Current config fields:
 - `api.graphqlApiUrl`
 - `api.runnerGrpcTarget`
@@ -61,6 +66,13 @@ Current config fields:
 npm run build
 npm run preview
 ```
+
+## Deployment
+
+- `main` pushes build an immutable `main-<shortsha>` image and deploy it to the
+  dev ECS service.
+- `v*` tags promote the already-built `main-<shortsha>` image to prod.
+- Dev frontend traffic is expected at `https://dev.app.companyhelm.com`.
 
 ## Relay client
 
