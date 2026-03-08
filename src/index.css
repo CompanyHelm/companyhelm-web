@@ -1784,7 +1784,7 @@ button:disabled {
   transition: opacity 180ms ease, max-height 180ms ease;
 }
 
-.chat-message:hover .chat-message-footer,
+.chat-message-meta-expanded .chat-message-footer,
 .chat-message-footer:focus-within,
 .chat-message-running .chat-message-footer {
   opacity: 1;
