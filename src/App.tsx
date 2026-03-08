@@ -361,7 +361,7 @@ function toConnectionNodes(connection: any) {
   return connection.edges.map((edge: any) => edge?.node).filter(Boolean);
 }
 
-function SideBrandHeader({ activePage, pageTitle }: any) {
+function SideBrandHeader({ activePage, pageTitle, isSideMenuCollapsed }: any) {
   const pageActionsCtx = usePageActions();
   const actions = pageActionsCtx?.actions || null;
   const isDashboardPage = activePage === "dashboard";
@@ -375,7 +375,7 @@ function SideBrandHeader({ activePage, pageTitle }: any) {
           <h2>CompanyHelm</h2>
         </div>
       </div>
-      {!isDashboardPage && pageTitle ? (
+      {!isDashboardPage && isSideMenuCollapsed && pageTitle ? (
         <div className="mobile-page-header">
           <h1 className="mobile-page-title">{pageTitle}</h1>
           {actions ? <div className="mobile-page-actions">{actions}</div> : null}
@@ -8449,7 +8449,11 @@ function App() {
               </button>
             ) : null}
             <div className="side-brand">
-              <SideBrandHeader activePage={activePage} pageTitle={mobilePageTitle} />
+              <SideBrandHeader
+                activePage={activePage}
+                pageTitle={mobilePageTitle}
+                isSideMenuCollapsed={isSideMenuCollapsed}
+              />
             </div>
             <button
               type="button"

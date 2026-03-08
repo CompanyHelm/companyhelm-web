@@ -1648,6 +1648,7 @@ button:disabled {
 .chat-transcript-scroll {
   max-height: min(68vh, 880px);
   overflow-y: auto;
+  overflow-x: hidden;
   display: grid;
   align-content: start;
   gap: 0.64rem;
@@ -1660,6 +1661,7 @@ button:disabled {
   flex: 1 1 auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
+  min-width: 0;
 }
 
 .chat-transcript-hint {
@@ -1676,6 +1678,9 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 /* ---- Turn separator ---- */
@@ -1718,6 +1723,7 @@ button:disabled {
   display: flex;
   gap: 0.4rem;
   max-width: 88%;
+  min-width: 0;
   padding: 0;
 }
 
@@ -1734,6 +1740,8 @@ button:disabled {
   border-radius: 14px;
   padding: 0.55rem 0.75rem;
   min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .chat-message-human .chat-message-body {
@@ -4046,6 +4054,9 @@ button:disabled {
 
 .chat-message-content-markdown {
   white-space: normal;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
 }
 
 .chat-message-content-markdown > :first-child {
@@ -4060,9 +4071,29 @@ button:disabled {
   margin: 0.35rem 0;
   padding: 0.56rem 0.62rem;
   border-radius: 8px;
+  max-width: 100%;
   overflow-x: auto;
   background: rgba(17, 24, 39, 0.92);
   color: #f8fafc;
+}
+
+.chat-message-content-markdown table {
+  display: block;
+  width: max-content;
+  min-width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.chat-message-content-command {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.chat-message-content-command code {
+  display: block;
+  width: max-content;
+  min-width: 100%;
 }
 
 .chat-message-content-markdown code {
@@ -4148,6 +4179,11 @@ button:disabled {
   display: flex;
   align-items: flex-end;
   gap: 0.5rem;
+}
+
+.chat-composer-input-row.chat-composer-input-row-idle {
+  flex-direction: column;
+  align-items: stretch;
 }
 
 .chat-composer-input-wrapper {
@@ -4274,6 +4310,12 @@ button:disabled {
   max-width: 50%;
 }
 
+.chat-composer-input-row.chat-composer-input-row-idle .chat-composer-toolbar {
+  width: 100%;
+  max-width: none;
+  justify-items: flex-end;
+}
+
 .chat-composer-status {
   display: inline-flex;
   align-items: center;
@@ -4301,6 +4343,40 @@ button:disabled {
   height: 0.62rem;
   border-radius: 2px;
   background: currentColor;
+}
+
+.chat-composer-send-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: var(--action);
+  color: var(--action-ink);
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.chat-composer-send-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.chat-composer-send-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.chat-composer-send-icon {
+  width: 0.95rem;
+  height: 0.95rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .chat-turn-reasoning {
@@ -4535,6 +4611,10 @@ button:disabled {
     padding: 0 0 0.75rem 2.5rem;
   }
 
+  .side-brand-lockup > div {
+    display: none;
+  }
+
   /* Close button: top-left, same position as hamburger */
   .side-menu-collapse-btn {
     position: absolute;
@@ -4735,7 +4815,8 @@ button:disabled {
   }
 
   .chat-message {
-    max-width: 95%;
+    width: 100%;
+    max-width: 100%;
   }
 
   button,
@@ -4785,8 +4866,8 @@ button:disabled {
   }
 
   .chat-composer-input-row.chat-composer-input-row-idle {
-    flex-direction: row;
-    align-items: flex-end;
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .chat-composer-input-row.chat-composer-input-row-running {
@@ -4801,10 +4882,10 @@ button:disabled {
   }
 
   .chat-composer-input-row.chat-composer-input-row-idle .chat-composer-toolbar {
-    order: -1;
-    width: auto;
+    order: 0;
+    width: 100%;
     align-content: flex-end;
-    justify-items: flex-start;
+    justify-items: flex-end;
   }
 
   .chat-composer-input-row.chat-composer-input-row-running .chat-composer-toolbar {
@@ -4820,6 +4901,10 @@ button:disabled {
   .chat-message-content {
     font-size: 0.98rem;
     line-height: 1.5;
+  }
+
+  .chat-message-list {
+    padding: 0;
   }
 
   .chat-composer-panel {
@@ -4843,10 +4928,8 @@ button:disabled {
   }
 
   .chat-composer-send-btn {
-    min-height: 1.9rem;
-    padding: 0.35rem 0.58rem;
-    font-size: 0.82rem;
-    white-space: nowrap;
+    width: 2.3rem;
+    height: 2.3rem;
   }
 
   .chat-action-btn {
@@ -4862,6 +4945,24 @@ button:disabled {
 
   .chat-composer-actions {
     gap: 0.32rem;
+  }
+
+  .page-shell-chat-layout .panel {
+    border: none;
+    box-shadow: none;
+    background: transparent;
+    backdrop-filter: none;
+  }
+
+  .page-shell-chat-layout .chat-panel,
+  .page-shell-chat-layout .chat-composer-panel,
+  .page-shell-chat-layout .chat-sidebar-panel {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .page-shell-chat-layout .chat-composer-panel {
+    padding-bottom: 0;
   }
 
   .dashboard-panels {
