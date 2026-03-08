@@ -4910,17 +4910,42 @@ button:disabled {
   }
 
   .chat-message-footer {
+    opacity: 0;
+    max-height: 0;
+    overflow: hidden;
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+    font-size: 0.68rem;
+    transition: opacity 160ms ease, max-height 160ms ease, margin-top 160ms ease, padding-top 160ms ease;
+  }
+
+  .chat-message-meta-expanded .chat-message-footer,
+  .chat-message-running .chat-message-footer {
     opacity: 1;
-    max-height: none;
+    max-height: 4rem;
     overflow: visible;
     margin-top: 0.5rem;
     padding-top: 0.42rem;
     border-top: 1px solid rgba(26, 32, 38, 0.1);
-    font-size: 0.68rem;
   }
 
   .chat-message-human .chat-message-footer {
     justify-content: flex-end;
+  }
+
+  .modal-overlay,
+  .chat-mobile-chatlist-overlay {
+    backdrop-filter: none;
+  }
+
+  .modal-card,
+  .modal-card-wide,
+  .modal-card-fullscreen,
+  .chat-sidebar-panel-mobile-full,
+  .chat-sidebar-panel-mobile-overlay {
+    background: #f6f6f2;
+    backdrop-filter: none;
   }
 
   .chat-composer-panel {

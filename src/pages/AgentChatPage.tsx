@@ -28,6 +28,7 @@ const CHAT_SIDEBAR_MIN_WIDTH_PX = 176;
 const CHAT_SIDEBAR_MAX_WIDTH_PX = 480;
 const CHAT_SIDEBAR_DEFAULT_WIDTH_PX = 224;
 const CHAT_SIDEBAR_WIDTH_STORAGE_KEY = "agent-chat-sidebar-width-px";
+const CHAT_MESSAGE_META_TOGGLE_IGNORE_SELECTOR = "button, a, input, textarea, select, summary";
 export const CHAT_EMPTY_STATE_PROMPTS = [
   "Summarize this repository",
   "Find the most likely bug in this codebase",
@@ -315,6 +316,7 @@ export function AgentChatPage({
   const [selectedQueuedMessage, setSelectedQueuedMessage] = useState<any>(null);
   const [isComposerExpanded, setIsComposerExpanded] = useState<any>(false);
   const [isMobileChatListOpen, setIsMobileChatListOpen] = useState<any>(false);
+  const [expandedMessageMetaId, setExpandedMessageMetaId] = useState<any>("");
   const expandedTextareaRef = useRef<any>(null);
   const [chatSidebarWidth, setChatSidebarWidth] = useState<any>(() => {
     if (typeof window === "undefined") {
@@ -393,6 +395,7 @@ export function AgentChatPage({
     isTranscriptNearTopRef.current = false;
     pendingTranscriptScrollRestoreRef.current = null;
     previousTotalMessageCountRef.current = null;
+    setExpandedMessageMetaId("");
   }, [session?.id]);
 
   useEffect(() => {
@@ -1082,7 +1085,16 @@ export function AgentChatPage({
                     elements.push(
                       <li
                         key={item.id}
-                        className={`chat-message chat-message-${roleLabel}${itemStatus === "running" ? " chat-message-running" : ""}`}
+                        className={`chat-message chat-message-${roleLabel}${itemStatus === "running" ? " chat-message-running" : ""}${expandedMessageMetaId === item.id ? " chat-message-meta-expanded" : ""}`}
+                        onClick={(event: any) => {
+                          if (!isMobileViewport) {
+                            return;
+                          }
+                          if (event.target instanceof Element && event.target.closest(CHAT_MESSAGE_META_TOGGLE_IGNORE_SELECTOR)) {
+                            return;
+                          }
+                          setExpandedMessageMetaId((currentId: any) => currentId === item.id ? "" : item.id);
+                        }}
                       >
                         <div className="chat-message-body">
                           {isCommandExecution ? (
