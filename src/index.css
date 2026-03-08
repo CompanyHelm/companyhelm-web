@@ -2596,6 +2596,7 @@ button:disabled {
 
 .task-view-container {
   flex: 1;
+  min-width: 0;
   min-height: 0;
   position: relative;
   overflow: hidden;
@@ -2605,6 +2606,7 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
+  min-width: 0;
   min-height: calc(100vh - 8rem);
 }
 
@@ -2612,6 +2614,7 @@ button:disabled {
 .task-detail-panel {
   display: flex;
   flex-direction: column;
+  min-width: 0;
   min-height: 0;
   overflow: hidden;
 }
@@ -2803,7 +2806,11 @@ button:disabled {
 
 .task-table-scroll {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
   min-height: 0;
+  max-width: 100%;
   overflow-x: auto;
   overflow-y: auto;
 }
@@ -2834,9 +2841,55 @@ button:disabled {
   flex-wrap: wrap;
 }
 
+.task-table-columns-menu-anchor {
+  position: relative;
+}
+
+.task-table-columns-toggle {
+  height: 2rem;
+  padding: 0 0.75rem;
+  white-space: nowrap;
+}
+
+.task-table-columns-menu {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  z-index: 4;
+  min-width: 11rem;
+  padding: 0.45rem;
+  border: 1px solid rgba(26, 32, 38, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.14);
+  display: grid;
+  gap: 0.16rem;
+}
+
+.task-table-columns-option {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.35rem 0.45rem;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  color: var(--ink-0);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.task-table-columns-option:hover {
+  background: rgba(15, 118, 110, 0.06);
+}
+
+.task-table-columns-option input {
+  margin: 0;
+  cursor: pointer;
+}
+
 .task-table {
-  width: 100%;
-  min-width: 800px;
+  width: max-content;
+  min-width: 100%;
   border-collapse: collapse;
   font-size: 0.82rem;
 }
@@ -2874,6 +2927,7 @@ button:disabled {
 .task-table-name {
   font-weight: 500;
   white-space: nowrap;
+  min-width: 14rem;
 }
 
 .task-table-name-cell {

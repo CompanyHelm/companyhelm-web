@@ -1,14 +1,20 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ChangeEvent,
   type CSSProperties,
-  type KeyboardEvent,
-  type MouseEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+  type ReactNode,
 } from "react";
 import { CreationModal } from "./CreationModal.tsx";
 import { buildTaskExecutionPlan } from "../utils/task-execution.ts";
+import {
+  getPersistedTaskTableColumnIds,
+  persistTaskTableColumnIds,
+} from "../utils/persistence.ts";
 
 interface TaskTableTask {
   id: string | number;
@@ -36,6 +42,94 @@ interface TaskTableViewProps {
   onBatchExecuteTasks: (taskIds: string[], fallbackAgentId?: string) => Promise<boolean> | boolean;
   taskDepthById?: Map<string, number>;
 }
+
+type TaskTableOptionalColumnId =
+  | "status"
+  | "description"
+  | "blocking"
+  | "blockedBy"
+  | "comments"
+  | "created";
+
+interface TaskTableColumnRenderContext {
+  blocksMap: Map<string, string[]>;
+  nameById: Map<string, string>;
+}
+
+interface TaskTableOptionalColumnDefinition {
+  id: TaskTableOptionalColumnId;
+  label: string;
+  defaultVisible: boolean;
+  className?: string;
+  renderCell: (task: TaskTableTask, context: TaskTableColumnRenderContext, taskId: string) => ReactNode;
+}
+
+const TASK_TABLE_OPTIONAL_COLUMNS: TaskTableOptionalColumnDefinition[] = [
+  {
+    id: "status",
+    label: "Status",
+    defaultVisible: true,
+    renderCell: (task) => (
+      <span className={`task-status-pill task-status-pill-${task.status || "draft"}`}>
+        {task.status || "draft"}
+      </span>
+    ),
+  },
+  {
+    id: "description",
+    label: "Description",
+    defaultVisible: true,
+    className: "task-table-desc",
+    renderCell: (task) => task.description || "\u2014",
+  },
+  {
+    id: "blocking",
+    label: "Blocking",
+    defaultVisible: true,
+    className: "task-table-deps",
+    renderCell: (_task, context, taskId) => {
+      const blocking = context.blocksMap.get(taskId) || [];
+      return blocking.length === 0
+        ? "\u2014"
+        : blocking.map((id) => context.nameById.get(id) || id).join(", ");
+    },
+  },
+  {
+    id: "blockedBy",
+    label: "Blocked by",
+    defaultVisible: true,
+    className: "task-table-deps",
+    renderCell: (task, context, taskId) => {
+      const deps = (Array.isArray(task.dependencyTaskIds) ? task.dependencyTaskIds : [])
+        .filter((id) => context.nameById.has(String(id)) && String(id) !== taskId);
+      return deps.length === 0
+        ? "\u2014"
+        : deps.map((id) => context.nameById.get(String(id)) || String(id)).join(", ");
+    },
+  },
+  {
+    id: "comments",
+    label: "Comments",
+    defaultVisible: true,
+    renderCell: (task) => (Array.isArray(task.comments) ? task.comments.length : 0),
+  },
+  {
+    id: "created",
+    label: "Created",
+    defaultVisible: true,
+    className: "task-table-date",
+    renderCell: (task) => (
+      task.createdAt
+        ? new Date(task.createdAt).toLocaleDateString()
+        : "\u2014"
+    ),
+  },
+];
+
+const TASK_TABLE_OPTIONAL_COLUMN_IDS = TASK_TABLE_OPTIONAL_COLUMNS.map((column) => column.id);
+const TASK_TABLE_DEFAULT_OPTIONAL_COLUMN_IDS = TASK_TABLE_OPTIONAL_COLUMNS
+  .filter((column) => column.defaultVisible)
+  .map((column) => column.id);
 
 function buildDependencyMaps(tasks: TaskTableTask[]) {
   const taskArray = Array.isArray(tasks) ? tasks : [];
@@ -72,14 +166,30 @@ export function TaskTableView({
 }: TaskTableViewProps) {
   const taskArray = Array.isArray(tasks) ? tasks : [];
   const agentArray = Array.isArray(agents) ? agents : [];
+  const columnMenuRef = useRef<HTMLDivElement | null>(null);
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
   const [isFallbackModalOpen, setIsFallbackModalOpen] = useState(false);
   const [fallbackAgentId, setFallbackAgentId] = useState("");
   const [isBatchActionPending, setIsBatchActionPending] = useState(false);
+  const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);
+  const [visibleOptionalColumnIds, setVisibleOptionalColumnIds] = useState<TaskTableOptionalColumnId[]>(() =>
+    getPersistedTaskTableColumnIds(
+      TASK_TABLE_OPTIONAL_COLUMN_IDS,
+      TASK_TABLE_DEFAULT_OPTIONAL_COLUMN_IDS,
+    ) as TaskTableOptionalColumnId[],
+  );
 
   const { nameById, blocksMap } = useMemo(
     () => buildDependencyMaps(taskArray),
     [taskArray],
+  );
+  const visibleOptionalColumnIdSet = useMemo(
+    () => new Set(visibleOptionalColumnIds),
+    [visibleOptionalColumnIds],
+  );
+  const visibleOptionalColumns = useMemo(
+    () => TASK_TABLE_OPTIONAL_COLUMNS.filter((column) => visibleOptionalColumnIdSet.has(column.id)),
+    [visibleOptionalColumnIdSet],
   );
   const selectedTaskIdList = useMemo(
     () => [...selectedTaskIds],
@@ -135,6 +245,35 @@ export function TaskTableView({
     });
   }, [availableFallbackAgents]);
 
+  useEffect(() => {
+    persistTaskTableColumnIds(visibleOptionalColumnIds);
+  }, [visibleOptionalColumnIds]);
+
+  useEffect(() => {
+    if (!isColumnMenuOpen || typeof document === "undefined" || typeof window === "undefined") {
+      return undefined;
+    }
+
+    function handlePointerDown(event: globalThis.MouseEvent) {
+      if (!columnMenuRef.current?.contains(event.target as Node)) {
+        setIsColumnMenuOpen(false);
+      }
+    }
+
+    function handleEscapeKey(event: globalThis.KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsColumnMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    window.addEventListener("keydown", handleEscapeKey);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      window.removeEventListener("keydown", handleEscapeKey);
+    };
+  }, [isColumnMenuOpen]);
+
   if (taskArray.length === 0) {
     return null;
   }
@@ -165,6 +304,18 @@ export function TaskTableView({
       return;
     }
     setSelectedTaskIds(new Set());
+  }
+
+  function handleOptionalColumnToggle(columnId: TaskTableOptionalColumnId, checked: boolean) {
+    setVisibleOptionalColumnIds((previous) => {
+      const next = new Set(previous);
+      if (checked) {
+        next.add(columnId);
+      } else {
+        next.delete(columnId);
+      }
+      return TASK_TABLE_OPTIONAL_COLUMN_IDS.filter((id) => next.has(id));
+    });
   }
 
   async function executeSelectedTasks(nextFallbackAgentId: string) {
@@ -231,6 +382,35 @@ export function TaskTableView({
             <span>{selectedCount > 0 ? `${selectedCount} selected` : `${taskArray.length} tasks`}</span>
           </div>
           <div className="task-table-toolbar-actions">
+            <div className="task-table-columns-menu-anchor" ref={columnMenuRef}>
+              <button
+                type="button"
+                className="secondary-btn task-table-columns-toggle"
+                aria-haspopup="menu"
+                aria-expanded={isColumnMenuOpen}
+                onClick={() => setIsColumnMenuOpen((open) => !open)}
+              >
+                Columns
+              </button>
+              {isColumnMenuOpen ? (
+                <div
+                  className="task-table-columns-menu"
+                  role="menu"
+                  aria-label="Select visible task table columns"
+                >
+                  {TASK_TABLE_OPTIONAL_COLUMNS.map((column) => (
+                    <label key={column.id} className="task-table-columns-option">
+                      <input
+                        type="checkbox"
+                        checked={visibleOptionalColumnIdSet.has(column.id)}
+                        onChange={(event) => handleOptionalColumnToggle(column.id, event.target.checked)}
+                      />
+                      <span>{column.label}</span>
+                    </label>
+                  ))}
+                </div>
+              ) : null}
+            </div>
             <button
               type="button"
               className="secondary-btn"
@@ -264,12 +444,9 @@ export function TaskTableView({
                 />
               </th>
               <th>Name</th>
-              <th>Status</th>
-              <th>Description</th>
-              <th>Blocking</th>
-              <th>Blocked by</th>
-              <th>Comments</th>
-              <th>Created</th>
+              {visibleOptionalColumns.map((column) => (
+                <th key={column.id}>{column.label}</th>
+              ))}
               <th></th>
             </tr>
           </thead>
@@ -277,10 +454,6 @@ export function TaskTableView({
             {taskArray.map((task) => {
               const taskId = String(task.id);
               const taskDepth = taskDepthById?.get(taskId) || 0;
-              const deps = (Array.isArray(task.dependencyTaskIds) ? task.dependencyTaskIds : [])
-                .filter((id) => nameById.has(String(id)) && String(id) !== taskId);
-              const blocking = blocksMap.get(taskId) || [];
-              const commentCount = Array.isArray(task.comments) ? task.comments.length : 0;
               const isSelected = selectedTaskIds.has(taskId);
 
               return (
@@ -290,7 +463,7 @@ export function TaskTableView({
                   onClick={() => onTaskClick(taskId)}
                   role="button"
                   tabIndex={0}
-                  onKeyDown={(event: KeyboardEvent<HTMLTableRowElement>) => {
+                  onKeyDown={(event: ReactKeyboardEvent<HTMLTableRowElement>) => {
                     if (event.key === "Enter" || event.key === " ") onTaskClick(taskId);
                   }}
                 >
@@ -314,35 +487,18 @@ export function TaskTableView({
                       <span className="task-table-name-text">{task.name || `Task ${taskId}`}</span>
                     </div>
                   </td>
-                  <td>
-                    <span className={`task-status-pill task-status-pill-${task.status || "draft"}`}>
-                      {task.status || "draft"}
-                    </span>
-                  </td>
-                  <td className="task-table-desc">{task.description || "\u2014"}</td>
-                  <td className="task-table-deps">
-                    {blocking.length === 0
-                      ? "\u2014"
-                      : blocking.map((id) => nameById.get(id) || id).join(", ")}
-                  </td>
-                  <td className="task-table-deps">
-                    {deps.length === 0
-                      ? "\u2014"
-                      : deps.map((id) => nameById.get(String(id)) || String(id)).join(", ")}
-                  </td>
-                  <td>{commentCount}</td>
-                  <td className="task-table-date">
-                    {task.createdAt
-                      ? new Date(task.createdAt).toLocaleDateString()
-                      : "\u2014"}
-                  </td>
+                  {visibleOptionalColumns.map((column) => (
+                    <td key={`${taskId}-${column.id}`} className={column.className}>
+                      {column.renderCell(task, { nameById, blocksMap }, taskId)}
+                    </td>
+                  ))}
                   <td className="task-table-action">
                     <button
                       type="button"
                       className="task-table-delete-btn"
                       aria-label="Delete task"
                       title="Delete task"
-                      onClick={(event: MouseEvent<HTMLButtonElement>) => {
+                      onClick={(event: ReactMouseEvent<HTMLButtonElement>) => {
                         event.stopPropagation();
                         onDeleteTask(taskId, task.name);
                       }}
