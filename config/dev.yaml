@@ -1,5 +1,5 @@
 api:
-  graphqlApiUrl: "https://dev-api.companyhelm.com/graphql"
+  graphqlApiUrl: "https://dev.api.companyhelm.com/graphql"
   runnerGrpcTarget: "dev-runner.companyhelm.internal:50051"
 auth:
   provider: "companyhelm"

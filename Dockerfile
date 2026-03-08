@@ -19,9 +19,9 @@ RUN tar -xzf /tmp/companyhelm-web.tgz -C /tmp \
   && rm -rf /tmp/package /tmp/companyhelm-web.tgz
 
 RUN npm install
-RUN npm run build
 
 ENV PORT=4173
+ENV COMPANYHELM_ENVIRONMENT=prod
 EXPOSE 4173
 
-ENTRYPOINT ["npm", "run", "preview"]
+ENTRYPOINT ["npm", "run", "preview:container"]
