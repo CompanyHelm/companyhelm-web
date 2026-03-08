@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Page } from "../components/Page.tsx";
 import { CreationModal } from "../components/CreationModal.tsx";
 import { AgentEditModal } from "../components/AgentEditModal.tsx";
+import { ChatListStatusToggle } from "../components/ChatListStatusToggle.tsx";
 import { ChatSessionRunningBadge } from "../components/ChatSessionRunningBadge.tsx";
 import { ThreadTaskSummary } from "../components/ThreadTaskSummary.tsx";
 import { isChatSessionRunning } from "../utils/chat.ts";
@@ -73,6 +74,10 @@ function resolveEffectiveRoleMcpServerIds(roleIds: any, roles: any, roleMcpServe
   return mcpServerIds;
 }
 
+function normalizeChatListStatusFilter(value: any) {
+  return String(value || "").trim().toLowerCase() === "archived" ? "archived" : "active";
+}
+
 export function AgentChatsPage({
   selectedCompanyId,
   agent,
@@ -81,15 +86,19 @@ export function AgentChatsPage({
   chatSessionRunningById,
   isLoadingChatSessions,
   isCreatingChatSession,
+  archivingChatSessionKey,
   deletingChatSessionKey,
   chatError,
+  chatListStatusFilter = "active",
   createChatDisabledReason,
   chatSessionTitleDraft,
   chatSessionAdditionalModelInstructionsDraft,
   onChatSessionTitleDraftChange,
   onChatSessionAdditionalModelInstructionsDraftChange,
+  onChatListStatusFilterChange,
   onCreateChatSession,
   onOpenChat,
+  onArchiveChat,
   onDeleteChat,
   onBackToAgents,
   onSetChatDraftMessage,
@@ -107,6 +116,7 @@ export function AgentChatsPage({
   onEnsureAgentEditorData,
 }: any) {
   const resolvedCreateChatDisabledReason = String(createChatDisabledReason || "").trim();
+  const normalizedChatListStatusFilter = normalizeChatListStatusFilter(chatListStatusFilter);
   const isCreateChatDisabled = !agent || isCreatingChatSession || Boolean(resolvedCreateChatDisabledReason);
   const [isCreateSettingsOpen, setIsCreateSettingsOpen] = useState<any>(false);
   const [isEditAgentModalOpen, setIsEditAgentModalOpen] = useState<any>(false);
@@ -384,7 +394,11 @@ export function AgentChatsPage({
 
                 {chatError ? <p className="error-banner" style={{ marginBottom: "0.5rem" }}>Chat error: {chatError}</p> : null}
 
-                <div style={{ display: "flex", gap: "0.35rem", alignItems: "center" }}>
+                <div className="agent-detail-chat-toolbar">
+                  <ChatListStatusToggle
+                    value={normalizedChatListStatusFilter}
+                    onChange={onChatListStatusFilterChange}
+                  />
                   <button
                     type="button"
                     className="agent-detail-chat-new"
@@ -392,10 +406,11 @@ export function AgentChatsPage({
                     disabled={isCreateChatDisabled}
                     title={resolvedCreateChatDisabledReason || "Start a new chat"}
                     style={{ flex: 1 }}
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-                    New chat
-                  </button>
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                      New chat
+                    </button>
+                  {normalizedChatListStatusFilter === "active" ? (
                   <button
                     type="button"
                     className="agent-detail-chat-settings-btn"
@@ -403,12 +418,13 @@ export function AgentChatsPage({
                     disabled={isCreateChatDisabled}
                     aria-label="Chat settings"
                     title="Chat settings"
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <circle cx="12" cy="12" r="3" />
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <circle cx="12" cy="12" r="3" />
                       <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                    </svg>
-                  </button>
+                      </svg>
+                    </button>
+                  ) : null}
                 </div>
 
                 {isLoadingChatSessions ? <p className="empty-hint" style={{ marginTop: "0.5rem" }}>Loading chats...</p> : null}
@@ -421,12 +437,23 @@ export function AgentChatsPage({
                     {chatSessions.map((session: any) => {
                       const isRunning = isChatSessionRunning(session, chatSessionRunningById);
                       const sessionStatus = String(session?.status || "").trim().toLowerCase();
+                      const isArchived = sessionStatus === "archived";
+                      const isArchiving = sessionStatus === "archiving";
                       const isError = sessionStatus === "error";
                       const isDeletingSession = sessionStatus === "deleting";
                       const isPendingSession = sessionStatus === "pending";
                       const threadErrorMessage = String(session?.errorMessage || "").trim();
                       const chatSessionKey = `${agent.id}:${session.id}`;
+                      const isArchivingChat = archivingChatSessionKey === chatSessionKey || isArchiving;
                       const isDeletingChat = deletingChatSessionKey === chatSessionKey || isDeletingSession;
+                      const showDeleteAction = normalizedChatListStatusFilter === "archived" || isArchived;
+                      const actionLabel = showDeleteAction
+                        ? isDeletingChat
+                          ? "Deleting..."
+                          : "Delete permanently"
+                        : isArchivingChat
+                          ? "Archiving..."
+                          : "Archive chat";
                       const modelLabel = String(session?.currentModelName || session?.currentModelId || "").trim() || "n/a";
                       const reasoningLabel = String(session?.currentReasoningLevel || "").trim() || "n/a";
                       return (
@@ -451,10 +478,18 @@ export function AgentChatsPage({
                               {!isRunning && isDeletingSession ? (
                                 <span className="chat-thread-status chat-thread-status-deleting">deleting</span>
                               ) : null}
+                              {!isRunning && isArchiving ? (
+                                <span className="chat-thread-status chat-thread-status-deleting">archiving</span>
+                              ) : null}
+                              {!isRunning && isArchived ? (
+                                <span className="chat-thread-status chat-thread-status-archived">archived</span>
+                              ) : null}
                               {isError ? <span className="chat-thread-status chat-thread-status-error">error</span> : null}
                             </p>
                             <p className="agent-detail-chat-item-meta">
-                              {formatTimestamp(session.updatedAt)} · {modelLabel} · {reasoningLabel}
+                              {isArchived && session?.archivedAt
+                                ? `Archived ${formatTimestamp(session.archivedAt)}`
+                                : formatTimestamp(session.updatedAt)} · {modelLabel} · {reasoningLabel}
                             </p>
                             <ThreadTaskSummary
                               tasks={session?.tasks}
@@ -468,22 +503,36 @@ export function AgentChatsPage({
                           <div className="agent-detail-chat-item-actions">
                             <button
                               type="button"
-                              className="chat-card-icon-btn chat-card-icon-btn-danger"
+                              className={`chat-card-icon-btn${showDeleteAction ? " chat-card-icon-btn-danger" : ""}`}
                               onClick={(event: any) => {
                                 event.stopPropagation();
-                                onDeleteChat({
+                                const payload = {
                                   agentId: agent.id,
                                   sessionId: session.id,
                                   title: session.title,
-                                });
+                                };
+                                if (showDeleteAction) {
+                                  onDeleteChat(payload);
+                                  return;
+                                }
+                                onArchiveChat(payload);
                               }}
-                              disabled={isDeletingChat}
-                              aria-label={isDeletingChat ? "Deleting..." : "Delete chat"}
-                              title={isDeletingChat ? "Deleting..." : "Delete chat"}
+                              disabled={isDeletingChat || isArchivingChat}
+                              aria-label={actionLabel}
+                              title={actionLabel}
                             >
-                              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                                <path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                              </svg>
+                              {showDeleteAction ? (
+                                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                  <path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                                </svg>
+                              ) : (
+                                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                  <path d="M3 7h18" />
+                                  <path d="M5 7v11a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7" />
+                                  <path d="M9 11h6" />
+                                  <path d="M12 7V4" />
+                                </svg>
+                              )}
                             </button>
                           </div>
                         </div>

@@ -1620,14 +1620,15 @@ export const LIST_AGENT_TURNS_QUERY = `
 `;
 
 export const LIST_AGENT_THREADS_QUERY = `
-  query ListAgentThreads($agentId: String!, $limit: Int) {
-    agentThreads(agentId: $agentId, limit: $limit) {
+  query ListAgentThreads($agentId: String!, $limit: Int, $status: String) {
+    agentThreads(agentId: $agentId, limit: $limit, status: $status) {
       id
       threadId
       agentId
       runnerId
       title
       additionalModelInstructions
+      archivedAt
       status
       createdAt
       updatedAt
@@ -1657,6 +1658,7 @@ export const CREATE_AGENT_THREAD_MUTATION = `
         runnerId
         title
         additionalModelInstructions
+        archivedAt
         status
         createdAt
         updatedAt
@@ -1677,6 +1679,7 @@ export const UPDATE_AGENT_THREAD_MUTATION = `
         runnerId
         title
         additionalModelInstructions
+        archivedAt
         status
         createdAt
         updatedAt
@@ -1699,6 +1702,33 @@ export const DELETE_AGENT_THREAD_MUTATION = `
         runnerId
         title
         additionalModelInstructions
+        archivedAt
+        status
+        errorMessage
+        currentModelId
+        currentModelName
+        currentReasoningLevel
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`;
+
+export const ARCHIVE_AGENT_THREAD_MUTATION = `
+  mutation ArchiveAgentThread($agentId: String!, $threadId: String!) {
+    archiveAgentThread(agentId: $agentId, threadId: $threadId) {
+      ok
+      error
+      thread {
+        id
+        threadId
+        companyId
+        agentId
+        runnerId
+        title
+        additionalModelInstructions
+        archivedAt
         status
         errorMessage
         currentModelId
@@ -1803,13 +1833,14 @@ export const AGENT_RUNNERS_SUBSCRIPTION = `
 `;
 
 export const AGENT_THREADS_SUBSCRIPTION = `
-  subscription AgentThreadsUpdated($agentId: ID, $first: Int = 500) {
-    agentThreadsUpdated(agentId: $agentId, first: $first) {
+  subscription AgentThreadsUpdated($agentId: ID, $first: Int = 500, $status: ThreadStatus) {
+    agentThreadsUpdated(agentId: $agentId, first: $first, status: $status) {
       edges {
         node {
           id
           title
           additionalModelInstructions
+          archivedAt
           status
           currentReasoningLevel
           errorMessage
@@ -3285,6 +3316,7 @@ export const COMPANY_API_LIST_AGENTS_WITH_THREADS_CONNECTION_QUERY = `
     $first: Int!
     $after: String
     $firstThreads: Int = 500
+    $threadStatus: ThreadStatus
   ) {
     agents(first: $first, after: $after) {
       edges {
@@ -3337,12 +3369,13 @@ export const COMPANY_API_LIST_AGENTS_WITH_THREADS_CONNECTION_QUERY = `
               }
             }
           }
-          threads(first: $firstThreads) {
+          threads(first: $firstThreads, status: $threadStatus) {
             edges {
               node {
                 id
                 title
                 additionalModelInstructions
+                archivedAt
                 status
                 errorMessage
                 currentReasoningLevel
@@ -3480,13 +3513,14 @@ export const COMPANY_API_DELETE_AGENT_MUTATION = `
 `;
 
 export const COMPANY_API_LIST_THREADS_CONNECTION_QUERY = `
-  query CompanyApiListThreads($agentId: ID, $first: Int!, $after: String) {
-    threads(agentId: $agentId, first: $first, after: $after) {
+  query CompanyApiListThreads($agentId: ID, $first: Int!, $after: String, $status: ThreadStatus) {
+    threads(agentId: $agentId, first: $first, after: $after, status: $status) {
       edges {
         node {
           id
           title
           additionalModelInstructions
+          archivedAt
           status
           errorMessage
           currentReasoningLevel
@@ -3531,6 +3565,7 @@ export const COMPANY_API_CREATE_THREAD_MUTATION = `
       id
       title
       additionalModelInstructions
+      archivedAt
       status
       errorMessage
       currentReasoningLevel
@@ -3554,6 +3589,7 @@ export const COMPANY_API_UPDATE_THREAD_TITLE_MUTATION = `
       id
       title
       additionalModelInstructions
+      archivedAt
       status
       errorMessage
       currentReasoningLevel
@@ -3576,6 +3612,7 @@ export const COMPANY_API_DELETE_THREAD_MUTATION = `
     deleteThread(threadId: $threadId) {
       id
       title
+      archivedAt
       status
       errorMessage
       currentReasoningLevel
@@ -3585,6 +3622,61 @@ export const COMPANY_API_DELETE_THREAD_MUTATION = `
       }
       agent {
         id
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_ARCHIVE_THREAD_MUTATION = `
+  mutation CompanyApiArchiveThread($threadId: ID!) {
+    archiveThread(threadId: $threadId) {
+      id
+      title
+      archivedAt
+      status
+      errorMessage
+      currentReasoningLevel
+      additionalModelInstructions
+      company {
+        id
+      }
+      agent {
+        id
+      }
+      currentModel {
+        id
+        name
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_THREAD_QUERY = `
+  query CompanyApiThread($threadId: ID!) {
+    thread(id: $threadId) {
+      id
+      title
+      additionalModelInstructions
+      archivedAt
+      status
+      errorMessage
+      currentReasoningLevel
+      tasks {
+        id
+        name
+        status
+        createdAt
+        updatedAt
+      }
+      company {
+        id
+      }
+      agent {
+        id
+      }
+      currentModel {
+        id
+        name
       }
     }
   }

@@ -66,10 +66,12 @@ function renderAgentChatPageMarkup(overrides: Record<string, unknown> = {}) {
       steeringQueuedMessageId: "",
       retryingQueuedMessageId: "",
       deletingQueuedMessageId: "",
+      chatListStatusFilter: "active",
       getCreateChatDisabledReason: () => "",
       onChatSessionRenameDraftChange: () => {},
       onChatDraftMessageChange: () => {},
       onBackToChats: () => {},
+      onArchiveChat: async () => {},
       onDeleteChat: async () => {},
       onSaveChatSessionTitle: async () => true,
       onSendChatMessage: () => {},
@@ -126,6 +128,32 @@ test("AgentChatPage shows pending thread copy while the thread is still provisio
 
   assert.match(markup, /Thread is pending\. Messages sent now will queue until it is ready\./);
   assert.match(markup, /pending/);
+});
+
+test("AgentChatPage shows archived chats as read-only and hides the composer", () => {
+  const markup = renderAgentChatPageMarkup({
+    session: {
+      id: "thread-archived",
+      title: "Archived thread",
+      status: "archived",
+      archivedAt: "2026-03-08T00:00:00.000Z",
+    },
+    chatSessionsByAgent: {
+      "agent-1": [
+        {
+          id: "thread-archived",
+          title: "Archived thread",
+          status: "archived",
+          archivedAt: "2026-03-08T00:00:00.000Z",
+        },
+      ],
+    },
+  });
+
+  assert.match(markup, /Archived/);
+  assert.match(markup, /Runtime resources were released\. This chat is preserved for reference only\./);
+  assert.doesNotMatch(markup, /chat-composer-panel/);
+  assert.doesNotMatch(markup, /Ask the agent to plan, debug, or implement something/);
 });
 
 test("applyChatPromptSuggestion updates the draft and focuses the composer", () => {
