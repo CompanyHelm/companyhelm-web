@@ -38,13 +38,12 @@ jobs:
   detect-docker-changes:
     name: Detect Docker Changes
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
     outputs:
       docker_changed: ${{ steps.filter.outputs.docker }}
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
       - name: Detect Docker packaging changes
         id: filter
         uses: dorny/paths-filter@v3
