@@ -2,6 +2,7 @@ import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } fr
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CreationModal } from "../components/CreationModal.tsx";
+import { ChatListStatusToggle } from "../components/ChatListStatusToggle.tsx";
 import { ChatSessionRunningBadge } from "../components/ChatSessionRunningBadge.tsx";
 import { ThreadTaskSummary } from "../components/ThreadTaskSummary.tsx";
 import { useSetPageActions } from "../components/PageActionsContext.tsx";
@@ -151,14 +152,26 @@ function clampThreadTitle(value: any) {
   return String(value || "").slice(0, THREAD_TITLE_MAX_LENGTH);
 }
 
+function normalizeChatListStatusFilter(value: any) {
+  return String(value || "").trim().toLowerCase() === "archived" ? "archived" : "active";
+}
+
+function isArchivedThreadStatus(value: any) {
+  const normalizedStatus = String(value || "").trim().toLowerCase();
+  return normalizedStatus === "archived" || normalizedStatus === "archiving";
+}
+
 function SidebarChatSessionItem({
   agentId,
   session,
   sessionsForAgent,
   isSelected = false,
   chatSessionRunningById,
+  archivingChatSessionKey,
   deletingChatSessionKey,
+  chatListStatusFilter = "active",
   onOpen,
+  onArchive,
   onDelete,
   taskSummaryModalId = "",
   showTaskSummary = true,
@@ -173,11 +186,22 @@ function SidebarChatSessionItem({
   const isRunningSession = isChatSessionRunning(session, chatSessionRunningById);
   const sessionStatus = String(session?.status || "").trim().toLowerCase();
   const isErrorSession = sessionStatus === "error";
+  const isArchivedSession = sessionStatus === "archived";
+  const isArchivingSession = sessionStatus === "archiving";
   const isDeletingSession = sessionStatus === "deleting";
   const isPendingSession = sessionStatus === "pending";
+  const normalizedListStatusFilter = normalizeChatListStatusFilter(chatListStatusFilter);
   const chatSessionKey = `${normalizedAgentId}:${normalizedSessionId}`;
+  const isArchivingChat = archivingChatSessionKey === chatSessionKey || isArchivingSession;
   const isDeletingChat = deletingChatSessionKey === chatSessionKey || isDeletingSession;
-  const deleteLabel = isDeletingChat ? "Deleting chat..." : "Delete chat";
+  const showDeleteAction = normalizedListStatusFilter === "archived" || isArchivedSession;
+  const actionLabel = showDeleteAction
+    ? isDeletingChat
+      ? "Deleting permanently..."
+      : "Delete permanently"
+    : isArchivingChat
+      ? "Archiving..."
+      : "Archive chat";
 
   function handleOpen() {
     if (isDeletingChat) {
@@ -210,6 +234,12 @@ function SidebarChatSessionItem({
         {!isRunningSession && isDeletingSession ? (
           <span className="chat-thread-status chat-thread-status-deleting">deleting</span>
         ) : null}
+        {!isRunningSession && isArchivingSession ? (
+          <span className="chat-thread-status chat-thread-status-deleting">archiving</span>
+        ) : null}
+        {!isRunningSession && isArchivedSession ? (
+          <span className="chat-thread-status chat-thread-status-archived">archived</span>
+        ) : null}
         {!isRunningSession && isErrorSession ? (
           <span className="chat-thread-status chat-thread-status-error">error</span>
         ) : null}
@@ -218,6 +248,11 @@ function SidebarChatSessionItem({
         <p className="chat-card-title chat-sidebar-chat-title">
           <strong>{session?.title || "Untitled chat"}</strong>
         </p>
+        {isArchivedSession || isArchivingSession ? (
+          <p className="chat-card-meta">
+            {isArchivingSession ? "Releasing runtime resources" : `Archived ${formatTimestamp(session?.archivedAt)}`}
+          </p>
+        ) : null}
         {showTaskSummary ? (
           <ThreadTaskSummary
             tasks={session?.tasks}
@@ -229,27 +264,41 @@ function SidebarChatSessionItem({
       <div className="chat-card-actions">
         <button
           type="button"
-          className="chat-card-icon-btn chat-card-icon-btn-danger"
+          className={`chat-card-icon-btn${showDeleteAction ? " chat-card-icon-btn-danger" : ""}`}
           onClick={(event: any) => {
             event.preventDefault();
             event.stopPropagation();
-            void onDelete?.({
+            const payload = {
               agentId: normalizedAgentId,
               sessionId: normalizedSessionId,
               title: session?.title,
-            });
+            };
+            if (showDeleteAction) {
+              void onDelete?.(payload);
+              return;
+            }
+            void onArchive?.(payload);
           }}
-          disabled={!onDelete || isDeletingChat}
-          aria-label={deleteLabel}
-          title={deleteLabel}
+          disabled={(showDeleteAction ? !onDelete : !onArchive) || isDeletingChat || isArchivingChat}
+          aria-label={actionLabel}
+          title={actionLabel}
         >
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M3 6h18" />
-            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-            <line x1="10" y1="11" x2="10" y2="17" />
-            <line x1="14" y1="11" x2="14" y2="17" />
-          </svg>
+          {showDeleteAction ? (
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M3 6h18" />
+              <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+              <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+              <line x1="10" y1="11" x2="10" y2="17" />
+              <line x1="14" y1="11" x2="14" y2="17" />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M3 7h18" />
+              <path d="M5 7v11a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7" />
+              <path d="M9 11h6" />
+              <path d="M12 7V4" />
+            </svg>
+          )}
         </button>
       </div>
     </li>
@@ -284,9 +333,11 @@ export function AgentChatPage({
   isLoadingChat,
   chatError,
   chatDraftMessage,
+  chatListStatusFilter = "active",
   isSendingChatMessage,
   isInterruptingChatTurn,
   isUpdatingChatTitle,
+  archivingChatSessionKey,
   deletingChatSessionKey,
   steeringQueuedMessageId,
   retryingQueuedMessageId,
@@ -294,7 +345,9 @@ export function AgentChatPage({
   getCreateChatDisabledReason,
   onChatSessionRenameDraftChange,
   onChatDraftMessageChange,
+  onChatListStatusFilterChange,
   onBackToChats,
+  onArchiveChat,
   onDeleteChat,
   onSaveChatSessionTitle,
   onSendChatMessage,
@@ -308,7 +361,11 @@ export function AgentChatPage({
   const canChat = Boolean(agent && session);
   const selectedAgentId = String(agent?.id || "").trim();
   const selectedSessionId = String(session?.id || "").trim();
+  const normalizedChatListStatusFilter = normalizeChatListStatusFilter(chatListStatusFilter);
   const sessionStatus = String(session?.status || "").trim().toLowerCase();
+  const isSessionArchived = canChat && sessionStatus === "archived";
+  const isSessionArchiving = canChat && sessionStatus === "archiving";
+  const isSessionReadOnly = canChat && isArchivedThreadStatus(sessionStatus);
   const isSessionError = canChat && sessionStatus === "error";
   const isSessionDeleting = canChat && sessionStatus === "deleting";
   const isSessionPending = canChat && sessionStatus === "pending";
@@ -326,7 +383,7 @@ export function AgentChatPage({
     return Array.isArray(sessionsForAgent) ? sessionsForAgent : [];
   }, [chatSessionsByAgent, selectedAgentId]);
   const hasKnownChatsForAgent = selectedAgentSessions.length > 0;
-  const canInteractWithSession = canChat && !isSessionDeleting;
+  const canInteractWithSession = canChat && !isSessionDeleting && !isSessionReadOnly;
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<any>(false);
   const [isInstructionsExpanded, setIsInstructionsExpanded] = useState<any>(false);
   const [selectedCommandOutputItem, setSelectedCommandOutputItem] = useState<any>(null);
@@ -392,8 +449,10 @@ export function AgentChatPage({
   }, [visibleTurns]);
   const isShowingPartialTranscript = visibleMessageCount < totalMessageCount;
   const hasTranscriptContent = orderedTurns.length > 0 || queuedMessages.length > 0;
-  const showTranscriptLoadingState = canChat && isLoadingChat && !hasTranscriptContent && !isSessionDeleting;
-  const showTranscriptEmptyState = canChat && !isLoadingChat && !hasTranscriptContent && !isSessionDeleting;
+  const showTranscriptLoadingState =
+    canChat && isLoadingChat && !hasTranscriptContent && !isSessionDeleting && !isSessionReadOnly;
+  const showTranscriptEmptyState =
+    canChat && !isLoadingChat && !hasTranscriptContent && !isSessionDeleting && !isSessionReadOnly;
 
   const isMobileViewport = useMemo(() => matchesMediaQuery(MOBILE_MEDIA_QUERY), []);
   const pageActionVisibility = useMemo(
@@ -689,7 +748,13 @@ export function AgentChatPage({
     <div className={`page-stack chat-page-stack${showChatSidebar ? " chat-page-stack-with-sidebar" : ""}`}>
       {showMobileNoSession ? (
         <aside className="panel list-panel chat-sidebar-panel chat-sidebar-panel-mobile-full">
-          <h2 className="chat-mobile-full-title">Chats</h2>
+          <div className="chat-sidebar-toolbar">
+            <h2 className="chat-mobile-full-title">Chats</h2>
+            <ChatListStatusToggle
+              value={normalizedChatListStatusFilter}
+              onChange={onChatListStatusFilterChange}
+            />
+          </div>
           {isLoadingChatIndex ? <p className="empty-hint">Loading chats...</p> : null}
           {!isLoadingChatIndex && sortedSidebarAgents.length === 0 ? (
             <p className="empty-hint">No agents available yet.</p>
@@ -756,8 +821,11 @@ export function AgentChatPage({
                               session={sidebarSession}
                               sessionsForAgent={sortedSidebarSessions}
                               chatSessionRunningById={chatSessionRunningById}
+                              archivingChatSessionKey={archivingChatSessionKey}
                               deletingChatSessionKey={deletingChatSessionKey}
+                              chatListStatusFilter={normalizedChatListStatusFilter}
                               onOpen={onOpenChatFromList}
+                              onArchive={onArchiveChat}
                               onDelete={onDeleteChat}
                               taskSummaryModalId={`mobile-sidebar-${sidebarAgentId}-${sidebarSessionId}`}
                               showPendingStatus={false}
@@ -786,15 +854,21 @@ export function AgentChatPage({
             className="panel list-panel chat-sidebar-panel chat-sidebar-panel-mobile-overlay"
             onClick={(event: any) => event.stopPropagation()}
           >
-            <div className="chat-mobile-overlay-header">
+            <div className="chat-mobile-overlay-header chat-mobile-overlay-header-stacked">
               <h3 className="chat-mobile-full-title">Chats</h3>
-              <button
-                type="button"
-                className="secondary-btn chat-mobile-overlay-close"
-                onClick={() => setIsMobileChatListOpen(false)}
-              >
-                Close
-              </button>
+              <div className="chat-mobile-overlay-actions">
+                <ChatListStatusToggle
+                  value={normalizedChatListStatusFilter}
+                  onChange={onChatListStatusFilterChange}
+                />
+                <button
+                  type="button"
+                  className="secondary-btn chat-mobile-overlay-close"
+                  onClick={() => setIsMobileChatListOpen(false)}
+                >
+                  Close
+                </button>
+              </div>
             </div>
             {isLoadingChatIndex ? <p className="empty-hint">Loading chats...</p> : null}
             {!isLoadingChatIndex && sortedSidebarAgents.length === 0 ? (
@@ -862,8 +936,11 @@ export function AgentChatPage({
                                 sessionsForAgent={sortedSidebarSessions}
                                 isSelected={isSelectedSession}
                                 chatSessionRunningById={chatSessionRunningById}
+                                archivingChatSessionKey={archivingChatSessionKey}
                                 deletingChatSessionKey={deletingChatSessionKey}
+                                chatListStatusFilter={normalizedChatListStatusFilter}
                                 onOpen={handleMobileChatOpen}
+                                onArchive={onArchiveChat}
                                 onDelete={onDeleteChat}
                                 showTaskSummary={false}
                                 showPendingStatus={false}
@@ -888,6 +965,13 @@ export function AgentChatPage({
       <div className="chat-page-main-layout" style={chatMainLayoutStyle}>
         {showChatSidebar ? (
           <aside className="panel list-panel chat-sidebar-panel">
+            <div className="chat-sidebar-toolbar">
+              <p className="chat-sidebar-title">Chats</p>
+              <ChatListStatusToggle
+                value={normalizedChatListStatusFilter}
+                onChange={onChatListStatusFilterChange}
+              />
+            </div>
             {isLoadingChatIndex ? <p className="empty-hint">Loading chats...</p> : null}
             {!isLoadingChatIndex && sortedSidebarAgents.length === 0 ? (
               <p className="empty-hint">No agents available yet.</p>
@@ -963,8 +1047,11 @@ export function AgentChatPage({
                                 sessionsForAgent={sortedSidebarSessions}
                                 isSelected={isSelectedSession}
                                 chatSessionRunningById={chatSessionRunningById}
+                                archivingChatSessionKey={archivingChatSessionKey}
                                 deletingChatSessionKey={deletingChatSessionKey}
+                                chatListStatusFilter={normalizedChatListStatusFilter}
                                 onOpen={onOpenChatFromList}
+                                onArchive={onArchiveChat}
                                 onDelete={onDeleteChat}
                                 taskSummaryModalId={`chat-sidebar-${sidebarAgentId}-${sidebarSessionId}`}
                               />
@@ -993,11 +1080,22 @@ export function AgentChatPage({
 
         <section className="panel chat-panel">
         {chatError ? <p className="error-banner">Chat error: {chatError}</p> : null}
+        {isSessionArchived ? (
+          <div className="chat-archived-banner">
+            <p className="chat-archived-banner-title">Archived</p>
+            <p className="chat-archived-banner-copy">
+              Runtime resources were released. This chat is preserved for reference only.
+            </p>
+          </div>
+        ) : null}
         {isSessionError ? (
           <p className="error-banner">
             Thread status is error.
             {sessionErrorMessage ? ` ${sessionErrorMessage}` : ""}
           </p>
+        ) : null}
+        {isSessionArchiving ? (
+          <p className="empty-hint">Thread is archiving. Releasing runtime resources.</p>
         ) : null}
         {isSessionDeleting ? (
           <p className="empty-hint">Thread is deleting. Waiting for runner confirmation.</p>
@@ -1035,6 +1133,9 @@ export function AgentChatPage({
               ))}
             </div>
           </div>
+        ) : null}
+        {isSessionArchived && !hasTranscriptContent ? (
+          <p className="empty-hint">No transcript history was preserved for this archived chat.</p>
         ) : null}
         {hasTranscriptContent ? (
           <div
@@ -1325,7 +1426,7 @@ export function AgentChatPage({
               value={chatSessionRenameDraft}
               onChange={(event: any) => onChatSessionRenameDraftChange(clampThreadTitle(event.target.value))}
               placeholder="e.g. Release planning"
-              disabled={isUpdatingChatTitle}
+              disabled={isUpdatingChatTitle || isSessionReadOnly}
               maxLength={THREAD_TITLE_MAX_LENGTH}
             />
           </div>
@@ -1367,6 +1468,12 @@ export function AgentChatPage({
               <span className="chat-settings-info-label">Status</span>
               <span>{session?.status || "n/a"}</span>
             </p>
+            {session?.archivedAt ? (
+              <p className="chat-settings-info-row">
+                <span className="chat-settings-info-label">Archived</span>
+                <span>{formatTimestamp(session.archivedAt)}</span>
+              </p>
+            ) : null}
             {sessionErrorMessage ? (
               <p className="chat-settings-info-row">
                 <span className="chat-settings-info-label">Error</span>
@@ -1374,10 +1481,46 @@ export function AgentChatPage({
               </p>
             ) : null}
           </div>
-          <div className="chat-settings-actions">
-            <button type="submit" disabled={isUpdatingChatTitle}>
-              {isUpdatingChatTitle ? "Saving..." : "Save"}
+          <div className="chat-settings-lifecycle">
+            {!isSessionArchived ? (
+              <button
+                type="button"
+                className="secondary-btn"
+                disabled={!session || isSessionArchiving}
+                onClick={() => {
+                  setIsSettingsModalOpen(false);
+                  void onArchiveChat?.({
+                    agentId: selectedAgentId,
+                    sessionId: selectedSessionId,
+                    title: session?.title,
+                  });
+                }}
+              >
+                {isSessionArchiving ? "Archiving..." : "Archive chat"}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="secondary-btn chat-settings-danger-btn"
+              disabled={!session || isSessionDeleting}
+              onClick={() => {
+                setIsSettingsModalOpen(false);
+                void onDeleteChat?.({
+                  agentId: selectedAgentId,
+                  sessionId: selectedSessionId,
+                  title: session?.title,
+                });
+              }}
+            >
+              {isSessionDeleting ? "Deleting..." : "Delete permanently"}
             </button>
+          </div>
+          <div className="chat-settings-actions">
+            {!isSessionReadOnly ? (
+              <button type="submit" disabled={isUpdatingChatTitle}>
+                {isUpdatingChatTitle ? "Saving..." : "Save"}
+              </button>
+            ) : null}
           </div>
         </form>
       </CreationModal>
@@ -1489,6 +1632,7 @@ export function AgentChatPage({
         </div>
       ) : null}
 
+      {!isSessionReadOnly ? (
       <section className="panel composer-panel chat-composer-panel">
         {latestReasoning ? (
           <p className={`chat-turn-reasoning chat-turn-reasoning-${latestReasoning.status} chat-composer-reasoning`}>
@@ -1616,6 +1760,7 @@ export function AgentChatPage({
           </div>
         </form>
       </section>
+      ) : null}
       </>
       )}
     </div>

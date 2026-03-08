@@ -101,6 +101,7 @@ import {
   CREATE_AGENT_THREAD_MUTATION,
   UPDATE_AGENT_THREAD_MUTATION,
   DELETE_AGENT_THREAD_MUTATION,
+  ARCHIVE_AGENT_THREAD_MUTATION,
   CREATE_AGENT_TURN_MUTATION,
   STEER_AGENT_TURN_MUTATION,
   INTERRUPT_AGENT_TURN_MUTATION,
@@ -181,6 +182,8 @@ import {
   COMPANY_API_CREATE_THREAD_MUTATION,
   COMPANY_API_UPDATE_THREAD_TITLE_MUTATION,
   COMPANY_API_DELETE_THREAD_MUTATION,
+  COMPANY_API_ARCHIVE_THREAD_MUTATION,
+  COMPANY_API_THREAD_QUERY,
   COMPANY_API_LIST_THREAD_TURNS_CONNECTION_QUERY,
   COMPANY_API_LIST_THREAD_TURNS_WITH_QUEUED_QUERY,
   COMPANY_API_QUEUE_USER_MESSAGE_MUTATION,
@@ -287,6 +290,23 @@ import { ProfilePage } from "./pages/ProfilePage.tsx";
 // --- Module-level mutable state (shared by adapter functions and executeGraphQL) ---
 const companyApiThreadMetadataById = new Map<any, any>();
 const companyApiRunnerMetadataById = new Map<any, any>();
+const CHAT_LIST_STATUS_FILTER_ACTIVE = "active";
+const CHAT_LIST_STATUS_FILTER_ARCHIVED = "archived";
+
+function normalizeChatListStatusFilter(value: any) {
+  return String(value || "").trim().toLowerCase() === CHAT_LIST_STATUS_FILTER_ARCHIVED
+    ? CHAT_LIST_STATUS_FILTER_ARCHIVED
+    : CHAT_LIST_STATUS_FILTER_ACTIVE;
+}
+
+function toCompanyApiThreadStatusFilter(value: any) {
+  return normalizeChatListStatusFilter(value) === CHAT_LIST_STATUS_FILTER_ARCHIVED ? "archived" : null;
+}
+
+function isArchivedThreadStatus(value: any) {
+  const normalizedStatus = String(value || "").trim().toLowerCase();
+  return normalizedStatus === "archived" || normalizedStatus === "archiving";
+}
 
 
 async function executeRawGraphQL(query: any, variables: any, options: any = {}) {
@@ -434,6 +454,7 @@ async function loadCompanyApiAgentThreads({
   companyId,
   agentId,
   limit = null,
+  status = null,
 }: any) {
   const threadNodes = await fetchCompanyApiConnectionNodes({
     query: COMPANY_API_LIST_THREADS_CONNECTION_QUERY,
@@ -441,6 +462,7 @@ async function loadCompanyApiAgentThreads({
     variables: {
       companyId,
       agentId,
+      status,
     },
     limit,
   });
@@ -452,6 +474,7 @@ async function loadCompanyApiAgentsWithThreads({
   companyId,
   agentLimit = null,
   threadLimit = 500,
+  threadStatus = null,
 }: any) {
   const agentNodes = await fetchCompanyApiConnectionNodes({
     query: COMPANY_API_LIST_AGENTS_WITH_THREADS_CONNECTION_QUERY,
@@ -459,6 +482,7 @@ async function loadCompanyApiAgentsWithThreads({
     variables: {
       companyId,
       firstThreads: threadLimit,
+      threadStatus,
     },
     limit: agentLimit,
   });
@@ -486,6 +510,24 @@ async function loadCompanyApiAgentsWithThreads({
     agentRunners: [...agentRunnersById.values()],
     sessionsByAgent,
   };
+}
+
+async function loadCompanyApiThread({
+  threadId,
+}: any) {
+  const resolvedThreadId = resolveLegacyId(threadId);
+  if (!resolvedThreadId) {
+    return null;
+  }
+
+  const data = await executeRawGraphQL(COMPANY_API_THREAD_QUERY, {
+    threadId: resolvedThreadId,
+  });
+  if (!data?.thread) {
+    companyApiThreadMetadataById.delete(resolvedThreadId);
+    return null;
+  }
+  return toLegacyThreadPayload(data.thread);
 }
 
 async function loadCompanyApiThreadTurns({
@@ -1020,6 +1062,21 @@ function toLegacyThreadPayload(thread: any, {
   const resolvedTasks = explicitTasks === undefined
     ? normalizeThreadTaskList(currentMetadata.tasks || [])
     : normalizeThreadTaskList(explicitTasks);
+  const overrideProvidesArchivedAt = Boolean(
+    metadataOverride && Object.prototype.hasOwnProperty.call(metadataOverride, "archivedAt"),
+  );
+  const threadProvidesArchivedAt = Boolean(
+    thread && Object.prototype.hasOwnProperty.call(thread, "archivedAt"),
+  );
+  const explicitArchivedAt = overrideProvidesArchivedAt
+    ? metadataOverride.archivedAt
+    : threadProvidesArchivedAt
+      ? thread.archivedAt
+      : undefined;
+  const resolvedArchivedAt =
+    explicitArchivedAt === undefined
+      ? resolveLegacyId(currentMetadata.archivedAt) || null
+      : resolveLegacyId(explicitArchivedAt) || null;
   const nextMetadata = {
     createdAt: currentMetadata.createdAt || nowIso,
     updatedAt: nowIso,
@@ -1032,6 +1089,7 @@ function toLegacyThreadPayload(thread: any, {
     additionalModelInstructions: resolvedAdditionalModelInstructions,
     errorMessage: resolvedErrorMessage,
     tasks: resolvedTasks,
+    archivedAt: resolvedArchivedAt,
   };
   if (threadId) {
     companyApiThreadMetadataById.set(threadId, nextMetadata);
@@ -1051,6 +1109,7 @@ function toLegacyThreadPayload(thread: any, {
     currentReasoningLevel: nextMetadata.currentReasoningLevel,
     additionalModelInstructions: nextMetadata.additionalModelInstructions,
     tasks: nextMetadata.tasks,
+    archivedAt: nextMetadata.archivedAt,
     createdAt: nextMetadata.createdAt,
     updatedAt: nextMetadata.updatedAt,
   };
@@ -1472,6 +1531,7 @@ async function executeGraphQL(query: any, variables: any = {}) {
       companyId,
       agentId,
       limit,
+      status: toCompanyApiThreadStatusFilter(variables?.status),
     });
     return {
       agentThreads: threads,
@@ -1544,6 +1604,24 @@ async function executeGraphQL(query: any, variables: any = {}) {
         error: ok ? null : "Failed to delete chat.",
         deletedThreadId: ok ? threadId : null,
         thread: deletingThread,
+      },
+    };
+  }
+
+  if (query === ARCHIVE_AGENT_THREAD_MUTATION) {
+    const threadId = resolveLegacyId(variables?.threadId, variables?.id);
+    const data = await executeRawGraphQL(COMPANY_API_ARCHIVE_THREAD_MUTATION, {
+      threadId,
+    });
+    const archivingThread = data?.archiveThread
+      ? toLegacyThreadPayload(data.archiveThread)
+      : null;
+    const ok = Boolean(archivingThread?.id);
+    return {
+      archiveAgentThread: {
+        ok,
+        error: ok ? null : "Failed to archive chat.",
+        thread: archivingThread,
       },
     };
   }
@@ -2742,9 +2820,11 @@ function App() {
   const [chatSessionTitleDraft, setChatSessionTitleDraft] = useState<any>("");
   const [chatSessionAdditionalModelInstructionsDraft, setChatSessionAdditionalModelInstructionsDraft] = useState<any>("");
   const [chatSessionRenameDraft, setChatSessionRenameDraft] = useState<any>("");
+  const [chatListStatusFilter, setChatListStatusFilter] = useState<any>(CHAT_LIST_STATUS_FILTER_ACTIVE);
   const [chatTurns, setChatTurns] = useState<any>([]);
   const [queuedChatMessages, setQueuedChatMessages] = useState<any>([]);
   const [chatDraftMessage, setChatDraftMessage] = useState<any>("");
+  const [archivingChatSessionKey, setArchivingChatSessionKey] = useState<any>("");
   const [deletingChatSessionKey, setDeletingChatSessionKey] = useState<any>("");
   const [chatError, setChatError] = useState<any>("");
   const [chatIndexError, setChatIndexError] = useState<any>("");
@@ -2842,6 +2922,10 @@ function App() {
     () => resolveLegacyId(chatSessionId, agentsRoute.sessionId, chatsRoute.threadId),
     [chatSessionId, agentsRoute.sessionId, chatsRoute.threadId],
   );
+  const companyApiThreadStatusFilter = useMemo(
+    () => toCompanyApiThreadStatusFilter(chatListStatusFilter),
+    [chatListStatusFilter],
+  );
 
   const selectedChatSession = useMemo(() => {
     const existingSession = chatSessions.find((session: any) => session.id === resolvedChatSessionId);
@@ -2869,6 +2953,7 @@ function App() {
       currentReasoningLevel: resolveLegacyId(metadata.currentReasoningLevel) || null,
       additionalModelInstructions:
         normalizeOptionalInstructions(metadata.additionalModelInstructions) || null,
+      archivedAt: resolveLegacyId(metadata.archivedAt) || null,
       createdAt: resolveLegacyId(metadata.createdAt) || nowIso,
       updatedAt: resolveLegacyId(metadata.updatedAt) || nowIso,
     };
@@ -3834,6 +3919,7 @@ function App() {
         companyId: selectedCompanyId,
         agentLimit: 500,
         threadLimit: 500,
+        threadStatus: companyApiThreadStatusFilter,
       });
       const nextAgents = bootstrapPayload.agents || [];
       const nextSessionsByAgent = bootstrapPayload.sessionsByAgent || {};
@@ -3879,7 +3965,12 @@ function App() {
         setIsLoadingChatIndex(false);
       }
     }
-  }, [selectedCompanyId, chatAgentId, syncChatSessionRunningStateFromSessions]);
+  }, [
+    selectedCompanyId,
+    chatAgentId,
+    companyApiThreadStatusFilter,
+    syncChatSessionRunningStateFromSessions,
+  ]);
 
   const ensureAgentEditorData = useCallback(async () => {
     if (!selectedCompanyId) {
@@ -3942,6 +4033,7 @@ function App() {
           companyId: selectedCompanyId,
           agentId: targetAgentId,
           limit: 200,
+          status: companyApiThreadStatusFilter,
         });
         applyChatSessionsSnapshotForAgent(targetAgentId, nextSessions);
       } catch (loadError: any) {
@@ -3954,7 +4046,7 @@ function App() {
         }
       }
     },
-    [selectedCompanyId, chatAgentId, applyChatSessionsSnapshotForAgent],
+    [selectedCompanyId, chatAgentId, companyApiThreadStatusFilter, applyChatSessionsSnapshotForAgent],
   );
 
   const loadAgentChatTurns = useCallback(
@@ -4052,6 +4144,7 @@ function App() {
           variables: {
             companyId: selectedCompanyId,
             agentId: null,
+            status: companyApiThreadStatusFilter,
           },
           limit: 2000,
         });
@@ -4085,7 +4178,7 @@ function App() {
         }
       }
     },
-    [agents, selectedCompanyId, syncChatSessionRunningStateFromSessions],
+    [agents, selectedCompanyId, companyApiThreadStatusFilter, syncChatSessionRunningStateFromSessions],
   );
 
   const handleAgentRunnersSubscriptionData = useCallback((payload: any) => {
@@ -4226,6 +4319,7 @@ function App() {
       selectedCompanyId
         ? {
             first: 500,
+            ...(companyApiThreadStatusFilter ? { status: companyApiThreadStatusFilter } : {}),
             ...(shouldSubscribeChatIndex
               ? {}
               : chatAgentId
@@ -4679,6 +4773,91 @@ function App() {
       : [];
     setChatSessions(nextSessions);
   }, [activePage, chatAgentId, chatSessionsByAgent, selectedCompanyId]);
+
+  useEffect(() => {
+    const isChatDetailRoute =
+      (activePage === "chats" && Boolean(resolvedChatSessionId))
+      || (activePage === "agents" && agentsRoute.view === "chat" && Boolean(resolvedChatSessionId));
+    if (!selectedCompanyId || !isChatDetailRoute || !resolvedChatSessionId) {
+      return;
+    }
+
+    const currentSession = chatSessions.find((session: any) => String(session?.id || "").trim() === resolvedChatSessionId);
+    const knownSelectedSession = currentSession || selectedChatSession;
+    const hasUsableSession = Boolean(
+      knownSelectedSession
+      && String(knownSelectedSession?.status || "").trim()
+      && String(knownSelectedSession?.agentId || chatAgentId || "").trim(),
+    );
+    if (hasUsableSession) {
+      return;
+    }
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const nextThread = await loadCompanyApiThread({ threadId: resolvedChatSessionId });
+        if (cancelled || !nextThread) {
+          return;
+        }
+
+        const nextAgentId = resolveLegacyId(nextThread.agentId, chatAgentId);
+        if (nextAgentId && nextAgentId !== chatAgentId) {
+          setChatAgentId(nextAgentId);
+        }
+
+        const statusMatchesCurrentFilter = companyApiThreadStatusFilter
+          ? String(nextThread.status || "").trim().toLowerCase() === companyApiThreadStatusFilter
+          : !isArchivedThreadStatus(nextThread.status);
+
+        if (!nextAgentId || !statusMatchesCurrentFilter) {
+          return;
+        }
+
+        const upsertSession = (sessions: any) => {
+          const nextSessions = Array.isArray(sessions) ? [...sessions] : [];
+          const targetIndex = nextSessions.findIndex(
+            (session: any) => String(session?.id || "").trim() === String(nextThread.id || "").trim(),
+          );
+          if (targetIndex >= 0) {
+            nextSessions[targetIndex] = {
+              ...nextSessions[targetIndex],
+              ...nextThread,
+            };
+          } else {
+            nextSessions.unshift(nextThread);
+          }
+          return sortChatSessionsForChatNavigation(nextSessions);
+        };
+
+        setChatSessionsByAgent((currentSessionsByAgent: any) => ({
+          ...currentSessionsByAgent,
+          [nextAgentId]: upsertSession(currentSessionsByAgent[nextAgentId]),
+        }));
+        setChatSessions((currentSessions: any) => {
+          if (nextAgentId !== chatAgentId) {
+            return currentSessions;
+          }
+          return upsertSession(currentSessions);
+        });
+      } catch {
+        // The transcript loader and existing empty/not-found states handle missing threads.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    activePage,
+    agentsRoute.view,
+    chatAgentId,
+    chatSessions,
+    companyApiThreadStatusFilter,
+    resolvedChatSessionId,
+    selectedChatSession,
+    selectedCompanyId,
+  ]);
 
   useEffect(() => {
     if (
@@ -7840,6 +8019,89 @@ function App() {
     }
   }
 
+  async function handleArchiveChatSession({
+    agentId = null,
+    sessionId = null,
+    title = null,
+  }: any = {}) {
+    const targetAgentId = String(agentId || chatAgentId || "").trim();
+    const targetSessionId = String(sessionId || "").trim();
+    if (!selectedCompanyId) {
+      const errorMessage = "Select a company before archiving chats.";
+      setChatError(errorMessage);
+      setChatIndexError(errorMessage);
+      return false;
+    }
+    if (!targetAgentId || !targetSessionId) {
+      return false;
+    }
+
+    const agentSessions = Array.isArray(chatSessionsByAgent[targetAgentId])
+      ? chatSessionsByAgent[targetAgentId]
+      : [];
+    const matchingSession = agentSessions.find((session: any) => String(session?.id || "").trim() === targetSessionId)
+      || chatSessions.find((session: any) => String(session?.id || "").trim() === targetSessionId)
+      || null;
+    const matchingSessionStatus = String(matchingSession?.status || "").trim().toLowerCase();
+    if (matchingSessionStatus === "archiving" || matchingSessionStatus === "archived") {
+      return false;
+    }
+
+    const resolvedTitle = String(title || matchingSession?.title || "").trim();
+    const confirmationLabel = resolvedTitle
+      ? `"${resolvedTitle}" (${targetSessionId})`
+      : targetSessionId;
+    const confirmed = window.confirm(
+      `Archive chat ${confirmationLabel}? Runtime resources will be released and the transcript will stay read-only.`,
+    );
+    if (!confirmed) {
+      return false;
+    }
+
+    const targetChatSessionKey = `${targetAgentId}:${targetSessionId}`;
+    try {
+      setArchivingChatSessionKey(targetChatSessionKey);
+      setChatError("");
+      setChatIndexError("");
+      const data = await executeGraphQL(ARCHIVE_AGENT_THREAD_MUTATION, {
+        companyId: selectedCompanyId,
+        agentId: targetAgentId,
+        threadId: targetSessionId,
+      });
+      const result = data.archiveAgentThread;
+      if (!result?.ok || !result?.thread) {
+        throw new Error(result?.error || "Chat archive failed.");
+      }
+
+      const removeArchivedSession = (sessions: any) =>
+        sortChatSessionsForChatNavigation(
+          (Array.isArray(sessions) ? sessions : []).filter(
+            (session: any) => String(session?.id || "").trim() !== targetSessionId,
+          ),
+        );
+
+      setChatSessionRunningState(targetSessionId, false);
+      setChatSessions((currentSessions: any) => {
+        if (targetAgentId !== chatAgentId) {
+          return currentSessions;
+        }
+        return removeArchivedSession(currentSessions);
+      });
+      setChatSessionsByAgent((currentSessionsByAgent: any) => ({
+        ...currentSessionsByAgent,
+        [targetAgentId]: removeArchivedSession(currentSessionsByAgent[targetAgentId]),
+      }));
+      return true;
+    } catch (archiveError: any) {
+      const errorMessage = archiveError?.message || "Chat archive failed.";
+      setChatIndexError(errorMessage);
+      setChatError(errorMessage);
+      return false;
+    } finally {
+      setArchivingChatSessionKey("");
+    }
+  }
+
   async function handleDeleteChatSession({
     agentId = null,
     sessionId = null,
@@ -7863,11 +8125,19 @@ function App() {
     const matchingSession = agentSessions.find((session: any) => String(session?.id || "").trim() === targetSessionId)
       || chatSessions.find((session: any) => String(session?.id || "").trim() === targetSessionId)
       || null;
+    const matchingSessionStatus = String(matchingSession?.status || "").trim().toLowerCase();
+    if (matchingSessionStatus === "archiving") {
+      return false;
+    }
+    const isArchivedSession = matchingSessionStatus === "archived";
     const resolvedTitle = String(title || matchingSession?.title || "").trim();
     const confirmationLabel = resolvedTitle
       ? `"${resolvedTitle}" (${targetSessionId})`
       : targetSessionId;
-    const confirmed = window.confirm(`Delete chat ${confirmationLabel}?`);
+    const confirmationMessage = isArchivedSession
+      ? `Delete archived chat ${confirmationLabel} permanently? This removes the preserved transcript history.`
+      : `Delete chat ${confirmationLabel}?`;
+    const confirmed = window.confirm(confirmationMessage);
     if (!confirmed) {
       return false;
     }
@@ -7885,6 +8155,38 @@ function App() {
       const result = data.deleteAgentThread;
       if (!result?.ok) {
         throw new Error(result?.error || "Chat deletion failed.");
+      }
+
+      if (isArchivedSession) {
+        const removeDeletedSession = (sessions: any) =>
+          sortChatSessionsForChatNavigation(
+            (Array.isArray(sessions) ? sessions : []).filter(
+              (session: any) => String(session?.id || "").trim() !== targetSessionId,
+            ),
+          );
+
+        companyApiThreadMetadataById.delete(targetSessionId);
+        setChatSessionRunningState(targetSessionId, false);
+        setChatSessions((currentSessions: any) => {
+          if (targetAgentId !== chatAgentId) {
+            return currentSessions;
+          }
+          return removeDeletedSession(currentSessions);
+        });
+        setChatSessionsByAgent((currentSessionsByAgent: any) => ({
+          ...currentSessionsByAgent,
+          [targetAgentId]: removeDeletedSession(currentSessionsByAgent[targetAgentId]),
+        }));
+        if (resolvedChatSessionId === targetSessionId) {
+          setChatSessionId("");
+          setChatTurns([]);
+          setQueuedChatMessages([]);
+          setIsLoadingChat(false);
+          if (activePage === "chats") {
+            setBrowserPath(getChatsPath({ agentId: targetAgentId }));
+          }
+        }
+        return true;
       }
 
       const nowIso = new Date().toISOString();
@@ -8414,6 +8716,11 @@ function App() {
       targetAgentId = findAgentIdForThread(bootstrapPayload.sessionsByAgent || {});
     }
 
+    if (!targetAgentId && selectedCompanyId) {
+      const thread = await loadCompanyApiThread({ threadId: resolvedThreadId });
+      targetAgentId = resolveLegacyId(thread?.agentId);
+    }
+
     setBrowserPath(
       getChatsPath({
         agentId: targetAgentId,
@@ -8852,9 +9159,11 @@ function App() {
             isLoadingChat={isLoadingChat}
             chatError={chatError}
             chatDraftMessage={chatDraftMessage}
+            chatListStatusFilter={chatListStatusFilter}
             isSendingChatMessage={isSendingChatMessage}
             isInterruptingChatTurn={isInterruptingChatTurn}
             isUpdatingChatTitle={isUpdatingChatTitle}
+            archivingChatSessionKey={archivingChatSessionKey}
             deletingChatSessionKey={deletingChatSessionKey}
             steeringQueuedMessageId={steeringQueuedMessageId}
             retryingQueuedMessageId={retryingQueuedMessageId}
@@ -8862,7 +9171,9 @@ function App() {
             getCreateChatDisabledReason={getChatCreateBlockedReasonByAgentId}
             onChatSessionRenameDraftChange={handleChatSessionRenameDraftChange}
             onChatDraftMessageChange={setChatDraftMessage}
+            onChatListStatusFilterChange={setChatListStatusFilter}
             onBackToChats={() => {}}
+            onArchiveChat={handleArchiveChatSession}
             onDeleteChat={handleDeleteChatSession}
             onSaveChatSessionTitle={handleUpdateChatSessionTitle}
             onSendChatMessage={handleSendChatMessage}
@@ -8885,8 +9196,10 @@ function App() {
               chatSessionRunningById={chatSessionRunningById}
               isLoadingChatSessions={isLoadingChatSessions}
               isCreatingChatSession={isCreatingChatSession}
+              archivingChatSessionKey={archivingChatSessionKey}
               deletingChatSessionKey={deletingChatSessionKey}
               chatError={chatError}
+              chatListStatusFilter={chatListStatusFilter}
               createChatDisabledReason={getChatCreateBlockedReasonByAgentId(chatAgentId)}
               chatSessionTitleDraft={chatSessionTitleDraft}
               chatSessionAdditionalModelInstructionsDraft={chatSessionAdditionalModelInstructionsDraft}
@@ -8894,6 +9207,7 @@ function App() {
               onChatSessionAdditionalModelInstructionsDraftChange={
                 setChatSessionAdditionalModelInstructionsDraft
               }
+              onChatListStatusFilterChange={setChatListStatusFilter}
               onCreateChatSession={handleCreateChatSession}
               onOpenChat={(sessionId: any) => {
                 if (!chatAgentId || !sessionId) {
@@ -8902,6 +9216,7 @@ function App() {
                 setBrowserPath(getChatsPath({ agentId: chatAgentId, threadId: sessionId }));
               }}
               onSetChatDraftMessage={setChatDraftMessage}
+              onArchiveChat={handleArchiveChatSession}
               onDeleteChat={handleDeleteChatSession}
               onBackToAgents={() => {
                 navigateTo("agents");
@@ -8936,9 +9251,11 @@ function App() {
               isLoadingChat={isLoadingChat}
               chatError={chatError}
               chatDraftMessage={chatDraftMessage}
+              chatListStatusFilter={chatListStatusFilter}
               isSendingChatMessage={isSendingChatMessage}
               isInterruptingChatTurn={isInterruptingChatTurn}
               isUpdatingChatTitle={isUpdatingChatTitle}
+              archivingChatSessionKey={archivingChatSessionKey}
               deletingChatSessionKey={deletingChatSessionKey}
               steeringQueuedMessageId={steeringQueuedMessageId}
               retryingQueuedMessageId={retryingQueuedMessageId}
@@ -8946,6 +9263,7 @@ function App() {
               getCreateChatDisabledReason={getChatCreateBlockedReasonByAgentId}
               onChatSessionRenameDraftChange={handleChatSessionRenameDraftChange}
               onChatDraftMessageChange={setChatDraftMessage}
+              onChatListStatusFilterChange={setChatListStatusFilter}
               onBackToChats={() => {
                 if (!chatAgentId) {
                   navigateTo("agents");
@@ -8953,6 +9271,7 @@ function App() {
                 }
                 setBrowserPath(getChatsPath({ agentId: chatAgentId }));
               }}
+              onArchiveChat={handleArchiveChatSession}
               onDeleteChat={handleDeleteChatSession}
               onSaveChatSessionTitle={handleUpdateChatSessionTitle}
               onSendChatMessage={handleSendChatMessage}

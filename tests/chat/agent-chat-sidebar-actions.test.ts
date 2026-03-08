@@ -80,10 +80,12 @@ function renderAgentChatPageMarkup(overrides: Record<string, unknown> = {}) {
       steeringQueuedMessageId: "",
       retryingQueuedMessageId: "",
       deletingQueuedMessageId: "",
+      chatListStatusFilter: "active",
       getCreateChatDisabledReason: () => "",
       onChatSessionRenameDraftChange: () => {},
       onChatDraftMessageChange: () => {},
       onBackToChats: () => {},
+      onArchiveChat: async () => {},
       onDeleteChat: async () => {},
       onSaveChatSessionTitle: async () => true,
       onSendChatMessage: () => {},
@@ -98,7 +100,7 @@ function renderAgentChatPageMarkup(overrides: Record<string, unknown> = {}) {
   );
 }
 
-test("AgentChatPage mobile sidebar renders delete actions for each chat session", () => {
+test("AgentChatPage mobile sidebar renders archive actions for active chat sessions", () => {
   const originalWindow = testGlobal.window;
   const localStorageMap = new Map<string, string>();
 
@@ -109,7 +111,53 @@ test("AgentChatPage mobile sidebar renders delete actions for each chat session"
     } as unknown as Window & typeof globalThis;
 
     const markup = renderAgentChatPageMarkup();
-    const deleteLabels = markup.match(/aria-label="Delete chat"/g) || [];
+    const archiveLabels = markup.match(/aria-label="Archive chat"/g) || [];
+
+    assert.equal(archiveLabels.length, 2);
+    assert.match(markup, /Thread 1/);
+    assert.match(markup, /Thread 2/);
+  } finally {
+    if (typeof originalWindow === "undefined") {
+      Reflect.deleteProperty(testGlobal, "window");
+    } else {
+      testGlobal.window = originalWindow;
+    }
+  }
+});
+
+test("AgentChatPage mobile sidebar renders permanent delete actions in archived mode", () => {
+  const originalWindow = testGlobal.window;
+  const localStorageMap = new Map<string, string>();
+
+  try {
+    testGlobal.window = {
+      localStorage: createMockStorage(localStorageMap),
+      matchMedia: () => ({ matches: true }),
+    } as unknown as Window & typeof globalThis;
+
+    const markup = renderAgentChatPageMarkup({
+      chatListStatusFilter: "archived",
+      session: {
+        id: "thread-1",
+        title: "Thread 1",
+        status: "archived",
+      },
+      chatSessionsByAgent: {
+        "agent-1": [
+          {
+            id: "thread-1",
+            title: "Thread 1",
+            status: "archived",
+          },
+          {
+            id: "thread-2",
+            title: "Thread 2",
+            status: "archived",
+          },
+        ],
+      },
+    });
+    const deleteLabels = markup.match(/aria-label="Delete permanently"/g) || [];
 
     assert.equal(deleteLabels.length, 2);
     assert.match(markup, /Thread 1/);
