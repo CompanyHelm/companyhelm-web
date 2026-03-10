@@ -24,10 +24,10 @@ test("GraphQL constants default to the local API endpoint when vite env is unset
   assert.equal(SUPABASE_AUTH_TOKEN_STORAGE_KEY, "supabase.auth.token");
 });
 
-test("visible navigation excludes hidden menu items while route ids still include them", () => {
+test("visible navigation keeps secrets visible while approvals stay hidden", () => {
   const visibleNavItemIds = NAV_SECTIONS.flatMap((section) => section.items.map((item) => item.id));
 
-  assert.equal(visibleNavItemIds.includes("secrets"), false);
+  assert.equal(visibleNavItemIds.includes("secrets"), true);
   assert.equal(visibleNavItemIds.includes("approvals"), false);
   assert.equal(PAGE_IDS.has("secrets"), true);
   assert.equal(PAGE_IDS.has("approvals"), true);
