@@ -162,6 +162,8 @@ test("AgentChatPage mobile sidebar renders permanent delete actions in archived 
     assert.equal(deleteLabels.length, 2);
     assert.match(markup, /Thread 1/);
     assert.match(markup, /Thread 2/);
+    assert.doesNotMatch(markup, /aria-label="New chat"/);
+    assert.doesNotMatch(markup, /aria-label="Start new chat"/);
   } finally {
     if (typeof originalWindow === "undefined") {
       Reflect.deleteProperty(testGlobal, "window");
