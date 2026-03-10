@@ -2087,9 +2087,6 @@ export const COMPANY_API_LIST_GITHUB_INSTALLATIONS_QUERY = `
   query CompanyApiListGithubInstallations {
     githubInstallations {
       installationId
-      company {
-        id
-      }
       createdAt
     }
   }
@@ -2119,9 +2116,6 @@ export const COMPANY_API_LIST_REPOSITORIES_CONNECTION_QUERY = `
           archived
           createdAt
           updatedAt
-          company {
-            id
-          }
           githubInstallation {
             installationId
           }
@@ -2149,9 +2143,6 @@ export const COMPANY_API_ADD_GITHUB_INSTALLATION_MUTATION = `
       githubInstallation {
         installationId
         createdAt
-        company {
-          id
-        }
       }
     }
   }
@@ -2192,9 +2183,6 @@ export const COMPANY_API_REFRESH_GITHUB_INSTALLATION_REPOSITORIES_MUTATION = `
         archived
         createdAt
         updatedAt
-        company {
-          id
-        }
         githubInstallation {
           installationId
         }

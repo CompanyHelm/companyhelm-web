@@ -1385,8 +1385,9 @@ async function executeGraphQL(query: any, variables: any = {}) {
   }
 
   if (query === LIST_GITHUB_INSTALLATIONS_QUERY) {
+    const companyId = resolveLegacyId(variables?.companyId);
     const data = await executeRawGraphQL(COMPANY_API_LIST_GITHUB_INSTALLATIONS_QUERY, {
-      companyId: resolveLegacyId(variables?.companyId),
+      companyId,
     });
     const githubInstallations = Array.isArray(data?.githubInstallations)
       ? data.githubInstallations
@@ -1394,15 +1395,16 @@ async function executeGraphQL(query: any, variables: any = {}) {
     return {
       githubInstallations: githubInstallations.map((installation: any) => ({
         installationId: resolveLegacyId(installation?.installationId),
-        companyId: resolveLegacyId(installation?.company?.id),
+        companyId,
         createdAt: String(installation?.createdAt || ""),
       })),
     };
   }
 
   if (query === ADD_GITHUB_INSTALLATION_MUTATION) {
+    const companyId = resolveLegacyId(variables?.companyId);
     const data = await executeRawGraphQL(COMPANY_API_ADD_GITHUB_INSTALLATION_MUTATION, {
-      companyId: resolveLegacyId(variables?.companyId),
+      companyId,
       installationId: resolveLegacyId(variables?.installationId),
       setupAction: resolveLegacyId(variables?.setupAction) || null,
     });
@@ -1415,7 +1417,7 @@ async function executeGraphQL(query: any, variables: any = {}) {
         githubInstallation: installation
           ? {
               installationId: resolveLegacyId(installation.installationId),
-              companyId: resolveLegacyId(installation.company?.id),
+              companyId,
               createdAt: String(installation.createdAt || ""),
             }
           : null,
@@ -1842,22 +1844,25 @@ async function executeGraphQL(query: any, variables: any = {}) {
       return { repositories: [] };
     }
 
+    const companyId = resolveLegacyId(variables?.companyId);
+    const githubInstallationId = resolveLegacyId(variables?.githubInstallationId) || null;
     const repositories = await fetchCompanyApiConnectionNodes({
       query: COMPANY_API_LIST_REPOSITORIES_CONNECTION_QUERY,
       rootField: "repositories",
       variables: {
-        companyId: resolveLegacyId(variables?.companyId),
-        githubInstallationId: resolveLegacyId(variables?.githubInstallationId) || null,
+        companyId,
+        githubInstallationId,
       },
     });
 
     return {
       repositories: repositories.map((repository: any) => ({
         id: resolveLegacyId(repository?.id),
-        companyId: resolveLegacyId(repository?.company?.id),
+        companyId,
         provider: resolveLegacyId(repository?.provider) || "github",
         externalId: resolveLegacyId(repository?.externalId),
-        githubInstallationId: resolveLegacyId(repository?.githubInstallation?.installationId),
+        githubInstallationId:
+          resolveLegacyId(repository?.githubInstallation?.installationId, githubInstallationId),
         name: resolveLegacyId(repository?.name),
         fullName: resolveLegacyId(repository?.fullName),
         htmlUrl: resolveLegacyId(repository?.htmlUrl) || null,
@@ -2337,11 +2342,13 @@ async function executeGraphQL(query: any, variables: any = {}) {
   }
 
   if (query === REFRESH_GITHUB_INSTALLATION_REPOSITORIES_MUTATION) {
+    const companyId = resolveLegacyId(variables?.companyId);
+    const installationId = resolveLegacyId(variables?.installationId);
     const data = await executeRawGraphQL(
       COMPANY_API_REFRESH_GITHUB_INSTALLATION_REPOSITORIES_MUTATION,
       {
-        companyId: resolveLegacyId(variables?.companyId),
-        installationId: resolveLegacyId(variables?.installationId),
+        companyId,
+        installationId,
       },
     );
     const payload = data?.refreshGithubInstallationRepositories;
@@ -2352,10 +2359,13 @@ async function executeGraphQL(query: any, variables: any = {}) {
         repositories: Array.isArray(payload?.repositories)
           ? payload.repositories.map((repository: any) => ({
             id: resolveLegacyId(repository?.id),
-            companyId: resolveLegacyId(repository?.company?.id),
+            companyId,
             provider: resolveLegacyId(repository?.provider) || "github",
             externalId: resolveLegacyId(repository?.externalId),
-            githubInstallationId: resolveLegacyId(repository?.githubInstallation?.installationId),
+            githubInstallationId: resolveLegacyId(
+              repository?.githubInstallation?.installationId,
+              installationId,
+            ),
             name: resolveLegacyId(repository?.name),
             fullName: resolveLegacyId(repository?.fullName),
             htmlUrl: resolveLegacyId(repository?.htmlUrl) || null,
