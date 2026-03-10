@@ -108,6 +108,8 @@ export interface McpServer extends NamedEntity {
   envVars?: McpKeyValueEntry[];
   authType?: string;
   bearerTokenSecretId?: string | null;
+  oauthConnectionStatus?: string | null;
+  oauthLastError?: string | null;
   customHeaders?: McpKeyValueEntry[];
   enabled?: boolean;
 }

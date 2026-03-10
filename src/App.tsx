@@ -13,6 +13,7 @@ import {
   MCP_AUTH_TYPE_NONE,
   MCP_AUTH_TYPE_BEARER_TOKEN,
   MCP_AUTH_TYPE_CUSTOM_HEADERS,
+  MCP_AUTH_TYPE_OAUTH,
   SIDEBAR_COLLAPSE_MEDIA_QUERY,
   THREAD_TITLE_MAX_LENGTH,
   NAV_SECTIONS,
@@ -92,6 +93,8 @@ import {
   CREATE_MCP_SERVER_MUTATION,
   UPDATE_MCP_SERVER_MUTATION,
   DELETE_MCP_SERVER_MUTATION,
+  START_MCP_SERVER_OAUTH_MUTATION,
+  DISCONNECT_MCP_SERVER_OAUTH_MUTATION,
   CREATE_SECRET_MUTATION,
   UPDATE_SECRET_MUTATION,
   DELETE_SECRET_MUTATION,
@@ -167,6 +170,8 @@ import {
   COMPANY_API_CREATE_MCP_SERVER_MUTATION,
   COMPANY_API_UPDATE_MCP_SERVER_MUTATION,
   COMPANY_API_DELETE_MCP_SERVER_MUTATION,
+  COMPANY_API_START_MCP_SERVER_OAUTH_MUTATION,
+  COMPANY_API_DISCONNECT_MCP_SERVER_OAUTH_MUTATION,
   COMPANY_API_CREATE_SECRET_MUTATION,
   COMPANY_API_UPDATE_SECRET_MUTATION,
   COMPANY_API_DELETE_SECRET_MUTATION,
@@ -310,6 +315,15 @@ function toCompanyApiThreadStatusFilter(value: any) {
 function isArchivedThreadStatus(value: any) {
   const normalizedStatus = String(value || "").trim().toLowerCase();
   return normalizedStatus === "archived" || normalizedStatus === "archiving";
+}
+
+function parseOauthRequestedScopes(rawValue: any) {
+  return Array.from(new Set(
+    String(rawValue || "")
+      .split(/[\s,]+/g)
+      .map((scope) => scope.trim())
+      .filter(Boolean),
+  ));
 }
 
 
@@ -889,6 +903,8 @@ function toMcpServerPayload(mcpServer: any) {
       : [],
     authType: normalizeMcpAuthType(mcpServer?.authType),
     bearerTokenSecretId: resolveLegacyId(mcpServer?.bearerTokenSecretId) || null,
+    oauthConnectionStatus: resolveLegacyId(mcpServer?.oauthConnectionStatus) || null,
+    oauthLastError: String(mcpServer?.oauthLastError || "").trim() || null,
     customHeaders: Array.isArray(mcpServer?.customHeaders)
       ? mcpServer.customHeaders
           .map((header: any) => ({
@@ -2646,6 +2662,40 @@ async function executeGraphQL(query: any, variables: any = {}) {
     };
   }
 
+  if (query === START_MCP_SERVER_OAUTH_MUTATION) {
+    const data = await executeRawGraphQL(COMPANY_API_START_MCP_SERVER_OAUTH_MUTATION, {
+      companyId: resolveLegacyId(variables?.companyId),
+      mcpServerId: resolveLegacyId(variables?.mcpServerId),
+      oauthClientId: resolveLegacyId(variables?.oauthClientId) || null,
+      oauthClientSecret: String(variables?.oauthClientSecret || "").trim() || null,
+      requestedScopes: Array.isArray(variables?.requestedScopes)
+        ? variables.requestedScopes.map((scope: any) => String(scope || "").trim()).filter(Boolean)
+        : [],
+    });
+    const payload = data?.startMcpServerOAuth;
+    return {
+      startMcpServerOAuth: {
+        ok: Boolean(payload?.ok),
+        error: payload?.error ? String(payload.error) : null,
+        authorizationUrl: payload?.authorizationUrl ? String(payload.authorizationUrl) : null,
+      },
+    };
+  }
+
+  if (query === DISCONNECT_MCP_SERVER_OAUTH_MUTATION) {
+    const data = await executeRawGraphQL(COMPANY_API_DISCONNECT_MCP_SERVER_OAUTH_MUTATION, {
+      companyId: resolveLegacyId(variables?.companyId),
+      mcpServerId: resolveLegacyId(variables?.mcpServerId),
+    });
+    const payload = data?.disconnectMcpServerOAuth;
+    return {
+      disconnectMcpServerOAuth: {
+        ok: Boolean(payload?.ok),
+        error: payload?.error ? String(payload.error) : null,
+      },
+    };
+  }
+
   if (query === CREATE_SECRET_MUTATION) {
     const data = await executeRawGraphQL(COMPANY_API_CREATE_SECRET_MUTATION, {
       companyId: resolveLegacyId(variables?.companyId),
@@ -2856,6 +2906,8 @@ function App() {
   const [approvingApprovalId, setApprovingApprovalId] = useState<any>(null);
   const [rejectingApprovalId, setRejectingApprovalId] = useState<any>(null);
   const [savingMcpServerId, setSavingMcpServerId] = useState<any>(null);
+  const [connectingMcpServerId, setConnectingMcpServerId] = useState<any>(null);
+  const [disconnectingMcpServerOAuthId, setDisconnectingMcpServerOAuthId] = useState<any>(null);
   const [deletingTaskId, setDeletingTaskId] = useState<any>(null);
   const [deletingSkillId, setDeletingSkillId] = useState<any>(null);
   const [deletingSecretId, setDeletingSecretId] = useState<any>(null);
@@ -7083,6 +7135,11 @@ function App() {
         authType: MCP_AUTH_TYPE_NONE,
         bearerTokenSecretId: "",
         customHeadersText: "",
+        oauthConnectionStatus: "",
+        oauthLastError: "",
+        oauthClientId: "",
+        oauthClientSecret: "",
+        oauthRequestedScopesText: "",
         enabled: true,
       };
 
@@ -7093,6 +7150,9 @@ function App() {
 
       if (field === "authType") {
         nextDraft.authType = normalizeMcpAuthType(value);
+        if (nextDraft.authType !== MCP_AUTH_TYPE_BEARER_TOKEN) {
+          nextDraft.bearerTokenSecretId = "";
+        }
       }
       if (field === "transportType") {
         nextDraft.transportType = normalizeMcpTransportType(value);
@@ -7126,6 +7186,11 @@ function App() {
       authType: MCP_AUTH_TYPE_NONE,
       bearerTokenSecretId: "",
       customHeadersText: "",
+      oauthConnectionStatus: "",
+      oauthLastError: "",
+      oauthClientId: "",
+      oauthClientSecret: "",
+      oauthRequestedScopesText: "",
       enabled: true,
     };
 
@@ -7152,6 +7217,63 @@ function App() {
       setMcpServerError(updateError.message);
     } finally {
       setSavingMcpServerId(null);
+    }
+  }
+
+  async function handleStartMcpServerOAuth(mcpServerId: any) {
+    const normalizedMcpServerId = String(mcpServerId || "").trim();
+    if (!selectedCompanyId || !normalizedMcpServerId) {
+      setMcpServerError("Select a company before connecting MCP OAuth.");
+      return;
+    }
+
+    const draft = mcpServerDrafts[normalizedMcpServerId] || {};
+
+    try {
+      setConnectingMcpServerId(normalizedMcpServerId);
+      setMcpServerError("");
+      const data = await executeGraphQL(START_MCP_SERVER_OAUTH_MUTATION, {
+        companyId: selectedCompanyId,
+        mcpServerId: normalizedMcpServerId,
+        oauthClientId: String(draft.oauthClientId || "").trim() || null,
+        oauthClientSecret: String(draft.oauthClientSecret || "").trim() || null,
+        requestedScopes: parseOauthRequestedScopes(draft.oauthRequestedScopesText),
+      });
+      const result = data.startMcpServerOAuth;
+      if (!result?.ok || !result?.authorizationUrl) {
+        throw new Error(result?.error || "Failed to start MCP OAuth.");
+      }
+      window.location.assign(result.authorizationUrl);
+    } catch (startError: any) {
+      setMcpServerError(startError.message || "Failed to start MCP OAuth.");
+    } finally {
+      setConnectingMcpServerId(null);
+    }
+  }
+
+  async function handleDisconnectMcpServerOAuth(mcpServerId: any) {
+    const normalizedMcpServerId = String(mcpServerId || "").trim();
+    if (!selectedCompanyId || !normalizedMcpServerId) {
+      setMcpServerError("Select a company before disconnecting MCP OAuth.");
+      return;
+    }
+
+    try {
+      setDisconnectingMcpServerOAuthId(normalizedMcpServerId);
+      setMcpServerError("");
+      const data = await executeGraphQL(DISCONNECT_MCP_SERVER_OAUTH_MUTATION, {
+        companyId: selectedCompanyId,
+        mcpServerId: normalizedMcpServerId,
+      });
+      const result = data.disconnectMcpServerOAuth;
+      if (!result?.ok) {
+        throw new Error(result?.error || "Failed to disconnect MCP OAuth.");
+      }
+      await loadMcpServers();
+    } catch (disconnectError: any) {
+      setMcpServerError(disconnectError.message || "Failed to disconnect MCP OAuth.");
+    } finally {
+      setDisconnectingMcpServerOAuthId(null);
     }
   }
 
@@ -9231,6 +9353,8 @@ function App() {
             mcpServerError={mcpServerError}
             isCreatingMcpServer={isCreatingMcpServer}
             savingMcpServerId={savingMcpServerId}
+            connectingMcpServerId={connectingMcpServerId}
+            disconnectingMcpServerOAuthId={disconnectingMcpServerOAuthId}
             deletingMcpServerId={deletingMcpServerId}
             mcpServerName={mcpServerName}
             mcpServerTransportType={mcpServerTransportType}
@@ -9260,6 +9384,8 @@ function App() {
             onCreateMcpServer={handleCreateMcpServer}
             onMcpServerDraftChange={handleMcpServerDraftChange}
             onSaveMcpServer={handleSaveMcpServer}
+            onStartMcpServerOAuth={handleStartMcpServerOAuth}
+            onDisconnectMcpServerOAuth={handleDisconnectMcpServerOAuth}
             onDeleteMcpServer={handleDeleteMcpServer}
           />
         ) : null}

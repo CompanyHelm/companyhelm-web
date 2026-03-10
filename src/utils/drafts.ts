@@ -127,6 +127,11 @@ export function createMcpServerDrafts(mcpServers: unknown): Record<string, Loose
       authType: normalizeMcpAuthType(mcpServer.authType),
       bearerTokenSecretId: String(mcpServer.bearerTokenSecretId || "").trim(),
       customHeadersText: mcpHeadersToText(mcpServer.customHeaders || []),
+      oauthConnectionStatus: String(mcpServer.oauthConnectionStatus || "").trim(),
+      oauthLastError: String(mcpServer.oauthLastError || "").trim(),
+      oauthClientId: "",
+      oauthClientSecret: "",
+      oauthRequestedScopesText: "",
       enabled: mcpServer.enabled !== false,
     };
     return drafts;
