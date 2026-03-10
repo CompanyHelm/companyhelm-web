@@ -99,3 +99,43 @@ test("generateRuntimeConfig fails when yaml is invalid for schema", () => {
     rmSync(repoRoot, { recursive: true, force: true });
   }
 });
+
+test("generateRuntimeConfig resolves environment placeholders before validation", () => {
+  const repoRoot = mkdtempSync(join(tmpdir(), "companyhelm-frontend-config-env-"));
+  const originalAnonKey = process.env.SUPABASE_ANON_KEY;
+  try {
+    process.env.SUPABASE_ANON_KEY = "env-anon-key";
+    mkdirSync(join(repoRoot, "config"), { recursive: true });
+    mkdirSync(join(repoRoot, "src", "generated"), { recursive: true });
+    writeFileSync(
+      join(repoRoot, "config", "dev.yaml"),
+      [
+        "api:",
+        "  graphqlApiUrl: \"https://api.dev.companyhelm.com/graphql\"",
+        "  runnerGrpcTarget: \"dev-runner.companyhelm.internal:50051\"",
+        "auth:",
+        "  provider: \"supabase\"",
+        "  companyhelm:",
+        "    tokenStorageKey: \"companyhelm.auth.token\"",
+        "  supabase:",
+        "    url: \"https://zbhnqhoctbgculdvsgpv.supabase.co\"",
+        "    anonKey: \"${SUPABASE_ANON_KEY}\"",
+        "    tokenStorageKey: \"supabase.auth.token\"",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+
+    const result = generateRuntimeConfig({ repoRoot, environment: "dev" });
+
+    assert.equal(result.config.auth.provider, "supabase");
+    assert.equal(result.config.auth.supabase?.anonKey, "env-anon-key");
+  } finally {
+    if (typeof originalAnonKey === "undefined") {
+      delete process.env.SUPABASE_ANON_KEY;
+    } else {
+      process.env.SUPABASE_ANON_KEY = originalAnonKey;
+    }
+    rmSync(repoRoot, { recursive: true, force: true });
+  }
+});
