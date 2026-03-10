@@ -78,6 +78,7 @@ test("createAuthProvider returns supabase provider", () => {
   });
 
   assert.equal(provider.name, "supabase");
+  assert.equal(provider.requiresProfileOnSignUp, true);
 });
 
 test("signIn sends active company context header to GraphQL API", async () => {

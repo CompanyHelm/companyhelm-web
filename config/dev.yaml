@@ -2,6 +2,10 @@ api:
   graphqlApiUrl: "https://api.dev.companyhelm.com/graphql"
   runnerGrpcTarget: "dev-runner.companyhelm.internal:50051"
 auth:
-  provider: "companyhelm"
+  provider: "supabase"
   companyhelm:
     tokenStorageKey: "companyhelm.auth.token"
+  supabase:
+    url: "https://zbhnqhoctbgculdvsgpv.supabase.co"
+    anonKey: "${SUPABASE_ANON_KEY}"
+    tokenStorageKey: "supabase.auth.token"
