@@ -37,10 +37,12 @@ export const MCP_TRANSPORT_TYPE_OPTIONS = [
 export const MCP_AUTH_TYPE_NONE = "none";
 export const MCP_AUTH_TYPE_BEARER_TOKEN = "bearer_token";
 export const MCP_AUTH_TYPE_CUSTOM_HEADERS = "custom_headers";
+export const MCP_AUTH_TYPE_OAUTH = "oauth";
 export const MCP_AUTH_TYPE_OPTIONS = [
   { value: MCP_AUTH_TYPE_NONE, label: "No auth" },
   { value: MCP_AUTH_TYPE_BEARER_TOKEN, label: "Bearer token" },
   { value: MCP_AUTH_TYPE_CUSTOM_HEADERS, label: "Custom headers" },
+  { value: MCP_AUTH_TYPE_OAUTH, label: "OAuth" },
 ];
 export const CHAT_MESSAGE_BATCH_SIZE = 50;
 export const THREAD_TITLE_MAX_LENGTH = 100;

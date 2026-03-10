@@ -8,9 +8,21 @@ import {
   MCP_AUTH_TYPE_NONE,
   MCP_AUTH_TYPE_BEARER_TOKEN,
   MCP_AUTH_TYPE_CUSTOM_HEADERS,
+  MCP_AUTH_TYPE_OAUTH,
   MCP_AUTH_TYPE_OPTIONS,
 } from "../utils/constants.ts";
 import { useSetPageActions } from "../components/PageActionsContext.tsx";
+
+function formatOauthConnectionStatus(status: any) {
+  const normalizedStatus = String(status || "").trim().toLowerCase();
+  if (normalizedStatus === "connected") {
+    return "OAuth connected";
+  }
+  if (normalizedStatus === "degraded") {
+    return "OAuth degraded";
+  }
+  return "OAuth not connected";
+}
 
 export function McpServersPage({
   selectedCompanyId,
@@ -20,6 +32,8 @@ export function McpServersPage({
   mcpServerError,
   isCreatingMcpServer,
   savingMcpServerId,
+  connectingMcpServerId,
+  disconnectingMcpServerOAuthId,
   deletingMcpServerId,
   mcpServerName,
   mcpServerTransportType,
@@ -47,6 +61,8 @@ export function McpServersPage({
   onCreateMcpServer,
   onMcpServerDraftChange,
   onSaveMcpServer,
+  onStartMcpServerOAuth,
+  onDisconnectMcpServerOAuth,
   onDeleteMcpServer,
 }: any) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState<any>(false);
@@ -114,10 +130,18 @@ export function McpServersPage({
                 authType: MCP_AUTH_TYPE_NONE,
                 bearerTokenSecretId: "",
                 customHeadersText: "",
+                oauthConnectionStatus: "",
+                oauthLastError: "",
+                oauthClientId: "",
+                oauthClientSecret: "",
+                oauthRequestedScopesText: "",
                 enabled: true,
               };
               const isSavingOrDeleting =
-                savingMcpServerId === mcpServer.id || deletingMcpServerId === mcpServer.id;
+                savingMcpServerId === mcpServer.id
+                || deletingMcpServerId === mcpServer.id
+                || connectingMcpServerId === mcpServer.id
+                || disconnectingMcpServerOAuthId === mcpServer.id;
               const transportLabel =
                 MCP_TRANSPORT_TYPE_OPTIONS.find((option: any) => option.value === draft.transportType)
                   ?.label || "Streamable HTTP";
@@ -125,6 +149,9 @@ export function McpServersPage({
                 draft.transportType === MCP_TRANSPORT_TYPE_STDIO
                   ? draft.command || "-"
                   : draft.url || "-";
+              const oauthStatusSummary = draft.authType === MCP_AUTH_TYPE_OAUTH
+                ? ` \u00b7 ${formatOauthConnectionStatus(draft.oauthConnectionStatus)}`
+                : "";
 
               return (
                 <li
@@ -146,6 +173,7 @@ export function McpServersPage({
                     <p className="chat-card-meta">
                       {transportLabel} &middot; {endpointSummary} &middot;{" "}
                       {draft.enabled ? "enabled" : "disabled"}
+                      {oauthStatusSummary}
                     </p>
                   </div>
                   <div className="chat-card-actions">
@@ -294,6 +322,12 @@ export function McpServersPage({
                 </>
               ) : null}
 
+              {mcpServerAuthType === MCP_AUTH_TYPE_OAUTH ? (
+                <p className="chat-card-meta">
+                  Save the server first, then connect OAuth from the edit dialog.
+                </p>
+              ) : null}
+
               <label htmlFor="create-mcp-headers">Custom headers</label>
               <textarea
                 id="create-mcp-headers"
@@ -348,11 +382,18 @@ export function McpServersPage({
             authType: MCP_AUTH_TYPE_NONE,
             bearerTokenSecretId: "",
             customHeadersText: "",
+            oauthConnectionStatus: "",
+            oauthLastError: "",
+            oauthClientId: "",
+            oauthClientSecret: "",
+            oauthRequestedScopesText: "",
             enabled: true,
           };
           const isSavingOrDeleting =
             savingMcpServerId === editingMcpServerId ||
-            deletingMcpServerId === editingMcpServerId;
+            deletingMcpServerId === editingMcpServerId ||
+            connectingMcpServerId === editingMcpServerId ||
+            disconnectingMcpServerOAuthId === editingMcpServerId;
           const requiresSecretCreation =
             draft.transportType !== MCP_TRANSPORT_TYPE_STDIO
             && draft.authType === MCP_AUTH_TYPE_BEARER_TOKEN
@@ -551,6 +592,103 @@ export function McpServersPage({
                         disabled={isSavingOrDeleting}
                       />
                     </div>
+                  ) : null}
+
+                  {draft.authType === MCP_AUTH_TYPE_OAUTH ? (
+                    <>
+                      <div className="chat-settings-field">
+                        <label className="chat-settings-label">OAuth connection</label>
+                        <p className="chat-card-meta">{formatOauthConnectionStatus(draft.oauthConnectionStatus)}</p>
+                        {draft.oauthConnectionStatus === "degraded" ? (
+                          <p className="error-banner">
+                            OAuth refresh failed. Re-sign in to restore this MCP server.
+                          </p>
+                        ) : null}
+                        {draft.oauthLastError ? (
+                          <p className="chat-card-meta">{draft.oauthLastError}</p>
+                        ) : null}
+                      </div>
+
+                      <div className="chat-settings-field">
+                        <label htmlFor={`edit-mcp-oauth-scopes-${editingMcpServerId}`} className="chat-settings-label">
+                          Requested scopes
+                        </label>
+                        <input
+                          id={`edit-mcp-oauth-scopes-${editingMcpServerId}`}
+                          className="chat-settings-input"
+                          type="text"
+                          value={draft.oauthRequestedScopesText}
+                          onChange={(event: any) =>
+                            onMcpServerDraftChange(editingMcpServerId, "oauthRequestedScopesText", event.target.value)
+                          }
+                          placeholder="openid profile"
+                          disabled={isSavingOrDeleting}
+                        />
+                        <p className="chat-card-meta">Optional. Space or comma separated.</p>
+                      </div>
+
+                      <div className="chat-settings-field">
+                        <label htmlFor={`edit-mcp-oauth-client-id-${editingMcpServerId}`} className="chat-settings-label">
+                          Manual OAuth client ID
+                        </label>
+                        <input
+                          id={`edit-mcp-oauth-client-id-${editingMcpServerId}`}
+                          className="chat-settings-input"
+                          type="text"
+                          value={draft.oauthClientId}
+                          onChange={(event: any) =>
+                            onMcpServerDraftChange(editingMcpServerId, "oauthClientId", event.target.value)
+                          }
+                          placeholder="Leave blank for dynamic registration"
+                          disabled={isSavingOrDeleting}
+                        />
+                      </div>
+
+                      <div className="chat-settings-field">
+                        <label
+                          htmlFor={`edit-mcp-oauth-client-secret-${editingMcpServerId}`}
+                          className="chat-settings-label"
+                        >
+                          Manual OAuth client secret
+                        </label>
+                        <input
+                          id={`edit-mcp-oauth-client-secret-${editingMcpServerId}`}
+                          className="chat-settings-input"
+                          type="password"
+                          value={draft.oauthClientSecret}
+                          onChange={(event: any) =>
+                            onMcpServerDraftChange(editingMcpServerId, "oauthClientSecret", event.target.value)
+                          }
+                          placeholder="Optional if already stored"
+                          disabled={isSavingOrDeleting}
+                        />
+                        <p className="chat-card-meta">
+                          Leave both manual fields blank to use dynamic registration or stored manual credentials.
+                        </p>
+                      </div>
+
+                      <div className="chat-settings-actions">
+                        <button
+                          type="button"
+                          onClick={() => onStartMcpServerOAuth(editingMcpServerId)}
+                          disabled={isSavingOrDeleting}
+                        >
+                          {connectingMcpServerId === editingMcpServerId
+                            ? "Connecting..."
+                            : draft.oauthConnectionStatus === "connected"
+                              ? "Reconnect OAuth"
+                              : "Connect OAuth"}
+                        </button>
+                        <button
+                          type="button"
+                          className="secondary-btn"
+                          onClick={() => onDisconnectMcpServerOAuth(editingMcpServerId)}
+                          disabled={isSavingOrDeleting || !draft.oauthConnectionStatus}
+                        >
+                          {disconnectingMcpServerOAuthId === editingMcpServerId ? "Disconnecting..." : "Disconnect"}
+                        </button>
+                      </div>
+                    </>
                   ) : null}
                 </>
               )}

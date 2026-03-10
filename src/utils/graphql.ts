@@ -816,6 +816,8 @@ export const LIST_MCP_SERVERS_QUERY = `
       }
       authType
       bearerTokenSecretId
+      oauthConnectionStatus
+      oauthLastError
       customHeaders {
         key
         value
@@ -1506,6 +1508,8 @@ export const CREATE_MCP_SERVER_MUTATION = `
         }
         authType
         bearerTokenSecretId
+        oauthConnectionStatus
+        oauthLastError
         customHeaders {
           key
           value
@@ -1558,6 +1562,8 @@ export const UPDATE_MCP_SERVER_MUTATION = `
         }
         authType
         bearerTokenSecretId
+        oauthConnectionStatus
+        oauthLastError
         customHeaders {
           key
           value
@@ -1574,6 +1580,35 @@ export const DELETE_MCP_SERVER_MUTATION = `
       ok
       error
       deletedMcpServerId
+    }
+  }
+`;
+
+export const START_MCP_SERVER_OAUTH_MUTATION = `
+  mutation StartMcpServerOAuth(
+    $mcpServerId: ID!
+    $oauthClientId: String
+    $oauthClientSecret: String
+    $requestedScopes: [String!]
+  ) {
+    startMcpServerOAuth(
+      mcpServerId: $mcpServerId
+      oauthClientId: $oauthClientId
+      oauthClientSecret: $oauthClientSecret
+      requestedScopes: $requestedScopes
+    ) {
+      ok
+      error
+      authorizationUrl
+    }
+  }
+`;
+
+export const DISCONNECT_MCP_SERVER_OAUTH_MUTATION = `
+  mutation DisconnectMcpServerOAuth($mcpServerId: ID!) {
+    disconnectMcpServerOAuth(mcpServerId: $mcpServerId) {
+      ok
+      error
     }
   }
 `;
@@ -2897,6 +2932,8 @@ export const COMPANY_API_LIST_MCP_SERVERS_QUERY = `
       }
       authType
       bearerTokenSecretId
+      oauthConnectionStatus
+      oauthLastError
       customHeaders {
         key
         value
@@ -3110,6 +3147,8 @@ export const COMPANY_API_CREATE_MCP_SERVER_MUTATION = `
         }
         authType
         bearerTokenSecretId
+        oauthConnectionStatus
+        oauthLastError
         customHeaders {
           key
           value
@@ -3162,6 +3201,8 @@ export const COMPANY_API_UPDATE_MCP_SERVER_MUTATION = `
         }
         authType
         bearerTokenSecretId
+        oauthConnectionStatus
+        oauthLastError
         customHeaders {
           key
           value
@@ -3178,6 +3219,35 @@ export const COMPANY_API_DELETE_MCP_SERVER_MUTATION = `
       ok
       error
       deletedMcpServerId
+    }
+  }
+`;
+
+export const COMPANY_API_START_MCP_SERVER_OAUTH_MUTATION = `
+  mutation CompanyApiStartMcpServerOAuth(
+    $mcpServerId: ID!
+    $oauthClientId: String
+    $oauthClientSecret: String
+    $requestedScopes: [String!]
+  ) {
+    startMcpServerOAuth(
+      mcpServerId: $mcpServerId
+      oauthClientId: $oauthClientId
+      oauthClientSecret: $oauthClientSecret
+      requestedScopes: $requestedScopes
+    ) {
+      ok
+      error
+      authorizationUrl
+    }
+  }
+`;
+
+export const COMPANY_API_DISCONNECT_MCP_SERVER_OAUTH_MUTATION = `
+  mutation CompanyApiDisconnectMcpServerOAuth($mcpServerId: ID!) {
+    disconnectMcpServerOAuth(mcpServerId: $mcpServerId) {
+      ok
+      error
     }
   }
 `;

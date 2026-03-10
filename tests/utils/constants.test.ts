@@ -6,6 +6,8 @@ import {
   DEFAULT_RUNNER_GRPC_TARGET,
   GRAPHQL_URL,
   GRAPHQL_WS_URL,
+  MCP_AUTH_TYPE_OAUTH,
+  MCP_AUTH_TYPE_OPTIONS,
   NAV_SECTIONS,
   PAGE_IDS,
   SUPABASE_ANON_KEY,
@@ -31,4 +33,9 @@ test("visible navigation excludes hidden menu items while route ids still includ
   assert.equal(visibleNavItemIds.includes("approvals"), false);
   assert.equal(PAGE_IDS.has("secrets"), true);
   assert.equal(PAGE_IDS.has("approvals"), true);
+});
+
+test("MCP auth options include OAuth", () => {
+  assert.equal(MCP_AUTH_TYPE_OAUTH, "oauth");
+  assert.equal(MCP_AUTH_TYPE_OPTIONS.some((option) => option.value === "oauth"), true);
 });

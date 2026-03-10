@@ -4,6 +4,7 @@ import {
   getRunnerModelNames,
   getRunnerReasoningLevels,
   mergeAgentRunnerPayloadList,
+  normalizeMcpAuthType,
   normalizeRunnerAvailableAgentSdks,
   normalizeRunnerCodexAvailableModels,
   replaceAgentRunnerPayloadList,
@@ -123,4 +124,9 @@ test("replaceAgentRunnerPayloadList removes runners missing from full refresh pa
       { id: "runner-1", name: "Runner One Updated", status: "busy" },
     ],
   );
+});
+
+test("normalizeMcpAuthType accepts oauth aliases", () => {
+  assert.equal(normalizeMcpAuthType("oauth"), "oauth");
+  assert.equal(normalizeMcpAuthType("OAUTH"), "oauth");
 });

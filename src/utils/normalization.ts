@@ -6,6 +6,7 @@ import {
   MCP_AUTH_TYPE_NONE,
   MCP_AUTH_TYPE_BEARER_TOKEN,
   MCP_AUTH_TYPE_CUSTOM_HEADERS,
+  MCP_AUTH_TYPE_OAUTH,
   AVAILABLE_AGENT_SDKS,
   DEFAULT_AGENT_SDK,
 } from "./constants.ts";
@@ -92,7 +93,8 @@ export function normalizeMcpAuthType(value: unknown): string {
   if (
     normalized === MCP_AUTH_TYPE_NONE ||
     normalized === MCP_AUTH_TYPE_BEARER_TOKEN ||
-    normalized === MCP_AUTH_TYPE_CUSTOM_HEADERS
+    normalized === MCP_AUTH_TYPE_CUSTOM_HEADERS ||
+    normalized === MCP_AUTH_TYPE_OAUTH
   ) {
     return normalized;
   }

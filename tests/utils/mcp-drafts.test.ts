@@ -27,8 +27,47 @@ test("createMcpServerDrafts keeps bearer token secret references", () => {
       authType: "bearer_token",
       bearerTokenSecretId: "secret-1",
       customHeadersText: "",
+      oauthConnectionStatus: "",
+      oauthLastError: "",
+      oauthClientId: "",
+      oauthClientSecret: "",
+      oauthRequestedScopesText: "",
       enabled: true,
     },
+  });
+});
+
+test("createMcpServerDrafts keeps oauth connection status fields", () => {
+  const drafts = createMcpServerDrafts([
+    {
+      id: "mcp-2",
+      name: "Supabase",
+      transportType: "streamable_http",
+      url: "https://mcp.supabase.com/mcp",
+      authType: "oauth",
+      oauthConnectionStatus: "degraded",
+      oauthLastError: "Refresh token expired",
+      customHeaders: [],
+      enabled: true,
+    },
+  ]);
+
+  assert.deepEqual(drafts["mcp-2"], {
+    name: "Supabase",
+    transportType: "streamable_http",
+    url: "https://mcp.supabase.com/mcp",
+    command: "",
+    argsText: "",
+    envVarsText: "",
+    authType: "oauth",
+    bearerTokenSecretId: "",
+    customHeadersText: "",
+    oauthConnectionStatus: "degraded",
+    oauthLastError: "Refresh token expired",
+    oauthClientId: "",
+    oauthClientSecret: "",
+    oauthRequestedScopesText: "",
+    enabled: true,
   });
 });
 
