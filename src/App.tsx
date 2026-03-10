@@ -42,6 +42,7 @@ import {
   CREATE_AGENT_RUNNER_MUTATION,
   REGENERATE_AGENT_RUNNER_SECRET_MUTATION,
   LIST_AGENTS_QUERY,
+  LIST_AGENTS_WITH_RUNNERS_QUERY,
   LIST_SKILLS_QUERY,
   LIST_ROLES_QUERY,
   LIST_SKILL_GROUPS_QUERY,
@@ -174,6 +175,7 @@ import {
   COMPANY_API_REGENERATE_AGENT_RUNNER_SECRET_MUTATION,
   COMPANY_API_DELETE_AGENT_RUNNER_MUTATION,
   COMPANY_API_LIST_AGENTS_CONNECTION_QUERY,
+  COMPANY_API_LIST_AGENTS_PAGE_QUERY,
   COMPANY_API_LIST_AGENTS_WITH_THREADS_CONNECTION_QUERY,
   COMPANY_API_CREATE_AGENT_MUTATION,
   COMPANY_API_UPDATE_AGENT_MUTATION,
@@ -206,6 +208,7 @@ import {
   resolveRunnerSdkAndModelIds,
   resolveRunnerBackedModelSelection,
   mergeAgentRunnerPayloadList,
+  replaceAgentRunnerPayloadList,
   getRunnerModelNames,
   getRunnerReasoningLevels,
   getRunnerCodexModelEntriesForRunner,
@@ -1466,6 +1469,37 @@ async function executeGraphQL(query: any, variables: any = {}) {
         error: data?.deleteAgentRunner ? null : "Runner deletion failed.",
         deletedAgentRunnerId: agentRunnerId,
       },
+    };
+  }
+
+  if (query === LIST_AGENTS_WITH_RUNNERS_QUERY) {
+    const companyId = resolveLegacyId(variables?.companyId) || null;
+    const pageData = await executeRawGraphQL(COMPANY_API_LIST_AGENTS_PAGE_QUERY, {
+      companyId,
+    });
+    const agentsConnection = pageData?.agents;
+    const agentRunnersConnection = pageData?.agentRunners;
+    const agents = agentsConnection?.pageInfo?.hasNextPage
+      ? await fetchCompanyApiConnectionNodes({
+        query: COMPANY_API_LIST_AGENTS_CONNECTION_QUERY,
+        rootField: "agents",
+        variables: { companyId },
+      })
+      : toConnectionNodes(agentsConnection);
+    const runners = agentRunnersConnection?.pageInfo?.hasNextPage
+      ? await fetchCompanyApiConnectionNodes({
+        query: COMPANY_API_LIST_AGENT_RUNNERS_CONNECTION_QUERY,
+        rootField: "agentRunners",
+        variables: { companyId },
+      })
+      : toConnectionNodes(agentRunnersConnection);
+    const legacyAgents = agents.map((agent: any) => {
+      const legacyAgent = toAgentPayload(agent);
+      return legacyAgent;
+    });
+    return {
+      agents: legacyAgents,
+      agentRunners: runners.map((runner: any) => toLegacyRunnerPayload(runner)),
     };
   }
 
@@ -3359,9 +3393,7 @@ function App() {
     || activePage === "profile";
   const shouldLoadRunnerData =
     activePage === "dashboard" ||
-    activePage === "agents" ||
-    activePage === "agent-runner" ||
-    activePage === "profile";
+    activePage === "agent-runner";
   const shouldLoadAgentData =
     activePage === "tasks" ||
     activePage === "agents" ||
@@ -3934,7 +3966,7 @@ function App() {
         companyId: selectedCompanyId,
       });
       setAgentRunners((currentRunners: any) =>
-        mergeAgentRunnerPayloadList(currentRunners, data.agentRunners || []),
+        replaceAgentRunnerPayloadList(currentRunners, data.agentRunners || []),
       );
       setHasLoadedAgentRunners(true);
     } catch (loadError: any) {
@@ -3969,12 +4001,21 @@ function App() {
     try {
       setAgentError("");
       setIsLoadingAgents(true);
-      const data = await executeGraphQL(LIST_AGENTS_QUERY, { companyId: selectedCompanyId });
+      const shouldUseAgentsPagePayload = activePage === "agents" || activePage === "profile";
+      const data = await executeGraphQL(
+        shouldUseAgentsPagePayload ? LIST_AGENTS_WITH_RUNNERS_QUERY : LIST_AGENTS_QUERY,
+        { companyId: selectedCompanyId },
+      );
       const nextAgents = data.agents || [];
       const nextRunners = data.agentRunners || [];
       setAgents(nextAgents);
       setAgentDrafts(createAgentDrafts(nextAgents));
-      if (nextRunners.length > 0) {
+      if (shouldUseAgentsPagePayload) {
+        setAgentRunners((currentRunners: any) =>
+          replaceAgentRunnerPayloadList(currentRunners, nextRunners),
+        );
+        setHasLoadedAgentRunners(true);
+      } else if (nextRunners.length > 0) {
         setAgentRunners((currentRunners: any) =>
           mergeAgentRunnerPayloadList(currentRunners, nextRunners),
         );
@@ -3986,7 +4027,7 @@ function App() {
     } finally {
       setIsLoadingAgents(false);
     }
-  }, [selectedCompanyId]);
+  }, [activePage, selectedCompanyId]);
 
   const loadChatsBootstrapData = useCallback(async ({ silently = false }: any = {}) => {
     if (!selectedCompanyId) {

@@ -413,6 +413,30 @@ export function mergeAgentRunnerPayloadList(
     return Array.isArray(currentRunners) ? currentRunners : [];
   }
 
+  const nextById = new Map(
+    (Array.isArray(currentRunners) ? currentRunners : []).map((runner) => [String(runner?.id || ""), runner]),
+  );
+
+  for (const incomingRunner of incomingRunners) {
+    const incomingId = String(incomingRunner?.id || "");
+    const currentRunner = incomingId ? nextById.get(incomingId) : null;
+    const mergedRunner = mergeAgentRunnerPayloadEntry(currentRunner, incomingRunner);
+    if (incomingId) {
+      nextById.set(incomingId, mergedRunner);
+    }
+  }
+
+  return [...nextById.values()];
+}
+
+export function replaceAgentRunnerPayloadList(
+  currentRunners: Array<Record<string, unknown>> | null | undefined,
+  incomingRunners: Array<Record<string, unknown>> | null | undefined,
+) {
+  if (!Array.isArray(incomingRunners)) {
+    return Array.isArray(currentRunners) ? currentRunners : [];
+  }
+
   const currentById = new Map(
     (Array.isArray(currentRunners) ? currentRunners : []).map((runner) => [String(runner?.id || ""), runner]),
   );

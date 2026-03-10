@@ -343,6 +343,47 @@ export const LIST_AGENTS_QUERY = `
   }
 `;
 
+export const LIST_AGENTS_WITH_RUNNERS_QUERY = `
+  query ListAgentsWithRunners {
+    agents {
+      id
+      name
+      status
+      defaultAdditionalModelInstructions
+      company {
+        id
+      }
+      runner {
+        id
+        name
+        isConnected
+        status
+      }
+    }
+    agentRunners {
+      id
+      name
+      callbackUrl
+      hasAuthSecret
+      availableAgentSdks {
+        name
+        isAvailable
+        availableModels {
+          name
+          isAvailable
+          reasoningLevels
+        }
+      }
+      isConnected
+      status
+      lastHealthCheckAt
+      lastSeenAt
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
 export const LIST_SKILLS_QUERY = `
   query ListSkills {
     skills {
@@ -3325,6 +3366,112 @@ export const COMPANY_API_LIST_AGENTS_CONNECTION_QUERY = `
                 reasoning
               }
             }
+          }
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_LIST_AGENTS_PAGE_QUERY = `
+  query CompanyApiListAgentsPage($firstAgents: Int = 500, $firstRunners: Int = 500) {
+    agents(first: $firstAgents) {
+      edges {
+        node {
+          id
+          name
+          status
+          roleIds: roleIds
+          mcpServerIds
+          roles: roles {
+            id
+            name
+            parentRole: parentRole {
+              id
+            }
+          }
+          defaultReasoningLevel
+          defaultAdditionalModelInstructions
+          agentRunnerSdk {
+            id
+            name
+            models {
+              id
+              name
+              reasoning
+            }
+          }
+          defaultModel {
+            id
+            name
+            reasoning
+            sdk {
+              id
+            }
+          }
+          company {
+            id
+          }
+          runner {
+            id
+            name
+            isConnected
+            status
+            agentSdks {
+              id
+              name
+              isAvailable
+              models {
+                id
+                name
+                isAvailable
+                reasoning
+              }
+            }
+          }
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+    agentRunners(first: $firstRunners) {
+      edges {
+        node {
+          id
+          name
+          agentSdks {
+            id
+            name
+            isAvailable
+            company {
+              id
+            }
+            runner {
+              id
+            }
+            models {
+              id
+              name
+              isAvailable
+              reasoning
+              company {
+                id
+              }
+              sdk {
+                id
+              }
+            }
+          }
+          isConnected
+          status
+          company {
+            id
           }
         }
       }

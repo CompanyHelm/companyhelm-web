@@ -3,8 +3,10 @@ import assert from "node:assert/strict";
 import {
   getRunnerModelNames,
   getRunnerReasoningLevels,
+  mergeAgentRunnerPayloadList,
   normalizeRunnerAvailableAgentSdks,
   normalizeRunnerCodexAvailableModels,
+  replaceAgentRunnerPayloadList,
 } from "../../src/utils/normalization.ts";
 
 test("normalizeRunnerAvailableAgentSdks preserves sdk and model availability", () => {
@@ -74,4 +76,51 @@ test("runner model helpers only expose available codex models", () => {
   assert.deepEqual(getRunnerModelNames(codexModels), ["gpt-5"]);
   assert.deepEqual(getRunnerReasoningLevels(codexModels, "gpt-5"), ["high", "medium"]);
   assert.deepEqual(getRunnerReasoningLevels(codexModels, "gpt-4.1"), []);
+});
+
+test("mergeAgentRunnerPayloadList preserves runners omitted from partial updates", () => {
+  const mergedRunners = mergeAgentRunnerPayloadList(
+    [
+      { id: "runner-1", name: "Runner One", status: "ready", availableAgentSdks: [] },
+      { id: "runner-2", name: "Runner Two", status: "ready", availableAgentSdks: [] },
+    ],
+    [
+      { id: "runner-1", name: "Runner One Updated", status: "busy" },
+    ],
+  );
+
+  assert.deepEqual(
+    mergedRunners.map((runner) => ({
+      id: runner.id,
+      name: runner.name,
+      status: runner.status,
+    })),
+    [
+      { id: "runner-1", name: "Runner One Updated", status: "busy" },
+      { id: "runner-2", name: "Runner Two", status: "ready" },
+    ],
+  );
+});
+
+test("replaceAgentRunnerPayloadList removes runners missing from full refresh payloads", () => {
+  const refreshedRunners = replaceAgentRunnerPayloadList(
+    [
+      { id: "runner-1", name: "Runner One", status: "ready", availableAgentSdks: [] },
+      { id: "runner-2", name: "Runner Two", status: "ready", availableAgentSdks: [] },
+    ],
+    [
+      { id: "runner-1", name: "Runner One Updated", status: "busy" },
+    ],
+  );
+
+  assert.deepEqual(
+    refreshedRunners.map((runner) => ({
+      id: runner.id,
+      name: runner.name,
+      status: runner.status,
+    })),
+    [
+      { id: "runner-1", name: "Runner One Updated", status: "busy" },
+    ],
+  );
 });
