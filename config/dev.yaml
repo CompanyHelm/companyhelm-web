@@ -7,5 +7,5 @@ auth:
     tokenStorageKey: "companyhelm.auth.token"
   supabase:
     url: "https://zbhnqhoctbgculdvsgpv.supabase.co"
-    anonKey: "${SUPABASE_ANON_KEY}"
+    anonKey: "sb_publishable_ARchwiSJTGikFsgUr4JFWg_dZHpLcKw"
     tokenStorageKey: "supabase.auth.token"
