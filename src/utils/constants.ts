@@ -61,7 +61,7 @@ interface NavigationSection {
   items: NavigationItem[];
 }
 
-export const NAV_SECTIONS: NavigationSection[] = [
+const ROUTABLE_NAV_SECTIONS: NavigationSection[] = [
   {
     label: "Work",
     items: [
@@ -97,12 +97,17 @@ export const NAV_SECTIONS: NavigationSection[] = [
   },
 ];
 
+export const NAV_SECTIONS: NavigationSection[] = ROUTABLE_NAV_SECTIONS.map((section) => ({
+  ...section,
+  items: section.items.filter((item) => item.id !== "secrets"),
+}));
+
 export const BOTTOM_NAV_ITEMS: NavigationItem[] = [
   { id: "settings", label: "Settings", href: "/settings", requiresCompany: false },
   { id: "profile", label: "Profile", href: "/profile", requiresCompany: false },
 ];
 
-export const PRIMARY_NAV_ITEMS = NAV_SECTIONS.flatMap((section) => section.items);
+export const PRIMARY_NAV_ITEMS = ROUTABLE_NAV_SECTIONS.flatMap((section) => section.items);
 
 export const PROFILE_NAV_ITEM = BOTTOM_NAV_ITEMS[1];
 

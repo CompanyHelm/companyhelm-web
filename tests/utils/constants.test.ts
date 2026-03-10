@@ -6,6 +6,8 @@ import {
   DEFAULT_RUNNER_GRPC_TARGET,
   GRAPHQL_URL,
   GRAPHQL_WS_URL,
+  NAV_SECTIONS,
+  PAGE_IDS,
   SUPABASE_ANON_KEY,
   SUPABASE_AUTH_TOKEN_STORAGE_KEY,
   SUPABASE_URL,
@@ -20,4 +22,11 @@ test("GraphQL constants default to the local API endpoint when vite env is unset
   assert.equal(SUPABASE_URL, "https://your-project-ref.supabase.co");
   assert.equal(SUPABASE_ANON_KEY, "your-supabase-anon-key");
   assert.equal(SUPABASE_AUTH_TOKEN_STORAGE_KEY, "supabase.auth.token");
+});
+
+test("visible navigation excludes secrets while route ids still include it", () => {
+  const visibleNavItemIds = NAV_SECTIONS.flatMap((section) => section.items.map((item) => item.id));
+
+  assert.equal(visibleNavItemIds.includes("secrets"), false);
+  assert.equal(PAGE_IDS.has("secrets"), true);
 });
