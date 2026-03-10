@@ -99,7 +99,7 @@ const ROUTABLE_NAV_SECTIONS: NavigationSection[] = [
 
 export const NAV_SECTIONS: NavigationSection[] = ROUTABLE_NAV_SECTIONS.map((section) => ({
   ...section,
-  items: section.items.filter((item) => item.id !== "secrets"),
+  items: section.items.filter((item) => item.id !== "secrets" && item.id !== "approvals"),
 }));
 
 export const BOTTOM_NAV_ITEMS: NavigationItem[] = [
