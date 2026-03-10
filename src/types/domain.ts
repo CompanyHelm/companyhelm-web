@@ -16,11 +16,13 @@ export interface RunnerModelEntry {
   id: string;
   name: string;
   reasoningLevels: string[];
+  isAvailable: boolean;
 }
 
 export interface RunnerSdkEntry {
   id: string;
   name: string;
+  isAvailable: boolean;
   availableModels: RunnerModelEntry[];
 }
 
@@ -29,6 +31,7 @@ export interface RunnerCodexModelEntry {
   sdkId: string;
   name: string;
   reasoning: string[];
+  isAvailable: boolean;
 }
 
 export type RunnerCodexModelEntriesById = Map<string, RunnerCodexModelEntry[]>;

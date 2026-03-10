@@ -10,6 +10,10 @@ import { DEFAULT_AGENT_SDK } from "../utils/constants.ts";
 import { getChatsPath, setBrowserPath } from "../utils/path.ts";
 import { buildRunnerStartCommand } from "../utils/shell.ts";
 
+function formatAvailabilityLabel(value: string, isAvailable: boolean) {
+  return `${value} (${isAvailable ? "available" : "unavailable"})`;
+}
+
 export function AgentRunnerDetailPage({
   runner,
   agents,
@@ -28,6 +32,7 @@ export function AgentRunnerDetailPage({
   const availableAgentSdks = normalizeRunnerAvailableAgentSdks(runner);
   const availableSdkNames = availableAgentSdks.map((entry: any) => entry.name);
   const codexAvailableModels = normalizeRunnerCodexAvailableModels(runner);
+  const availableCodexModelCount = codexAvailableModels.filter((entry: any) => entry.isAvailable).length;
   const isBusy = deletingRunnerId === runner.id || regeneratingRunnerId === runner.id;
 
   const assignedAgents = useMemo(() => {
@@ -63,8 +68,8 @@ export function AgentRunnerDetailPage({
         </article>
         <article className="panel stat-panel">
           <p className="stat-label">Models</p>
-          <p className="stat-value">{codexAvailableModels.length}</p>
-          <p className="stat-footnote">available</p>
+          <p className="stat-value">{availableCodexModelCount}</p>
+          <p className="stat-footnote">{codexAvailableModels.length} reported</p>
         </article>
       </section>
 
@@ -116,9 +121,18 @@ export function AgentRunnerDetailPage({
                 <span
                   key={`${entry.name}-${index}`}
                   className="runner-model-pill"
-                  title={reasoningLabel ? `${entry.name} (${reasoningLabel})` : entry.name}
+                  title={
+                    reasoningLabel
+                      ? `${formatAvailabilityLabel(entry.name, entry.isAvailable)} (${reasoningLabel})`
+                      : formatAvailabilityLabel(entry.name, entry.isAvailable)
+                  }
                 >
                   <span className="runner-model-name">{entry.name}</span>
+                  <span
+                    className={`availability-badge${entry.isAvailable ? "" : " availability-badge-unavailable"}`}
+                  >
+                    {entry.isAvailable ? "available" : "unavailable"}
+                  </span>
                   {entry.reasoning.length > 0 ? (
                     <span className="runner-model-reasons">
                       {entry.reasoning.map((level: any, reasonIndex: any) => (
@@ -163,9 +177,26 @@ export function AgentRunnerDetailPage({
 
           <div className="chat-settings-field">
             <span className="chat-settings-label">SDK catalog</span>
-            <p className="chat-settings-readonly">
-              {availableSdkNames.length > 0 ? availableSdkNames.join(", ") : "none reported"}
-            </p>
+            {availableSdkNames.length > 0 ? (
+              <div className="runner-models-list">
+                {availableAgentSdks.map((sdkEntry: any) => (
+                  <span
+                    key={`${runner.id}-sdk-${sdkEntry.name}`}
+                    className="runner-model-pill"
+                    title={formatAvailabilityLabel(sdkEntry.name, sdkEntry.isAvailable)}
+                  >
+                    <span className="runner-model-name">{sdkEntry.name}</span>
+                    <span
+                      className={`availability-badge${sdkEntry.isAvailable ? "" : " availability-badge-unavailable"}`}
+                    >
+                      {sdkEntry.isAvailable ? "available" : "unavailable"}
+                    </span>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="chat-settings-readonly">none reported</p>
+            )}
           </div>
 
           <div className="chat-settings-field">

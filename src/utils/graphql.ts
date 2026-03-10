@@ -238,8 +238,10 @@ export const LIST_AGENT_RUNNERS_QUERY = `
       hasAuthSecret
       availableAgentSdks {
         name
+        isAvailable
         availableModels {
           name
+          isAvailable
           reasoningLevels
         }
       }
@@ -271,8 +273,10 @@ export const CREATE_AGENT_RUNNER_MUTATION = `
         hasAuthSecret
         availableAgentSdks {
           name
+          isAvailable
           availableModels {
             name
+            isAvailable
             reasoningLevels
           }
         }
@@ -301,8 +305,10 @@ export const REGENERATE_AGENT_RUNNER_SECRET_MUTATION = `
       hasAuthSecret
       availableAgentSdks {
         name
+        isAvailable
         availableModels {
           name
+          isAvailable
           reasoningLevels
         }
       }
@@ -1823,8 +1829,10 @@ export const AGENT_RUNNERS_SUBSCRIPTION = `
         node {
           id
           agentSdks {
+            isAvailable
             name
             models {
+              isAvailable
               name
               reasoning
             }
@@ -3141,6 +3149,7 @@ export const COMPANY_API_LIST_AGENT_RUNNERS_CONNECTION_QUERY = `
           agentSdks {
             id
             name
+            isAvailable
             company {
               id
             }
@@ -3150,6 +3159,7 @@ export const COMPANY_API_LIST_AGENT_RUNNERS_CONNECTION_QUERY = `
             models {
               id
               name
+              isAvailable
               reasoning
               company {
                 id
@@ -3184,6 +3194,7 @@ export const COMPANY_API_CREATE_AGENT_RUNNER_MUTATION = `
         agentSdks {
           id
           name
+          isAvailable
           company {
             id
           }
@@ -3193,6 +3204,7 @@ export const COMPANY_API_CREATE_AGENT_RUNNER_MUTATION = `
           models {
             id
             name
+            isAvailable
             reasoning
             company {
               id
@@ -3222,6 +3234,7 @@ export const COMPANY_API_REGENERATE_AGENT_RUNNER_SECRET_MUTATION = `
         agentSdks {
           id
           name
+          isAvailable
           company {
             id
           }
@@ -3231,6 +3244,7 @@ export const COMPANY_API_REGENERATE_AGENT_RUNNER_SECRET_MUTATION = `
           models {
             id
             name
+            isAvailable
             reasoning
             company {
               id
@@ -3303,9 +3317,11 @@ export const COMPANY_API_LIST_AGENTS_CONNECTION_QUERY = `
             agentSdks {
               id
               name
+              isAvailable
               models {
                 id
                 name
+                isAvailable
                 reasoning
               }
             }
@@ -3347,9 +3363,11 @@ export const COMPANY_API_LIST_AGENTS_WITH_THREADS_CONNECTION_QUERY = `
           agentRunnerSdk {
             id
             name
+            isAvailable
             models {
               id
               name
+              isAvailable
               reasoning
             }
           }
@@ -3372,9 +3390,11 @@ export const COMPANY_API_LIST_AGENTS_WITH_THREADS_CONNECTION_QUERY = `
             agentSdks {
               id
               name
+              isAvailable
               models {
                 id
                 name
+                isAvailable
                 reasoning
               }
             }

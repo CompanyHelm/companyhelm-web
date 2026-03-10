@@ -14,6 +14,7 @@ import {
   getRunnerCodexModelEntriesForRunner,
   getRunnerModelNames,
   getRunnerReasoningLevels,
+  normalizeRunnerAvailableAgentSdks,
 } from "../utils/normalization.ts";
 import { formatRunnerLabel } from "../utils/formatting.ts";
 import type {
@@ -93,6 +94,21 @@ function resolveEffectiveRoleSkills(expandedRoleIds: string[], roleLookup: Map<s
   }
 
   return effectiveSkills;
+}
+
+function formatAvailabilityOptionLabel(
+  name: string,
+  availabilityState: "available" | "unavailable" | "not-reported",
+  { isCurrent = false }: { isCurrent?: boolean } = {},
+) {
+  const currentSuffix = isCurrent ? ", current" : "";
+  if (availabilityState === "available") {
+    return `${name} (available${currentSuffix})`;
+  }
+  if (availabilityState === "unavailable") {
+    return `${name} (unavailable${currentSuffix})`;
+  }
+  return `${name} (not reported${currentSuffix})`;
 }
 
 type AgentDraftField = keyof AgentDraft;
@@ -206,12 +222,31 @@ export function AgentEditModal({
   const editingRunnerCodexModelEntries = editingDraft
     ? getRunnerCodexModelEntriesForRunner(runnerCodexModelEntriesById, editingDraft.agentRunnerId)
     : [];
+  const editingRunnerSdkAvailabilityByName = useMemo(() => {
+    if (!editingDraft?.agentRunnerId) {
+      return new Map<string, "available" | "unavailable">();
+    }
+    const selectedRunner = agentRunners.find((runner) => runner.id === editingDraft.agentRunnerId) || null;
+    const sdkEntries = selectedRunner ? normalizeRunnerAvailableAgentSdks(selectedRunner) : [];
+    return sdkEntries.reduce((map, sdkEntry) => {
+      map.set(sdkEntry.name, sdkEntry.isAvailable ? "available" : "unavailable");
+      return map;
+    }, new Map<string, "available" | "unavailable">());
+  }, [agentRunners, editingDraft?.agentRunnerId]);
   const editingRunnerModelNames = editingDraft
     ? getRunnerModelNames(editingRunnerCodexModelEntries)
     : [];
   const editingRunnerReasoningLevels = editingDraft
     ? getRunnerReasoningLevels(editingRunnerCodexModelEntries, editingDraft.model)
     : [];
+  const editingMissingModelOption = useMemo(() => {
+    if (!editingDraft?.model) {
+      return "";
+    }
+    return editingRunnerCodexModelEntries.some((modelEntry) => modelEntry.name === editingDraft.model)
+      ? ""
+      : editingDraft.model;
+  }, [editingDraft?.model, editingRunnerCodexModelEntries]);
   const isEditingAgentSaving = editingAgent ? savingAgentId === editingAgent.id : false;
   const isEditingAgentDeleting = editingAgent ? deletingAgentId === editingAgent.id : false;
   const isEditingAgentInitializing = editingAgent ? initializingAgentId === editingAgent.id : false;
@@ -304,8 +339,20 @@ export function AgentEditModal({
               disabled={isEditingDisabled}
             >
               {AVAILABLE_AGENT_SDKS.map((sdkName) => (
-                <option key={`${editingAgent.id}-sdk-${sdkName}`} value={sdkName}>
-                  {sdkName}
+                <option
+                  key={`${editingAgent.id}-sdk-${sdkName}`}
+                  value={sdkName}
+                  disabled={
+                    Boolean(editingDraft.agentRunnerId)
+                    && editingRunnerSdkAvailabilityByName.get(sdkName) !== "available"
+                    && editingDraft.agentSdk !== sdkName
+                  }
+                >
+                  {formatAvailabilityOptionLabel(
+                    sdkName,
+                    editingRunnerSdkAvailabilityByName.get(sdkName) || "not-reported",
+                    { isCurrent: editingDraft.agentSdk === sdkName },
+                  )}
                 </option>
               ))}
             </select>
@@ -323,14 +370,29 @@ export function AgentEditModal({
             >
               {!editingDraft.agentRunnerId ? (
                 <option value="">Select a runner first</option>
-              ) : editingRunnerModelNames.length === 0 ? (
+              ) : editingRunnerCodexModelEntries.length === 0 ? (
                 <option value="">No models reported by selected runner</option>
+              ) : editingRunnerModelNames.length === 0 ? (
+                <option value="">No available models reported by selected runner</option>
               ) : (
                 <>
                   <option value="">Select model</option>
-                  {editingRunnerModelNames.map((modelName) => (
-                    <option key={`${editingAgent.id}-model-${modelName}`} value={modelName}>
-                      {modelName}
+                  {editingMissingModelOption ? (
+                    <option value={editingMissingModelOption} disabled>
+                      {formatAvailabilityOptionLabel(editingMissingModelOption, "not-reported", { isCurrent: true })}
+                    </option>
+                  ) : null}
+                  {editingRunnerCodexModelEntries.map((modelEntry) => (
+                    <option
+                      key={`${editingAgent.id}-model-${modelEntry.name}`}
+                      value={modelEntry.name}
+                      disabled={!modelEntry.isAvailable && editingDraft.model !== modelEntry.name}
+                    >
+                      {formatAvailabilityOptionLabel(
+                        modelEntry.name,
+                        modelEntry.isAvailable ? "available" : "unavailable",
+                        { isCurrent: editingDraft.model === modelEntry.name },
+                      )}
                     </option>
                   ))}
                 </>

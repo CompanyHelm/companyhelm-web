@@ -233,6 +233,7 @@ type RunnerModelEntry = {
   id: string;
   name: string;
   reasoningLevels: string[];
+  isAvailable: boolean;
 };
 
 type RunnerCodexModelEntry = {
@@ -240,11 +241,13 @@ type RunnerCodexModelEntry = {
   sdkId: string;
   name: string;
   reasoning: string[];
+  isAvailable: boolean;
 };
 
 type RunnerSdkEntry = {
   id: string;
   name: string;
+  isAvailable: boolean;
   availableModels: RunnerModelEntry[];
 };
 
@@ -259,6 +262,15 @@ function toRecord(value: unknown): Record<string, unknown> {
     return {};
   }
   return value as Record<string, unknown>;
+}
+
+function normalizeAvailabilityFlag(...values: unknown[]): boolean {
+  for (const value of values) {
+    if (typeof value === "boolean") {
+      return value;
+    }
+  }
+  return true;
 }
 
 export function normalizeAgentSdkValue(value: unknown): string {
@@ -284,34 +296,36 @@ export function normalizeRunnerAvailableAgentSdks(runner: RunnerLike): RunnerSdk
       return {
         id: resolveLegacyId(sdkRecord.id),
         name: normalizeAgentSdkValue(sdkRecord.name),
-      availableModels: (
-        Array.isArray(sdkRecord.availableModels)
-          ? sdkRecord.availableModels
-          : Array.isArray(sdkRecord.models)
-            ? sdkRecord.models
-            : []
-      )
-        .map((modelEntry) => {
-          const modelRecord = toRecord(modelEntry);
-          const rawReasoningLevels = Array.isArray(modelRecord.reasoningLevels)
-            ? modelRecord.reasoningLevels
-            : Array.isArray(modelRecord.reasoning)
-              ? modelRecord.reasoning
-              : [modelRecord.reasoningLevels, modelRecord.reasoning];
-          return {
-            id: resolveLegacyId(modelRecord.id),
-            name: String(modelRecord.name || "").trim(),
-          reasoningLevels: [
-            ...new Set(
-              rawReasoningLevels
-                .map((value) => String(value || "").trim())
-                .filter(Boolean),
-            ),
-          ].sort((leftLevel, rightLevel) => leftLevel.localeCompare(rightLevel)),
-          };
-        })
-        .filter((modelEntry) => Boolean(modelEntry.name))
-        .sort((leftModel, rightModel) => leftModel.name.localeCompare(rightModel.name)),
+        isAvailable: normalizeAvailabilityFlag(sdkRecord.isAvailable, sdkRecord.is_available),
+        availableModels: (
+          Array.isArray(sdkRecord.availableModels)
+            ? sdkRecord.availableModels
+            : Array.isArray(sdkRecord.models)
+              ? sdkRecord.models
+              : []
+        )
+          .map((modelEntry) => {
+            const modelRecord = toRecord(modelEntry);
+            const rawReasoningLevels = Array.isArray(modelRecord.reasoningLevels)
+              ? modelRecord.reasoningLevels
+              : Array.isArray(modelRecord.reasoning)
+                ? modelRecord.reasoning
+                : [modelRecord.reasoningLevels, modelRecord.reasoning];
+            return {
+              id: resolveLegacyId(modelRecord.id),
+              name: String(modelRecord.name || "").trim(),
+              isAvailable: normalizeAvailabilityFlag(modelRecord.isAvailable, modelRecord.is_available),
+              reasoningLevels: [
+                ...new Set(
+                  rawReasoningLevels
+                    .map((value) => String(value || "").trim())
+                    .filter(Boolean),
+                ),
+              ].sort((leftLevel, rightLevel) => leftLevel.localeCompare(rightLevel)),
+            };
+          })
+          .filter((modelEntry) => Boolean(modelEntry.name))
+          .sort((leftModel, rightModel) => leftModel.name.localeCompare(rightModel.name)),
       };
     })
     .filter((sdkEntry) => Boolean(sdkEntry.name))
@@ -330,6 +344,7 @@ export function normalizeRunnerCodexAvailableModels(runner: RunnerLike) {
     sdkId: codexSdk.id,
     name: entry.name,
     reasoning: entry.reasoningLevels,
+    isAvailable: entry.isAvailable,
   }));
 }
 
@@ -353,7 +368,7 @@ export function resolveRunnerSdkAndModelIds({
 
   const availableAgentSdks = normalizeRunnerAvailableAgentSdks(runner);
   const selectedSdk = availableAgentSdks.find((sdkEntry) => sdkEntry.name === normalizedSdk) || null;
-  if (!selectedSdk) {
+  if (!selectedSdk || !selectedSdk.isAvailable) {
     return {
       agentRunnerSdkId: "",
       defaultModelId: "",
@@ -363,7 +378,7 @@ export function resolveRunnerSdkAndModelIds({
   const selectedModel = selectedSdk.availableModels.find((modelEntry) => modelEntry.name === normalizedModel) || null;
   return {
     agentRunnerSdkId: resolveLegacyId(selectedSdk.id),
-    defaultModelId: resolveLegacyId(selectedModel?.id),
+    defaultModelId: selectedModel?.isAvailable ? resolveLegacyId(selectedModel.id) : "",
   };
 }
 
@@ -410,7 +425,9 @@ export function mergeAgentRunnerPayloadList(
 }
 
 export function getRunnerModelNames(codexModelEntries: RunnerCodexModelEntry[]) {
-  return codexModelEntries.map((entry) => entry.name);
+  return codexModelEntries
+    .filter((entry) => entry.isAvailable)
+    .map((entry) => entry.name);
 }
 
 export function getRunnerReasoningLevels(codexModelEntries: RunnerCodexModelEntry[], modelName: string) {
@@ -419,7 +436,7 @@ export function getRunnerReasoningLevels(codexModelEntries: RunnerCodexModelEntr
     return [];
   }
   const matchedEntry = codexModelEntries.find((entry) => entry.name === normalizedModel);
-  return matchedEntry ? matchedEntry.reasoning : [];
+  return matchedEntry?.isAvailable ? matchedEntry.reasoning : [];
 }
 
 export function getRunnerCodexModelEntriesForRunner(

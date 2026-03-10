@@ -265,6 +265,7 @@ import { executeRelayGraphQL } from "./relay/client.ts";
 import { authProvider } from "./auth/runtime.ts";
 
 import { Breadcrumbs } from "./components/Breadcrumbs.tsx";
+import { CreationModal } from "./components/CreationModal.tsx";
 import { PageActionsProvider, usePageActions } from "./components/PageActionsContext.tsx";
 import { CompanyRequiredPanel } from "./components/CompanyRequiredPanel.tsx";
 import { FirstCompanyOnboardingPage } from "./components/FirstCompanyOnboardingPage.tsx";
@@ -347,6 +348,58 @@ function getChatCreateBlockedReason(agent: any, agentRunnerLookup: any) {
   }
 
   return "";
+}
+
+function getChatCreateAvailabilityIssue(agent: any, agentRunnerLookup: any) {
+  const assignedRunnerId = resolveLegacyId(agent?.agentRunnerId);
+  if (!assignedRunnerId) {
+    return null;
+  }
+
+  const assignedRunner = agentRunnerLookup.get(assignedRunnerId);
+  if (!assignedRunner) {
+    return null;
+  }
+
+  const sdkName = normalizeAgentSdkValue(resolveLegacyId(agent?.agentSdk, agent?.agentRunnerSdk?.name));
+  const modelName = resolveLegacyId(agent?.model, agent?.defaultModel?.name, agent?.defaultModelId);
+  const availableAgentSdks = normalizeRunnerAvailableAgentSdks(assignedRunner);
+  const selectedSdk = availableAgentSdks.find((sdkEntry: any) => sdkEntry.name === sdkName) || null;
+  const selectedModel = selectedSdk?.availableModels.find((modelEntry: any) => modelEntry.name === modelName) || null;
+  const sdkUnavailable = Boolean(sdkName) && (!selectedSdk || !selectedSdk.isAvailable);
+  const modelUnavailable = Boolean(modelName) && (!selectedModel || !selectedModel.isAvailable);
+
+  if (!sdkUnavailable && !modelUnavailable) {
+    return null;
+  }
+
+  const unavailableSelections = [];
+  if (sdkUnavailable) {
+    unavailableSelections.push(`SDK "${sdkName || "unknown"}"`);
+  }
+  if (modelUnavailable) {
+    unavailableSelections.push(`model "${modelName || "unknown"}"`);
+  }
+
+  const replacementLabel = sdkUnavailable && modelUnavailable
+    ? "SDK and model"
+    : sdkUnavailable
+      ? "SDK"
+      : "model";
+
+  return {
+    agentId: resolveLegacyId(agent?.id),
+    agentName: resolveLegacyId(agent?.name) || "this agent",
+    runnerId: assignedRunnerId,
+    title: sdkUnavailable && modelUnavailable
+      ? "SDK And Model Unavailable"
+      : sdkUnavailable
+        ? "SDK Unavailable"
+        : "Model Unavailable",
+    message:
+      `${unavailableSelections.join(" and ")} is no longer available on runner ${assignedRunnerId}. `
+      + `Select another ${replacementLabel} for this agent before creating a chat.`,
+  };
 }
 
 function getChatSendBlockedReason(agent: any, agentRunnerLookup: any) {
@@ -2844,6 +2897,7 @@ function App() {
   const [deletingChatSessionKey, setDeletingChatSessionKey] = useState<any>("");
   const [chatError, setChatError] = useState<any>("");
   const [chatIndexError, setChatIndexError] = useState<any>("");
+  const [chatCreateAvailabilityModalAgentId, setChatCreateAvailabilityModalAgentId] = useState<any>("");
   const [isLoadingChatIndex, setIsLoadingChatIndex] = useState<any>(false);
   const [isLoadingChatSessions, setIsLoadingChatSessions] = useState<any>(false);
   const [isCreatingChatSession, setIsCreatingChatSession] = useState<any>(false);
@@ -2938,6 +2992,14 @@ function App() {
     },
     [agents, getChatCreateBlockedReasonForAgent],
   );
+  const activeChatCreateAvailabilityIssue = useMemo(() => {
+    const targetAgentId = String(chatCreateAvailabilityModalAgentId || "").trim();
+    if (!targetAgentId) {
+      return null;
+    }
+    const selectedAgent = agents.find((agent: any) => agent.id === targetAgentId) || null;
+    return selectedAgent ? getChatCreateAvailabilityIssue(selectedAgent, agentRunnerLookup) : null;
+  }, [agentRunnerLookup, agents, chatCreateAvailabilityModalAgentId]);
 
   const getChatSendBlockedReasonByAgentId = useCallback(
     (agentId: any) => {
@@ -4479,6 +4541,7 @@ function App() {
     setChatDraftMessage("");
     setChatError("");
     setChatIndexError("");
+    setChatCreateAvailabilityModalAgentId("");
     setIsLoadingChat(false);
     setIsInterruptingChatTurn(false);
     setIsUpdatingChatTitle(false);
@@ -7869,6 +7932,12 @@ function App() {
       setChatError(`Agent ${targetAgentId} was not found for this company.`);
       return null;
     }
+    const createChatAvailabilityIssue = getChatCreateAvailabilityIssue(selectedAgentForChat, agentRunnerLookup);
+    if (createChatAvailabilityIssue) {
+      setChatCreateAvailabilityModalAgentId(targetAgentId);
+      setChatError("");
+      return null;
+    }
     const createChatBlockedReason = getChatCreateBlockedReasonForAgent(selectedAgentForChat);
     if (createChatBlockedReason) {
       setChatError(createChatBlockedReason);
@@ -9444,6 +9513,47 @@ function App() {
             onSignOut={() => authProvider.signOut()}
           />
         ) : null}
+        <CreationModal
+          modalId="chat-create-availability-modal"
+          title={activeChatCreateAvailabilityIssue?.title || "Chat Creation Unavailable"}
+          description={
+            activeChatCreateAvailabilityIssue
+              ? `${activeChatCreateAvailabilityIssue.agentName} needs a new SDK or model before starting another chat.`
+              : ""
+          }
+          isOpen={Boolean(activeChatCreateAvailabilityIssue)}
+          onClose={() => setChatCreateAvailabilityModalAgentId("")}
+        >
+          <div className="page-stack">
+            <p className="subcopy">{activeChatCreateAvailabilityIssue?.message}</p>
+            <div className="chat-settings-modal-form">
+              <div className="chat-settings-field">
+                <span className="chat-settings-label">Agent</span>
+                <p className="chat-settings-readonly">{activeChatCreateAvailabilityIssue?.agentName || "-"}</p>
+              </div>
+              <div className="chat-settings-field">
+                <span className="chat-settings-label">Runner</span>
+                <p className="chat-settings-readonly">{activeChatCreateAvailabilityIssue?.runnerId || "-"}</p>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button
+                type="button"
+                onClick={() => {
+                  const agentId = String(activeChatCreateAvailabilityIssue?.agentId || "").trim();
+                  setChatCreateAvailabilityModalAgentId("");
+                  if (!agentId) {
+                    return;
+                  }
+                  setPendingEditAgentId(agentId);
+                  setBrowserPath(`/agents/${agentId}`);
+                }}
+              >
+                Update agent
+              </button>
+            </div>
+          </div>
+        </CreationModal>
           </>
         )}
       </main>

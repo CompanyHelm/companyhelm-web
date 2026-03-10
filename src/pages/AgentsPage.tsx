@@ -17,6 +17,7 @@ import {
   getRunnerCodexModelEntriesForRunner,
   getRunnerModelNames,
   getRunnerReasoningLevels,
+  normalizeRunnerAvailableAgentSdks,
 } from "../utils/normalization.ts";
 import { formatRunnerLabel, isRunnerReadyAndConnected } from "../utils/formatting.ts";
 import { setBrowserPath } from "../utils/path.ts";
@@ -73,6 +74,19 @@ function resolveEffectiveRoleMcpServerIds(expandedRoleIds: string[], roleMcpServ
   }
 
   return effectiveMcpServerIds;
+}
+
+function formatAvailabilityOptionLabel(
+  name: string,
+  availabilityState: "available" | "unavailable" | "not-reported",
+) {
+  if (availabilityState === "available") {
+    return `${name} (available)`;
+  }
+  if (availabilityState === "unavailable") {
+    return `${name} (unavailable)`;
+  }
+  return `${name} (not reported)`;
 }
 
 type AgentDraftField = keyof AgentDraft;
@@ -198,6 +212,14 @@ export function AgentsPage({
   const createRunnerCodexModelEntries = useMemo(() => {
     return getRunnerCodexModelEntriesForRunner(runnerCodexModelEntriesById, agentRunnerId);
   }, [agentRunnerId, runnerCodexModelEntriesById]);
+  const createRunnerSdkAvailabilityByName = useMemo(() => {
+    const selectedRunner = agentRunners.find((runner) => runner.id === agentRunnerId) || null;
+    const sdkEntries = selectedRunner ? normalizeRunnerAvailableAgentSdks(selectedRunner) : [];
+    return sdkEntries.reduce((map, sdkEntry) => {
+      map.set(sdkEntry.name, sdkEntry.isAvailable ? "available" : "unavailable");
+      return map;
+    }, new Map<string, "available" | "unavailable">());
+  }, [agentRunners, agentRunnerId]);
   const createRunnerModelNames = useMemo(() => {
     return getRunnerModelNames(createRunnerCodexModelEntries);
   }, [createRunnerCodexModelEntries]);
@@ -558,8 +580,15 @@ export function AgentsPage({
             required
           >
             {AVAILABLE_AGENT_SDKS.map((sdkName) => (
-              <option key={`create-agent-sdk-${sdkName}`} value={sdkName}>
-                {sdkName}
+              <option
+                key={`create-agent-sdk-${sdkName}`}
+                value={sdkName}
+                disabled={Boolean(agentRunnerId) && createRunnerSdkAvailabilityByName.get(sdkName) !== "available"}
+              >
+                {formatAvailabilityOptionLabel(
+                  sdkName,
+                  createRunnerSdkAvailabilityByName.get(sdkName) || "not-reported",
+                )}
               </option>
             ))}
           </select>
@@ -575,14 +604,23 @@ export function AgentsPage({
           >
             {!agentRunnerId ? (
               <option value="">Select a runner first</option>
-            ) : createRunnerModelNames.length === 0 ? (
+            ) : createRunnerCodexModelEntries.length === 0 ? (
               <option value="">No models reported by selected runner</option>
+            ) : createRunnerModelNames.length === 0 ? (
+              <option value="">No available models reported by selected runner</option>
             ) : (
               <>
                 <option value="">Select default model</option>
-                {createRunnerModelNames.map((modelName) => (
-                  <option key={`create-agent-model-${modelName}`} value={modelName}>
-                    {modelName}
+                {createRunnerCodexModelEntries.map((modelEntry) => (
+                  <option
+                    key={`create-agent-model-${modelEntry.name}`}
+                    value={modelEntry.name}
+                    disabled={!modelEntry.isAvailable}
+                  >
+                    {formatAvailabilityOptionLabel(
+                      modelEntry.name,
+                      modelEntry.isAvailable ? "available" : "unavailable",
+                    )}
                   </option>
                 ))}
               </>

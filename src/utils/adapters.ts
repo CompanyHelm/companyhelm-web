@@ -5,11 +5,13 @@ type RunnerModelEntry = {
   id: string;
   name: string;
   reasoningLevels: string[];
+  isAvailable: boolean;
 };
 
 type RunnerSdkEntry = {
   id: string;
   name: string;
+  isAvailable: boolean;
   availableModels: RunnerModelEntry[];
 };
 
@@ -28,6 +30,15 @@ function toRecord(value: unknown): LooseRecord {
     return {};
   }
   return value as LooseRecord;
+}
+
+function normalizeAvailabilityFlag(...values: unknown[]): boolean {
+  for (const value of values) {
+    if (typeof value === "boolean") {
+      return value;
+    }
+  }
+  return true;
 }
 
 function normalizeAgentSdkValue(value: unknown): string {
@@ -77,36 +88,38 @@ function normalizeRunnerAvailableAgentSdks(runner: RunnerLike): RunnerSdkEntry[]
     .map((sdkEntry) => {
       const sdkRecord = toRecord(sdkEntry);
       return {
-      id: resolveLegacyId(sdkRecord.id),
-      name: normalizeAgentSdkValue(sdkRecord.name),
-      availableModels: (
-        Array.isArray(sdkRecord.availableModels)
-          ? sdkRecord.availableModels
-          : Array.isArray(sdkRecord.models)
-            ? sdkRecord.models
-            : []
-      )
-        .map((modelEntry) => {
-          const modelRecord = toRecord(modelEntry);
-          const rawReasoningLevels = Array.isArray(modelRecord.reasoningLevels)
-            ? modelRecord.reasoningLevels
-            : Array.isArray(modelRecord.reasoning)
-              ? modelRecord.reasoning
-              : [modelRecord.reasoningLevels, modelRecord.reasoning];
-          return {
-          id: resolveLegacyId(modelRecord.id),
-          name: String(modelRecord.name || "").trim(),
-          reasoningLevels: [
-            ...new Set(
-              rawReasoningLevels
-                .map((value) => String(value || "").trim())
-                .filter(Boolean),
-            ),
-          ].sort((leftLevel, rightLevel) => leftLevel.localeCompare(rightLevel)),
-          };
-        })
-        .filter((modelEntry) => Boolean(modelEntry.name))
-        .sort((leftModel, rightModel) => leftModel.name.localeCompare(rightModel.name)),
+        id: resolveLegacyId(sdkRecord.id),
+        name: normalizeAgentSdkValue(sdkRecord.name),
+        isAvailable: normalizeAvailabilityFlag(sdkRecord.isAvailable, sdkRecord.is_available),
+        availableModels: (
+          Array.isArray(sdkRecord.availableModels)
+            ? sdkRecord.availableModels
+            : Array.isArray(sdkRecord.models)
+              ? sdkRecord.models
+              : []
+        )
+          .map((modelEntry) => {
+            const modelRecord = toRecord(modelEntry);
+            const rawReasoningLevels = Array.isArray(modelRecord.reasoningLevels)
+              ? modelRecord.reasoningLevels
+              : Array.isArray(modelRecord.reasoning)
+                ? modelRecord.reasoning
+                : [modelRecord.reasoningLevels, modelRecord.reasoning];
+            return {
+              id: resolveLegacyId(modelRecord.id),
+              name: String(modelRecord.name || "").trim(),
+              isAvailable: normalizeAvailabilityFlag(modelRecord.isAvailable, modelRecord.is_available),
+              reasoningLevels: [
+                ...new Set(
+                  rawReasoningLevels
+                    .map((value) => String(value || "").trim())
+                    .filter(Boolean),
+                ),
+              ].sort((leftLevel, rightLevel) => leftLevel.localeCompare(rightLevel)),
+            };
+          })
+          .filter((modelEntry) => Boolean(modelEntry.name))
+          .sort((leftModel, rightModel) => leftModel.name.localeCompare(rightModel.name)),
       };
     })
     .filter((sdkEntry) => Boolean(sdkEntry.name))

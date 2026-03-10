@@ -1301,6 +1301,22 @@ button:disabled {
   color: var(--ink-0);
 }
 
+.availability-badge {
+  color: #0f766e;
+  background: rgba(15, 118, 110, 0.12);
+  border: 1px solid rgba(15, 118, 110, 0.26);
+  border-radius: 999px;
+  padding: 0.02rem 0.34rem;
+  font-size: 0.7rem;
+  text-transform: lowercase;
+}
+
+.availability-badge-unavailable {
+  color: #b91c1c;
+  background: rgba(185, 28, 28, 0.12);
+  border-color: rgba(185, 28, 28, 0.26);
+}
+
 .runner-model-name {
   overflow-wrap: anywhere;
 }

@@ -66,12 +66,29 @@ test("toLegacyRunnerPayload preserves connection and lifecycle status separately
     name: "Runner One",
     isConnected: true,
     status: "ready",
+    agentSdks: [
+      {
+        id: "sdk-1",
+        name: "codex",
+        isAvailable: false,
+        models: [
+          {
+            id: "model-1",
+            name: "gpt-5",
+            isAvailable: false,
+            reasoning: ["high"],
+          },
+        ],
+      },
+    ],
     company: { id: "company-1" },
   });
 
   assert.equal(payload.id, "runner-1");
   assert.equal(payload.isConnected, true);
   assert.equal(payload.status, "ready");
+  assert.equal(payload.availableAgentSdks?.[0]?.isAvailable, false);
+  assert.equal(payload.availableAgentSdks?.[0]?.availableModels?.[0]?.isAvailable, false);
   assert.ok(payload.lastSeenAt);
   assert.ok(payload.lastHealthCheckAt);
 });
