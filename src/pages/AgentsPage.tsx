@@ -459,7 +459,7 @@ export function AgentsPage({
       <CreationModal
         modalId="create-agent-modal"
         title="Create agent"
-        description="Register a new agent profile for this company. A registered runner is required."
+        description="Register a new agent profile for this company. A ready and connected runner is required."
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
       >
@@ -471,12 +471,12 @@ export function AgentsPage({
             value={agentRunnerId}
             onChange={(event: ChangeEvent<HTMLSelectElement>) => onAgentRunnerChange(event.target.value)}
             required
-            disabled={!hasLoadedAgentRunners || !hasRegisteredRunners}
+            disabled={!hasLoadedAgentRunners || !hasReadyConnectedRunner}
           >
             {!hasLoadedAgentRunners ? (
               <option value="">Loading runners...</option>
-            ) : !hasRegisteredRunners ? (
-              <option value="">No registered runners available</option>
+            ) : !hasReadyConnectedRunner ? (
+              <option value="">No ready and connected runners available</option>
             ) : (
               <>
                 <option value="">Select runner</option>
@@ -668,7 +668,7 @@ export function AgentsPage({
             placeholder="Optional. Used for new chats when no thread-specific instructions are provided."
           />
 
-          <button type="submit" disabled={isCreatingAgent || !hasRegisteredRunners}>
+          <button type="submit" disabled={isCreatingAgent || !hasReadyConnectedRunner}>
             {isCreatingAgent ? "Creating..." : "Create agent"}
           </button>
         </form>
