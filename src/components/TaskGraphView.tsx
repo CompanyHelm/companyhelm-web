@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
   Controls,
@@ -554,11 +554,16 @@ export function TaskGraphView({ tasks, onTaskClick, onAddDependency }: TaskGraph
   const [nodes, setNodes, onNodesChange] = useNodesState<TaskGraphNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<TaskGraphEdge>([]);
   const [isLayoutReady, setIsLayoutReady] = useState(false);
+  const onTaskClickRef = useRef(onTaskClick);
 
   const { nodes: rawNodes, edges: rawEdges } = useMemo(
     () => buildGraphElements(tasks),
     [tasks],
   );
+
+  useEffect(() => {
+    onTaskClickRef.current = onTaskClick;
+  }, [onTaskClick]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -582,7 +587,7 @@ export function TaskGraphView({ tasks, onTaskClick, onAddDependency }: TaskGraph
         ...node,
         data: {
           ...node.data,
-          onClick: () => onTaskClick(node.id),
+          onClick: () => onTaskClickRef.current(node.id),
         },
       }));
       const routedEdges = routeDependencyEdges(rawEdges, nodesWithHandlers);
@@ -603,7 +608,7 @@ export function TaskGraphView({ tasks, onTaskClick, onAddDependency }: TaskGraph
     return () => {
       isCancelled = true;
     };
-  }, [rawNodes, rawEdges, onTaskClick, setNodes, setEdges]);
+  }, [rawNodes, rawEdges, setNodes, setEdges]);
 
   const handleNodeClick = useCallback<NodeMouseHandler<TaskGraphNode>>(
     (_event, node) => {
