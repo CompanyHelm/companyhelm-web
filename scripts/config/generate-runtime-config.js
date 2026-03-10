@@ -5,6 +5,7 @@ import { parse as parseYaml } from "yaml";
 import { runtimeConfigSchema } from "../../src/config/schema.ts";
 
 const ALLOWED_ENVIRONMENTS = new Set(["local", "dev", "prod"]);
+const ENV_PLACEHOLDER_PATTERN = /\$\{([A-Z0-9_]+)\}/g;
 
 export function normalizeEnvironment(environment) {
   const normalized = String(environment || "").trim().toLowerCase();
@@ -46,6 +47,41 @@ export function resolveGeneratedConfigPath(repoRoot) {
   return resolve(repoRoot, "src", "generated", "config.js");
 }
 
+export function resolveConfigPlaceholders(value, path = "") {
+  if (typeof value === "string") {
+    const placeholders = [...value.matchAll(ENV_PLACEHOLDER_PATTERN)];
+    if (placeholders.length === 0) {
+      return value;
+    }
+
+    const placeholderPath = path || "<root>";
+    return value.replace(ENV_PLACEHOLDER_PATTERN, (_fullMatch, variableName) => {
+      const resolved = process.env[variableName];
+      if (!resolved) {
+        throw new Error(
+          `Environment variable "${variableName}" is required for config value at "${placeholderPath}".`,
+        );
+      }
+      return resolved;
+    });
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((entry, index) => resolveConfigPlaceholders(entry, `${path}[${index}]`));
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [
+        key,
+        resolveConfigPlaceholders(entry, path ? `${path}.${key}` : key),
+      ]),
+    );
+  }
+
+  return value;
+}
+
 export function generateRuntimeConfig({ repoRoot, environment }) {
   const sourcePath = resolveEnvironmentConfigPath(repoRoot, environment);
   if (!existsSync(sourcePath)) {
@@ -54,7 +90,8 @@ export function generateRuntimeConfig({ repoRoot, environment }) {
 
   const rawYaml = readFileSync(sourcePath, "utf8");
   const parsedConfig = parseYaml(rawYaml);
-  const validatedConfig = runtimeConfigSchema.parse(parsedConfig);
+  const resolvedConfig = resolveConfigPlaceholders(parsedConfig);
+  const validatedConfig = runtimeConfigSchema.parse(resolvedConfig);
   const outputPath = resolveGeneratedConfigPath(repoRoot);
   const outputDir = resolve(repoRoot, "src", "generated");
   const generatedModuleSource = [

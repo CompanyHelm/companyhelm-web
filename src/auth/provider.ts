@@ -330,7 +330,7 @@ class SupabaseAuthProvider extends AuthProviderBase {
 
     this.name = "supabase";
     this.requiresPassword = true;
-    this.requiresProfileOnSignUp = false;
+    this.requiresProfileOnSignUp = true;
     this.config = {
       url,
       anonKey,

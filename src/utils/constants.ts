@@ -101,9 +101,8 @@ const ROUTABLE_NAV_SECTIONS: NavigationSection[] = [
 
 export const NAV_SECTIONS: NavigationSection[] = ROUTABLE_NAV_SECTIONS.map((section) => ({
   ...section,
-  items: section.items.filter((item) => item.id !== "secrets" && item.id !== "approvals"),
+  items: section.items.filter((item) => item.id !== "approvals"),
 }));
-
 export const BOTTOM_NAV_ITEMS: NavigationItem[] = [
   { id: "settings", label: "Settings", href: "/settings", requiresCompany: false },
   { id: "profile", label: "Profile", href: "/profile", requiresCompany: false },
