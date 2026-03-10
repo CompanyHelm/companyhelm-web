@@ -160,14 +160,20 @@ export function toLegacyRunnerPayload(agentRunner: LooseRecord | null | undefine
   const isConnected = normalizeCompanyApiRunnerConnectivity(runnerRecord.isConnected);
   const runnerStatus = resolveLegacyId(runnerRecord.status) || "unknown";
   const availableAgentSdks = normalizeRunnerAvailableAgentSdks(runnerRecord);
+  const lastSeenAt = resolveLegacyId(runnerRecord.lastSeenAt, currentMetadata.lastSeenAt) || null;
+  const lastHealthCheckAt = resolveLegacyId(
+    runnerRecord.lastHealthCheckAt,
+    runnerRecord.lastSeenAt,
+    currentMetadata.lastHealthCheckAt,
+    currentMetadata.lastSeenAt,
+  ) || null;
 
   const nextMetadata: LooseRecord = {
     name: runnerName || resolveLegacyId(currentMetadata.name) || runnerId,
-    createdAt: resolveLegacyId(currentMetadata.createdAt) || nowIso,
-    updatedAt: nowIso,
-    lastSeenAt: isConnected ? nowIso : (currentMetadata.lastSeenAt as string | null) || null,
-    lastHealthCheckAt:
-      isConnected ? nowIso : (currentMetadata.lastHealthCheckAt as string | null) || null,
+    createdAt: resolveLegacyId(runnerRecord.createdAt, currentMetadata.createdAt) || nowIso,
+    updatedAt: resolveLegacyId(runnerRecord.updatedAt, currentMetadata.updatedAt) || nowIso,
+    lastSeenAt,
+    lastHealthCheckAt,
     availableAgentSdks,
   };
   if (runnerId) {

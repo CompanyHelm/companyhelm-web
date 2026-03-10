@@ -623,14 +623,20 @@ function toLegacyRunnerPayload(agentRunner: any) {
   const runnerStatus = resolveLegacyId(agentRunner?.status) || "unknown";
   const isConnected = agentRunner?.isConnected === true;
   const availableAgentSdks = normalizeRunnerAvailableAgentSdks(agentRunner);
+  const lastSeenAt = resolveLegacyId(agentRunner?.lastSeenAt, currentMetadata.lastSeenAt) || null;
+  const lastHealthCheckAt = resolveLegacyId(
+    agentRunner?.lastHealthCheckAt,
+    agentRunner?.lastSeenAt,
+    currentMetadata.lastHealthCheckAt,
+    currentMetadata.lastSeenAt,
+  ) || null;
 
   const nextMetadata = {
     name: runnerName || currentMetadata.name || runnerId,
-    createdAt: currentMetadata.createdAt || nowIso,
-    updatedAt: nowIso,
-    lastSeenAt: isConnected ? nowIso : currentMetadata.lastSeenAt || null,
-    lastHealthCheckAt:
-      isConnected ? nowIso : currentMetadata.lastHealthCheckAt || null,
+    createdAt: resolveLegacyId(agentRunner?.createdAt, currentMetadata.createdAt) || nowIso,
+    updatedAt: resolveLegacyId(agentRunner?.updatedAt, currentMetadata.updatedAt) || nowIso,
+    lastSeenAt,
+    lastHealthCheckAt,
     availableAgentSdks,
   };
   if (runnerId) {

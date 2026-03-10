@@ -66,6 +66,7 @@ test("toLegacyRunnerPayload preserves connection and lifecycle status separately
     name: "Runner One",
     isConnected: true,
     status: "ready",
+    lastSeenAt: "2026-03-10T17:30:00.000Z",
     agentSdks: [
       {
         id: "sdk-1",
@@ -89,6 +90,19 @@ test("toLegacyRunnerPayload preserves connection and lifecycle status separately
   assert.equal(payload.status, "ready");
   assert.equal(payload.availableAgentSdks?.[0]?.isAvailable, false);
   assert.equal(payload.availableAgentSdks?.[0]?.availableModels?.[0]?.isAvailable, false);
-  assert.ok(payload.lastSeenAt);
-  assert.ok(payload.lastHealthCheckAt);
+  assert.equal(payload.lastSeenAt, "2026-03-10T17:30:00.000Z");
+  assert.equal(payload.lastHealthCheckAt, "2026-03-10T17:30:00.000Z");
+});
+
+test("toLegacyRunnerPayload does not synthesize heartbeat timestamps", () => {
+  const payload = toLegacyRunnerPayload({
+    id: "runner-2",
+    name: "Runner Two",
+    isConnected: true,
+    status: "ready",
+    company: { id: "company-1" },
+  });
+
+  assert.equal(payload.lastSeenAt, null);
+  assert.equal(payload.lastHealthCheckAt, null);
 });

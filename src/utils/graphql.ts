@@ -1880,6 +1880,8 @@ export const AGENT_RUNNERS_SUBSCRIPTION = `
           }
           isConnected
           status
+          lastHealthCheckAt
+          lastSeenAt
         }
       }
     }
@@ -3187,6 +3189,8 @@ export const COMPANY_API_LIST_AGENT_RUNNERS_CONNECTION_QUERY = `
         node {
           id
           name
+          lastHealthCheckAt
+          lastSeenAt
           agentSdks {
             id
             name
@@ -3229,9 +3233,11 @@ export const COMPANY_API_CREATE_AGENT_RUNNER_MUTATION = `
   mutation CompanyApiCreateAgentRunner($name: String!) {
     createAgentRunner(name: $name) {
       secret
-      agentRunner {
+        agentRunner {
         id
         name
+        lastHealthCheckAt
+        lastSeenAt
         agentSdks {
           id
           name
@@ -3272,6 +3278,8 @@ export const COMPANY_API_REGENERATE_AGENT_RUNNER_SECRET_MUTATION = `
       agentRunner {
         id
         name
+        lastHealthCheckAt
+        lastSeenAt
         agentSdks {
           id
           name
@@ -3355,6 +3363,8 @@ export const COMPANY_API_LIST_AGENTS_CONNECTION_QUERY = `
             name
             isConnected
             status
+            lastHealthCheckAt
+            lastSeenAt
             agentSdks {
               id
               name
@@ -3421,6 +3431,8 @@ export const COMPANY_API_LIST_AGENTS_PAGE_QUERY = `
             name
             isConnected
             status
+            lastHealthCheckAt
+            lastSeenAt
             agentSdks {
               id
               name
@@ -3445,6 +3457,8 @@ export const COMPANY_API_LIST_AGENTS_PAGE_QUERY = `
         node {
           id
           name
+          lastHealthCheckAt
+          lastSeenAt
           agentSdks {
             id
             name
@@ -3534,6 +3548,8 @@ export const COMPANY_API_LIST_AGENTS_WITH_THREADS_CONNECTION_QUERY = `
             name
             isConnected
             status
+            lastHealthCheckAt
+            lastSeenAt
             agentSdks {
               id
               name
@@ -3628,6 +3644,8 @@ export const COMPANY_API_CREATE_AGENT_MUTATION = `
         name
         isConnected
         status
+        lastHealthCheckAt
+        lastSeenAt
       }
     }
   }
@@ -3677,6 +3695,8 @@ export const COMPANY_API_UPDATE_AGENT_MUTATION = `
         name
         isConnected
         status
+        lastHealthCheckAt
+        lastSeenAt
       }
     }
   }
