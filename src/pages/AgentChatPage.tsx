@@ -363,6 +363,7 @@ export function AgentChatPage({
   const selectedAgentId = String(agent?.id || "").trim();
   const selectedSessionId = String(session?.id || "").trim();
   const normalizedChatListStatusFilter = normalizeChatListStatusFilter(chatListStatusFilter);
+  const canShowCreateChatActions = normalizedChatListStatusFilter !== "archived";
   const sessionStatus = String(session?.status || "").trim().toLowerCase();
   const isSessionArchived = canChat && sessionStatus === "archived";
   const isSessionArchiving = canChat && sessionStatus === "archiving";
@@ -792,23 +793,25 @@ export function AgentChatPage({
                           {sidebarAgent?.agentSdk || "n/a"} · {String(sidebarAgent?.model || sidebarAgent?.defaultModelId || "").trim() || "n/a"}
                         </p>
                       </div>
-                      <button
-                        type="button"
-                        className="chat-sidebar-new-chat-btn"
-                        disabled={isCreateChatDisabled}
-                        onClick={() => {
-                          if (!isCreateChatDisabled) {
-                            void onCreateChatForAgent(sidebarAgentId);
-                          }
-                        }}
-                        aria-label={isCreatingChatSession ? "Creating..." : "New chat"}
-                        title={createChatDisabledReason || "New chat"}
-                      >
-                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                          <line x1="12" y1="5" x2="12" y2="19" />
-                          <line x1="5" y1="12" x2="19" y2="12" />
-                        </svg>
-                      </button>
+                      {canShowCreateChatActions ? (
+                        <button
+                          type="button"
+                          className="chat-sidebar-new-chat-btn"
+                          disabled={isCreateChatDisabled}
+                          onClick={() => {
+                            if (!isCreateChatDisabled) {
+                              void onCreateChatForAgent(sidebarAgentId);
+                            }
+                          }}
+                          aria-label={isCreatingChatSession ? "Creating..." : "New chat"}
+                          title={createChatDisabledReason || "New chat"}
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <line x1="12" y1="5" x2="12" y2="19" />
+                            <line x1="5" y1="12" x2="19" y2="12" />
+                          </svg>
+                        </button>
+                      ) : null}
                     </div>
                     {createChatDisabledReason ? (
                       <p className="chat-sidebar-agent-warning">{createChatDisabledReason}</p>
@@ -907,23 +910,25 @@ export function AgentChatPage({
                             {sidebarAgent?.agentSdk || "n/a"} · {String(sidebarAgent?.model || sidebarAgent?.defaultModelId || "").trim() || "n/a"}
                           </p>
                         </div>
-                        <button
-                          type="button"
-                          className="chat-sidebar-new-chat-btn"
-                          disabled={isCreateChatDisabled}
-                          onClick={() => {
-                            if (!isCreateChatDisabled) {
-                              void handleMobileCreateChat(sidebarAgentId);
-                            }
-                          }}
-                          aria-label={isCreatingChatSession ? "Creating..." : "New chat"}
-                          title={createChatDisabledReason || "New chat"}
-                        >
-                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                            <line x1="12" y1="5" x2="12" y2="19" />
-                            <line x1="5" y1="12" x2="19" y2="12" />
-                          </svg>
-                        </button>
+                        {canShowCreateChatActions ? (
+                          <button
+                            type="button"
+                            className="chat-sidebar-new-chat-btn"
+                            disabled={isCreateChatDisabled}
+                            onClick={() => {
+                              if (!isCreateChatDisabled) {
+                                void handleMobileCreateChat(sidebarAgentId);
+                              }
+                            }}
+                            aria-label={isCreatingChatSession ? "Creating..." : "New chat"}
+                            title={createChatDisabledReason || "New chat"}
+                          >
+                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                              <line x1="12" y1="5" x2="12" y2="19" />
+                              <line x1="5" y1="12" x2="19" y2="12" />
+                            </svg>
+                          </button>
+                        ) : null}
                       </div>
                       {sortedSidebarSessions.length > 0 ? (
                         <ul className="chat-card-list chat-sidebar-chat-list">
@@ -1015,23 +1020,25 @@ export function AgentChatPage({
                             {sidebarAgent?.agentSdk || "n/a"} · {sidebarModelLabel}
                           </p>
                         </div>
-                        <button
-                          type="button"
-                          className="chat-sidebar-new-chat-btn"
-                          disabled={isCreateChatDisabled}
-                          onClick={() => {
-                            if (!isCreateChatDisabled) {
-                              void onCreateChatForAgent(sidebarAgentId);
-                            }
-                          }}
-                          aria-label={isCreatingChatSession ? "Creating chat..." : "Start new chat"}
-                          title={createChatDisabledReason || "Start new chat"}
-                        >
-                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                            <line x1="12" y1="5" x2="12" y2="19" />
-                            <line x1="5" y1="12" x2="19" y2="12" />
-                          </svg>
-                        </button>
+                        {canShowCreateChatActions ? (
+                          <button
+                            type="button"
+                            className="chat-sidebar-new-chat-btn"
+                            disabled={isCreateChatDisabled}
+                            onClick={() => {
+                              if (!isCreateChatDisabled) {
+                                void onCreateChatForAgent(sidebarAgentId);
+                              }
+                            }}
+                            aria-label={isCreatingChatSession ? "Creating chat..." : "Start new chat"}
+                            title={createChatDisabledReason || "Start new chat"}
+                          >
+                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                              <line x1="12" y1="5" x2="12" y2="19" />
+                              <line x1="5" y1="12" x2="19" y2="12" />
+                            </svg>
+                          </button>
+                        ) : null}
                       </div>
                       {createChatDisabledReason ? (
                         <p className="chat-sidebar-agent-warning">{createChatDisabledReason}</p>
