@@ -1,6 +1,11 @@
 import { useMemo } from "react";
 import { Page } from "../components/Page.tsx";
-import { formatTimestamp, normalizeRunnerStatus, toSortableTimestamp } from "../utils/formatting.ts";
+import {
+  formatRunnerLifecycleStatus,
+  formatTimestamp,
+  normalizeRunnerConnectionState,
+  toSortableTimestamp,
+} from "../utils/formatting.ts";
 import type { AgentRunner, Company, TaskItem } from "../types/domain.ts";
 
 interface DashboardPageProps {
@@ -26,14 +31,14 @@ export function DashboardPage({
   runnerError,
   onNavigate,
 }: DashboardPageProps) {
-  const readyRunnerCount = useMemo(() => {
-    return agentRunners.filter((runner) => normalizeRunnerStatus(runner.status) === "ready")
+  const connectedRunnerCount = useMemo(() => {
+    return agentRunners.filter((runner) => runner.isConnected === true)
       .length;
   }, [agentRunners]);
 
   const disconnectedRunnerCount = useMemo(() => {
-    return agentRunners.length - readyRunnerCount;
-  }, [agentRunners.length, readyRunnerCount]);
+    return agentRunners.length - connectedRunnerCount;
+  }, [agentRunners.length, connectedRunnerCount]);
 
   const recentTasks = useMemo(() => {
     return [...tasks]
@@ -71,8 +76,8 @@ export function DashboardPage({
         </article>
 
         <article className="panel stat-panel">
-          <p className="stat-label">Ready</p>
-          <p className="stat-value">{readyRunnerCount}</p>
+          <p className="stat-label">Connected</p>
+          <p className="stat-value">{connectedRunnerCount}</p>
           <p className="stat-footnote">healthy connections</p>
         </article>
 
@@ -135,14 +140,17 @@ export function DashboardPage({
           {recentRunners.length > 0 ? (
             <ul className="compact-list">
               {recentRunners.map((runner) => {
-                const status = normalizeRunnerStatus(runner.status);
+                const connectionState = normalizeRunnerConnectionState(runner.isConnected);
+                const runnerStatus = formatRunnerLifecycleStatus(runner.status);
                 return (
                   <li key={`dashboard-runner-${runner.id}`} className="compact-item">
                     <div>
                       <strong>{runner.name || runner.id}</strong>
-                      <p>Seen {formatTimestamp(runner.lastSeenAt)}</p>
+                      <p>Status {runnerStatus} · Seen {formatTimestamp(runner.lastSeenAt)}</p>
                     </div>
-                    <span className={`runner-status runner-status-${status}`}>{status}</span>
+                    <span className={`runner-status runner-status-${connectionState}`}>
+                      {connectionState}
+                    </span>
                   </li>
                 );
               })}

@@ -156,6 +156,17 @@ test("AgentChatPage shows archived chats as read-only and hides the composer", (
   assert.doesNotMatch(markup, /Ask the agent to plan, debug, or implement something/);
 });
 
+test("AgentChatPage disables the composer when the runner is not ready and connected", () => {
+  const markup = renderAgentChatPageMarkup({
+    chatDraftMessage: "Ship it",
+    sendDisabledReason: "Assigned runner runner-1 must be ready and connected before sending messages.",
+  });
+
+  assert.match(markup, /Assigned runner runner-1 must be ready and connected before sending messages\./);
+  assert.match(markup, /Send message/);
+  assert.match(markup, /disabled=""/);
+});
+
 test("applyChatPromptSuggestion updates the draft and focuses the composer", () => {
   const applyChatPromptSuggestion = (AgentChatPageModule as Record<string, any>).applyChatPromptSuggestion;
 

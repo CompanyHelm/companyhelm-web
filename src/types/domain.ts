@@ -38,6 +38,7 @@ export interface AgentRunner extends NamedEntity {
   callbackUrl?: string | null;
   hasAuthSecret?: boolean;
   availableAgentSdks?: RunnerSdkEntry[];
+  isConnected?: boolean;
   status?: string;
   lastHealthCheckAt?: string | null;
   lastSeenAt?: string | null;

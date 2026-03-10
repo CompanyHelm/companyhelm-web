@@ -1,6 +1,10 @@
 import { useMemo } from "react";
 import { Page } from "../components/Page.tsx";
-import { formatTimestamp, normalizeRunnerStatus } from "../utils/formatting.ts";
+import {
+  formatRunnerLifecycleStatus,
+  formatTimestamp,
+  normalizeRunnerConnectionState,
+} from "../utils/formatting.ts";
 import { normalizeRunnerAvailableAgentSdks, normalizeRunnerCodexAvailableModels } from "../utils/normalization.ts";
 import { DEFAULT_AGENT_SDK } from "../utils/constants.ts";
 import { getChatsPath, setBrowserPath } from "../utils/path.ts";
@@ -18,7 +22,8 @@ export function AgentRunnerDetailPage({
   onRegenerateRunnerSecret,
   onDeleteRunner,
 }: any) {
-  const runnerStatus = normalizeRunnerStatus(runner.status);
+  const connectionState = normalizeRunnerConnectionState(runner.isConnected);
+  const runnerStatus = formatRunnerLifecycleStatus(runner.status);
   const runnerSecret = runnerSecretsById[runner.id] || "";
   const availableAgentSdks = normalizeRunnerAvailableAgentSdks(runner);
   const availableSdkNames = availableAgentSdks.map((entry: any) => entry.name);
@@ -38,13 +43,18 @@ export function AgentRunnerDetailPage({
     <Page><div className="page-stack">
       <section className="dashboard-grid">
         <article className="panel stat-panel">
-          <p className="stat-label">Status</p>
+          <p className="stat-label">Connected</p>
           <p className="stat-value">
-            <span className={`runner-status runner-status-${runnerStatus}`}>
-              {runnerStatus}
+            <span className={`runner-status runner-status-${connectionState}`}>
+              {connectionState}
             </span>
           </p>
           <p className="stat-footnote">Last seen {formatTimestamp(runner.lastSeenAt)}</p>
+        </article>
+        <article className="panel stat-panel">
+          <p className="stat-label">Status</p>
+          <p className="stat-value">{runnerStatus}</p>
+          <p className="stat-footnote">runner lifecycle</p>
         </article>
         <article className="panel stat-panel">
           <p className="stat-label">Agents</p>
@@ -144,6 +154,11 @@ export function AgentRunnerDetailPage({
           <div className="chat-settings-field">
             <span className="chat-settings-label">Last health check</span>
             <p className="chat-settings-readonly">{formatTimestamp(runner.lastHealthCheckAt)}</p>
+          </div>
+
+          <div className="chat-settings-field">
+            <span className="chat-settings-label">Runner status</span>
+            <p className="chat-settings-readonly">{runnerStatus}</p>
           </div>
 
           <div className="chat-settings-field">

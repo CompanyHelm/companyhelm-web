@@ -214,7 +214,7 @@ import {
   parseMcpEnvVarsText,
 } from "./utils/normalization.ts";
 
-import { normalizeRunnerStatus, normalizeChatStatus } from "./utils/formatting.ts";
+import { isRunnerReadyAndConnected, normalizeChatStatus } from "./utils/formatting.ts";
 import { buildTaskExecutionPlan } from "./utils/task-execution.ts";
 import { normalizeThreadTaskList } from "./utils/thread-tasks.ts";
 
@@ -318,10 +318,6 @@ async function executeRawGraphQL(query: any, variables: any, options: any = {}) 
   });
 }
 
-function normalizeCompanyApiRunnerStatus(value: any) {
-  return String(value || "").trim().toLowerCase() === "connected" ? "ready" : "disconnected";
-}
-
 function resolveLegacyId(...values: any) {
   for (const value of values) {
     const resolved = String(value || "").trim();
@@ -346,8 +342,26 @@ function getChatCreateBlockedReason(agent: any, agentRunnerLookup: any) {
     return "";
   }
 
-  if (normalizeRunnerStatus(assignedRunner.status) !== "ready") {
-    return `Assigned runner ${assignedRunnerId} is not connected. Start or reconnect the runner before creating chats.`;
+  if (!isRunnerReadyAndConnected(assignedRunner)) {
+    return `Assigned runner ${assignedRunnerId} must be ready and connected before creating chats.`;
+  }
+
+  return "";
+}
+
+function getChatSendBlockedReason(agent: any, agentRunnerLookup: any) {
+  const assignedRunnerId = resolveLegacyId(agent?.agentRunnerId);
+  if (!assignedRunnerId) {
+    return "";
+  }
+
+  const assignedRunner = agentRunnerLookup.get(assignedRunnerId);
+  if (!assignedRunner) {
+    return "";
+  }
+
+  if (!isRunnerReadyAndConnected(assignedRunner)) {
+    return `Assigned runner ${assignedRunnerId} must be ready and connected before sending messages.`;
   }
 
   return "";
@@ -550,16 +564,17 @@ function toLegacyRunnerPayload(agentRunner: any) {
   const runnerName = resolveLegacyId(agentRunner?.name);
   const nowIso = new Date().toISOString();
   const currentMetadata = companyApiRunnerMetadataById.get(runnerId) || {};
-  const runnerStatus = normalizeCompanyApiRunnerStatus(agentRunner?.status);
+  const runnerStatus = resolveLegacyId(agentRunner?.status) || "unknown";
+  const isConnected = agentRunner?.isConnected === true;
   const availableAgentSdks = normalizeRunnerAvailableAgentSdks(agentRunner);
 
   const nextMetadata = {
     name: runnerName || currentMetadata.name || runnerId,
     createdAt: currentMetadata.createdAt || nowIso,
     updatedAt: nowIso,
-    lastSeenAt: runnerStatus === "ready" ? nowIso : currentMetadata.lastSeenAt || null,
+    lastSeenAt: isConnected ? nowIso : currentMetadata.lastSeenAt || null,
     lastHealthCheckAt:
-      runnerStatus === "ready" ? nowIso : currentMetadata.lastHealthCheckAt || null,
+      isConnected ? nowIso : currentMetadata.lastHealthCheckAt || null,
     availableAgentSdks,
   };
   if (runnerId) {
@@ -573,6 +588,7 @@ function toLegacyRunnerPayload(agentRunner: any) {
     callbackUrl: null,
     hasAuthSecret: true,
     availableAgentSdks,
+    isConnected,
     status: runnerStatus,
     lastHealthCheckAt: nextMetadata.lastHealthCheckAt,
     lastSeenAt: nextMetadata.lastSeenAt,
@@ -2903,6 +2919,11 @@ function App() {
     [agentRunnerLookup],
   );
 
+  const getChatSendBlockedReasonForAgent = useCallback(
+    (agent: any) => getChatSendBlockedReason(agent, agentRunnerLookup),
+    [agentRunnerLookup],
+  );
+
   const getChatCreateBlockedReasonByAgentId = useCallback(
     (agentId: any) => {
       const resolvedAgentId = String(agentId || "").trim();
@@ -2916,6 +2937,21 @@ function App() {
       return getChatCreateBlockedReasonForAgent(selectedAgent);
     },
     [agents, getChatCreateBlockedReasonForAgent],
+  );
+
+  const getChatSendBlockedReasonByAgentId = useCallback(
+    (agentId: any) => {
+      const resolvedAgentId = String(agentId || "").trim();
+      if (!resolvedAgentId) {
+        return "Select an agent before sending messages.";
+      }
+      const selectedAgent = agents.find((agent: any) => agent.id === resolvedAgentId) || null;
+      if (!selectedAgent) {
+        return `Agent ${resolvedAgentId} was not found for this company.`;
+      }
+      return getChatSendBlockedReasonForAgent(selectedAgent);
+    },
+    [agents, getChatSendBlockedReasonForAgent],
   );
 
   const resolvedChatSessionId = useMemo(
@@ -7186,6 +7222,10 @@ function App() {
       setAgentError(`Assigned runner ${agentRunnerId} was not found for this company.`);
       return false;
     }
+    if (!isRunnerReadyAndConnected(selectedRunner)) {
+      setAgentError(`Assigned runner ${agentRunnerId} must be ready and connected before creating an agent.`);
+      return false;
+    }
 
     const normalizedSdk = normalizeAgentSdkValue(agentSdk);
     if (!isAvailableAgentSdk(normalizedSdk)) {
@@ -7317,6 +7357,10 @@ function App() {
     const assignedRunner = agentRunnerLookup.get(draft.agentRunnerId);
     if (!assignedRunner) {
       setAgentError(`Assigned runner ${draft.agentRunnerId} was not found for this company.`);
+      return false;
+    }
+    if (!isRunnerReadyAndConnected(assignedRunner)) {
+      setAgentError(`Assigned runner ${draft.agentRunnerId} must be ready and connected before saving an agent.`);
       return false;
     }
 
@@ -7463,15 +7507,15 @@ function App() {
     }
 
     const readyRunner = assignedRunner
-      ? normalizeRunnerStatus(assignedRunner.status) === "ready"
+      ? isRunnerReadyAndConnected(assignedRunner)
         ? assignedRunner
         : null
-      : agentRunners.find((runner: any) => normalizeRunnerStatus(runner.status) === "ready");
+      : agentRunners.find((runner: any) => isRunnerReadyAndConnected(runner));
     if (!readyRunner) {
       setAgentError(
         assignedRunner
-          ? `Assigned runner ${assignedRunner.id} is not ready.`
-          : "No ready runner found. Start a runner before initializing agents.",
+          ? `Assigned runner ${assignedRunner.id} must be ready and connected.`
+          : "No ready and connected runner found. Start a runner before initializing agents.",
       );
       return;
     }
@@ -7734,6 +7778,11 @@ function App() {
     }
 
     const selectedAgentForChat = agents.find((agent: any) => agent.id === chatAgentId) || null;
+    const sendChatBlockedReason = getChatSendBlockedReasonForAgent(selectedAgentForChat);
+    if (sendChatBlockedReason) {
+      setChatError(sendChatBlockedReason);
+      return;
+    }
     const latestRunningTurn = getLatestRunningChatTurn(chatTurns);
     const hasRunningTurn = Boolean(latestRunningTurn);
     let targetSessionId = resolvedChatSessionId;
@@ -9169,6 +9218,7 @@ function App() {
             retryingQueuedMessageId={retryingQueuedMessageId}
             deletingQueuedMessageId={deletingQueuedMessageId}
             getCreateChatDisabledReason={getChatCreateBlockedReasonByAgentId}
+            sendDisabledReason={getChatSendBlockedReasonByAgentId(chatAgentId)}
             onChatSessionRenameDraftChange={handleChatSessionRenameDraftChange}
             onChatDraftMessageChange={setChatDraftMessage}
             onChatListStatusFilterChange={setChatListStatusFilter}
@@ -9261,6 +9311,7 @@ function App() {
               retryingQueuedMessageId={retryingQueuedMessageId}
               deletingQueuedMessageId={deletingQueuedMessageId}
               getCreateChatDisabledReason={getChatCreateBlockedReasonByAgentId}
+              sendDisabledReason={getChatSendBlockedReasonByAgentId(chatAgentId)}
               onChatSessionRenameDraftChange={handleChatSessionRenameDraftChange}
               onChatDraftMessageChange={setChatDraftMessage}
               onChatListStatusFilterChange={setChatListStatusFilter}

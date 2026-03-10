@@ -8,7 +8,12 @@ import {
 } from "react";
 import { Page } from "../components/Page.tsx";
 import { CreationModal } from "../components/CreationModal.tsx";
-import { formatTimestamp, normalizeRunnerStatus, toSortableTimestamp } from "../utils/formatting.ts";
+import {
+  formatRunnerLifecycleStatus,
+  formatTimestamp,
+  normalizeRunnerConnectionState,
+  toSortableTimestamp,
+} from "../utils/formatting.ts";
 import { setBrowserPath } from "../utils/path.ts";
 import { useSetPageActions } from "../components/PageActionsContext.tsx";
 import type { AgentRunner } from "../types/domain.ts";
@@ -44,14 +49,14 @@ export function AgentRunnerPage({
 }: AgentRunnerPageProps) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  const readyRunnerCount = useMemo(() => {
-    return agentRunners.filter((runner) => normalizeRunnerStatus(runner.status) === "ready")
+  const connectedRunnerCount = useMemo(() => {
+    return agentRunners.filter((runner) => runner.isConnected === true)
       .length;
   }, [agentRunners]);
 
   const disconnectedRunnerCount = useMemo(() => {
-    return agentRunners.length - readyRunnerCount;
-  }, [agentRunners.length, readyRunnerCount]);
+    return agentRunners.length - connectedRunnerCount;
+  }, [agentRunners.length, connectedRunnerCount]);
 
   async function handleCreateRunnerSubmit(event: FormEvent<HTMLFormElement>) {
     const didCreate = await onCreateRunner(event);
@@ -88,9 +93,9 @@ export function AgentRunnerPage({
           <p className="stat-footnote">{runnerCountLabel}</p>
         </article>
         <article className="panel stat-panel">
-          <p className="stat-label">Ready</p>
-          <p className="stat-value">{readyRunnerCount}</p>
-          <p className="stat-footnote">connected</p>
+          <p className="stat-label">Connected</p>
+          <p className="stat-value">{connectedRunnerCount}</p>
+          <p className="stat-footnote">runner heartbeat active</p>
         </article>
         <article className="panel stat-panel">
           <p className="stat-label">Disconnected</p>
@@ -121,7 +126,8 @@ export function AgentRunnerPage({
             {[...agentRunners]
               .sort((a, b) => toSortableTimestamp(b.lastSeenAt) - toSortableTimestamp(a.lastSeenAt))
               .map((runner) => {
-                const runnerStatus = normalizeRunnerStatus(runner.status);
+                const connectionState = normalizeRunnerConnectionState(runner.isConnected);
+                const runnerStatus = formatRunnerLifecycleStatus(runner.status);
                 const isBusy =
                   deletingRunnerId === runner.id || regeneratingRunnerId === runner.id;
 
@@ -142,13 +148,14 @@ export function AgentRunnerPage({
                       <p className="chat-card-title">
                         <strong>{runner.name || "Unnamed runner"}</strong>
                         {" "}
-                        <span className={`runner-status runner-status-${runnerStatus}`}>
-                          {runnerStatus}
+                        <span className={`runner-status runner-status-${connectionState}`}>
+                          {connectionState}
                         </span>
                       </p>
                       <p className="chat-card-meta">
                         {runner.id} &middot; Last seen {formatTimestamp(runner.lastSeenAt)}
                       </p>
+                      <p className="chat-card-meta">Status: {runnerStatus}</p>
                     </div>
                     <div className="chat-card-actions">
                       <button

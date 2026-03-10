@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { toLegacyQueuedUserMessagePayload, toLegacyThreadPayload } from "../../src/utils/adapters.ts";
+import {
+  toLegacyQueuedUserMessagePayload,
+  toLegacyRunnerPayload,
+  toLegacyThreadPayload,
+} from "../../src/utils/adapters.ts";
 
 test("toLegacyThreadPayload includes thread error status and message", () => {
   const payload = toLegacyThreadPayload({
@@ -54,4 +58,20 @@ test("toLegacyQueuedUserMessagePayload defaults missing error message to null", 
 
   assert.equal(payload.status, "queued");
   assert.equal(payload.errorMessage, null);
+});
+
+test("toLegacyRunnerPayload preserves connection and lifecycle status separately", () => {
+  const payload = toLegacyRunnerPayload({
+    id: "runner-1",
+    name: "Runner One",
+    isConnected: true,
+    status: "ready",
+    company: { id: "company-1" },
+  });
+
+  assert.equal(payload.id, "runner-1");
+  assert.equal(payload.isConnected, true);
+  assert.equal(payload.status, "ready");
+  assert.ok(payload.lastSeenAt);
+  assert.ok(payload.lastHealthCheckAt);
 });

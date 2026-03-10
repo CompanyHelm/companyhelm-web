@@ -167,6 +167,7 @@ export function AgentChatsPage({
     const assignedRunner = agent.agentRunnerId
       ? runnerLookup.get(agent.agentRunnerId) || {
           id: agent.agentRunnerId,
+          isConnected: false,
           status: "disconnected",
         }
       : null;

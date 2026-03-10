@@ -343,6 +343,7 @@ export function AgentChatPage({
   retryingQueuedMessageId,
   deletingQueuedMessageId,
   getCreateChatDisabledReason,
+  sendDisabledReason = "",
   onChatSessionRenameDraftChange,
   onChatDraftMessageChange,
   onChatListStatusFilterChange,
@@ -370,6 +371,7 @@ export function AgentChatPage({
   const isSessionDeleting = canChat && sessionStatus === "deleting";
   const isSessionPending = canChat && sessionStatus === "pending";
   const sessionErrorMessage = String(session?.errorMessage || "").trim();
+  const normalizedSendDisabledReason = String(sendDisabledReason || "").trim();
   const sortedSidebarAgents = useMemo(() => {
     return [...(Array.isArray(agents) ? agents : [])].sort((leftAgent: any, rightAgent: any) =>
       String(leftAgent?.name || "").localeCompare(String(rightAgent?.name || "")),
@@ -384,6 +386,7 @@ export function AgentChatPage({
   }, [chatSessionsByAgent, selectedAgentId]);
   const hasKnownChatsForAgent = selectedAgentSessions.length > 0;
   const canInteractWithSession = canChat && !isSessionDeleting && !isSessionReadOnly;
+  const canSendMessages = canInteractWithSession && !normalizedSendDisabledReason;
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<any>(false);
   const [isInstructionsExpanded, setIsInstructionsExpanded] = useState<any>(false);
   const [selectedCommandOutputItem, setSelectedCommandOutputItem] = useState<any>(null);
@@ -1612,13 +1615,13 @@ export function AgentChatPage({
                   }
                 }}
                 autoFocus
-                disabled={!canInteractWithSession || isSendingChatMessage || isInterruptingChatTurn}
+                disabled={!canSendMessages || isSendingChatMessage || isInterruptingChatTurn}
               />
               <div className="chat-composer-fullscreen-footer">
                 <span className="subcopy">Esc to close</span>
                 <button
                   type="button"
-                  disabled={!canInteractWithSession || !chatDraftMessage.trim() || isSendingChatMessage}
+                  disabled={!canSendMessages || !chatDraftMessage.trim() || isSendingChatMessage}
                   onClick={(event: any) => {
                     setIsComposerExpanded(false);
                     onSendChatMessage(event, "steer");
@@ -1639,6 +1642,7 @@ export function AgentChatPage({
             {latestReasoning.text}
           </p>
         ) : null}
+        {normalizedSendDisabledReason ? <p className="empty-hint">{normalizedSendDisabledReason}</p> : null}
         <form className="chat-composer-form" onSubmit={onSendChatMessage}>
           <div className={`chat-composer-input-row${hasRunningTurn ? " chat-composer-input-row-running" : " chat-composer-input-row-idle"}`}>
             <div className="chat-composer-input-wrapper">
@@ -1651,13 +1655,13 @@ export function AgentChatPage({
                 value={chatDraftMessage}
                 onChange={(event: any) => onChatDraftMessageChange(event.target.value)}
                 onKeyDown={handleChatMessageKeyDown}
-                disabled={!canInteractWithSession || isSendingChatMessage || isInterruptingChatTurn}
+                disabled={!canSendMessages || isSendingChatMessage || isInterruptingChatTurn}
               />
               <button
                 type="button"
                 className="chat-composer-expand-btn"
                 onClick={() => setIsComposerExpanded(true)}
-                disabled={!canInteractWithSession}
+                disabled={!canSendMessages}
                 title="Expand editor"
                 aria-label="Expand editor to fullscreen"
               >
@@ -1682,7 +1686,7 @@ export function AgentChatPage({
                     <button
                       type="button"
                       className="secondary-btn chat-action-btn"
-                      disabled={!canInteractWithSession || !chatDraftMessage.trim() || isSendingChatMessage || isInterruptingChatTurn}
+                      disabled={!canSendMessages || !chatDraftMessage.trim() || isSendingChatMessage || isInterruptingChatTurn}
                       onClick={(event: any) => onSendChatMessage(event, "queue")}
                     >
                       <span className="chat-action-btn-content">
@@ -1701,7 +1705,7 @@ export function AgentChatPage({
                     <button
                       type="button"
                       className="secondary-btn chat-action-btn"
-                      disabled={!canInteractWithSession || !chatDraftMessage.trim() || isSendingChatMessage || isInterruptingChatTurn}
+                      disabled={!canSendMessages || !chatDraftMessage.trim() || isSendingChatMessage || isInterruptingChatTurn}
                       onClick={(event: any) => onSendChatMessage(event, "steer")}
                       title="Steer the active turn"
                     >
@@ -1736,7 +1740,7 @@ export function AgentChatPage({
                   <button
                     type="submit"
                     className="chat-composer-send-btn"
-                    disabled={!canInteractWithSession || !chatDraftMessage.trim() || isSendingChatMessage || isInterruptingChatTurn}
+                    disabled={!canSendMessages || !chatDraftMessage.trim() || isSendingChatMessage || isInterruptingChatTurn}
                     aria-label={isSendingChatMessage ? "Sending message..." : "Send message"}
                     title={isSendingChatMessage ? "Sending message..." : "Send message"}
                   >

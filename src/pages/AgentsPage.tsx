@@ -18,7 +18,7 @@ import {
   getRunnerModelNames,
   getRunnerReasoningLevels,
 } from "../utils/normalization.ts";
-import { formatRunnerLabel } from "../utils/formatting.ts";
+import { formatRunnerLabel, isRunnerReadyAndConnected } from "../utils/formatting.ts";
 import { setBrowserPath } from "../utils/path.ts";
 import { useSetPageActions } from "../components/PageActionsContext.tsx";
 import type {
@@ -221,10 +221,10 @@ export function AgentsPage({
       roles.filter((role) => !createAssignedRoleIds.includes(role.id)),
     [createAssignedRoleIds, roles],
   );
-  const hasRegisteredRunners = agentRunners.length > 0;
-  const isCreateBlockedByRunners = hasLoadedAgentRunners && !hasRegisteredRunners;
+  const hasReadyConnectedRunner = agentRunners.some((runner) => isRunnerReadyAndConnected(runner));
+  const isCreateBlockedByRunners = hasLoadedAgentRunners && !hasReadyConnectedRunner;
   const createAgentButtonTitle = isCreateBlockedByRunners
-    ? "Register at least one runner before creating an agent"
+    ? "A runner must be ready and connected before creating an agent"
     : "Create agent";
   useEffect(() => {
     if (pendingEditAgentId) {
@@ -316,7 +316,7 @@ export function AgentsPage({
             <p className="empty-hint">No agents created for this company yet.</p>
             {isCreateBlockedByRunners ? (
               <p className="empty-hint">
-                Register at least one runner before creating an agent.
+                Wait for a runner to become ready and connected before creating an agent.
               </p>
             ) : null}
             <button
@@ -336,6 +336,7 @@ export function AgentsPage({
               const assignedRunner = agent.agentRunnerId
                 ? agentRunnerLookup.get(agent.agentRunnerId) || {
                     id: agent.agentRunnerId,
+                    isConnected: false,
                     status: "disconnected",
                   }
                 : null;

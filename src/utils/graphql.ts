@@ -243,6 +243,7 @@ export const LIST_AGENT_RUNNERS_QUERY = `
           reasoningLevels
         }
       }
+      isConnected
       status
       lastHealthCheckAt
       lastSeenAt
@@ -275,6 +276,7 @@ export const CREATE_AGENT_RUNNER_MUTATION = `
             reasoningLevels
           }
         }
+        isConnected
         status
         lastHealthCheckAt
         lastSeenAt
@@ -304,6 +306,7 @@ export const REGENERATE_AGENT_RUNNER_SECRET_MUTATION = `
           reasoningLevels
         }
       }
+        isConnected
         status
         lastHealthCheckAt
         lastSeenAt
@@ -327,6 +330,7 @@ export const LIST_AGENTS_QUERY = `
       runner {
         id
         name
+        isConnected
         status
       }
     }
@@ -1825,6 +1829,7 @@ export const AGENT_RUNNERS_SUBSCRIPTION = `
               reasoning
             }
           }
+          isConnected
           status
         }
       }
@@ -3154,6 +3159,7 @@ export const COMPANY_API_LIST_AGENT_RUNNERS_CONNECTION_QUERY = `
               }
             }
           }
+          isConnected
           status
           company {
             id
@@ -3196,6 +3202,7 @@ export const COMPANY_API_CREATE_AGENT_RUNNER_MUTATION = `
             }
           }
         }
+        isConnected
         status
         company {
           id
@@ -3233,6 +3240,7 @@ export const COMPANY_API_REGENERATE_AGENT_RUNNER_SECRET_MUTATION = `
             }
           }
         }
+        isConnected
         status
         company {
           id
@@ -3290,6 +3298,7 @@ export const COMPANY_API_LIST_AGENTS_CONNECTION_QUERY = `
           runner {
             id
             name
+            isConnected
             status
             agentSdks {
               id
@@ -3358,6 +3367,7 @@ export const COMPANY_API_LIST_AGENTS_WITH_THREADS_CONNECTION_QUERY = `
           runner {
             id
             name
+            isConnected
             status
             agentSdks {
               id
@@ -3449,6 +3459,7 @@ export const COMPANY_API_CREATE_AGENT_MUTATION = `
       runner {
         id
         name
+        isConnected
         status
       }
     }
@@ -3497,6 +3508,7 @@ export const COMPANY_API_UPDATE_AGENT_MUTATION = `
       runner {
         id
         name
+        isConnected
         status
       }
     }

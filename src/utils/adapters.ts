@@ -113,8 +113,8 @@ function normalizeRunnerAvailableAgentSdks(runner: RunnerLike): RunnerSdkEntry[]
     .sort((leftSdk, rightSdk) => leftSdk.name.localeCompare(rightSdk.name));
 }
 
-export function normalizeCompanyApiRunnerStatus(value: unknown): "ready" | "disconnected" {
-  return String(value || "").trim().toLowerCase() === "connected" ? "ready" : "disconnected";
+export function normalizeCompanyApiRunnerConnectivity(value: unknown): boolean {
+  return value === true;
 }
 
 export function resolveLegacyId(...values: unknown[]): string {
@@ -144,16 +144,17 @@ export function toLegacyRunnerPayload(agentRunner: LooseRecord | null | undefine
   const runnerName = resolveLegacyId(runnerRecord.name);
   const nowIso = new Date().toISOString();
   const currentMetadata: LooseRecord = companyApiRunnerMetadataById.get(runnerId) || {};
-  const runnerStatus = normalizeCompanyApiRunnerStatus(runnerRecord.status);
+  const isConnected = normalizeCompanyApiRunnerConnectivity(runnerRecord.isConnected);
+  const runnerStatus = resolveLegacyId(runnerRecord.status) || "unknown";
   const availableAgentSdks = normalizeRunnerAvailableAgentSdks(runnerRecord);
 
   const nextMetadata: LooseRecord = {
     name: runnerName || resolveLegacyId(currentMetadata.name) || runnerId,
     createdAt: resolveLegacyId(currentMetadata.createdAt) || nowIso,
     updatedAt: nowIso,
-    lastSeenAt: runnerStatus === "ready" ? nowIso : (currentMetadata.lastSeenAt as string | null) || null,
+    lastSeenAt: isConnected ? nowIso : (currentMetadata.lastSeenAt as string | null) || null,
     lastHealthCheckAt:
-      runnerStatus === "ready" ? nowIso : (currentMetadata.lastHealthCheckAt as string | null) || null,
+      isConnected ? nowIso : (currentMetadata.lastHealthCheckAt as string | null) || null,
     availableAgentSdks,
   };
   if (runnerId) {
@@ -169,6 +170,7 @@ export function toLegacyRunnerPayload(agentRunner: LooseRecord | null | undefine
     callbackUrl: null,
     hasAuthSecret: true,
     availableAgentSdks,
+    isConnected,
     status: runnerStatus,
     lastHealthCheckAt: nextMetadata.lastHealthCheckAt,
     lastSeenAt: nextMetadata.lastSeenAt,
