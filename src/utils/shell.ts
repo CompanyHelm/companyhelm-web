@@ -11,6 +11,8 @@ export function buildRunnerStartCommand({
 }: any) {
   return [
     "companyhelm",
+    "runner",
+    "start",
     "--secret",
     quoteShellArg(runnerSecret),
   ].join(" ");
