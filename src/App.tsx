@@ -9639,7 +9639,6 @@ function App() {
         {activePage === "settings" ? (
           <SettingsPage
             hasCompanies={hasCompanies}
-            selectedCompanyId={selectedCompanyId}
             selectedCompany={selectedCompany}
             companyError={companyError}
             newCompanyName={newCompanyName}
@@ -9648,17 +9647,6 @@ function App() {
             onNewCompanyNameChange={setNewCompanyName}
             onCreateCompany={handleCreateCompany}
             onDeleteCompany={handleDeleteCompany}
-            githubAppInstallUrl={githubAppInstallUrl}
-            isLoadingGithubAppConfig={isLoadingGithubAppConfig}
-            githubAppConfigError={githubAppConfigError}
-            githubInstallations={githubInstallations}
-            isLoadingGithubInstallations={isLoadingGithubInstallations}
-            githubInstallationError={githubInstallationError}
-            githubInstallationNotice={githubInstallationNotice}
-            isAddingGithubInstallationFromCallback={isAddingGithubInstallationFromCallback}
-            pendingGithubInstallCallback={pendingGithubInstallCallback}
-            deletingGithubInstallationId={deletingGithubInstallationId}
-            onDeleteGithubInstallation={handleDeleteGithubInstallation}
           />
         ) : null}
 

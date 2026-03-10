@@ -1,23 +1,11 @@
-import {
-  useMemo,
-  useState,
-  type ChangeEvent,
-  type FormEvent,
-  type MouseEvent,
-} from "react";
+import { useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import { Page } from "../components/Page.tsx";
 import { CreationModal } from "../components/CreationModal.tsx";
 import { useSetPageActions } from "../components/PageActionsContext.tsx";
-import { formatTimestamp } from "../utils/formatting.ts";
-import type {
-  Company,
-  GithubInstallCallback,
-  GithubInstallation,
-} from "../types/domain.ts";
+import type { Company } from "../types/domain.ts";
 
 interface SettingsPageProps {
   hasCompanies: boolean;
-  selectedCompanyId: string;
   selectedCompany: Company | null;
   companyError: string;
   newCompanyName: string;
@@ -26,22 +14,10 @@ interface SettingsPageProps {
   onNewCompanyNameChange: (name: string) => void;
   onCreateCompany: (event: FormEvent<HTMLFormElement>) => Promise<boolean> | boolean;
   onDeleteCompany: () => void;
-  githubAppInstallUrl: string;
-  isLoadingGithubAppConfig: boolean;
-  githubAppConfigError: string;
-  githubInstallations: GithubInstallation[];
-  isLoadingGithubInstallations: boolean;
-  githubInstallationError: string;
-  githubInstallationNotice: string;
-  isAddingGithubInstallationFromCallback: boolean;
-  pendingGithubInstallCallback: GithubInstallCallback | null;
-  deletingGithubInstallationId: string;
-  onDeleteGithubInstallation: (installationId: string) => void;
 }
 
 export function SettingsPage({
   hasCompanies,
-  selectedCompanyId,
   selectedCompany,
   companyError,
   newCompanyName,
@@ -50,17 +26,6 @@ export function SettingsPage({
   onNewCompanyNameChange,
   onCreateCompany,
   onDeleteCompany,
-  githubAppInstallUrl,
-  isLoadingGithubAppConfig,
-  githubAppConfigError,
-  githubInstallations,
-  isLoadingGithubInstallations,
-  githubInstallationError,
-  githubInstallationNotice,
-  isAddingGithubInstallationFromCallback,
-  pendingGithubInstallCallback,
-  deletingGithubInstallationId,
-  onDeleteGithubInstallation,
 }: SettingsPageProps) {
   const [isCreateCompanyModalOpen, setIsCreateCompanyModalOpen] = useState(false);
 
@@ -117,88 +82,6 @@ export function SettingsPage({
           </button>
         </form>
       </CreationModal>
-
-      {hasCompanies ? (
-        <section className="panel">
-          <header className="panel-header">
-            <h2>GitHub installations</h2>
-          </header>
-          <p className="subcopy">
-            Link this company to one or more GitHub App installations.
-          </p>
-          <div className="hero-actions">
-            <button
-              type="button"
-              className="secondary-btn"
-              onClick={() => window.location.assign(githubAppInstallUrl)}
-              disabled={!selectedCompanyId || isLoadingGithubAppConfig}
-            >
-              {isLoadingGithubAppConfig ? "Loading GitHub App..." : "Install CompanyHelm GitHub App"}
-            </button>
-          </div>
-          {pendingGithubInstallCallback && !selectedCompanyId ? (
-            <p className="error-banner">
-              Select a company to finish linking installation{" "}
-              <code>{pendingGithubInstallCallback.installationId || "unknown"}</code>.
-            </p>
-          ) : null}
-          {githubAppConfigError ? (
-            <p className="error-banner">GitHub App config error: {githubAppConfigError}</p>
-          ) : null}
-          {isAddingGithubInstallationFromCallback ? (
-            <p className="empty-hint">Linking GitHub installation...</p>
-          ) : null}
-          {githubInstallationNotice ? (
-            <p className="success-banner">{githubInstallationNotice}</p>
-          ) : null}
-          {githubInstallationError ? (
-            <p className="error-banner">GitHub installation error: {githubInstallationError}</p>
-          ) : null}
-          {isLoadingGithubInstallations ? (
-            <p className="empty-hint">Loading GitHub installations...</p>
-          ) : null}
-          {!isLoadingGithubInstallations && githubInstallations.length === 0 ? (
-            <p className="empty-hint">No GitHub installations linked to this company yet.</p>
-          ) : null}
-          {githubInstallations.length > 0 ? (
-            <ul className="chat-card-list">
-              {githubInstallations.map((installation) => {
-                const isBusy = deletingGithubInstallationId === installation.installationId;
-                return (
-                  <li key={`github-installation-${installation.installationId}`} className="chat-card">
-                    <div className="chat-card-content">
-                      <strong>{installation.accountLogin || `Installation ${installation.installationId}`}</strong>
-                      <span className="chat-card-meta">
-                        ID: {installation.installationId} &middot; Linked {formatTimestamp(installation.createdAt)}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      className="chat-card-icon-btn chat-card-icon-btn-danger"
-                      aria-label="Delete installation"
-                      title={deletingGithubInstallationId === installation.installationId ? "Deleting..." : "Delete installation"}
-                      disabled={isBusy}
-                      onClick={(event: MouseEvent<HTMLButtonElement>) => {
-                        event.stopPropagation();
-                        onDeleteGithubInstallation(installation.installationId);
-                      }}
-                    >
-                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                        <polyline points="3 6 5 6 21 6" />
-                        <path d="M19 6l-1 14H6L5 6" />
-                        <path d="M10 11v6" />
-                        <path d="M14 11v6" />
-                        <path d="M9 6V4h6v2" />
-                      </svg>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          ) : null}
-        </section>
-      ) : null}
-
       {hasCompanies ? (
         <section className="panel">
           <header className="panel-header">
