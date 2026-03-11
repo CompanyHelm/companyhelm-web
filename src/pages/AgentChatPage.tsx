@@ -59,6 +59,10 @@ export function applyChatPromptSuggestion({
   }
 }
 
+function hasVisibleText(value: any) {
+  return String(value || "").trim().length > 0;
+}
+
 function clampChatSidebarWidth(value: any) {
   if (!Number.isFinite(value)) {
     return CHAT_SIDEBAR_DEFAULT_WIDTH_PX;
@@ -98,17 +102,17 @@ function toItemTypePlaceholder(itemType: any) {
 }
 
 function resolveChatItemBodyText(item: any, itemType: any) {
-  const text = String(item?.text || "").trim();
-  if (text) {
+  const text = String(item?.text || "");
+  if (hasVisibleText(text)) {
     return text;
   }
 
-  const command = String(item?.command || "").trim();
+  const command = String(item?.command || "");
   if (itemType === "command_execution") {
-    return command || "(command unavailable)";
+    return hasVisibleText(command) ? command : "(command unavailable)";
   }
 
-  if (command) {
+  if (hasVisibleText(command)) {
     return command;
   }
 
@@ -362,6 +366,7 @@ export function AgentChatPage({
   onDeleteQueuedMessage,
   onCreateChatForAgent,
   onOpenChatFromList,
+  initialExpandedTranscriptItemIds = {},
 }: any) {
   const canChat = Boolean(agent && session);
   const selectedAgentId = String(agent?.id || "").trim();
@@ -399,7 +404,9 @@ export function AgentChatPage({
   const [isComposerExpanded, setIsComposerExpanded] = useState<any>(false);
   const [isMobileChatListOpen, setIsMobileChatListOpen] = useState<any>(false);
   const [expandedMessageMetaId, setExpandedMessageMetaId] = useState<any>("");
-  const [expandedTranscriptItemIds, setExpandedTranscriptItemIds] = useState<any>({});
+  const [expandedTranscriptItemIds, setExpandedTranscriptItemIds] = useState<any>(() => ({
+    ...(initialExpandedTranscriptItemIds || {}),
+  }));
   const expandedTextareaRef = useRef<any>(null);
   const [chatSidebarWidth, setChatSidebarWidth] = useState<any>(() => {
     if (typeof window === "undefined") {
@@ -481,8 +488,10 @@ export function AgentChatPage({
     pendingTranscriptScrollRestoreRef.current = null;
     previousTotalMessageCountRef.current = null;
     setExpandedMessageMetaId("");
-    setExpandedTranscriptItemIds({});
-  }, [session?.id]);
+    setExpandedTranscriptItemIds({
+      ...(initialExpandedTranscriptItemIds || {}),
+    });
+  }, [initialExpandedTranscriptItemIds, session?.id]);
 
   useEffect(() => {
     const previousTotalMessageCount = previousTotalMessageCountRef.current;
@@ -1233,11 +1242,21 @@ export function AgentChatPage({
                       >
                         <div className="chat-message-body">
                           {isCommandExecution ? (
-                            <p className={`chat-message-content chat-message-content-command${shouldClampTranscriptItem ? " chat-message-content-clamped" : ""}`}>
-                              <code>{bodyText}</code>
-                            </p>
+                            shouldClampTranscriptItem ? (
+                              <p className="chat-message-content chat-message-content-command chat-message-content-clamped">
+                                <code>{bodyText}</code>
+                              </p>
+                            ) : (
+                              <p className="chat-message-content chat-message-content-command">
+                                <code>{bodyText}</code>
+                              </p>
+                            )
+                          ) : shouldClampTranscriptItem ? (
+                            <div className="chat-message-content chat-message-content-markdown chat-message-content-clamped">
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>{bodyText}</ReactMarkdown>
+                            </div>
                           ) : (
-                            <div className={`chat-message-content chat-message-content-markdown${shouldClampTranscriptItem ? " chat-message-content-clamped" : ""}`}>
+                            <div className="chat-message-content chat-message-content-markdown">
                               <ReactMarkdown remarkPlugins={[remarkGfm]}>{bodyText}</ReactMarkdown>
                             </div>
                           )}
