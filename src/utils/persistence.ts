@@ -36,7 +36,7 @@ export function persistFlags(flags: Partial<AppFlags>) {
   }
 }
 
-export type OnboardingPhase = "runner" | "agent" | "chat" | "done" | null;
+export type OnboardingPhase = "runner" | "agent" | "done" | null;
 
 export interface OnboardingState {
   phase: OnboardingPhase;
@@ -48,6 +48,13 @@ const DEFAULT_ONBOARDING: OnboardingState = {
   runnerSecret: "",
 };
 
+function normalizeOnboardingPhase(value: unknown): OnboardingPhase {
+  if (value === "runner" || value === "agent" || value === "done") {
+    return value;
+  }
+  return null;
+}
+
 export function getPersistedOnboarding(): OnboardingState {
   try {
     const stored = window.localStorage.getItem(ONBOARDING_STORAGE_KEY);
@@ -55,7 +62,11 @@ export function getPersistedOnboarding(): OnboardingState {
       return { ...DEFAULT_ONBOARDING };
     }
     const parsed = JSON.parse(stored);
-    return { ...DEFAULT_ONBOARDING, ...parsed };
+    return {
+      ...DEFAULT_ONBOARDING,
+      ...parsed,
+      phase: normalizeOnboardingPhase(parsed?.phase),
+    };
   } catch {
     return { ...DEFAULT_ONBOARDING };
   }
