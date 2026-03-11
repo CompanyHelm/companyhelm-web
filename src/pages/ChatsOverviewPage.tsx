@@ -14,12 +14,16 @@ export function ChatsOverviewPage({
   chatIndexError,
   isCreatingChatSession,
   deletingChatSessionKey,
+  chatListStatusFilter = "active",
   onRefreshChatLists,
   onCreateChatForAgent,
   getCreateChatDisabledReason,
   onOpenChat,
   onDeleteChat,
 }: any) {
+  const normalizedChatListStatusFilter =
+    String(chatListStatusFilter || "").trim().toLowerCase() === "archived" ? "archived" : "active";
+  const canShowCreateChatActions = normalizedChatListStatusFilter !== "archived";
   const sortedAgents = useMemo(() => {
     return [...(Array.isArray(agents) ? agents : [])].sort((leftAgent: any, rightAgent: any) =>
       String(leftAgent?.name || "").localeCompare(String(rightAgent?.name || "")),
@@ -60,26 +64,28 @@ export function ChatsOverviewPage({
                   </div>
                   {createChatDisabledReason ? <p className="empty-hint">{createChatDisabledReason}</p> : null}
                   <ul className="chat-card-list">
-                    <li
-                      className="chat-card chat-card-new"
-                      onClick={() => !isCreateChatDisabled && onCreateChatForAgent(agent.id)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(event: any) => {
-                        if (event.key === "Enter" && !isCreateChatDisabled) {
-                          onCreateChatForAgent(agent.id);
-                        }
-                      }}
-                    >
-                      <div className="chat-card-main">
-                        <p className="chat-card-title">
-                          <svg viewBox="0 0 24 24" className="chat-card-new-icon" aria-hidden="true" focusable="false">
-                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                          </svg>
-                          <strong>{isCreatingChatSession ? "Creating..." : "New chat"}</strong>
-                        </p>
-                      </div>
-                    </li>
+                    {canShowCreateChatActions ? (
+                      <li
+                        className="chat-card chat-card-new"
+                        onClick={() => !isCreateChatDisabled && onCreateChatForAgent(agent.id)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(event: any) => {
+                          if (event.key === "Enter" && !isCreateChatDisabled) {
+                            onCreateChatForAgent(agent.id);
+                          }
+                        }}
+                      >
+                        <div className="chat-card-main">
+                          <p className="chat-card-title">
+                            <svg viewBox="0 0 24 24" className="chat-card-new-icon" aria-hidden="true" focusable="false">
+                              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                            </svg>
+                            <strong>{isCreatingChatSession ? "Creating..." : "New chat"}</strong>
+                          </p>
+                        </div>
+                      </li>
+                    ) : null}
                     {sortedChats.map((chatSession: any) => {
                         const isRunning = isChatSessionRunning(chatSession, chatSessionRunningById);
                         const sessionStatus = String(chatSession?.status || "").trim().toLowerCase();
