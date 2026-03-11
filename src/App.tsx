@@ -318,6 +318,27 @@ import { ProfilePage } from "./pages/ProfilePage.tsx";
 // --- Module-level mutable state (shared by adapter functions and executeGraphQL) ---
 const companyApiThreadMetadataById = new Map<any, any>();
 const companyApiRunnerMetadataById = new Map<any, any>();
+
+export function shouldSuppressChatsRouteMissingAgentWarning({
+  activePage,
+  routeAgentId,
+  chatAgentId,
+  isLoadingChatIndex,
+  agents,
+}: any) {
+  const resolvedRouteAgentId = String(routeAgentId || "").trim();
+  const resolvedChatAgentId = String(chatAgentId || "").trim();
+  const availableAgents = Array.isArray(agents) ? agents : [];
+  if (
+    activePage !== "chats"
+    || !isLoadingChatIndex
+    || !resolvedRouteAgentId
+    || resolvedChatAgentId !== resolvedRouteAgentId
+  ) {
+    return false;
+  }
+  return !availableAgents.some((agent: any) => String(agent?.id || "").trim() === resolvedRouteAgentId);
+}
 const CHAT_LIST_STATUS_FILTER_ACTIVE = "active";
 const CHAT_LIST_STATUS_FILTER_ARCHIVED = "archived";
 
@@ -3499,6 +3520,24 @@ function App() {
   const isAgentConversationView =
     activePage === "agents" && agentsRoute.view === "chat" && Boolean(resolvedChatSessionId);
   const isChatConversationRoute = isChatsConversationView || isAgentConversationView;
+  const shouldSuppressChatsRouteWarning = useMemo(
+    () =>
+      shouldSuppressChatsRouteMissingAgentWarning({
+        activePage,
+        routeAgentId: chatsRoute.agentId,
+        chatAgentId,
+        isLoadingChatIndex,
+        agents,
+      }),
+    [activePage, agents, chatAgentId, chatsRoute.agentId, isLoadingChatIndex],
+  );
+  const chatsRouteCreateChatDisabledReason = useCallback(
+    (agentId: any) => (shouldSuppressChatsRouteWarning ? "" : getChatCreateBlockedReasonByAgentId(agentId)),
+    [getChatCreateBlockedReasonByAgentId, shouldSuppressChatsRouteWarning],
+  );
+  const chatsRouteSendDisabledReason = shouldSuppressChatsRouteWarning
+    ? ""
+    : getChatSendBlockedReasonByAgentId(chatAgentId);
   const shouldSubscribeChatIndex = activePage === "chats";
   const shouldSubscribeChatSessions =
     activePage === "agents" && (agentsRoute.view === "agent" || agentsRoute.view === "chats" || agentsRoute.view === "chat");
@@ -9779,8 +9818,8 @@ function App() {
             steeringQueuedMessageId={steeringQueuedMessageId}
             retryingQueuedMessageId={retryingQueuedMessageId}
             deletingQueuedMessageId={deletingQueuedMessageId}
-            getCreateChatDisabledReason={getChatCreateBlockedReasonByAgentId}
-            sendDisabledReason={getChatSendBlockedReasonByAgentId(chatAgentId)}
+            getCreateChatDisabledReason={chatsRouteCreateChatDisabledReason}
+            sendDisabledReason={chatsRouteSendDisabledReason}
             onChatSessionRenameDraftChange={handleChatSessionRenameDraftChange}
             onChatDraftMessageChange={setChatDraftMessage}
             onChatListStatusFilterChange={setChatListStatusFilter}
