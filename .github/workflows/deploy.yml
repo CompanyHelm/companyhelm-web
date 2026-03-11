@@ -90,3 +90,47 @@ jobs:
             "${TAG_ARGS[@]}" \
             --push \
             .
+
+      - name: Update dev image pin in infra repo
+        if: github.ref == 'refs/heads/main'
+        env:
+          INFRA_TOKEN: ${{ secrets.COMPANYHELM_INFRA_SYNC_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$INFRA_TOKEN" ]; then
+            echo "Missing COMPANYHELM_INFRA_SYNC_TOKEN secret for infra sync" >&2
+            exit 1
+          fi
+
+          SHORT_SHA="${GITHUB_SHA::7}"
+          IMAGE_URI="${{ steps.repository.outputs.repository_uri }}:main-$SHORT_SHA"
+          COMMIT_MESSAGE="chore: deploy dev frontend image main-$SHORT_SHA"
+          INFRA_DIR="$RUNNER_TEMP/companyhelm-infra"
+
+          git clone "https://x-access-token:${INFRA_TOKEN}@github.com/CompanyHelm/companyhelm-infra.git" "$INFRA_DIR"
+          cd "$INFRA_DIR"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git checkout -B main origin/main
+            node scripts/set-docker-image.mjs --environment dev --service frontend --image "$IMAGE_URI"
+
+            if git diff --quiet -- envs/dev/dev.auto.tfvars; then
+              exit 0
+            fi
+
+            git add envs/dev/dev.auto.tfvars
+            git commit -m "$COMMIT_MESSAGE"
+
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+
+            git reset --hard origin/main
+          done
+
+          echo "Unable to push frontend image update to companyhelm-infra after 3 attempts" >&2
+          exit 1
