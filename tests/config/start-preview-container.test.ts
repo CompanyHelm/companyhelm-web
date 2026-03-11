@@ -6,11 +6,14 @@ import {
   resolvePreviewPort,
 } from "../../scripts/start-preview-container.js";
 
-test("resolveContainerConfigPath defaults to /run/companyhelm/config.yaml", () => {
-  assert.equal(resolveContainerConfigPath({}), "/run/companyhelm/config.yaml");
+test("resolveContainerConfigPath requires an explicit runtime config path", () => {
+  assert.throws(
+    () => resolveContainerConfigPath({}),
+    /Missing COMPANYHELM_CONFIG_PATH\. Container startup requires an explicit runtime config path\./,
+  );
 });
 
-test("resolveContainerConfigPath prefers COMPANYHELM_CONFIG_PATH", () => {
+test("resolveContainerConfigPath accepts COMPANYHELM_CONFIG_PATH", () => {
   assert.equal(
     resolveContainerConfigPath({ COMPANYHELM_CONFIG_PATH: "/tmp/companyhelm/frontend.yaml" }),
     "/tmp/companyhelm/frontend.yaml",

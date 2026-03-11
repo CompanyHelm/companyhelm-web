@@ -5,12 +5,11 @@ import {
   parseCliArgs,
 } from "../../scripts/vite.js";
 
-test("parseCliArgs defaults dev to the local config path", () => {
-  assert.deepEqual(parseCliArgs(["dev"]), {
-    viteCommand: "dev",
-    configPath: "config/local.yaml",
-    passthrough: [],
-  });
+test("parseCliArgs requires --config-path", () => {
+  assert.throws(
+    () => parseCliArgs(["dev"]),
+    /Missing required --config-path <path> argument\./,
+  );
 });
 
 test("parseCliArgs accepts --config-path", () => {

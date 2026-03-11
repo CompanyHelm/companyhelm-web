@@ -31,6 +31,13 @@ test("parseCliConfigPathArgument rejects removed '--environment'", () => {
   );
 });
 
+test("resolveConfigPath requires an explicit path", () => {
+  assert.throws(
+    () => resolveConfigPath({ repoRoot: "/tmp/companyhelm-frontend" }),
+    /Missing required --config-path <path> argument\./,
+  );
+});
+
 test("resolveConfigPath prefers the explicit path", () => {
   const repoRoot = mkdtempSync(join(tmpdir(), "companyhelm-frontend-config-path-"));
   try {
@@ -39,39 +46,6 @@ test("resolveConfigPath prefers the explicit path", () => {
     writeFileSync(join(repoRoot, "custom.yaml"), "auth:\n  provider: companyhelm\n", "utf8");
 
     assert.equal(resolveConfigPath({ repoRoot, configPath: "./custom.yaml" }), join(repoRoot, "custom.yaml"));
-  } finally {
-    rmSync(repoRoot, { recursive: true, force: true });
-  }
-});
-
-test("resolveConfigPath falls back to COMPANYHELM_CONFIG_PATH", () => {
-  const repoRoot = mkdtempSync(join(tmpdir(), "companyhelm-frontend-config-env-path-"));
-  const originalConfigPath = process.env.COMPANYHELM_CONFIG_PATH;
-  try {
-    mkdirSync(join(repoRoot, "config"), { recursive: true });
-    writeFileSync(join(repoRoot, "config", "local.yaml"), "auth:\n  provider: companyhelm\n", "utf8");
-    writeFileSync(join(repoRoot, "runtime.yaml"), "auth:\n  provider: companyhelm\n", "utf8");
-
-    process.env.COMPANYHELM_CONFIG_PATH = "./runtime.yaml";
-
-    assert.equal(resolveConfigPath({ repoRoot }), join(repoRoot, "runtime.yaml"));
-  } finally {
-    if (typeof originalConfigPath === "undefined") {
-      delete process.env.COMPANYHELM_CONFIG_PATH;
-    } else {
-      process.env.COMPANYHELM_CONFIG_PATH = originalConfigPath;
-    }
-    rmSync(repoRoot, { recursive: true, force: true });
-  }
-});
-
-test("resolveConfigPath defaults to config/local.yaml", () => {
-  const repoRoot = mkdtempSync(join(tmpdir(), "companyhelm-frontend-config-default-path-"));
-  try {
-    mkdirSync(join(repoRoot, "config"), { recursive: true });
-    writeFileSync(join(repoRoot, "config", "local.yaml"), "auth:\n  provider: companyhelm\n", "utf8");
-
-    assert.equal(resolveConfigPath({ repoRoot }), join(repoRoot, "config", "local.yaml"));
   } finally {
     rmSync(repoRoot, { recursive: true, force: true });
   }
@@ -107,10 +81,7 @@ test("generateRuntimeConfig validates yaml and writes src/generated/config.js", 
     assert.match(generatedModule, /^\/\* This file is auto-generated\. Do not edit\. \*\//);
     assert.equal(writtenJson.api.graphqlApiUrl, "http://127.0.0.1:4000/graphql");
     assert.equal(writtenJson.auth.provider, "companyhelm");
-    assert.equal(
-      writtenJson.auth.companyhelm.tokenStorageKey,
-      "companyhelm.auth.token",
-    );
+    assert.equal(writtenJson.auth.companyhelm.tokenStorageKey, "companyhelm.auth.token");
   } finally {
     rmSync(repoRoot, { recursive: true, force: true });
   }
@@ -180,6 +151,41 @@ test("generateRuntimeConfig resolves environment placeholders before validation"
     } else {
       process.env.SUPABASE_ANON_KEY = originalAnonKey;
     }
+    rmSync(repoRoot, { recursive: true, force: true });
+  }
+});
+
+test("generateRuntimeConfig accepts an explicit config path", () => {
+  const repoRoot = mkdtempSync(join(tmpdir(), "companyhelm-frontend-config-explicit-"));
+  const configPath = join(repoRoot, "runtime", "config.yaml");
+  try {
+    mkdirSync(join(repoRoot, "runtime"), { recursive: true });
+    mkdirSync(join(repoRoot, "src", "generated"), { recursive: true });
+    writeFileSync(
+      configPath,
+      [
+        "api:",
+        "  graphqlApiUrl: \"https://api.dev.companyhelm.com/graphql\"",
+        "  runnerGrpcTarget: \"dev-runner.companyhelm.internal:50051\"",
+        "auth:",
+        "  provider: \"supabase\"",
+        "  companyhelm:",
+        "    tokenStorageKey: \"companyhelm.auth.token\"",
+        "  supabase:",
+        "    url: \"https://zbhnqhoctbgculdvsgpv.supabase.co\"",
+        "    anonKey: \"dev-anon-key\"",
+        "    tokenStorageKey: \"supabase.auth.token\"",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+
+    const result = generateRuntimeConfig({ repoRoot, configPath });
+
+    assert.equal(result.sourcePath, configPath);
+    assert.equal(result.config.api.graphqlApiUrl, "https://api.dev.companyhelm.com/graphql");
+    assert.equal(result.config.auth.provider, "supabase");
+  } finally {
     rmSync(repoRoot, { recursive: true, force: true });
   }
 });
