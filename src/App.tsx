@@ -3204,6 +3204,52 @@ function App() {
     return authKey ? runnerSdkCodexAuthEventsByKey[authKey] || null : null;
   }, [onboardingCodexSdk?.id, onboardingRunner?.id, runnerSdkCodexAuthEventsByKey]);
 
+  const detailRunner = useMemo(() => {
+    const normalizedRunnerId = activePage === "agent-runner" && runnersRoute.view === "detail"
+      ? String(runnersRoute.runnerId || "").trim()
+      : "";
+    if (!normalizedRunnerId) {
+      return null;
+    }
+    return agentRunnerLookup.get(normalizedRunnerId) || null;
+  }, [activePage, agentRunnerLookup, runnersRoute.runnerId, runnersRoute.view]);
+
+  const detailCodexSdk = useMemo(() => {
+    if (!detailRunner) {
+      return null;
+    }
+    return normalizeRunnerAvailableAgentSdks(detailRunner)
+      .find((sdkEntry: any) => sdkEntry.name === DEFAULT_AGENT_SDK) || null;
+  }, [detailRunner]);
+
+  const detailCodexAuthEvent = useMemo(() => {
+    const authKey = getRunnerSdkAuthKey(detailRunner?.id, detailCodexSdk?.id);
+    return authKey ? runnerSdkCodexAuthEventsByKey[authKey] || null : null;
+  }, [detailCodexSdk?.id, detailRunner?.id, runnerSdkCodexAuthEventsByKey]);
+
+  const subscribedRunnerSdkAuthTarget = useMemo(() => {
+    if (activePage === "agent-runner" && detailRunner?.id && detailCodexSdk?.id) {
+      return {
+        runnerId: detailRunner.id,
+        sdkId: detailCodexSdk.id,
+      };
+    }
+    if (onboardingPhase === "runner" && onboardingRunner?.id && onboardingCodexSdk?.id) {
+      return {
+        runnerId: onboardingRunner.id,
+        sdkId: onboardingCodexSdk.id,
+      };
+    }
+    return null;
+  }, [
+    activePage,
+    detailCodexSdk?.id,
+    detailRunner?.id,
+    onboardingCodexSdk?.id,
+    onboardingPhase,
+    onboardingRunner?.id,
+  ]);
+
   const runnerCodexModelEntriesById = useMemo(() => {
     return agentRunners.reduce((map: any, runner: any) => {
       map.set(runner.id, normalizeRunnerCodexAvailableModels(runner));
@@ -5322,12 +5368,15 @@ function App() {
     if (!normalizedRunnerId) {
       return;
     }
+    if (!hasLoadedAgentRunners || isCreatingRunner || isLoadingRunners) {
+      return;
+    }
     if (agentRunners.some((runner: any) => String(runner?.id || "").trim() === normalizedRunnerId)) {
       return;
     }
     setOnboardingRunnerId("");
     persistOnboarding({ runnerId: "" });
-  }, [agentRunners, onboardingRunnerId]);
+  }, [agentRunners, hasLoadedAgentRunners, isCreatingRunner, isLoadingRunners, onboardingRunnerId]);
 
   useEffect(() => {
     if (!selectedCompanyId || activePage !== "chats") {
@@ -9586,31 +9635,6 @@ function App() {
     && activePage !== "settings"
     && activePage !== "profile"
     && activePage !== "flags";
-  const detailRunner = activePage === "agent-runner" && runnersRoute.view === "detail" && runnersRoute.runnerId
-    ? agentRunners.find((runner: any) => runner.id === runnersRoute.runnerId) || null
-    : null;
-  const detailCodexSdk = detailRunner
-    ? normalizeRunnerAvailableAgentSdks(detailRunner).find((sdkEntry: any) => sdkEntry.name === DEFAULT_AGENT_SDK) || null
-    : null;
-  const detailCodexAuthEvent = (() => {
-    const authKey = getRunnerSdkAuthKey(detailRunner?.id, detailCodexSdk?.id);
-    return authKey ? runnerSdkCodexAuthEventsByKey[authKey] || null : null;
-  })();
-  const subscribedRunnerSdkAuthTarget = (() => {
-    if (showOnboarding && onboardingPhase === "runner" && onboardingRunner?.id && onboardingCodexSdk?.id) {
-      return {
-        runnerId: onboardingRunner.id,
-        sdkId: onboardingCodexSdk.id,
-      };
-    }
-    if (detailRunner?.id && detailCodexSdk?.id) {
-      return {
-        runnerId: detailRunner.id,
-        sdkId: detailCodexSdk.id,
-      };
-    }
-    return null;
-  })();
   const mobilePageTitle = String(breadcrumbItems[breadcrumbItems.length - 1]?.label || "").trim();
 
   return (
