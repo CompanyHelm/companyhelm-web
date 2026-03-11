@@ -317,6 +317,10 @@ export function resolveChatPageActionVisibility({
   };
 }
 
+export function getChatSettingsModalCardClassName(isMobileViewport: any) {
+  return isMobileViewport ? "chat-settings-modal-card-mobile" : "";
+}
+
 export function AgentChatPage({
   selectedCompanyId,
   agent,
@@ -1426,6 +1430,7 @@ export function AgentChatPage({
         description="View and edit chat details."
         isOpen={isSettingsModalOpen}
         onClose={handleCloseSettingsModal}
+        cardClassName={getChatSettingsModalCardClassName(isMobileViewport)}
       >
         <form className="chat-settings-modal-form" onSubmit={handleSaveSettings}>
           <div className="chat-settings-field">
