@@ -73,7 +73,7 @@ export function parseGithubInstallCallbackFromLocation(): { installationId: stri
 }
 
 export function clearGithubInstallCallbackFromLocation(): void {
-  setBrowserPath("/settings", { replace: true });
+  setBrowserPath("/repos", { replace: true });
 }
 
 export function buildGithubAppInstallUrl({ appLink, companyId }: GithubInstallUrlInput): string {

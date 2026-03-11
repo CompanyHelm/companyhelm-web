@@ -5545,7 +5545,7 @@ function App() {
       return;
     }
 
-    navigateTo("settings");
+    navigateTo("repos");
 
     const installationId = String(pendingGithubInstallCallback.installationId || "").trim();
     const setupAction = String(pendingGithubInstallCallback.setupAction || "").trim();
