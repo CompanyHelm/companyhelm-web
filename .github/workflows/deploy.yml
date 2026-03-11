@@ -10,7 +10,6 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      id-token: write
       contents: read
 
     steps:
@@ -22,19 +21,37 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::320042237800:role/GitHubActionsFrontendDeployRole
-          role-session-name: github-actions-frontend-image
-          aws-region: us-west-2
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
 
-      - name: Login to Amazon ECR
+      - name: Login to Amazon ECR Public
         uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registry-type: public
+
+      - name: Resolve ECR Public repository URI
+        id: repository
+        run: |
+          REPOSITORY_URI="$(aws ecr-public describe-repositories \
+            --region us-east-1 \
+            --repository-names companyhelm-web \
+            --query 'repositories[0].repositoryUri' \
+            --output text)"
+
+          if [ -z "$REPOSITORY_URI" ] || [ "$REPOSITORY_URI" = "None" ]; then
+            echo "companyhelm-web public ECR repository was not found" >&2
+            exit 1
+          fi
+
+          echo "repository_uri=$REPOSITORY_URI" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Build and push image
         env:
-          ECR_REPOSITORY: 320042237800.dkr.ecr.us-west-2.amazonaws.com/companyhelm-web
+          ECR_REPOSITORY: ${{ steps.repository.outputs.repository_uri }}
           GITHUB_REF: ${{ github.ref }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_SHA: ${{ github.sha }}
