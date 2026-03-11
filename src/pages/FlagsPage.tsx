@@ -6,7 +6,6 @@ const PHASE_OPTIONS: { value: string; label: string }[] = [
   { value: "none", label: "none (auto-detect)" },
   { value: "runner", label: "runner" },
   { value: "agent", label: "agent" },
-  { value: "chat", label: "chat" },
   { value: "done", label: "done" },
 ];
 

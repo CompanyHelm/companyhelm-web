@@ -19,8 +19,7 @@ interface OnboardingPageProps {
   runnerError: string;
   provisionedSecret: string;
   agentRunners: AgentRunner[];
-  agents: any[];
-  onboardingPhase: "runner" | "agent" | "chat" | null;
+  onboardingPhase: "runner" | "agent" | null;
   onRunnerNameChange: (value: string) => void;
   onCreateRunner: (event: FormEvent<HTMLFormElement>) => Promise<boolean> | boolean;
   onSkip: () => void;
@@ -38,8 +37,6 @@ interface OnboardingPageProps {
   onAgentModelChange: (model: string) => void;
   onAgentModelReasoningLevelChange: (level: string) => void;
   onCreateAgent: (event: FormEvent<HTMLFormElement>) => Promise<any>;
-  onCreateFirstChat: (agentId: string, message: string) => void;
-  onSkipToChat: () => void;
   onAdvanceToAgentPhase: () => void;
 }
 
@@ -47,10 +44,7 @@ const PHASES = [
   { key: "company", label: "Create company" },
   { key: "runner", label: "Create agent runner" },
   { key: "agent", label: "Create first agent" },
-  { key: "chat", label: "Create first chat" },
 ] as const;
-
-const DEFAULT_CHAT_MESSAGE = "Hi! Tell me a joke about AI agents";
 
 export function OnboardingPage({
   isCreatingRunner,
@@ -58,7 +52,6 @@ export function OnboardingPage({
   runnerError,
   provisionedSecret,
   agentRunners,
-  agents,
   onboardingPhase,
   onRunnerNameChange,
   onCreateRunner,
@@ -77,14 +70,9 @@ export function OnboardingPage({
   onAgentModelChange,
   onAgentModelReasoningLevelChange,
   onCreateAgent,
-  onCreateFirstChat,
-  onSkipToChat,
   onAdvanceToAgentPhase,
 }: OnboardingPageProps) {
   const [deployTarget, setDeployTarget] = useState<DeployTarget>(null);
-  const [chatMessage, setChatMessage] = useState(DEFAULT_CHAT_MESSAGE);
-  const [isCreatingChat, setIsCreatingChat] = useState(false);
-  const [createdAgentId, setCreatedAgentId] = useState("");
 
   const hasConnectedRunner = useMemo(
     () => agentRunners.some(isRunnerReadyAndConnected),
@@ -101,7 +89,6 @@ export function OnboardingPage({
 
   const showRunnerSection = currentPhase === "runner";
   const showAgentSection = currentPhase === "agent";
-  const showChatSection = currentPhase === "chat";
 
   const localStartCommand = useMemo(() => {
     const secret = provisionedSecret || "<RUNNER_SECRET>";
@@ -136,24 +123,6 @@ export function OnboardingPage({
   const createRunnerReasoningLevels = useMemo(() => {
     return getRunnerReasoningLevels(createRunnerCodexModelEntries, agentModel);
   }, [agentModel, createRunnerCodexModelEntries]);
-
-  // Agent for chat phase: prefer the one we just created, else last in list
-  const chatAgent = useMemo(() => {
-    if (createdAgentId) {
-      return agents.find((a: any) => a.id === createdAgentId) || null;
-    }
-    return agents.length > 0 ? agents[agents.length - 1] : null;
-  }, [agents, createdAgentId]);
-
-  async function handleStartChat() {
-    if (!chatAgent || !chatMessage.trim()) return;
-    setIsCreatingChat(true);
-    try {
-      await onCreateFirstChat(chatAgent.id, chatMessage.trim());
-    } finally {
-      setIsCreatingChat(false);
-    }
-  }
 
   return (
     <Page>
@@ -373,12 +342,7 @@ export function OnboardingPage({
               </button>
             </div>
 
-            <form className="onboarding-agent-form" onSubmit={async (event) => {
-              const result = await onCreateAgent(event);
-              if (result && typeof result === "string") {
-                setCreatedAgentId(result);
-              }
-            }}>
+            <form className="onboarding-agent-form" onSubmit={onCreateAgent}>
               <label htmlFor="onboarding-agent-name">Agent name</label>
               <input
                 id="onboarding-agent-name"
@@ -490,53 +454,6 @@ export function OnboardingPage({
               </button>
               {agentError ? <p className="error-banner">{agentError}</p> : null}
             </form>
-          </section>
-        ) : null}
-
-        {/* ── Chat phase ── */}
-        {showChatSection ? (
-          <section className="panel runner-onboarding-panel">
-            <div className="runner-onboarding-header">
-              <div>
-                <p className="eyebrow">Setup</p>
-                <h1>Start your first chat</h1>
-                <p className="subcopy">
-                  Send a message to your new agent to start a conversation.
-                  You can edit the message below or write your own.
-                </p>
-              </div>
-              <button
-                type="button"
-                className="runner-onboarding-skip-btn"
-                onClick={onSkipToChat}
-              >
-                Skip for now
-              </button>
-            </div>
-
-            <div className="onboarding-chat-form">
-              <label htmlFor="onboarding-chat-message">Your first message</label>
-              <textarea
-                id="onboarding-chat-message"
-                value={chatMessage}
-                onChange={(event: ChangeEvent<HTMLTextAreaElement>) => setChatMessage(event.target.value)}
-                rows={3}
-                disabled={isCreatingChat}
-                placeholder="Type your first message..."
-              />
-              {chatAgent ? (
-                <p className="onboarding-chat-agent-label">
-                  Chatting with <strong>{chatAgent.name || `Agent ${chatAgent.id?.slice(0, 8)}`}</strong>
-                </p>
-              ) : null}
-              <button
-                type="button"
-                onClick={handleStartChat}
-                disabled={isCreatingChat || !chatAgent || !chatMessage.trim()}
-              >
-                {isCreatingChat ? "Starting chat..." : "Start chatting"}
-              </button>
-            </div>
           </section>
         ) : null}
       </div>
