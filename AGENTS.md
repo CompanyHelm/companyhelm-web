@@ -33,13 +33,17 @@
 
 ## Configuration Source of Truth
 
-- Runtime/frontend configuration values must come from `config/<environment>.yaml`,
+- Runtime/frontend configuration values must come from an explicit YAML file path,
   generated to `src/generated/config.js` by `scripts/config/generate-runtime-config.js`.
 - Do not read runtime config values from `import.meta.env`, `VITE_*`, or other
   environment variables.
+- Resolve config in this order:
+  - `--config-path <path>`
+  - `COMPANYHELM_CONFIG_PATH`
+  - `config/local.yaml`
+- Deployment-owned frontend YAML does not live in this repo. `dev`/`prod` deployment
+  config belongs in `companyhelm-infra`.
 - If new frontend config values are introduced, add them to:
   - `src/config/schema.ts`
   - `config/local.yaml`
-  - `config/dev.yaml`
-  - `config/prod.yaml`
   - `scripts/config/generate-runtime-config.js` (if transformation logic changes)

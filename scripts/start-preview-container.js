@@ -2,12 +2,17 @@
 
 import { spawn } from "node:child_process";
 import { pathToFileURL } from "node:url";
-import { normalizeEnvironment } from "./config/generate-runtime-config.js";
 
 const DEFAULT_PORT = "4173";
+const DEFAULT_CONFIG_PATH = "/run/companyhelm/config.yaml";
 
-export function resolveContainerEnvironment(env = process.env) {
-  return normalizeEnvironment(env.COMPANYHELM_ENVIRONMENT || "prod");
+export function resolveContainerConfigPath(env = process.env) {
+  const resolvedPath = String(env.COMPANYHELM_CONFIG_PATH || DEFAULT_CONFIG_PATH).trim();
+  if (!resolvedPath) {
+    throw new Error("COMPANYHELM_CONFIG_PATH cannot be empty.");
+  }
+
+  return resolvedPath;
 }
 
 export function resolvePreviewPort(env = process.env) {
@@ -22,6 +27,10 @@ export function resolvePreviewPort(env = process.env) {
   }
 
   return rawValue;
+}
+
+export function buildPreviewBuildCommandArgs(configPath) {
+  return ["scripts/vite.js", "build", "--config-path", configPath];
 }
 
 function runCommand(command, args) {
@@ -47,10 +56,10 @@ function runCommand(command, args) {
 }
 
 export async function main(env = process.env) {
-  const environment = resolveContainerEnvironment(env);
+  const configPath = resolveContainerConfigPath(env);
   const port = resolvePreviewPort(env);
 
-  await runCommand(process.execPath, ["scripts/vite.js", "build", "--environment", environment]);
+  await runCommand(process.execPath, buildPreviewBuildCommandArgs(configPath));
   await runCommand("npm", ["exec", "--", "vite", "preview", "--host", "0.0.0.0", "--port", port]);
 }
 

@@ -5,31 +5,76 @@ import { tmpdir } from "node:os";
 import test from "node:test";
 import {
   generateRuntimeConfig,
-  parseEnvironmentFromArgs,
-  resolveEnvironmentConfigPath,
+  parseCliConfigPathArgument,
+  resolveConfigPath,
   resolveGeneratedConfigPath,
 } from "../../scripts/config/generate-runtime-config.js";
 
-test("parseEnvironmentFromArgs accepts '--environment <value>'", () => {
-  assert.equal(parseEnvironmentFromArgs(["--environment", "local"]), "local");
-});
-
-test("parseEnvironmentFromArgs accepts '--environment=<value>'", () => {
-  assert.equal(parseEnvironmentFromArgs(["--environment=dev"]), "dev");
-});
-
-test("parseEnvironmentFromArgs rejects missing environment", () => {
-  assert.throws(
-    () => parseEnvironmentFromArgs([]),
-    /Missing required --environment <local\|dev\|prod> argument\./,
+test("parseCliConfigPathArgument accepts '--config-path <value>'", () => {
+  assert.equal(
+    parseCliConfigPathArgument(["--config-path", "/tmp/companyhelm/frontend-config.yaml"]),
+    "/tmp/companyhelm/frontend-config.yaml",
   );
 });
 
-test("parseEnvironmentFromArgs rejects unsupported environment values", () => {
-  assert.throws(
-    () => parseEnvironmentFromArgs(["--environment", "staging"]),
-    /Invalid --environment "staging"/,
+test("parseCliConfigPathArgument accepts '--config-path=<value>'", () => {
+  assert.equal(
+    parseCliConfigPathArgument(["--config-path=/tmp/companyhelm/frontend-config.yaml"]),
+    "/tmp/companyhelm/frontend-config.yaml",
   );
+});
+
+test("parseCliConfigPathArgument rejects removed '--environment'", () => {
+  assert.throws(
+    () => parseCliConfigPathArgument(["--environment", "prod"]),
+    /--environment is no longer supported/,
+  );
+});
+
+test("resolveConfigPath prefers the explicit path", () => {
+  const repoRoot = mkdtempSync(join(tmpdir(), "companyhelm-frontend-config-path-"));
+  try {
+    mkdirSync(join(repoRoot, "config"), { recursive: true });
+    writeFileSync(join(repoRoot, "config", "local.yaml"), "auth:\n  provider: companyhelm\n", "utf8");
+    writeFileSync(join(repoRoot, "custom.yaml"), "auth:\n  provider: companyhelm\n", "utf8");
+
+    assert.equal(resolveConfigPath({ repoRoot, configPath: "./custom.yaml" }), join(repoRoot, "custom.yaml"));
+  } finally {
+    rmSync(repoRoot, { recursive: true, force: true });
+  }
+});
+
+test("resolveConfigPath falls back to COMPANYHELM_CONFIG_PATH", () => {
+  const repoRoot = mkdtempSync(join(tmpdir(), "companyhelm-frontend-config-env-path-"));
+  const originalConfigPath = process.env.COMPANYHELM_CONFIG_PATH;
+  try {
+    mkdirSync(join(repoRoot, "config"), { recursive: true });
+    writeFileSync(join(repoRoot, "config", "local.yaml"), "auth:\n  provider: companyhelm\n", "utf8");
+    writeFileSync(join(repoRoot, "runtime.yaml"), "auth:\n  provider: companyhelm\n", "utf8");
+
+    process.env.COMPANYHELM_CONFIG_PATH = "./runtime.yaml";
+
+    assert.equal(resolveConfigPath({ repoRoot }), join(repoRoot, "runtime.yaml"));
+  } finally {
+    if (typeof originalConfigPath === "undefined") {
+      delete process.env.COMPANYHELM_CONFIG_PATH;
+    } else {
+      process.env.COMPANYHELM_CONFIG_PATH = originalConfigPath;
+    }
+    rmSync(repoRoot, { recursive: true, force: true });
+  }
+});
+
+test("resolveConfigPath defaults to config/local.yaml", () => {
+  const repoRoot = mkdtempSync(join(tmpdir(), "companyhelm-frontend-config-default-path-"));
+  try {
+    mkdirSync(join(repoRoot, "config"), { recursive: true });
+    writeFileSync(join(repoRoot, "config", "local.yaml"), "auth:\n  provider: companyhelm\n", "utf8");
+
+    assert.equal(resolveConfigPath({ repoRoot }), join(repoRoot, "config", "local.yaml"));
+  } finally {
+    rmSync(repoRoot, { recursive: true, force: true });
+  }
 });
 
 test("generateRuntimeConfig validates yaml and writes src/generated/config.js", () => {
@@ -52,13 +97,12 @@ test("generateRuntimeConfig validates yaml and writes src/generated/config.js", 
       "utf8",
     );
 
-    const result = generateRuntimeConfig({ repoRoot, environment: "local" });
+    const result = generateRuntimeConfig({ repoRoot, configPath: join(repoRoot, "config", "local.yaml") });
     const generatedModule = readFileSync(resolveGeneratedConfigPath(repoRoot), "utf8");
     const jsonPayload = generatedModule.match(/export default (\{[\s\S]*\});\n$/)?.[1];
     const writtenJson = JSON.parse(jsonPayload || "{}");
 
-    assert.equal(result.environment, "local");
-    assert.equal(result.sourcePath, resolveEnvironmentConfigPath(repoRoot, "local"));
+    assert.equal(result.sourcePath, join(repoRoot, "config", "local.yaml"));
     assert.equal(result.outputPath, resolveGeneratedConfigPath(repoRoot));
     assert.match(generatedModule, /^\/\* This file is auto-generated\. Do not edit\. \*\//);
     assert.equal(writtenJson.api.graphqlApiUrl, "http://127.0.0.1:4000/graphql");
@@ -92,7 +136,7 @@ test("generateRuntimeConfig fails when yaml is invalid for schema", () => {
     );
 
     assert.throws(
-      () => generateRuntimeConfig({ repoRoot, environment: "prod" }),
+      () => generateRuntimeConfig({ repoRoot, configPath: join(repoRoot, "config", "prod.yaml") }),
       /Invalid url|String must contain at least 1 character/,
     );
   } finally {
@@ -126,7 +170,7 @@ test("generateRuntimeConfig resolves environment placeholders before validation"
       "utf8",
     );
 
-    const result = generateRuntimeConfig({ repoRoot, environment: "dev" });
+    const result = generateRuntimeConfig({ repoRoot, configPath: join(repoRoot, "config", "dev.yaml") });
 
     assert.equal(result.config.auth.provider, "supabase");
     assert.equal(result.config.auth.supabase?.anonKey, "env-anon-key");

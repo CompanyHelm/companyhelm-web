@@ -1,11 +1,13 @@
-name: Build, Push & Deploy Dev
+name: Build And Push Frontend Image
 
 on:
   push:
     branches: ["main"]
+    tags:
+      - "v*"
 
 jobs:
-  build:
+  publish:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -14,12 +16,14 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::320042237800:role/GitHubActionsFrontendDeployRole
-          role-session-name: github-actions-frontend-dev
+          role-session-name: github-actions-frontend-image
           aws-region: us-west-2
 
       - name: Login to Amazon ECR
@@ -28,40 +32,44 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Resolve image tag
-        env:
-          SHA: ${{ github.sha }}
-        run: |
-          SHORT_SHA="$(echo "$SHA" | cut -c1-7)"
-          echo "IMAGE_TAG=main-$SHORT_SHA" >> "$GITHUB_ENV"
-          echo "IMAGE_URI=320042237800.dkr.ecr.us-west-2.amazonaws.com/companyhelm-web:main-$SHORT_SHA" >> "$GITHUB_ENV"
-
       - name: Build and push image
         env:
-          IMAGE_URI: ${{ env.IMAGE_URI }}
+          ECR_REPOSITORY: 320042237800.dkr.ecr.us-west-2.amazonaws.com/companyhelm-web
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_SHA: ${{ github.sha }}
         run: |
+          set -euo pipefail
+
+          SHORT_SHA="$(echo "$GITHUB_SHA" | cut -c1-7)"
+          IMAGE_TAGS=()
+
+          if [ "$GITHUB_REF" = "refs/heads/main" ]; then
+            IMAGE_TAGS+=("$ECR_REPOSITORY:main-$SHORT_SHA")
+            IMAGE_TAGS+=("$ECR_REPOSITORY:latest")
+
+            while IFS= read -r release_tag; do
+              [ -n "$release_tag" ] || continue
+              IMAGE_TAGS+=("$ECR_REPOSITORY:${release_tag#v}")
+            done < <(git tag --points-at "$GITHUB_SHA" | grep '^v' || true)
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            git fetch origin main --depth=1
+            git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+            IMAGE_TAGS+=("$ECR_REPOSITORY:${GITHUB_REF_NAME#v}")
+          else
+            echo "Unsupported ref: $GITHUB_REF" >&2
+            exit 1
+          fi
+
+          TAG_ARGS=()
+          echo "Publishing image tags:"
+          for image_tag in "${IMAGE_TAGS[@]}"; do
+            echo "  $image_tag"
+            TAG_ARGS+=(-t "$image_tag")
+          done
+
           docker buildx build \
             --platform linux/amd64 \
-            -t "$IMAGE_URI" \
+            "${TAG_ARGS[@]}" \
             --push \
             .
-
-      - name: Deploy dev service
-        env:
-          CLUSTER_NAME: default
-          CONTAINER_NAME: Main
-          IMAGE_URI: ${{ env.IMAGE_URI }}
-          SERVICE_NAME: companyhelm-web-dev
-        run: |
-          CURRENT_TASK_DEF_ARN="$(aws ecs describe-services --cluster "$CLUSTER_NAME" --services "$SERVICE_NAME" --query 'services[0].taskDefinition' --output text)"
-          aws ecs describe-task-definition --task-definition "$CURRENT_TASK_DEF_ARN" --query 'taskDefinition' > task-def.json
-          jq --arg IMAGE "$IMAGE_URI" --arg CONTAINER_NAME "$CONTAINER_NAME" '
-            .containerDefinitions = (
-              .containerDefinitions
-              | map(if .name == $CONTAINER_NAME then .image = $IMAGE else . end)
-            )
-            | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)
-          ' task-def.json > task-def-rendered.json
-          NEW_TASK_DEF_ARN="$(aws ecs register-task-definition --cli-input-json file://task-def-rendered.json --query 'taskDefinition.taskDefinitionArn' --output text)"
-          aws ecs update-service --cluster "$CLUSTER_NAME" --service "$SERVICE_NAME" --task-definition "$NEW_TASK_DEF_ARN" > /dev/null
-          aws ecs wait services-stable --cluster "$CLUSTER_NAME" --services "$SERVICE_NAME"

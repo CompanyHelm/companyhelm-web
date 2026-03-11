@@ -1,16 +1,29 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  resolveContainerEnvironment,
+  buildPreviewBuildCommandArgs,
+  resolveContainerConfigPath,
   resolvePreviewPort,
 } from "../../scripts/start-preview-container.js";
 
-test("resolveContainerEnvironment defaults to prod", () => {
-  assert.equal(resolveContainerEnvironment({}), "prod");
+test("resolveContainerConfigPath defaults to /run/companyhelm/config.yaml", () => {
+  assert.equal(resolveContainerConfigPath({}), "/run/companyhelm/config.yaml");
 });
 
-test("resolveContainerEnvironment accepts dev", () => {
-  assert.equal(resolveContainerEnvironment({ COMPANYHELM_ENVIRONMENT: "dev" }), "dev");
+test("resolveContainerConfigPath prefers COMPANYHELM_CONFIG_PATH", () => {
+  assert.equal(
+    resolveContainerConfigPath({ COMPANYHELM_CONFIG_PATH: "/tmp/companyhelm/frontend.yaml" }),
+    "/tmp/companyhelm/frontend.yaml",
+  );
+});
+
+test("buildPreviewBuildCommandArgs forwards --config-path to vite wrapper", () => {
+  assert.deepEqual(buildPreviewBuildCommandArgs("/run/companyhelm/config.yaml"), [
+    "scripts/vite.js",
+    "build",
+    "--config-path",
+    "/run/companyhelm/config.yaml",
+  ]);
 });
 
 test("resolvePreviewPort defaults to 4173", () => {
