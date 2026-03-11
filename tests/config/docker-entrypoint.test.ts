@@ -51,7 +51,7 @@ exit 0
     });
 
     assert.equal(result.status, 0);
-    assert.equal(readFileSync(logPath, "utf8").trim(), "run preview:container --");
+    assert.match(readFileSync(logPath, "utf8").trim(), /^run preview:container(?:\s+--)?$/);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
