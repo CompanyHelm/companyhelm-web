@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Page } from "../components/Page.tsx";
+import { CodexAuthPanel } from "../components/CodexAuthPanel.tsx";
 import {
-  formatRunnerLifecycleStatus,
   formatTimestamp,
   normalizeRunnerConnectionState,
 } from "../utils/formatting.ts";
@@ -25,12 +25,15 @@ export function AgentRunnerDetailPage({
   onRunnerCommandSecretChange,
   onRegenerateRunnerSecret,
   onDeleteRunner,
+  codexAuthEvent,
+  isStartingCodexAuth,
+  onStartCodexDeviceAuth,
 }: any) {
   const connectionState = normalizeRunnerConnectionState(runner.isConnected);
-  const runnerStatus = formatRunnerLifecycleStatus(runner.status);
   const runnerSecret = runnerSecretsById[runner.id] || "";
   const availableAgentSdks = normalizeRunnerAvailableAgentSdks(runner);
   const availableSdkNames = availableAgentSdks.map((entry: any) => entry.name);
+  const codexSdk = availableAgentSdks.find((entry: any) => entry.name === DEFAULT_AGENT_SDK) || null;
   const codexAvailableModels = normalizeRunnerCodexAvailableModels(runner);
   const availableCodexModelCount = codexAvailableModels.filter((entry: any) => entry.isAvailable).length;
   const isBusy = deletingRunnerId === runner.id || regeneratingRunnerId === runner.id;
@@ -57,9 +60,9 @@ export function AgentRunnerDetailPage({
           <p className="stat-footnote">Last seen {formatTimestamp(runner.lastSeenAt)}</p>
         </article>
         <article className="panel stat-panel">
-          <p className="stat-label">Status</p>
-          <p className="stat-value">{runnerStatus}</p>
-          <p className="stat-footnote">runner lifecycle</p>
+          <p className="stat-label">Codex SDK</p>
+          <p className="stat-value">{codexSdk?.status || "unreported"}</p>
+          <p className="stat-footnote">{codexSdk?.codexAuthStatus || "idle"}</p>
         </article>
         <article className="panel stat-panel">
           <p className="stat-label">Agents</p>
@@ -171,11 +174,6 @@ export function AgentRunnerDetailPage({
           </div>
 
           <div className="chat-settings-field">
-            <span className="chat-settings-label">Runner status</span>
-            <p className="chat-settings-readonly">{runnerStatus}</p>
-          </div>
-
-          <div className="chat-settings-field">
             <span className="chat-settings-label">SDK catalog</span>
             {availableSdkNames.length > 0 ? (
               <div className="runner-models-list">
@@ -183,13 +181,13 @@ export function AgentRunnerDetailPage({
                   <span
                     key={`${runner.id}-sdk-${sdkEntry.name}`}
                     className="runner-model-pill"
-                    title={formatAvailabilityLabel(sdkEntry.name, sdkEntry.isAvailable)}
+                    title={`${sdkEntry.name} (${sdkEntry.status || "unconfigured"})`}
                   >
                     <span className="runner-model-name">{sdkEntry.name}</span>
                     <span
                       className={`availability-badge${sdkEntry.isAvailable ? "" : " availability-badge-unavailable"}`}
                     >
-                      {sdkEntry.isAvailable ? "available" : "unavailable"}
+                      {sdkEntry.status || (sdkEntry.isAvailable ? "available" : "unavailable")}
                     </span>
                   </span>
                 ))}
@@ -240,6 +238,15 @@ export function AgentRunnerDetailPage({
           </div>
         </div>
       </section>
+
+      <CodexAuthPanel
+        sdk={codexSdk}
+        runnerId={runner.id}
+        authEvent={codexAuthEvent}
+        isRunnerConnected={runner.isConnected === true}
+        isStarting={isStartingCodexAuth}
+        onStartDeviceCodeAuth={onStartCodexDeviceAuth}
+      />
 
       <section className="panel list-panel">
         <div className="chat-settings-actions">

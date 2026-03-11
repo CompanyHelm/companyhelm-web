@@ -118,6 +118,7 @@ test("getPersistedOnboarding normalizes unsupported persisted phases to null", (
     assert.deepEqual(getPersistedOnboarding(), {
       phase: null,
       runnerSecret: "secret-1",
+      runnerId: "",
     });
   } finally {
     if (typeof originalWindow === "undefined") {

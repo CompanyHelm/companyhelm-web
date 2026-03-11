@@ -298,7 +298,23 @@ export function normalizeRunnerAvailableAgentSdks(runner: RunnerLike): RunnerSdk
       return {
         id: resolveLegacyId(sdkRecord.id),
         name: normalizeAgentSdkValue(sdkRecord.name),
+        status: String(sdkRecord.status || "").trim().toLowerCase(),
         isAvailable: normalizeAvailabilityFlag(sdkRecord.isAvailable, sdkRecord.is_available),
+        codexAuthStatus: String(
+          sdkRecord.codexAuthStatus
+          ?? sdkRecord.codex_auth_status
+          ?? "",
+        ).trim().toLowerCase() || null,
+        codexAuthType: String(
+          sdkRecord.codexAuthType
+          ?? sdkRecord.codex_auth_type
+          ?? "",
+        ).trim().toLowerCase() || null,
+        errorMessage: typeof sdkRecord.errorMessage === "string"
+          ? sdkRecord.errorMessage
+          : typeof sdkRecord.error_message === "string"
+            ? sdkRecord.error_message
+            : null,
         availableModels: (
           Array.isArray(sdkRecord.availableModels)
             ? sdkRecord.availableModels

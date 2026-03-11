@@ -110,6 +110,7 @@ import {
   STEER_AGENT_TURN_MUTATION,
   INTERRUPT_AGENT_TURN_MUTATION,
   AGENT_RUNNERS_SUBSCRIPTION,
+  CODEX_AUTH_EVENTS_SUBSCRIPTION,
   AGENT_THREADS_SUBSCRIPTION,
   AGENT_TURNS_SUBSCRIPTION,
   AGENT_QUEUED_USER_MESSAGES_SUBSCRIPTION,
@@ -199,6 +200,7 @@ import {
   COMPANY_API_RETRY_QUEUED_USER_MESSAGE_MUTATION,
   COMPANY_API_DELETE_QUEUED_USER_MESSAGE_MUTATION,
   COMPANY_API_INTERRUPT_TURN_MUTATION,
+  START_RUNNER_SDK_AUTH_MUTATION,
 } from "./utils/graphql.ts";
 
 import {
@@ -347,6 +349,15 @@ export function shouldSuppressChatsRouteMissingAgentWarning({
 const CHAT_LIST_STATUS_FILTER_ACTIVE = "active";
 const CHAT_LIST_STATUS_FILTER_ARCHIVED = "archived";
 
+function getRunnerSdkAuthKey(runnerId: any, sdkId: any) {
+  const normalizedRunnerId = String(runnerId || "").trim();
+  const normalizedSdkId = String(sdkId || "").trim();
+  if (!normalizedRunnerId || !normalizedSdkId) {
+    return "";
+  }
+  return `${normalizedRunnerId}:${normalizedSdkId}`;
+}
+
 function normalizeChatListStatusFilter(value: any) {
   return String(value || "").trim().toLowerCase() === CHAT_LIST_STATUS_FILTER_ARCHIVED
     ? CHAT_LIST_STATUS_FILTER_ARCHIVED
@@ -419,7 +430,7 @@ function getChatCreateBlockedReason(agent: any, agentRunnerLookup: any) {
   }
 
   if (!isRunnerReadyAndConnected(assignedRunner)) {
-    return `Assigned runner ${assignedRunnerId} must be ready and connected before creating chats.`;
+    return `Assigned runner ${assignedRunnerId} must be connected with a configured Codex SDK before creating chats.`;
   }
 
   return "";
@@ -489,7 +500,7 @@ function getChatSendBlockedReason(agent: any, agentRunnerLookup: any) {
   }
 
   if (!isRunnerReadyAndConnected(assignedRunner)) {
-    return `Assigned runner ${assignedRunnerId} must be ready and connected before sending messages.`;
+    return `Assigned runner ${assignedRunnerId} must be connected with a configured Codex SDK before sending messages.`;
   }
 
   return "";
@@ -692,7 +703,6 @@ function toLegacyRunnerPayload(agentRunner: any) {
   const runnerName = resolveLegacyId(agentRunner?.name);
   const nowIso = new Date().toISOString();
   const currentMetadata = companyApiRunnerMetadataById.get(runnerId) || {};
-  const runnerStatus = resolveLegacyId(agentRunner?.status) || "unknown";
   const isConnected = agentRunner?.isConnected === true;
   const availableAgentSdks = normalizeRunnerAvailableAgentSdks(agentRunner);
   const lastSeenAt = resolveLegacyId(agentRunner?.lastSeenAt, currentMetadata.lastSeenAt) || null;
@@ -723,7 +733,6 @@ function toLegacyRunnerPayload(agentRunner: any) {
     hasAuthSecret: true,
     availableAgentSdks,
     isConnected,
-    status: runnerStatus,
     lastHealthCheckAt: nextMetadata.lastHealthCheckAt,
     lastSeenAt: nextMetadata.lastSeenAt,
     createdAt: nextMetadata.createdAt,
@@ -1551,6 +1560,40 @@ async function executeGraphQL(query: any, variables: any = {}) {
         error: data?.deleteAgentRunner ? null : "Runner deletion failed.",
         deletedAgentRunnerId: agentRunnerId,
       },
+    };
+  }
+
+  if (query === START_RUNNER_SDK_AUTH_MUTATION) {
+    const data = await executeRawGraphQL(START_RUNNER_SDK_AUTH_MUTATION, {
+      runnerId: resolveLegacyId(variables?.runnerId),
+      sdkId: resolveLegacyId(variables?.sdkId),
+      authType: resolveLegacyId(variables?.authType),
+      apiKey: resolveLegacyId(variables?.apiKey) || null,
+    });
+    const sdk = data?.startRunnerSdkAuth;
+    return {
+      startRunnerSdkAuth: sdk
+        ? {
+            id: resolveLegacyId(sdk.id),
+            name: normalizeAgentSdkValue(sdk.name),
+            status: resolveLegacyId(sdk.status),
+            isAvailable: sdk.isAvailable === true,
+            codexAuthStatus: resolveLegacyId(sdk.codexAuthStatus) || null,
+            codexAuthType: resolveLegacyId(sdk.codexAuthType) || null,
+            errorMessage: resolveLegacyId(sdk.errorMessage) || null,
+            availableModels: Array.isArray(sdk.models)
+              ? sdk.models.map((model: any) => ({
+                id: resolveLegacyId(model?.id),
+                name: resolveLegacyId(model?.name),
+                isAvailable: model?.isAvailable === true,
+                reasoningLevels: normalizeUniqueStringList(model?.reasoning || []),
+              }))
+              : [],
+            runner: {
+              id: resolveLegacyId(sdk?.runner?.id),
+            },
+          }
+        : null,
     };
   }
 
@@ -2999,6 +3042,9 @@ function App() {
   const [runnerSecretsById, setRunnerSecretsById] = useState<any>({});
   const [onboardingPhase, setOnboardingPhase] = useState<OnboardingPhase>(() => getPersistedOnboarding().phase);
   const [onboardingRunnerSecret, setOnboardingRunnerSecret] = useState<any>(() => getPersistedOnboarding().runnerSecret);
+  const [onboardingRunnerId, setOnboardingRunnerId] = useState<any>(() => getPersistedOnboarding().runnerId);
+  const [runnerSdkCodexAuthEventsByKey, setRunnerSdkCodexAuthEventsByKey] = useState<any>({});
+  const [startingRunnerSdkAuthKey, setStartingRunnerSdkAuthKey] = useState<any>("");
   const [appFlags, setAppFlags] = useState<AppFlags>(() => getPersistedFlags());
   const [isCreatingAgent, setIsCreatingAgent] = useState<any>(false);
   const [taskPageDepth, setTaskPageDepth] = useState<any>("5");
@@ -3137,12 +3183,79 @@ function App() {
     }, new Map<any, any>());
   }, [agentRunners]);
 
+  const onboardingRunner = useMemo(() => {
+    const normalizedRunnerId = String(onboardingRunnerId || "").trim();
+    if (!normalizedRunnerId) {
+      return null;
+    }
+    return agentRunners.find((runner: any) => runner.id === normalizedRunnerId) || null;
+  }, [agentRunners, onboardingRunnerId]);
+
+  const onboardingCodexSdk = useMemo(() => {
+    if (!onboardingRunner) {
+      return null;
+    }
+    return normalizeRunnerAvailableAgentSdks(onboardingRunner)
+      .find((sdkEntry: any) => sdkEntry.name === DEFAULT_AGENT_SDK) || null;
+  }, [onboardingRunner]);
+
+  const onboardingCodexAuthEvent = useMemo(() => {
+    const authKey = getRunnerSdkAuthKey(onboardingRunner?.id, onboardingCodexSdk?.id);
+    return authKey ? runnerSdkCodexAuthEventsByKey[authKey] || null : null;
+  }, [onboardingCodexSdk?.id, onboardingRunner?.id, runnerSdkCodexAuthEventsByKey]);
+
   const runnerCodexModelEntriesById = useMemo(() => {
     return agentRunners.reduce((map: any, runner: any) => {
       map.set(runner.id, normalizeRunnerCodexAvailableModels(runner));
       return map;
     }, new Map<any, any>());
   }, [agentRunners]);
+
+  const clearRunnerSdkCodexAuthEvent = useCallback((runnerId: any, sdkId: any) => {
+    const authKey = getRunnerSdkAuthKey(runnerId, sdkId);
+    if (!authKey) {
+      return;
+    }
+    setRunnerSdkCodexAuthEventsByKey((currentEvents: any) => {
+      if (!currentEvents || !currentEvents[authKey]) {
+        return currentEvents;
+      }
+      const nextEvents = { ...currentEvents };
+      delete nextEvents[authKey];
+      return nextEvents;
+    });
+  }, []);
+
+  const patchRunnerSdkEntry = useCallback((runnerId: any, sdkPatch: any) => {
+    const normalizedRunnerId = String(runnerId || "").trim();
+    const normalizedSdkId = String(sdkPatch?.id || "").trim();
+    if (!normalizedRunnerId || !normalizedSdkId) {
+      return;
+    }
+    setAgentRunners((currentRunners: any) =>
+      currentRunners.map((runner: any) => {
+        if (String(runner?.id || "").trim() !== normalizedRunnerId) {
+          return runner;
+        }
+        const currentSdks = normalizeRunnerAvailableAgentSdks(runner);
+        const nextSdks = currentSdks.map((sdkEntry: any) => (
+          String(sdkEntry?.id || "").trim() === normalizedSdkId
+            ? {
+              ...sdkEntry,
+              ...sdkPatch,
+              availableModels: Array.isArray(sdkPatch?.availableModels)
+                ? sdkPatch.availableModels
+                : sdkEntry.availableModels,
+            }
+            : sdkEntry
+        ));
+        return {
+          ...runner,
+          availableAgentSdks: nextSdks,
+        };
+      }),
+    );
+  }, []);
 
   const getChatCreateBlockedReasonForAgent = useCallback(
     (agent: any) => getChatCreateBlockedReason(agent, agentRunnerLookup),
@@ -3590,7 +3703,10 @@ function App() {
     activePage === "agents" ||
     activePage === "profile" ||
     !appFlags.skipOnboarding;
-  const shouldSubscribeAgentRunners = activePage === "dashboard" || activePage === "agent-runner" || (hasLoadedAgentRunners && (agentRunners.length === 0 || onboardingPhase === "runner"));
+  const shouldSubscribeAgentRunners =
+    activePage === "dashboard"
+    || activePage === "agent-runner"
+    || (hasLoadedAgentRunners && (agentRunners.length === 0 || onboardingPhase === "runner" || onboardingPhase === "agent"));
   useEffect(() => {
     const nextAssignments = {};
     for (const role of roles) {
@@ -4143,7 +4259,10 @@ function App() {
       setAgentRunners([]);
       setHasLoadedAgentRunners(false);
       setOnboardingRunnerSecret("");
+      setOnboardingRunnerId("");
       setOnboardingPhase(null);
+      setRunnerSdkCodexAuthEventsByKey({});
+      setStartingRunnerSdkAuthKey("");
       clearPersistedOnboarding();
       if (!silently) {
         setRunnerError("");
@@ -4521,6 +4640,26 @@ function App() {
     }
     const nextRunnerNodes = toConnectionNodes(payload?.agentRunnersUpdated);
     const nextRunnerPayload = nextRunnerNodes.map((runnerNode: any) => toLegacyRunnerPayload(runnerNode));
+    setRunnerSdkCodexAuthEventsByKey((currentEvents: any) => {
+      const nextEvents = { ...(currentEvents || {}) };
+      let hasChanged = false;
+      for (const runner of nextRunnerPayload) {
+        for (const sdkEntry of normalizeRunnerAvailableAgentSdks(runner)) {
+          const authKey = getRunnerSdkAuthKey(runner?.id, sdkEntry?.id);
+          const shouldClearAuthEvent =
+            String(sdkEntry?.status || "").trim().toLowerCase() === "ready"
+            || String(sdkEntry?.status || "").trim().toLowerCase() === "error"
+            || ["idle", "requested", "failed"].includes(
+              String(sdkEntry?.codexAuthStatus || "").trim().toLowerCase(),
+            );
+          if (authKey && nextEvents[authKey] && shouldClearAuthEvent) {
+            delete nextEvents[authKey];
+            hasChanged = true;
+          }
+        }
+      }
+      return hasChanged ? nextEvents : currentEvents;
+    });
     setAgentRunners((currentRunners: any) =>
       mergeAgentRunnerPayloadList(currentRunners, nextRunnerPayload),
     );
@@ -4531,6 +4670,32 @@ function App() {
   const handleAgentRunnersSubscriptionError = useCallback((error: any) => {
     setRunnerError(error.message);
     setIsLoadingRunners(false);
+  }, []);
+
+  const handleRunnerSdkCodexAuthSubscriptionData = useCallback((payload: any) => {
+    const event = payload?.runnerSdkCodexAuthUpdated;
+    const authKey = getRunnerSdkAuthKey(event?.runnerId, event?.sdkId);
+    if (!event || !authKey) {
+      return;
+    }
+    setRunnerSdkCodexAuthEventsByKey((currentEvents: any) => ({
+      ...(currentEvents || {}),
+      [authKey]: {
+        runnerId: String(event.runnerId || "").trim(),
+        sdkId: String(event.sdkId || "").trim(),
+        codexAuthStatus: String(event.codexAuthStatus || "").trim(),
+        codexAuthType: String(event.codexAuthType || "").trim() || null,
+        deviceCode: String(event.deviceCode || "").trim() || null,
+        errorMessage: String(event.errorMessage || "").trim() || null,
+      },
+    }));
+    setStartingRunnerSdkAuthKey((currentKey: any) => (currentKey === authKey ? "" : currentKey));
+    setRunnerError("");
+  }, []);
+
+  const handleRunnerSdkCodexAuthSubscriptionError = useCallback((error: any) => {
+    setRunnerError(error.message);
+    setStartingRunnerSdkAuthKey("");
   }, []);
 
   const handleAgentChatSessionsSubscriptionData = useCallback((payload: any) => {
@@ -4695,6 +4860,18 @@ function App() {
     onError: handleAgentChatSubscriptionError,
   });
 
+  useGraphQLSubscription({
+    enabled: Boolean(
+      selectedCompanyId
+      && subscribedRunnerSdkAuthTarget?.runnerId
+      && subscribedRunnerSdkAuthTarget?.sdkId,
+    ),
+    query: CODEX_AUTH_EVENTS_SUBSCRIPTION,
+    variables: subscribedRunnerSdkAuthTarget || undefined,
+    onData: handleRunnerSdkCodexAuthSubscriptionData,
+    onError: handleRunnerSdkCodexAuthSubscriptionError,
+  });
+
   useEffect(() => {
     loadCompanies();
   }, [loadCompanies]);
@@ -4703,6 +4880,11 @@ function App() {
     setActiveCompanyId(selectedCompanyId);
     persistCompanyId(selectedCompanyId);
     turnLifecycleSignatureBySessionIdRef.current.clear();
+  }, [selectedCompanyId]);
+
+  useEffect(() => {
+    setRunnerSdkCodexAuthEventsByKey({});
+    setStartingRunnerSdkAuthKey("");
   }, [selectedCompanyId]);
 
   useEffect(() => {
@@ -5098,29 +5280,54 @@ function App() {
       return;
     }
 
+    const configuredRunnerCount = agentRunners.filter((runner: any) => isRunnerReadyAndConnected(runner)).length;
     const nextPhase = onboardingPhase === null
       ? deriveInitialOnboardingPhase({
-        runnerCount: agentRunners.length,
+        runnerCount: configuredRunnerCount,
         agentCount: agents.length,
       })
       : reconcileOnboardingPhase({
         phase: onboardingPhase,
-        runnerCount: agentRunners.length,
+        runnerCount: configuredRunnerCount,
         agentCount: agents.length,
       });
 
     if (nextPhase === onboardingPhase) {
       return;
     }
-
     setOnboardingPhase(nextPhase);
     if (nextPhase === null || nextPhase === "done") {
       setOnboardingRunnerSecret("");
       clearPersistedOnboarding();
     } else {
-      persistOnboarding({ phase: nextPhase });
+      persistOnboarding({
+        phase: nextPhase,
+        runnerId: onboardingRunnerId,
+        runnerSecret: onboardingRunnerSecret,
+      });
     }
-  }, [selectedCompanyId, hasLoadedAgentRunners, appFlags.skipOnboarding, onboardingPhase, agentRunners.length, agents.length]);
+  }, [
+    selectedCompanyId,
+    hasLoadedAgentRunners,
+    appFlags.skipOnboarding,
+    onboardingPhase,
+    onboardingRunnerId,
+    onboardingRunnerSecret,
+    agents.length,
+    agentRunners.length,
+  ]);
+
+  useEffect(() => {
+    const normalizedRunnerId = String(onboardingRunnerId || "").trim();
+    if (!normalizedRunnerId) {
+      return;
+    }
+    if (agentRunners.some((runner: any) => String(runner?.id || "").trim() === normalizedRunnerId)) {
+      return;
+    }
+    setOnboardingRunnerId("");
+    persistOnboarding({ runnerId: "" });
+  }, [agentRunners, onboardingRunnerId]);
 
   useEffect(() => {
     if (!selectedCompanyId || activePage !== "chats") {
@@ -7723,10 +7930,16 @@ function App() {
         throw new Error(result.error || "Runner creation failed.");
       }
 
+      const createdRunnerId = result.agentRunner?.id || "";
       const provisionedRunnerSecret = result.provisionedAuthSecret || "";
+      setOnboardingRunnerId(createdRunnerId);
       setOnboardingRunnerSecret(provisionedRunnerSecret);
       setOnboardingPhase("runner");
-      persistOnboarding({ phase: "runner", runnerSecret: provisionedRunnerSecret });
+      persistOnboarding({
+        phase: "runner",
+        runnerSecret: provisionedRunnerSecret,
+        runnerId: createdRunnerId,
+      });
       setRunnerNameDraft("");
       await loadAgentRunners();
       return true;
@@ -7738,8 +7951,38 @@ function App() {
     }
   }
 
+  async function handleStartRunnerSdkDeviceAuth(runnerId: string, sdkId: string) {
+    const authKey = getRunnerSdkAuthKey(runnerId, sdkId);
+    if (!selectedCompanyId || !authKey) {
+      return;
+    }
+
+    try {
+      setStartingRunnerSdkAuthKey(authKey);
+      setRunnerError("");
+      clearRunnerSdkCodexAuthEvent(runnerId, sdkId);
+      const data = await executeGraphQL(START_RUNNER_SDK_AUTH_MUTATION, {
+        runnerId,
+        sdkId,
+        authType: "device_code",
+        apiKey: null,
+      });
+      const sdk = data?.startRunnerSdkAuth;
+      if (sdk) {
+        patchRunnerSdkEntry(runnerId, sdk);
+      }
+    } catch (startError: any) {
+      setRunnerError(startError?.message || "Failed to start Codex device auth.");
+    } finally {
+      setStartingRunnerSdkAuthKey("");
+    }
+  }
+
   function handleSkipOnboarding() {
     setOnboardingPhase("done");
+    setOnboardingRunnerSecret("");
+    setOnboardingRunnerId("");
+    setRunnerSdkCodexAuthEventsByKey({});
     clearPersistedOnboarding();
     const next = { ...appFlags, skipOnboarding: true };
     setAppFlags(next);
@@ -7777,7 +8020,7 @@ function App() {
       return false;
     }
     if (!isRunnerReadyAndConnected(selectedRunner)) {
-      setAgentError(`Assigned runner ${agentRunnerId} must be ready and connected before creating an agent.`);
+      setAgentError(`Assigned runner ${agentRunnerId} must be connected with a configured Codex SDK before creating an agent.`);
       return false;
     }
 
@@ -7914,7 +8157,7 @@ function App() {
       return false;
     }
     if (!isRunnerReadyAndConnected(assignedRunner)) {
-      setAgentError(`Assigned runner ${draft.agentRunnerId} must be ready and connected before saving an agent.`);
+      setAgentError(`Assigned runner ${draft.agentRunnerId} must be connected with a configured Codex SDK before saving an agent.`);
       return false;
     }
 
@@ -8068,8 +8311,8 @@ function App() {
     if (!readyRunner) {
       setAgentError(
         assignedRunner
-          ? `Assigned runner ${assignedRunner.id} must be ready and connected.`
-          : "No ready and connected runner found. Start a runner before initializing agents.",
+          ? `Assigned runner ${assignedRunner.id} must be connected with a configured Codex SDK.`
+          : "No connected runner with a configured Codex SDK was found. Start a runner and finish Codex auth before initializing agents.",
       );
       return;
     }
@@ -9343,6 +9586,31 @@ function App() {
     && activePage !== "settings"
     && activePage !== "profile"
     && activePage !== "flags";
+  const detailRunner = activePage === "agent-runner" && runnersRoute.view === "detail" && runnersRoute.runnerId
+    ? agentRunners.find((runner: any) => runner.id === runnersRoute.runnerId) || null
+    : null;
+  const detailCodexSdk = detailRunner
+    ? normalizeRunnerAvailableAgentSdks(detailRunner).find((sdkEntry: any) => sdkEntry.name === DEFAULT_AGENT_SDK) || null
+    : null;
+  const detailCodexAuthEvent = (() => {
+    const authKey = getRunnerSdkAuthKey(detailRunner?.id, detailCodexSdk?.id);
+    return authKey ? runnerSdkCodexAuthEventsByKey[authKey] || null : null;
+  })();
+  const subscribedRunnerSdkAuthTarget = (() => {
+    if (showOnboarding && onboardingPhase === "runner" && onboardingRunner?.id && onboardingCodexSdk?.id) {
+      return {
+        runnerId: onboardingRunner.id,
+        sdkId: onboardingCodexSdk.id,
+      };
+    }
+    if (detailRunner?.id && detailCodexSdk?.id) {
+      return {
+        runnerId: detailRunner.id,
+        sdkId: detailCodexSdk.id,
+      };
+    }
+    return null;
+  })();
   const mobilePageTitle = String(breadcrumbItems[breadcrumbItems.length - 1]?.label || "").trim();
 
   return (
@@ -9474,6 +9742,7 @@ function App() {
               runnerNameDraft={runnerNameDraft}
               runnerError={runnerError}
               provisionedSecret={onboardingRunnerSecret}
+              onboardingRunnerId={onboardingRunnerId}
               agentRunners={agentRunners}
               onboardingPhase={onboardingPhase}
               onRunnerNameChange={setRunnerNameDraft}
@@ -9497,19 +9766,29 @@ function App() {
                 if (typeof result === "string") {
                   setOnboardingPhase("done");
                   setOnboardingRunnerSecret("");
+                  setOnboardingRunnerId("");
+                  setRunnerSdkCodexAuthEventsByKey({});
                   clearPersistedOnboarding();
                   setBrowserPath(getPostAgentCreationOnboardingRedirectPath(result));
                 }
                 return result;
               }}
               onAdvanceToAgentPhase={() => {
-                const firstConnectedRunner = agentRunners.find(isRunnerReadyAndConnected);
-                if (firstConnectedRunner) {
-                  handleCreateAgentRunnerChange(firstConnectedRunner.id);
+                if (onboardingRunnerId) {
+                  handleCreateAgentRunnerChange(onboardingRunnerId);
                 }
                 setOnboardingPhase("agent");
-                persistOnboarding({ phase: "agent" });
+                persistOnboarding({ phase: "agent", runnerId: onboardingRunnerId });
               }}
+              codexAuthEvent={onboardingCodexAuthEvent}
+              isStartingCodexAuth={
+                Boolean(
+                  onboardingRunner?.id
+                  && onboardingCodexSdk?.id
+                  && startingRunnerSdkAuthKey === getRunnerSdkAuthKey(onboardingRunner.id, onboardingCodexSdk.id),
+                )
+              }
+              onStartCodexDeviceAuth={handleStartRunnerSdkDeviceAuth}
             />
           ) : (
             <>
@@ -9759,7 +10038,6 @@ function App() {
 
         {selectedCompanyId && activePage === "agent-runner" ? (
           runnersRoute.view === "detail" && runnersRoute.runnerId ? (() => {
-            const detailRunner = agentRunners.find((r: any) => r.id === runnersRoute.runnerId);
             if (!detailRunner) {
               return <p className="empty-hint">Runner not found.</p>;
             }
@@ -9780,6 +10058,15 @@ function App() {
                 }
                 onRegenerateRunnerSecret={handleRegenerateRunnerSecret}
                 onDeleteRunner={handleDeleteRunner}
+                codexAuthEvent={detailCodexAuthEvent}
+                isStartingCodexAuth={
+                  Boolean(
+                    detailRunner?.id
+                    && detailCodexSdk?.id
+                    && startingRunnerSdkAuthKey === getRunnerSdkAuthKey(detailRunner.id, detailCodexSdk.id),
+                  )
+                }
+                onStartCodexDeviceAuth={handleStartRunnerSdkDeviceAuth}
               />
             );
           })() : (
@@ -10042,14 +10329,23 @@ function App() {
             onResetOnboarding={() => {
               setOnboardingPhase(null);
               setOnboardingRunnerSecret("");
+              setOnboardingRunnerId("");
+              setRunnerSdkCodexAuthEventsByKey({});
               clearPersistedOnboarding();
             }}
             onPhaseChange={(phase) => {
               setOnboardingPhase(phase);
               if (phase === null || phase === "done") {
+                setOnboardingRunnerSecret("");
+                setOnboardingRunnerId("");
+                setRunnerSdkCodexAuthEventsByKey({});
                 clearPersistedOnboarding();
               } else {
-                persistOnboarding({ phase });
+                persistOnboarding({
+                  phase,
+                  runnerId: onboardingRunnerId,
+                  runnerSecret: onboardingRunnerSecret,
+                });
               }
             }}
           />

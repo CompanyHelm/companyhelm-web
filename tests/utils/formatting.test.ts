@@ -12,14 +12,23 @@ test("normalizeRunnerConnectionState maps boolean connectivity", () => {
 });
 
 test("isRunnerReadyAndConnected requires both conditions", () => {
-  assert.equal(isRunnerReadyAndConnected({ isConnected: true, status: "ready" }), true);
-  assert.equal(isRunnerReadyAndConnected({ isConnected: true, status: "unconfigured" }), false);
-  assert.equal(isRunnerReadyAndConnected({ isConnected: false, status: "ready" }), false);
+  assert.equal(isRunnerReadyAndConnected({
+    isConnected: true,
+    availableAgentSdks: [{ name: "codex", status: "ready", isAvailable: true, availableModels: [] }],
+  }), true);
+  assert.equal(isRunnerReadyAndConnected({
+    isConnected: true,
+    availableAgentSdks: [{ name: "codex", status: "unconfigured", isAvailable: true, availableModels: [] }],
+  }), false);
+  assert.equal(isRunnerReadyAndConnected({
+    isConnected: false,
+    availableAgentSdks: [{ name: "codex", status: "ready", isAvailable: true, availableModels: [] }],
+  }), false);
 });
 
 test("formatRunnerLabel includes connection and status", () => {
   assert.equal(
-    formatRunnerLabel({ id: "1234567890", isConnected: false, status: "unconfigured" }),
-    "12345678 (disconnected, unconfigured)",
+    formatRunnerLabel({ id: "1234567890", isConnected: false }),
+    "12345678 (disconnected)",
   );
 });

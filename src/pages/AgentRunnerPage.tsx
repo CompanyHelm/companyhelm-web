@@ -9,7 +9,6 @@ import {
 import { Page } from "../components/Page.tsx";
 import { CreationModal } from "../components/CreationModal.tsx";
 import {
-  formatRunnerLifecycleStatus,
   formatTimestamp,
   normalizeRunnerConnectionState,
   toSortableTimestamp,
@@ -127,7 +126,6 @@ export function AgentRunnerPage({
               .sort((a, b) => toSortableTimestamp(b.lastSeenAt) - toSortableTimestamp(a.lastSeenAt))
               .map((runner) => {
                 const connectionState = normalizeRunnerConnectionState(runner.isConnected);
-                const runnerStatus = formatRunnerLifecycleStatus(runner.status);
                 const isBusy =
                   deletingRunnerId === runner.id || regeneratingRunnerId === runner.id;
 
@@ -155,7 +153,6 @@ export function AgentRunnerPage({
                       <p className="chat-card-meta">
                         {runner.id} &middot; Last seen {formatTimestamp(runner.lastSeenAt)}
                       </p>
-                      <p className="chat-card-meta">Status: {runnerStatus}</p>
                     </div>
                     <div className="chat-card-actions">
                       <button

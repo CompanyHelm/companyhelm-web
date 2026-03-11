@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { Page } from "../components/Page.tsx";
 import {
-  formatRunnerLifecycleStatus,
   formatTimestamp,
   normalizeRunnerConnectionState,
   toSortableTimestamp,
@@ -141,12 +140,11 @@ export function DashboardPage({
             <ul className="compact-list">
               {recentRunners.map((runner) => {
                 const connectionState = normalizeRunnerConnectionState(runner.isConnected);
-                const runnerStatus = formatRunnerLifecycleStatus(runner.status);
                 return (
                   <li key={`dashboard-runner-${runner.id}`} className="compact-item">
                     <div>
                       <strong>{runner.name || runner.id}</strong>
-                      <p>Status {runnerStatus} · Seen {formatTimestamp(runner.lastSeenAt)}</p>
+                      <p>{connectionState} · Seen {formatTimestamp(runner.lastSeenAt)}</p>
                     </div>
                     <span className={`runner-status runner-status-${connectionState}`}>
                       {connectionState}

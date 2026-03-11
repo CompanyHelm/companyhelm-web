@@ -216,7 +216,7 @@ export function AgentsPage({
     const selectedRunner = agentRunners.find((runner) => runner.id === agentRunnerId) || null;
     const sdkEntries = selectedRunner ? normalizeRunnerAvailableAgentSdks(selectedRunner) : [];
     return sdkEntries.reduce((map, sdkEntry) => {
-      map.set(sdkEntry.name, sdkEntry.isAvailable ? "available" : "unavailable");
+      map.set(sdkEntry.name, sdkEntry.isAvailable && sdkEntry.status === "ready" ? "available" : "unavailable");
       return map;
     }, new Map<string, "available" | "unavailable">());
   }, [agentRunners, agentRunnerId]);
@@ -246,7 +246,7 @@ export function AgentsPage({
   const hasReadyConnectedRunner = agentRunners.some((runner) => isRunnerReadyAndConnected(runner));
   const isCreateBlockedByRunners = hasLoadedAgentRunners && !hasReadyConnectedRunner;
   const createAgentButtonTitle = isCreateBlockedByRunners
-    ? "A runner must be ready and connected before creating an agent"
+    ? "A connected runner with configured Codex SDK is required before creating an agent"
     : "Create agent";
   useEffect(() => {
     if (pendingEditAgentId) {
@@ -338,7 +338,7 @@ export function AgentsPage({
             <p className="empty-hint">No agents created for this company yet.</p>
             {isCreateBlockedByRunners ? (
               <p className="empty-hint">
-                Wait for a runner to become ready and connected before creating an agent.
+                Wait for a runner to connect and report a configured Codex SDK before creating an agent.
               </p>
             ) : null}
             <button
@@ -459,7 +459,7 @@ export function AgentsPage({
       <CreationModal
         modalId="create-agent-modal"
         title="Create agent"
-        description="Register a new agent profile for this company. A ready and connected runner is required."
+        description="Register a new agent profile for this company. A connected runner with a configured Codex SDK is required."
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
       >
@@ -476,7 +476,7 @@ export function AgentsPage({
             {!hasLoadedAgentRunners ? (
               <option value="">Loading runners...</option>
             ) : !hasReadyConnectedRunner ? (
-              <option value="">No ready and connected runners available</option>
+              <option value="">No connected runners with configured Codex available</option>
             ) : (
               <>
                 <option value="">Select runner</option>

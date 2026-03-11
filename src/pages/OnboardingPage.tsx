@@ -1,4 +1,5 @@
 import { useState, useMemo, type ChangeEvent, type FormEvent } from "react";
+import { CodexAuthPanel } from "../components/CodexAuthPanel.tsx";
 import { Page } from "../components/Page.tsx";
 import { quoteShellArg } from "../utils/shell.ts";
 import { isRunnerReadyAndConnected } from "../utils/formatting.ts";
@@ -9,7 +10,7 @@ import {
   normalizeRunnerAvailableAgentSdks,
 } from "../utils/normalization.ts";
 import { AVAILABLE_AGENT_SDKS } from "../utils/constants.ts";
-import type { AgentRunner } from "../types/domain.ts";
+import type { AgentRunner, RunnerSdkCodexAuthEvent } from "../types/domain.ts";
 import type { OnboardingPhase } from "../utils/persistence.ts";
 
 type DeployTarget = "local" | "vm" | null;
@@ -19,6 +20,7 @@ interface OnboardingPageProps {
   runnerNameDraft: string;
   runnerError: string;
   provisionedSecret: string;
+  onboardingRunnerId: string;
   agentRunners: AgentRunner[];
   onboardingPhase: OnboardingPhase;
   onRunnerNameChange: (value: string) => void;
@@ -39,6 +41,9 @@ interface OnboardingPageProps {
   onAgentModelReasoningLevelChange: (level: string) => void;
   onCreateAgent: (event: FormEvent<HTMLFormElement>) => Promise<any>;
   onAdvanceToAgentPhase: () => void;
+  codexAuthEvent: RunnerSdkCodexAuthEvent | null;
+  isStartingCodexAuth: boolean;
+  onStartCodexDeviceAuth: (runnerId: string, sdkId: string) => void;
 }
 
 const PHASES = [
@@ -52,6 +57,7 @@ export function OnboardingPage({
   runnerNameDraft,
   runnerError,
   provisionedSecret,
+  onboardingRunnerId,
   agentRunners,
   onboardingPhase,
   onRunnerNameChange,
@@ -72,17 +78,25 @@ export function OnboardingPage({
   onAgentModelReasoningLevelChange,
   onCreateAgent,
   onAdvanceToAgentPhase,
+  codexAuthEvent,
+  isStartingCodexAuth,
+  onStartCodexDeviceAuth,
 }: OnboardingPageProps) {
   const [deployTarget, setDeployTarget] = useState<DeployTarget>(null);
 
-  const hasConnectedRunner = useMemo(
-    () => agentRunners.some(isRunnerReadyAndConnected),
-    [agentRunners],
+  const onboardingRunner = useMemo(
+    () => agentRunners.find((runner) => runner.id === onboardingRunnerId) || null,
+    [agentRunners, onboardingRunnerId],
   );
 
-  const connectedRunners = useMemo(
-    () => agentRunners.filter(isRunnerReadyAndConnected),
-    [agentRunners],
+  const hasConnectedRunner = useMemo(
+    () => onboardingRunner?.isConnected === true,
+    [onboardingRunner],
+  );
+
+  const hasConfiguredRunner = useMemo(
+    () => onboardingRunner ? isRunnerReadyAndConnected(onboardingRunner) : false,
+    [onboardingRunner],
   );
 
   const currentPhase = onboardingPhase || "runner";
@@ -93,15 +107,21 @@ export function OnboardingPage({
 
   const localStartCommand = useMemo(() => {
     const secret = provisionedSecret || "<RUNNER_SECRET>";
-    return `npx companyhelm runner start --use-host-docker-runtime --secret ${quoteShellArg(secret)} --daemon`;
+    return `npx companyhelm runner start --use-host-docker-runtime --use-dedicated-auth --secret ${quoteShellArg(secret)} --daemon`;
   }, [provisionedSecret]);
-
-  const vmAuthCommand = "npx companyhelm sdk codex use-dedicated-auth";
 
   const vmStartCommand = useMemo(() => {
     const secret = provisionedSecret || "<RUNNER_SECRET>";
-    return `npx companyhelm runner start --secret ${quoteShellArg(secret)} --daemon`;
+    return `npx companyhelm runner start --use-dedicated-auth --secret ${quoteShellArg(secret)} --daemon`;
   }, [provisionedSecret]);
+
+  const onboardingCodexSdk = useMemo(() => {
+    if (!onboardingRunner) {
+      return null;
+    }
+    return normalizeRunnerAvailableAgentSdks(onboardingRunner)
+      .find((sdkEntry) => sdkEntry.name === "codex") || null;
+  }, [onboardingRunner]);
 
   // Agent form derived state
   const createRunnerCodexModelEntries = useMemo(() => {
@@ -112,7 +132,7 @@ export function OnboardingPage({
     const selectedRunner = agentRunners.find((runner) => runner.id === agentRunnerId) || null;
     const sdkEntries = selectedRunner ? normalizeRunnerAvailableAgentSdks(selectedRunner) : [];
     return sdkEntries.reduce((map: Map<string, "available" | "unavailable">, sdkEntry: any) => {
-      map.set(sdkEntry.name, sdkEntry.isAvailable ? "available" : "unavailable");
+      map.set(sdkEntry.name, sdkEntry.isAvailable && sdkEntry.status === "ready" ? "available" : "unavailable");
       return map;
     }, new Map<string, "available" | "unavailable">());
   }, [agentRunners, agentRunnerId]);
@@ -285,17 +305,9 @@ export function OnboardingPage({
                 </div>
 
                 <div className="runner-onboarding-step">
-                  <p className="runner-onboarding-step-label">2. Authenticate Codex with dedicated credentials</p>
+                  <p className="runner-onboarding-step-label">2. Start the runner</p>
                   <p className="subcopy">
-                    Run the following command on your VM and complete the device code flow from the CLI:
-                  </p>
-                  <pre className="runner-command"><code>{vmAuthCommand}</code></pre>
-                </div>
-
-                <div className="runner-onboarding-step">
-                  <p className="runner-onboarding-step-label">3. Start the runner</p>
-                  <p className="subcopy">
-                    After authentication, start the runner as a background daemon:
+                    Start the runner as a background daemon. You will trigger Codex device auth from the UI after it connects:
                   </p>
                   <pre className="runner-command"><code>{vmStartCommand}</code></pre>
                 </div>
@@ -310,9 +322,19 @@ export function OnboardingPage({
                     {hasConnectedRunner ? "Runner connected" : "Waiting for runner to connect..."}
                   </span>
                 </div>
+                {onboardingRunner && onboardingCodexSdk ? (
+                  <CodexAuthPanel
+                    sdk={onboardingCodexSdk}
+                    runnerId={onboardingRunner.id}
+                    authEvent={codexAuthEvent}
+                    isRunnerConnected={hasConnectedRunner}
+                    isStarting={isStartingCodexAuth}
+                    onStartDeviceCodeAuth={onStartCodexDeviceAuth}
+                  />
+                ) : null}
                 <button
                   type="button"
-                  disabled={!hasConnectedRunner}
+                  disabled={!hasConfiguredRunner}
                   onClick={onAdvanceToAgentPhase}
                 >
                   Create your first agent
@@ -450,7 +472,7 @@ export function OnboardingPage({
                 )}
               </select>
 
-              <button type="submit" disabled={isCreatingAgent || !hasConnectedRunner}>
+              <button type="submit" disabled={isCreatingAgent || !hasConfiguredRunner}>
                 {isCreatingAgent ? "Creating..." : "Create agent"}
               </button>
               {agentError ? <p className="error-banner">{agentError}</p> : null}

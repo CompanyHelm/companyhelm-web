@@ -22,7 +22,11 @@ export interface RunnerModelEntry {
 export interface RunnerSdkEntry {
   id: string;
   name: string;
+  status?: string;
   isAvailable: boolean;
+  codexAuthStatus?: string | null;
+  codexAuthType?: string | null;
+  errorMessage?: string | null;
   availableModels: RunnerModelEntry[];
 }
 
@@ -42,11 +46,19 @@ export interface AgentRunner extends NamedEntity {
   hasAuthSecret?: boolean;
   availableAgentSdks?: RunnerSdkEntry[];
   isConnected?: boolean;
-  status?: string;
   lastHealthCheckAt?: string | null;
   lastSeenAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface RunnerSdkCodexAuthEvent {
+  runnerId: string;
+  sdkId: string;
+  codexAuthStatus: string;
+  codexAuthType?: string | null;
+  deviceCode?: string | null;
+  errorMessage?: string | null;
 }
 
 export interface SkillRef extends NamedEntity {}
