@@ -283,6 +283,7 @@ import { executeRelayGraphQL } from "./relay/client.ts";
 import { authProvider } from "./auth/runtime.ts";
 
 import { Breadcrumbs } from "./components/Breadcrumbs.tsx";
+import { ConfirmationModal } from "./components/ConfirmationModal.tsx";
 import { CreationModal } from "./components/CreationModal.tsx";
 import { PageActionsProvider, usePageActions } from "./components/PageActionsContext.tsx";
 import { CompanyRequiredPanel } from "./components/CompanyRequiredPanel.tsx";
@@ -2841,6 +2842,12 @@ async function executeGraphQL(query: any, variables: any = {}) {
   throw new Error("Unsupported frontend operation for companyhelm-api.");
 }
 
+const DEFAULT_CONFIRMATION_OPTIONS = {
+  confirmLabel: "Confirm",
+  cancelLabel: "Cancel",
+  tone: "danger",
+};
+
 function App() {
   const [activePage, setActivePage] = useState<any>(() => getPageFromPathname());
   const [agentsRoute, setAgentsRoute] = useState<any>(() => getAgentsRouteFromPathname());
@@ -3015,6 +3022,7 @@ function App() {
   const [chatError, setChatError] = useState<any>("");
   const [chatIndexError, setChatIndexError] = useState<any>("");
   const [chatCreateAvailabilityModalAgentId, setChatCreateAvailabilityModalAgentId] = useState<any>("");
+  const [activeConfirmation, setActiveConfirmation] = useState<any>(null);
   const [isLoadingChatIndex, setIsLoadingChatIndex] = useState<any>(false);
   const [isLoadingChatSessions, setIsLoadingChatSessions] = useState<any>(false);
   const [isCreatingChatSession, setIsCreatingChatSession] = useState<any>(false);
@@ -3029,6 +3037,7 @@ function App() {
     matchesMediaQuery(SIDEBAR_COLLAPSE_MEDIA_QUERY),
   );
   const isNavigatingToChatsRef = useRef<any>(false);
+  const activeConfirmationResolverRef = useRef<any>(null);
   const turnLifecycleSignatureBySessionIdRef = useRef<any>(new Map<any, any>());
   const runCreateChatSessionSingleFlight = useMemo(() => createSingleFlightByKey(), []);
   const hasCompanies = companies.length > 0;
@@ -3117,6 +3126,37 @@ function App() {
     const selectedAgent = agents.find((agent: any) => agent.id === targetAgentId) || null;
     return selectedAgent ? getChatCreateAvailabilityIssue(selectedAgent, agentRunnerLookup) : null;
   }, [agentRunnerLookup, agents, chatCreateAvailabilityModalAgentId]);
+
+  const resolveActiveConfirmation = useCallback((confirmed: boolean) => {
+    const resolver = activeConfirmationResolverRef.current;
+    activeConfirmationResolverRef.current = null;
+    setActiveConfirmation(null);
+    if (typeof resolver === "function") {
+      resolver(confirmed);
+    }
+  }, []);
+
+  const requestConfirmation = useCallback((options: any) => {
+    return new Promise<boolean>((resolve) => {
+      if (typeof activeConfirmationResolverRef.current === "function") {
+        activeConfirmationResolverRef.current(false);
+      }
+      activeConfirmationResolverRef.current = resolve;
+      setActiveConfirmation({
+        ...DEFAULT_CONFIRMATION_OPTIONS,
+        ...options,
+      });
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (typeof activeConfirmationResolverRef.current === "function") {
+        activeConfirmationResolverRef.current(false);
+      }
+      activeConfirmationResolverRef.current = null;
+    };
+  }, []);
 
   const getChatSendBlockedReasonByAgentId = useCallback(
     (agentId: any) => {
@@ -5537,9 +5577,12 @@ function App() {
       return;
     }
 
-    const confirmed = window.confirm(
-      `Delete company "${selectedCompany.name}"? This will also delete all tasks, skills, secrets, MCP servers, agents, and agent runners in that company.`,
-    );
+    const confirmed = await requestConfirmation({
+      title: "Delete company",
+      message:
+        `Delete company "${selectedCompany.name}"? This will also delete all tasks, skills, secrets, MCP servers, agents, and agent runners in that company.`,
+      confirmLabel: "Delete company",
+    });
     if (!confirmed) {
       return;
     }
@@ -5594,9 +5637,11 @@ function App() {
       return;
     }
 
-    const confirmed = window.confirm(
-      `Delete GitHub installation ${resolvedInstallationId} from this company?`,
-    );
+    const confirmed = await requestConfirmation({
+      title: "Delete GitHub installation",
+      message: `Delete GitHub installation ${resolvedInstallationId} from this company?`,
+      confirmLabel: "Delete installation",
+    });
     if (!confirmed) {
       return;
     }
@@ -5776,7 +5821,11 @@ function App() {
       return;
     }
 
-    const confirmed = window.confirm(`Delete task "${taskName}" (#${taskId})?`);
+    const confirmed = await requestConfirmation({
+      title: "Delete task",
+      message: `Delete task "${taskName}" (#${taskId})?`,
+      confirmLabel: "Delete task",
+    });
     if (!confirmed) {
       return;
     }
@@ -5812,9 +5861,11 @@ function App() {
       return false;
     }
 
-    const confirmed = window.confirm(
-      `Delete ${normalizedTaskIds.length} selected task${normalizedTaskIds.length === 1 ? "" : "s"}?`,
-    );
+    const confirmed = await requestConfirmation({
+      title: "Delete tasks",
+      message: `Delete ${normalizedTaskIds.length} selected task${normalizedTaskIds.length === 1 ? "" : "s"}?`,
+      confirmLabel: normalizedTaskIds.length === 1 ? "Delete task" : "Delete tasks",
+    });
     if (!confirmed) {
       return false;
     }
@@ -6285,7 +6336,11 @@ function App() {
       return;
     }
 
-    const confirmed = window.confirm(`Delete skill "${skillDisplayName}"?`);
+    const confirmed = await requestConfirmation({
+      title: "Delete skill",
+      message: `Delete skill "${skillDisplayName}"?`,
+      confirmLabel: "Delete skill",
+    });
     if (!confirmed) {
       return;
     }
@@ -6365,7 +6420,11 @@ function App() {
       return false;
     }
 
-    const confirmed = window.confirm(`Delete git skill package "${packageName}"?`);
+    const confirmed = await requestConfirmation({
+      title: "Delete git skill package",
+      message: `Delete git skill package "${packageName}"?`,
+      confirmLabel: "Delete package",
+    });
     if (!confirmed) {
       return false;
     }
@@ -6425,7 +6484,11 @@ function App() {
       return false;
     }
 
-    const confirmed = window.confirm(`Delete skill group "${skillGroupName}"?`);
+    const confirmed = await requestConfirmation({
+      title: "Delete skill group",
+      message: `Delete skill group "${skillGroupName}"?`,
+      confirmLabel: "Delete group",
+    });
     if (!confirmed) {
       return false;
     }
@@ -6562,7 +6625,11 @@ function App() {
       return false;
     }
 
-    const confirmed = window.confirm(`Delete role "${roleName}"?`);
+    const confirmed = await requestConfirmation({
+      title: "Delete role",
+      message: `Delete role "${roleName}"?`,
+      confirmLabel: "Delete role",
+    });
     if (!confirmed) {
       return false;
     }
@@ -6895,7 +6962,11 @@ function App() {
       return;
     }
 
-    const confirmed = window.confirm(`Delete secret "${secretDisplayName}"?`);
+    const confirmed = await requestConfirmation({
+      title: "Delete secret",
+      message: `Delete secret "${secretDisplayName}"?`,
+      confirmLabel: "Delete secret",
+    });
     if (!confirmed) {
       return;
     }
@@ -6993,7 +7064,11 @@ function App() {
       return;
     }
 
-    const confirmed = window.confirm("Delete this approval?");
+    const confirmed = await requestConfirmation({
+      title: "Delete approval",
+      message: "Delete this approval?",
+      confirmLabel: "Delete approval",
+    });
     if (!confirmed) {
       return;
     }
@@ -7330,7 +7405,11 @@ function App() {
       return;
     }
 
-    const confirmed = window.confirm(`Delete MCP server "${mcpServerDisplayName}"?`);
+    const confirmed = await requestConfirmation({
+      title: "Delete MCP server",
+      message: `Delete MCP server "${mcpServerDisplayName}"?`,
+      confirmLabel: "Delete MCP server",
+    });
     if (!confirmed) {
       return;
     }
@@ -7360,9 +7439,12 @@ function App() {
       return;
     }
 
-    const confirmed = window.confirm(
-      `Regenerate API key for runner ${runnerId}? Existing runner processes using the old key will need to reconnect with the new key.`,
-    );
+    const confirmed = await requestConfirmation({
+      title: "Regenerate runner API key",
+      message:
+        `Regenerate API key for runner ${runnerId}? Existing runner processes using the old key will need to reconnect with the new key.`,
+      confirmLabel: "Regenerate key",
+    });
     if (!confirmed) {
       return;
     }
@@ -7401,7 +7483,11 @@ function App() {
       return;
     }
 
-    const confirmed = window.confirm(`Delete runner ${runnerId}?`);
+    const confirmed = await requestConfirmation({
+      title: "Delete runner",
+      message: `Delete runner ${runnerId}?`,
+      confirmLabel: "Delete runner",
+    });
     if (!confirmed) {
       return;
     }
@@ -8434,17 +8520,6 @@ function App() {
       return false;
     }
 
-    const resolvedTitle = String(title || matchingSession?.title || "").trim();
-    const confirmationLabel = resolvedTitle
-      ? `"${resolvedTitle}" (${targetSessionId})`
-      : targetSessionId;
-    const confirmed = window.confirm(
-      `Archive chat ${confirmationLabel}? Runtime resources will be released and the transcript will stay read-only.`,
-    );
-    if (!confirmed) {
-      return false;
-    }
-
     const targetChatSessionKey = `${targetAgentId}:${targetSessionId}`;
     try {
       setArchivingChatSessionKey(targetChatSessionKey);
@@ -8524,7 +8599,11 @@ function App() {
     const confirmationMessage = isArchivedSession
       ? `Delete archived chat ${confirmationLabel} permanently? This removes the preserved transcript history.`
       : `Delete chat ${confirmationLabel}?`;
-    const confirmed = window.confirm(confirmationMessage);
+    const confirmed = await requestConfirmation({
+      title: isArchivedSession ? "Delete archived chat" : "Delete chat",
+      message: confirmationMessage,
+      confirmLabel: isArchivedSession ? "Delete permanently" : "Delete chat",
+    });
     if (!confirmed) {
       return false;
     }
@@ -9898,6 +9977,18 @@ function App() {
             </div>
           </div>
         </CreationModal>
+        <ConfirmationModal
+          modalId="app-confirmation-modal"
+          isOpen={Boolean(activeConfirmation)}
+          title={activeConfirmation?.title || "Confirm action"}
+          message={activeConfirmation?.message || ""}
+          confirmLabel={activeConfirmation?.confirmLabel || DEFAULT_CONFIRMATION_OPTIONS.confirmLabel}
+          cancelLabel={activeConfirmation?.cancelLabel || DEFAULT_CONFIRMATION_OPTIONS.cancelLabel}
+          tone={activeConfirmation?.tone || DEFAULT_CONFIRMATION_OPTIONS.tone}
+          isConfirming={false}
+          onConfirm={() => resolveActiveConfirmation(true)}
+          onClose={() => resolveActiveConfirmation(false)}
+        />
           </>
         )}
       </main>
