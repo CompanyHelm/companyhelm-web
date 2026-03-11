@@ -270,6 +270,11 @@ import { setActiveCompanyId } from "./utils/company-context.ts";
 import { createSingleFlightByKey } from "./utils/single-flight.ts";
 
 import { buildRunnerStartCommand } from "./utils/shell.ts";
+import {
+  deriveInitialOnboardingPhase,
+  getPostAgentCreationOnboardingRedirectPath,
+  reconcileOnboardingPhase,
+} from "./utils/onboarding.ts";
 
 import {
   createRelationshipDrafts,
@@ -5087,20 +5092,33 @@ function App() {
     loadAgents();
   }, [loadAgents, selectedCompanyId, shouldLoadAgentData]);
 
-  // Determine initial onboarding phase on first data load
+  // Determine or reconcile onboarding phase after selected-company data loads.
   useEffect(() => {
     if (!selectedCompanyId || !hasLoadedAgentRunners || appFlags.skipOnboarding) {
       return;
     }
-    if (onboardingPhase !== null) {
-      return; // already has a persisted or active phase
+
+    const nextPhase = onboardingPhase === null
+      ? deriveInitialOnboardingPhase({
+        runnerCount: agentRunners.length,
+        agentCount: agents.length,
+      })
+      : reconcileOnboardingPhase({
+        phase: onboardingPhase,
+        runnerCount: agentRunners.length,
+        agentCount: agents.length,
+      });
+
+    if (nextPhase === onboardingPhase) {
+      return;
     }
-    if (agentRunners.length === 0) {
-      setOnboardingPhase("runner");
-      persistOnboarding({ phase: "runner" });
-    } else if (agents.length === 0) {
-      setOnboardingPhase("agent");
-      persistOnboarding({ phase: "agent" });
+
+    setOnboardingPhase(nextPhase);
+    if (nextPhase === null || nextPhase === "done") {
+      setOnboardingRunnerSecret("");
+      clearPersistedOnboarding();
+    } else {
+      persistOnboarding({ phase: nextPhase });
     }
   }, [selectedCompanyId, hasLoadedAgentRunners, appFlags.skipOnboarding, onboardingPhase, agentRunners.length, agents.length]);
 
@@ -9320,7 +9338,7 @@ function App() {
     && !appFlags.skipOnboarding
     && Boolean(selectedCompanyId)
     && hasLoadedAgentRunners
-    && (onboardingPhase === "runner" || onboardingPhase === "agent" || onboardingPhase === "chat"
+    && (onboardingPhase === "runner" || onboardingPhase === "agent"
       || (onboardingPhase === null && (agentRunners.length === 0 || agents.length === 0)))
     && activePage !== "settings"
     && activePage !== "profile"
@@ -9457,7 +9475,6 @@ function App() {
               runnerError={runnerError}
               provisionedSecret={onboardingRunnerSecret}
               agentRunners={agentRunners}
-              agents={agents}
               onboardingPhase={onboardingPhase}
               onRunnerNameChange={setRunnerNameDraft}
               onCreateRunner={handleCreateOnboardingRunner}
@@ -9477,22 +9494,13 @@ function App() {
               onAgentModelReasoningLevelChange={handleCreateAgentReasoningLevelChange}
               onCreateAgent={async (event: any) => {
                 const result = await handleCreateAgent(event);
-                if (result) {
-                  setOnboardingPhase("chat");
-                  persistOnboarding({ phase: "chat" });
+                if (typeof result === "string") {
+                  setOnboardingPhase("done");
+                  setOnboardingRunnerSecret("");
+                  clearPersistedOnboarding();
+                  setBrowserPath(getPostAgentCreationOnboardingRedirectPath(result));
                 }
                 return result;
-              }}
-              onCreateFirstChat={async (agentId: string, message: string) => {
-                setOnboardingPhase("done");
-                clearPersistedOnboarding();
-                setChatDraftMessage(message);
-                await handleCreateChatForAgent(agentId);
-              }}
-              onSkipToChat={() => {
-                setOnboardingPhase("done");
-                clearPersistedOnboarding();
-                navigateTo("chats");
               }}
               onAdvanceToAgentPhase={() => {
                 const firstConnectedRunner = agentRunners.find(isRunnerReadyAndConnected);

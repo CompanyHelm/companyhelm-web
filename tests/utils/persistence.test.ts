@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  getPersistedOnboarding,
   getPersistedTaskTableColumnIds,
   persistTaskTableColumnIds,
 } from "../../src/utils/persistence.ts";
-import { TASK_TABLE_COLUMNS_STORAGE_KEY } from "../../src/utils/constants.ts";
+import {
+  ONBOARDING_STORAGE_KEY,
+  TASK_TABLE_COLUMNS_STORAGE_KEY,
+} from "../../src/utils/constants.ts";
 
 type GlobalWithWindow = typeof global & {
   window?: Window & typeof globalThis;
@@ -91,6 +95,30 @@ test("getPersistedTaskTableColumnIds falls back to defaults for invalid stored v
       getPersistedTaskTableColumnIds(["status", "description", "created"], ["status", "description"]),
       ["status", "description"],
     );
+  } finally {
+    if (typeof originalWindow === "undefined") {
+      Reflect.deleteProperty(testGlobal, "window");
+    } else {
+      testGlobal.window = originalWindow;
+    }
+  }
+});
+
+test("getPersistedOnboarding normalizes unsupported persisted phases to null", () => {
+  const originalWindow = testGlobal.window;
+  const storageMap = new Map<string, string>([
+    [ONBOARDING_STORAGE_KEY, JSON.stringify({ phase: "chat", runnerSecret: "secret-1" })],
+  ]);
+
+  try {
+    testGlobal.window = {
+      localStorage: createMockStorage(storageMap),
+    } as Window & typeof globalThis;
+
+    assert.deepEqual(getPersistedOnboarding(), {
+      phase: null,
+      runnerSecret: "secret-1",
+    });
   } finally {
     if (typeof originalWindow === "undefined") {
       Reflect.deleteProperty(testGlobal, "window");

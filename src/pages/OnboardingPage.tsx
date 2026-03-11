@@ -10,6 +10,7 @@ import {
 } from "../utils/normalization.ts";
 import { AVAILABLE_AGENT_SDKS } from "../utils/constants.ts";
 import type { AgentRunner } from "../types/domain.ts";
+import type { OnboardingPhase } from "../utils/persistence.ts";
 
 type DeployTarget = "local" | "vm" | null;
 
@@ -19,7 +20,7 @@ interface OnboardingPageProps {
   runnerError: string;
   provisionedSecret: string;
   agentRunners: AgentRunner[];
-  onboardingPhase: "runner" | "agent" | null;
+  onboardingPhase: OnboardingPhase;
   onRunnerNameChange: (value: string) => void;
   onCreateRunner: (event: FormEvent<HTMLFormElement>) => Promise<boolean> | boolean;
   onSkip: () => void;
