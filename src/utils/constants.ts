@@ -67,36 +67,36 @@ interface NavigationSection {
 
 const ROUTABLE_NAV_SECTIONS: NavigationSection[] = [
   {
-    label: "Work",
+    label: "Workspace",
     items: [
       { id: "dashboard", label: "Dashboard", href: "/dashboard", requiresCompany: true },
       { id: "tasks", label: "Tasks", href: "/tasks", requiresCompany: true },
+      { id: "chats", label: "Chats", href: "/chats", requiresCompany: true },
     ],
   },
   {
-    label: "Intelligence",
+    label: "AI Studio",
     items: [
       { id: "agents", label: "Agents", href: "/agents", requiresCompany: true },
       { id: "skills", label: "Skills", href: "/skills", requiresCompany: true },
       { id: "skill-groups", label: "Skill Groups", href: "/skill-groups", requiresCompany: true },
       { id: "roles", label: "Roles", href: "/roles", requiresCompany: true },
+      { id: "approvals", label: "Approvals", href: "/approvals", requiresCompany: true },
+    ],
+  },
+  {
+    label: "Platform",
+    items: [
+      { id: "agent-runner", label: "Agent Runner", href: "/agent-runner", requiresCompany: true },
+      { id: "mcp-servers", label: "MCP Servers", href: "/mcp-servers", requiresCompany: true },
       {
         id: "gitskillpackages",
         label: "Git Skill Packages",
         href: "/gitSkillPackages",
         requiresCompany: true,
       },
-      { id: "secrets", label: "Secrets", href: "/secrets", requiresCompany: true },
-      { id: "approvals", label: "Approvals", href: "/approvals", requiresCompany: true },
-      { id: "mcp-servers", label: "MCP Servers", href: "/mcp-servers", requiresCompany: true },
-    ],
-  },
-  {
-    label: "Operate",
-    items: [
-      { id: "agent-runner", label: "Agent Runner", href: "/agent-runner", requiresCompany: true },
-      { id: "chats", label: "Chats", href: "/chats", requiresCompany: true },
       { id: "repos", label: "Repos", href: "/repos", requiresCompany: true },
+      { id: "secrets", label: "Secrets", href: "/secrets", requiresCompany: true },
     ],
   },
 ];
