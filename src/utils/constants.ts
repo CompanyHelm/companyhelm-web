@@ -16,6 +16,8 @@ export const SUPABASE_AUTH_TOKEN_STORAGE_KEY =
   String(normalizedRuntimeConfig.auth?.supabase?.tokenStorageKey || "").trim() || "supabase.auth.token";
 export const SELECTED_COMPANY_STORAGE_KEY = "companyhelm.selectedCompanyId";
 export const TASK_TABLE_COLUMNS_STORAGE_KEY = "companyhelm.taskTable.visibleColumns";
+export const FLAGS_STORAGE_KEY = "companyhelm.flags";
+export const ONBOARDING_STORAGE_KEY = "companyhelm.onboarding";
 export const DEFAULT_RUNNER_GRPC_TARGET =
   String(normalizedRuntimeConfig.api?.runnerGrpcTarget || "").trim() || "localhost:50051";
 export const DEFAULT_GITHUB_APP_INSTALL_URL = "https://github.com/apps/companyhelm";
@@ -117,4 +119,5 @@ export const NAV_ITEM_LOOKUP = NAV_ITEMS.reduce((map, item) => {
   map.set(item.id, item);
   return map;
 }, new Map<string, NavigationItem>());
-export const PAGE_IDS = new Set(NAV_ITEMS.map((item) => item.id));
+export const HIDDEN_PAGE_IDS = ["flags"];
+export const PAGE_IDS = new Set([...NAV_ITEMS.map((item) => item.id), ...HIDDEN_PAGE_IDS]);

@@ -133,17 +133,20 @@ export function getRolesRouteFromPathname(pathname: string = window.location.pat
   return { view: "detail", roleId };
 }
 
-export function getRunnersRouteFromPathname(pathname: string = window.location.pathname): DetailRoute & { runnerId: string } {
+export function getRunnersRouteFromPathname(pathname: string = window.location.pathname): { view: "list" | "detail" | "new"; runnerId: string } {
   const segments = normalizePathname(pathname).split("/").filter(Boolean);
   if (String(segments[0] || "").toLowerCase() !== "agent-runner") {
     return { view: "list", runnerId: "" };
   }
 
-  const runnerId = String(segments[1] || "").trim();
-  if (!runnerId) {
+  const secondSegment = String(segments[1] || "").trim();
+  if (!secondSegment) {
     return { view: "list", runnerId: "" };
   }
-  return { view: "detail", runnerId };
+  if (secondSegment.toLowerCase() === "new") {
+    return { view: "new", runnerId: "" };
+  }
+  return { view: "detail", runnerId: secondSegment };
 }
 
 export function getTasksRouteFromPathname(pathname: string = window.location.pathname): DetailRoute & { taskId: string } {

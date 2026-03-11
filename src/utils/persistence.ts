@@ -1,7 +1,83 @@
 import {
   SELECTED_COMPANY_STORAGE_KEY,
   TASK_TABLE_COLUMNS_STORAGE_KEY,
+  FLAGS_STORAGE_KEY,
+  ONBOARDING_STORAGE_KEY,
 } from "./constants.ts";
+
+export interface AppFlags {
+  skipOnboarding: boolean;
+}
+
+const DEFAULT_FLAGS: AppFlags = {
+  skipOnboarding: false,
+};
+
+export function getPersistedFlags(): AppFlags {
+  try {
+    const stored = window.localStorage.getItem(FLAGS_STORAGE_KEY);
+    if (!stored) {
+      return { ...DEFAULT_FLAGS };
+    }
+    const parsed = JSON.parse(stored);
+    return { ...DEFAULT_FLAGS, ...parsed };
+  } catch {
+    return { ...DEFAULT_FLAGS };
+  }
+}
+
+export function persistFlags(flags: Partial<AppFlags>) {
+  try {
+    const current = getPersistedFlags();
+    const next = { ...current, ...flags };
+    window.localStorage.setItem(FLAGS_STORAGE_KEY, JSON.stringify(next));
+  } catch {
+    // Ignore local storage write failures.
+  }
+}
+
+export type OnboardingPhase = "runner" | "agent" | "chat" | "done" | null;
+
+export interface OnboardingState {
+  phase: OnboardingPhase;
+  runnerSecret: string;
+}
+
+const DEFAULT_ONBOARDING: OnboardingState = {
+  phase: null,
+  runnerSecret: "",
+};
+
+export function getPersistedOnboarding(): OnboardingState {
+  try {
+    const stored = window.localStorage.getItem(ONBOARDING_STORAGE_KEY);
+    if (!stored) {
+      return { ...DEFAULT_ONBOARDING };
+    }
+    const parsed = JSON.parse(stored);
+    return { ...DEFAULT_ONBOARDING, ...parsed };
+  } catch {
+    return { ...DEFAULT_ONBOARDING };
+  }
+}
+
+export function persistOnboarding(state: Partial<OnboardingState>) {
+  try {
+    const current = getPersistedOnboarding();
+    const next = { ...current, ...state };
+    window.localStorage.setItem(ONBOARDING_STORAGE_KEY, JSON.stringify(next));
+  } catch {
+    // Ignore local storage write failures.
+  }
+}
+
+export function clearPersistedOnboarding() {
+  try {
+    window.localStorage.removeItem(ONBOARDING_STORAGE_KEY);
+  } catch {
+    // Ignore local storage write failures.
+  }
+}
 
 export function getPersistedCompanyId() {
   try {

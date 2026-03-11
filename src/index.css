@@ -374,6 +374,485 @@ h3 {
   min-width: 10rem;
 }
 
+/* Runner onboarding */
+
+/* Onboarding stepper */
+
+.onboarding-stepper {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  width: min(44rem, 100%);
+  padding: 0.5rem 0 0.8rem;
+}
+
+.onboarding-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  position: relative;
+  min-width: 0;
+}
+
+.onboarding-step-line {
+  position: absolute;
+  top: 1.1rem;
+  right: 50%;
+  width: 100%;
+  height: 2px;
+  background: var(--panel-border);
+  z-index: 0;
+  transition: background 0.3s;
+}
+
+.onboarding-step-line-filled {
+  background: var(--action);
+}
+
+.onboarding-step-circle {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 50%;
+  border: 2px solid var(--panel-border);
+  background: var(--panel);
+  color: var(--ink-2);
+  font-size: 0.82rem;
+  font-weight: 700;
+  font-family: "IBM Plex Mono", monospace;
+  transition: border-color 0.3s, background 0.3s, color 0.3s, box-shadow 0.3s;
+}
+
+.onboarding-step-circle svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.onboarding-step-current .onboarding-step-circle {
+  border-color: var(--action);
+  color: var(--action);
+  background: #fff;
+  box-shadow: 0 0 0 4px var(--ring);
+}
+
+.onboarding-step-complete .onboarding-step-circle {
+  border-color: var(--action);
+  background: var(--action);
+  color: var(--action-ink);
+}
+
+.onboarding-step-label {
+  margin-top: 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ink-2);
+  text-align: center;
+  line-height: 1.25;
+  transition: color 0.3s;
+}
+
+.onboarding-step-current .onboarding-step-label {
+  color: var(--ink-0);
+}
+
+.onboarding-step-complete .onboarding-step-label {
+  color: var(--action);
+}
+
+@media (max-width: 600px) {
+  .onboarding-stepper {
+    gap: 0;
+  }
+
+  .onboarding-step-label {
+    font-size: 0.65rem;
+  }
+}
+
+.runner-onboarding-panel {
+  width: min(44rem, 100%);
+}
+
+.runner-onboarding-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.runner-onboarding-skip-btn {
+  background: none;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.8rem;
+  color: var(--ink-2);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.runner-onboarding-skip-btn:hover {
+  color: var(--ink-0);
+  border-color: var(--ink-2);
+}
+
+.runner-onboarding-section-title {
+  margin: 1rem 0 0;
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--ink-0);
+}
+
+.runner-onboarding-targets {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 1.2rem;
+}
+
+.runner-onboarding-target-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1.6rem 1rem;
+  border-radius: 12px;
+  border: 2px solid var(--panel-border);
+  background: var(--panel);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  color: var(--ink-1);
+}
+
+.runner-onboarding-target-btn:hover {
+  border-color: var(--action);
+  background: rgba(15, 118, 110, 0.04);
+}
+
+.runner-onboarding-target-btn-active {
+  border-color: var(--action);
+  box-shadow: 0 0 0 3px var(--ring);
+  background: rgba(15, 118, 110, 0.06);
+  color: var(--ink-0);
+}
+
+.runner-onboarding-target-icon {
+  width: 48px;
+  height: 48px;
+  color: var(--ink-1);
+}
+
+.runner-onboarding-target-btn-active .runner-onboarding-target-icon {
+  color: var(--action);
+}
+
+.runner-onboarding-target-label {
+  font-family: "Syne", sans-serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: inherit;
+}
+
+.runner-onboarding-target-desc {
+  font-size: 0.82rem;
+  color: var(--ink-2);
+}
+
+.runner-onboarding-config-panel {
+  width: min(44rem, 100%);
+  display: grid;
+  gap: 0.6rem;
+}
+
+.runner-onboarding-config-panel h2 {
+  font-family: "Syne", sans-serif;
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.runner-onboarding-form {
+  margin-top: 0.4rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.runner-onboarding-form label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink-1);
+}
+
+.runner-onboarding-form input {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--sidebar-border);
+  background: #fff;
+  color: var(--ink-0);
+  padding: 0.48rem 0.58rem;
+  font-size: 0.82rem;
+  font-family: "Instrument Sans", sans-serif;
+}
+
+.runner-onboarding-form input:focus {
+  outline: none;
+  border-color: var(--action);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+.runner-onboarding-form button {
+  width: fit-content;
+  min-width: 10rem;
+}
+
+.runner-onboarding-step {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.runner-onboarding-step-label {
+  margin: 0;
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: var(--ink-0);
+}
+
+.runner-onboarding-connection-panel {
+  width: min(44rem, 100%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.runner-onboarding-connection-panel-connected {
+  border-color: var(--action);
+}
+
+.runner-onboarding-connection-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.runner-onboarding-connection-dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: var(--ink-2);
+  flex-shrink: 0;
+  animation: onboarding-pulse 2s ease-in-out infinite;
+}
+
+.runner-onboarding-connection-dot-connected {
+  background: var(--action);
+  animation: none;
+}
+
+@keyframes onboarding-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+.runner-onboarding-connection-label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--ink-1);
+}
+
+.runner-onboarding-connection-panel-connected .runner-onboarding-connection-label {
+  color: var(--action);
+}
+
+@media (max-width: 600px) {
+  .runner-onboarding-targets {
+    grid-template-columns: 1fr;
+  }
+
+  .runner-onboarding-connection-panel {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* Flags page */
+
+.flags-list-panel {
+  display: grid;
+  gap: 0;
+}
+
+.flags-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid var(--panel-border);
+  cursor: pointer;
+}
+
+.flags-row:last-child {
+  border-bottom: none;
+}
+
+.flags-row-text {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.flags-row-label {
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: var(--ink-0);
+}
+
+.flags-row-desc {
+  font-size: 0.78rem;
+  color: var(--ink-2);
+}
+
+.flags-toggle {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--action);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.flags-phase-badge {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.76rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+  background: rgba(15, 118, 110, 0.08);
+  color: var(--action);
+  border: 1px solid rgba(15, 118, 110, 0.18);
+  flex-shrink: 0;
+}
+
+.flags-reset-btn {
+  padding: 0.3rem 0.8rem;
+  font-size: 0.78rem;
+  border-radius: 6px;
+  border: 1px solid var(--panel-border);
+  background: var(--panel);
+  color: var(--ink-1);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.flags-reset-btn:hover {
+  border-color: var(--ink-2);
+  color: var(--ink-0);
+}
+
+.flags-phase-select {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.78rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--panel-border);
+  background: var(--panel);
+  color: var(--ink-0);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.flags-phase-select:focus {
+  outline: none;
+  border-color: var(--action);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+/* ── Onboarding agent form ── */
+.onboarding-agent-form {
+  margin-top: 0.4rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.onboarding-agent-form label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink-1);
+  margin-top: 0.2rem;
+}
+
+.onboarding-agent-form input,
+.onboarding-agent-form select {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--sidebar-border);
+  background: #fff;
+  color: var(--ink-0);
+  padding: 0.48rem 0.58rem;
+  font-size: 0.82rem;
+  font-family: "Instrument Sans", sans-serif;
+}
+
+.onboarding-agent-form input:focus,
+.onboarding-agent-form select:focus {
+  outline: none;
+  border-color: var(--action);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+.onboarding-agent-form button {
+  width: fit-content;
+  min-width: 10rem;
+  margin-top: 0.3rem;
+}
+
+/* ── Onboarding chat form ── */
+.onboarding-chat-form {
+  margin-top: 0.4rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.onboarding-chat-form label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink-1);
+}
+
+.onboarding-chat-form textarea {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--sidebar-border);
+  background: #fff;
+  color: var(--ink-0);
+  padding: 0.58rem;
+  font-size: 0.85rem;
+  font-family: "Instrument Sans", sans-serif;
+  resize: vertical;
+  min-height: 3.5rem;
+}
+
+.onboarding-chat-form textarea:focus {
+  outline: none;
+  border-color: var(--action);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+.onboarding-chat-agent-label {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--ink-2);
+}
+
+.onboarding-chat-form button {
+  width: fit-content;
+  min-width: 10rem;
+}
+
 .side-error {
   margin: 0;
   color: var(--danger);

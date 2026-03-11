@@ -254,7 +254,17 @@ import {
   buildGithubAppInstallUrl,
 } from "./utils/path.ts";
 
-import { getPersistedCompanyId, persistCompanyId } from "./utils/persistence.ts";
+import {
+  getPersistedCompanyId,
+  persistCompanyId,
+  getPersistedFlags,
+  persistFlags,
+  getPersistedOnboarding,
+  persistOnboarding,
+  clearPersistedOnboarding,
+  type AppFlags,
+  type OnboardingPhase,
+} from "./utils/persistence.ts";
 import { setActiveCompanyId } from "./utils/company-context.ts";
 import { createSingleFlightByKey } from "./utils/single-flight.ts";
 
@@ -277,6 +287,8 @@ import { CreationModal } from "./components/CreationModal.tsx";
 import { PageActionsProvider, usePageActions } from "./components/PageActionsContext.tsx";
 import { CompanyRequiredPanel } from "./components/CompanyRequiredPanel.tsx";
 import { FirstCompanyOnboardingPage } from "./components/FirstCompanyOnboardingPage.tsx";
+import { OnboardingPage } from "./pages/OnboardingPage.tsx";
+import { FlagsPage } from "./pages/FlagsPage.tsx";
 
 import { DashboardPage } from "./pages/DashboardPage.tsx";
 import { TasksPage } from "./pages/TasksPage.tsx";
@@ -2928,6 +2940,9 @@ function App() {
   const [isCreatingRunner, setIsCreatingRunner] = useState<any>(false);
   const [runnerNameDraft, setRunnerNameDraft] = useState<any>("");
   const [runnerSecretsById, setRunnerSecretsById] = useState<any>({});
+  const [onboardingPhase, setOnboardingPhase] = useState<OnboardingPhase>(() => getPersistedOnboarding().phase);
+  const [onboardingRunnerSecret, setOnboardingRunnerSecret] = useState<any>(() => getPersistedOnboarding().runnerSecret);
+  const [appFlags, setAppFlags] = useState<AppFlags>(() => getPersistedFlags());
   const [isCreatingAgent, setIsCreatingAgent] = useState<any>(false);
   const [taskPageDepth, setTaskPageDepth] = useState<any>("5");
   const [savingAgentId, setSavingAgentId] = useState<any>(null);
@@ -3465,8 +3480,9 @@ function App() {
   const shouldLoadAgentData =
     activePage === "tasks" ||
     activePage === "agents" ||
-    activePage === "profile";
-  const shouldSubscribeAgentRunners = activePage === "dashboard" || activePage === "agent-runner";
+    activePage === "profile" ||
+    !appFlags.skipOnboarding;
+  const shouldSubscribeAgentRunners = activePage === "dashboard" || activePage === "agent-runner" || (hasLoadedAgentRunners && (agentRunners.length === 0 || onboardingPhase === "runner"));
   useEffect(() => {
     const nextAssignments = {};
     for (const role of roles) {
@@ -4018,6 +4034,9 @@ function App() {
     if (!selectedCompanyId) {
       setAgentRunners([]);
       setHasLoadedAgentRunners(false);
+      setOnboardingRunnerSecret("");
+      setOnboardingPhase(null);
+      clearPersistedOnboarding();
       if (!silently) {
         setRunnerError("");
         setIsLoadingRunners(false);
@@ -4965,6 +4984,23 @@ function App() {
     loadAgents();
   }, [loadAgents, selectedCompanyId, shouldLoadAgentData]);
 
+  // Determine initial onboarding phase on first data load
+  useEffect(() => {
+    if (!selectedCompanyId || !hasLoadedAgentRunners || appFlags.skipOnboarding) {
+      return;
+    }
+    if (onboardingPhase !== null) {
+      return; // already has a persisted or active phase
+    }
+    if (agentRunners.length === 0) {
+      setOnboardingPhase("runner");
+      persistOnboarding({ phase: "runner" });
+    } else if (agents.length === 0) {
+      setOnboardingPhase("agent");
+      persistOnboarding({ phase: "agent" });
+    }
+  }, [selectedCompanyId, hasLoadedAgentRunners, appFlags.skipOnboarding, onboardingPhase, agentRunners.length, agents.length]);
+
   useEffect(() => {
     if (!selectedCompanyId || activePage !== "chats") {
       return;
@@ -5487,6 +5523,7 @@ function App() {
       setNewCompanyName("");
       await loadCompanies();
       setSelectedCompanyId(createdCompany.id);
+      navigateTo("dashboard");
     } catch (createError: any) {
       setCompanyError(createError.message);
     } finally {
@@ -7440,6 +7477,59 @@ function App() {
     }
   }
 
+  async function handleCreateOnboardingRunner(event: any) {
+    event.preventDefault();
+    if (!selectedCompanyId) {
+      setRunnerError("Select a company before creating runners.");
+      return false;
+    }
+    const requestedRunnerName = runnerNameDraft.trim();
+    if (!requestedRunnerName) {
+      setRunnerError("Runner name is required.");
+      return false;
+    }
+
+    try {
+      setIsCreatingRunner(true);
+      setRunnerError("");
+      const data = await executeGraphQL(CREATE_AGENT_RUNNER_MUTATION, {
+        companyId: selectedCompanyId,
+        name: requestedRunnerName,
+      });
+      const result = data.createAgentRunner;
+      if (!result.ok) {
+        throw new Error(result.error || "Runner creation failed.");
+      }
+
+      const provisionedRunnerSecret = result.provisionedAuthSecret || "";
+      setOnboardingRunnerSecret(provisionedRunnerSecret);
+      setOnboardingPhase("runner");
+      persistOnboarding({ phase: "runner", runnerSecret: provisionedRunnerSecret });
+      setRunnerNameDraft("");
+      await loadAgentRunners();
+      return true;
+    } catch (createError: any) {
+      setRunnerError(createError.message);
+      return false;
+    } finally {
+      setIsCreatingRunner(false);
+    }
+  }
+
+  function handleSkipOnboarding() {
+    setOnboardingPhase("done");
+    clearPersistedOnboarding();
+    const next = { ...appFlags, skipOnboarding: true };
+    setAppFlags(next);
+    persistFlags(next);
+  }
+
+  function handleFlagChange(key: keyof AppFlags, value: boolean) {
+    const next = { ...appFlags, [key]: value };
+    setAppFlags(next);
+    persistFlags(next);
+  }
+
   async function handleCreateAgent(event: any) {
     event.preventDefault();
     if (!selectedCompanyId) {
@@ -7563,7 +7653,7 @@ function App() {
       setAgentModelReasoningLevel("");
       setAgentDefaultAdditionalModelInstructions("");
       await loadAgents();
-      return true;
+      return result.agent?.id || true;
     } catch (createError: any) {
       setAgentError(createError.message);
       return false;
@@ -9029,14 +9119,23 @@ function App() {
   const activePrimaryNavItemId =
     activePage === "agents" && agentsRoute.view === "chat" ? "chats" : activePage;
   const showFirstCompanyOnboarding = !isLoadingCompanies && !hasCompanies;
+  const showOnboarding = !showFirstCompanyOnboarding
+    && !appFlags.skipOnboarding
+    && Boolean(selectedCompanyId)
+    && hasLoadedAgentRunners
+    && (onboardingPhase === "runner" || onboardingPhase === "agent" || onboardingPhase === "chat"
+      || (onboardingPhase === null && (agentRunners.length === 0 || agents.length === 0)))
+    && activePage !== "settings"
+    && activePage !== "profile"
+    && activePage !== "flags";
   const mobilePageTitle = String(breadcrumbItems[breadcrumbItems.length - 1]?.label || "").trim();
 
   return (
     <PageActionsProvider>
       <div
-        className={`layout-shell${isSideMenuCollapsed && !showFirstCompanyOnboarding ? " layout-shell-menu-collapsed" : ""}${showFirstCompanyOnboarding ? " layout-shell-onboarding" : ""}`}
+        className={`layout-shell${isSideMenuCollapsed && !showFirstCompanyOnboarding && !showOnboarding ? " layout-shell-menu-collapsed" : ""}${showFirstCompanyOnboarding || showOnboarding ? " layout-shell-onboarding" : ""}`}
       >
-        {showFirstCompanyOnboarding ? null : (
+        {showFirstCompanyOnboarding || showOnboarding ? null : (
           <aside className="side-menu">
             {isSideMenuCollapsed ? (
               <button
@@ -9144,7 +9243,7 @@ function App() {
         )}
 
         <main
-          className={`page-shell${isChatConversationRoute && !showFirstCompanyOnboarding ? " page-shell-chat-layout" : ""}${showFirstCompanyOnboarding ? " first-company-onboarding-shell" : ""}`}
+          className={`page-shell${isChatConversationRoute && !showFirstCompanyOnboarding && !showOnboarding ? " page-shell-chat-layout" : ""}${showFirstCompanyOnboarding || showOnboarding ? " first-company-onboarding-shell" : ""}`}
         >
           {showFirstCompanyOnboarding ? (
             <FirstCompanyOnboardingPage
@@ -9154,6 +9253,59 @@ function App() {
               onNewCompanyNameChange={setNewCompanyName}
               onCreateCompany={handleCreateCompany}
             />
+          ) : showOnboarding ? (
+            <OnboardingPage
+              isCreatingRunner={isCreatingRunner}
+              runnerNameDraft={runnerNameDraft}
+              runnerError={runnerError}
+              provisionedSecret={onboardingRunnerSecret}
+              agentRunners={agentRunners}
+              agents={agents}
+              onboardingPhase={onboardingPhase}
+              onRunnerNameChange={setRunnerNameDraft}
+              onCreateRunner={handleCreateOnboardingRunner}
+              onSkip={handleSkipOnboarding}
+              isCreatingAgent={isCreatingAgent}
+              agentName={agentName}
+              agentRunnerId={agentRunnerId}
+              agentSdk={agentSdk}
+              agentModel={agentModel}
+              agentModelReasoningLevel={agentModelReasoningLevel}
+              agentError={agentError}
+              runnerCodexModelEntriesById={runnerCodexModelEntriesById}
+              onAgentNameChange={setAgentName}
+              onAgentRunnerChange={handleCreateAgentRunnerChange}
+              onAgentSdkChange={handleCreateAgentSdkChange}
+              onAgentModelChange={handleCreateAgentModelChange}
+              onAgentModelReasoningLevelChange={handleCreateAgentReasoningLevelChange}
+              onCreateAgent={async (event: any) => {
+                const result = await handleCreateAgent(event);
+                if (result) {
+                  setOnboardingPhase("chat");
+                  persistOnboarding({ phase: "chat" });
+                }
+                return result;
+              }}
+              onCreateFirstChat={async (agentId: string, message: string) => {
+                setOnboardingPhase("done");
+                clearPersistedOnboarding();
+                setChatDraftMessage(message);
+                await handleCreateChatForAgent(agentId);
+              }}
+              onSkipToChat={() => {
+                setOnboardingPhase("done");
+                clearPersistedOnboarding();
+                navigateTo("chats");
+              }}
+              onAdvanceToAgentPhase={() => {
+                const firstConnectedRunner = agentRunners.find(isRunnerReadyAndConnected);
+                if (firstConnectedRunner) {
+                  handleCreateAgentRunnerChange(firstConnectedRunner.id);
+                }
+                setOnboardingPhase("agent");
+                persistOnboarding({ phase: "agent" });
+              }}
+            />
           ) : (
             <>
               <Breadcrumbs
@@ -9162,7 +9314,7 @@ function App() {
                 hideTitleRowOnMobile={activePage !== "dashboard"}
               />
 
-              {!isLoadingCompanies && !selectedCompanyId && activePage !== "settings" && activePage !== "profile" ? (
+              {!isLoadingCompanies && !selectedCompanyId && activePage !== "settings" && activePage !== "profile" && activePage !== "flags" ? (
                 <CompanyRequiredPanel hasCompanies={hasCompanies} />
               ) : null}
 
@@ -9668,6 +9820,27 @@ function App() {
             refreshingGithubInstallationId={refreshingGithubInstallationId}
             onDeleteGithubInstallation={handleDeleteGithubInstallation}
             onRefreshGithubInstallationRepositories={handleRefreshGithubInstallationRepositories}
+          />
+        ) : null}
+
+        {activePage === "flags" ? (
+          <FlagsPage
+            flags={appFlags}
+            onboardingPhase={onboardingPhase}
+            onFlagChange={handleFlagChange}
+            onResetOnboarding={() => {
+              setOnboardingPhase(null);
+              setOnboardingRunnerSecret("");
+              clearPersistedOnboarding();
+            }}
+            onPhaseChange={(phase) => {
+              setOnboardingPhase(phase);
+              if (phase === null || phase === "done") {
+                clearPersistedOnboarding();
+              } else {
+                persistOnboarding({ phase });
+              }
+            }}
           />
         ) : null}
 
