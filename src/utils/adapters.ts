@@ -11,7 +11,11 @@ type RunnerModelEntry = {
 type RunnerSdkEntry = {
   id: string;
   name: string;
+  status?: string;
   isAvailable: boolean;
+  codexAuthStatus?: string | null;
+  codexAuthType?: string | null;
+  errorMessage?: string | null;
   availableModels: RunnerModelEntry[];
 };
 
@@ -90,7 +94,23 @@ function normalizeRunnerAvailableAgentSdks(runner: RunnerLike): RunnerSdkEntry[]
       return {
         id: resolveLegacyId(sdkRecord.id),
         name: normalizeAgentSdkValue(sdkRecord.name),
+        status: String(sdkRecord.status || "").trim().toLowerCase(),
         isAvailable: normalizeAvailabilityFlag(sdkRecord.isAvailable, sdkRecord.is_available),
+        codexAuthStatus: String(
+          sdkRecord.codexAuthStatus
+          ?? sdkRecord.codex_auth_status
+          ?? "",
+        ).trim().toLowerCase() || null,
+        codexAuthType: String(
+          sdkRecord.codexAuthType
+          ?? sdkRecord.codex_auth_type
+          ?? "",
+        ).trim().toLowerCase() || null,
+        errorMessage: typeof sdkRecord.errorMessage === "string"
+          ? sdkRecord.errorMessage
+          : typeof sdkRecord.error_message === "string"
+            ? sdkRecord.error_message
+            : null,
         availableModels: (
           Array.isArray(sdkRecord.availableModels)
             ? sdkRecord.availableModels
@@ -158,7 +178,6 @@ export function toLegacyRunnerPayload(agentRunner: LooseRecord | null | undefine
   const nowIso = new Date().toISOString();
   const currentMetadata: LooseRecord = companyApiRunnerMetadataById.get(runnerId) || {};
   const isConnected = normalizeCompanyApiRunnerConnectivity(runnerRecord.isConnected);
-  const runnerStatus = resolveLegacyId(runnerRecord.status) || "unknown";
   const availableAgentSdks = normalizeRunnerAvailableAgentSdks(runnerRecord);
   const lastSeenAt = resolveLegacyId(runnerRecord.lastSeenAt, currentMetadata.lastSeenAt) || null;
   const lastHealthCheckAt = resolveLegacyId(
@@ -190,7 +209,7 @@ export function toLegacyRunnerPayload(agentRunner: LooseRecord | null | undefine
     hasAuthSecret: true,
     availableAgentSdks,
     isConnected,
-    status: runnerStatus,
+    status: "",
     lastHealthCheckAt: nextMetadata.lastHealthCheckAt,
     lastSeenAt: nextMetadata.lastSeenAt,
     createdAt: nextMetadata.createdAt,

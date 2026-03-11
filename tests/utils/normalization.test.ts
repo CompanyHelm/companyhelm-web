@@ -16,7 +16,11 @@ test("normalizeRunnerAvailableAgentSdks preserves sdk and model availability", (
       {
         id: "sdk-1",
         name: "codex",
+        status: "unconfigured",
         isAvailable: false,
+        codexAuthStatus: "waiting_for_device_code",
+        codexAuthType: "device_code",
+        errorMessage: "Copy the one-time code.",
         availableModels: [
           {
             id: "model-1",
@@ -37,6 +41,10 @@ test("normalizeRunnerAvailableAgentSdks preserves sdk and model availability", (
 
   assert.equal(sdkEntries.length, 1);
   assert.equal(sdkEntries[0]?.isAvailable, false);
+  assert.equal(sdkEntries[0]?.status, "unconfigured");
+  assert.equal(sdkEntries[0]?.codexAuthStatus, "waiting_for_device_code");
+  assert.equal(sdkEntries[0]?.codexAuthType, "device_code");
+  assert.equal(sdkEntries[0]?.errorMessage, "Copy the one-time code.");
   assert.deepEqual(
     sdkEntries[0]?.availableModels.map((modelEntry) => ({
       name: modelEntry.name,

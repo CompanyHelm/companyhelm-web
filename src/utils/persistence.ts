@@ -41,11 +41,13 @@ export type OnboardingPhase = "runner" | "agent" | "done" | null;
 export interface OnboardingState {
   phase: OnboardingPhase;
   runnerSecret: string;
+  runnerId: string;
 }
 
 const DEFAULT_ONBOARDING: OnboardingState = {
   phase: null,
   runnerSecret: "",
+  runnerId: "",
 };
 
 function normalizeOnboardingPhase(value: unknown): OnboardingPhase {

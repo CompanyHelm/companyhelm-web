@@ -237,16 +237,21 @@ export const LIST_AGENT_RUNNERS_QUERY = `
       callbackUrl
       hasAuthSecret
       availableAgentSdks {
+        id
         name
+        status
         isAvailable
+        codexAuthStatus
+        codexAuthType
+        errorMessage
         availableModels {
+          id
           name
           isAvailable
           reasoningLevels
         }
       }
       isConnected
-      status
       lastHealthCheckAt
       lastSeenAt
       createdAt
@@ -272,16 +277,21 @@ export const CREATE_AGENT_RUNNER_MUTATION = `
         callbackUrl
         hasAuthSecret
         availableAgentSdks {
+          id
           name
+          status
           isAvailable
+          codexAuthStatus
+          codexAuthType
+          errorMessage
           availableModels {
+            id
             name
             isAvailable
             reasoningLevels
           }
         }
         isConnected
-        status
         lastHealthCheckAt
         lastSeenAt
         createdAt
@@ -304,16 +314,21 @@ export const REGENERATE_AGENT_RUNNER_SECRET_MUTATION = `
       callbackUrl
       hasAuthSecret
       availableAgentSdks {
+        id
         name
+        status
         isAvailable
+        codexAuthStatus
+        codexAuthType
+        errorMessage
         availableModels {
+          id
           name
           isAvailable
           reasoningLevels
         }
       }
         isConnected
-        status
         lastHealthCheckAt
         lastSeenAt
         createdAt
@@ -337,7 +352,6 @@ export const LIST_AGENTS_QUERY = `
         id
         name
         isConnected
-        status
       }
     }
   }
@@ -357,7 +371,6 @@ export const LIST_AGENTS_WITH_RUNNERS_QUERY = `
         id
         name
         isConnected
-        status
       }
     }
     agentRunners {
@@ -366,16 +379,21 @@ export const LIST_AGENTS_WITH_RUNNERS_QUERY = `
       callbackUrl
       hasAuthSecret
       availableAgentSdks {
+        id
         name
+        status
         isAvailable
+        codexAuthStatus
+        codexAuthType
+        errorMessage
         availableModels {
+          id
           name
           isAvailable
           reasoningLevels
         }
       }
       isConnected
-      status
       lastHealthCheckAt
       lastSeenAt
       createdAt
@@ -1905,20 +1923,38 @@ export const AGENT_RUNNERS_SUBSCRIPTION = `
         node {
           id
           agentSdks {
+            id
             isAvailable
             name
+            status
+            codexAuthStatus
+            codexAuthType
+            errorMessage
             models {
+              id
               isAvailable
               name
               reasoning
             }
           }
           isConnected
-          status
           lastHealthCheckAt
           lastSeenAt
         }
       }
+    }
+  }
+`;
+
+export const CODEX_AUTH_EVENTS_SUBSCRIPTION = `
+  subscription RunnerSdkCodexAuthUpdated($runnerId: ID!, $sdkId: ID!) {
+    runnerSdkCodexAuthUpdated(runnerId: $runnerId, sdkId: $sdkId) {
+      runnerId
+      sdkId
+      codexAuthStatus
+      codexAuthType
+      deviceCode
+      errorMessage
     }
   }
 `;
@@ -3261,7 +3297,11 @@ export const COMPANY_API_LIST_AGENT_RUNNERS_CONNECTION_QUERY = `
           agentSdks {
             id
             name
+            status
             isAvailable
+            codexAuthStatus
+            codexAuthType
+            errorMessage
             company {
               id
             }
@@ -3282,7 +3322,6 @@ export const COMPANY_API_LIST_AGENT_RUNNERS_CONNECTION_QUERY = `
             }
           }
           isConnected
-          status
           company {
             id
           }
@@ -3308,7 +3347,11 @@ export const COMPANY_API_CREATE_AGENT_RUNNER_MUTATION = `
         agentSdks {
           id
           name
+          status
           isAvailable
+          codexAuthStatus
+          codexAuthType
+          errorMessage
           company {
             id
           }
@@ -3329,7 +3372,6 @@ export const COMPANY_API_CREATE_AGENT_RUNNER_MUTATION = `
           }
         }
         isConnected
-        status
         company {
           id
         }
@@ -3350,7 +3392,11 @@ export const COMPANY_API_REGENERATE_AGENT_RUNNER_SECRET_MUTATION = `
         agentSdks {
           id
           name
+          status
           isAvailable
+          codexAuthStatus
+          codexAuthType
+          errorMessage
           company {
             id
           }
@@ -3371,7 +3417,6 @@ export const COMPANY_API_REGENERATE_AGENT_RUNNER_SECRET_MUTATION = `
           }
         }
         isConnected
-        status
         company {
           id
         }
@@ -3429,13 +3474,16 @@ export const COMPANY_API_LIST_AGENTS_CONNECTION_QUERY = `
             id
             name
             isConnected
-            status
             lastHealthCheckAt
             lastSeenAt
             agentSdks {
               id
               name
+              status
               isAvailable
+              codexAuthStatus
+              codexAuthType
+              errorMessage
               models {
                 id
                 name
@@ -3497,13 +3545,16 @@ export const COMPANY_API_LIST_AGENTS_PAGE_QUERY = `
             id
             name
             isConnected
-            status
             lastHealthCheckAt
             lastSeenAt
             agentSdks {
               id
               name
+              status
               isAvailable
+              codexAuthStatus
+              codexAuthType
+              errorMessage
               models {
                 id
                 name
@@ -3529,7 +3580,11 @@ export const COMPANY_API_LIST_AGENTS_PAGE_QUERY = `
           agentSdks {
             id
             name
+            status
             isAvailable
+            codexAuthStatus
+            codexAuthType
+            errorMessage
             company {
               id
             }
@@ -3550,7 +3605,6 @@ export const COMPANY_API_LIST_AGENTS_PAGE_QUERY = `
             }
           }
           isConnected
-          status
           company {
             id
           }
@@ -3614,13 +3668,16 @@ export const COMPANY_API_LIST_AGENTS_WITH_THREADS_CONNECTION_QUERY = `
             id
             name
             isConnected
-            status
             lastHealthCheckAt
             lastSeenAt
             agentSdks {
               id
               name
+              status
               isAvailable
+              codexAuthStatus
+              codexAuthType
+              errorMessage
               models {
                 id
                 name
@@ -3706,6 +3763,13 @@ export const COMPANY_API_CREATE_AGENT_MUTATION = `
       company {
         id
       }
+      runner {
+        id
+        name
+        isConnected
+        lastHealthCheckAt
+        lastSeenAt
+      }
     }
   }
 `;
@@ -3748,6 +3812,36 @@ export const COMPANY_API_UPDATE_AGENT_MUTATION = `
       defaultAdditionalModelInstructions
       company {
         id
+      }
+      runner {
+        id
+        name
+        isConnected
+        lastHealthCheckAt
+        lastSeenAt
+      }
+    }
+  }
+`;
+
+export const START_RUNNER_SDK_AUTH_MUTATION = `
+  mutation StartRunnerSdkAuth($runnerId: ID!, $sdkId: ID!, $authType: CodexAuthType!, $apiKey: String) {
+    startRunnerSdkAuth(runnerId: $runnerId, sdkId: $sdkId, authType: $authType, apiKey: $apiKey) {
+      id
+      name
+      status
+      isAvailable
+      codexAuthStatus
+      codexAuthType
+      errorMessage
+      runner {
+        id
+      }
+      models {
+        id
+        name
+        isAvailable
+        reasoning
       }
     }
   }

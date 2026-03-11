@@ -20,14 +20,20 @@ export function formatRunnerLifecycleStatus(value: any) {
 }
 
 export function isRunnerReadyAndConnected(runner: any) {
-  return runner?.isConnected === true && formatRunnerLifecycleStatus(runner?.status) === "ready";
+  const availableAgentSdks = Array.isArray(runner?.availableAgentSdks)
+    ? runner.availableAgentSdks
+    : Array.isArray(runner?.agentSdks)
+      ? runner.agentSdks
+      : [];
+  const codexSdk = availableAgentSdks.find((sdk: any) => String(sdk?.name || "").trim().toLowerCase() === "codex");
+  return runner?.isConnected === true && String(codexSdk?.status || "").trim().toLowerCase() === "ready";
 }
 
 export function formatRunnerLabel(runner: any) {
   if (!runner) {
     return "Unassigned";
   }
-  return `${runner.id.slice(0, 8)} (${normalizeRunnerConnectionState(runner.isConnected)}, ${formatRunnerLifecycleStatus(runner.status)})`;
+  return `${runner.id.slice(0, 8)} (${normalizeRunnerConnectionState(runner.isConnected)})`;
 }
 
 export function toSortableTimestamp(value: any) {

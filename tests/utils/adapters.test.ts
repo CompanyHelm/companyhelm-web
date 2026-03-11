@@ -60,18 +60,21 @@ test("toLegacyQueuedUserMessagePayload defaults missing error message to null", 
   assert.equal(payload.errorMessage, null);
 });
 
-test("toLegacyRunnerPayload preserves connection and lifecycle status separately", () => {
+test("toLegacyRunnerPayload preserves connection state and sdk auth metadata", () => {
   const payload = toLegacyRunnerPayload({
     id: "runner-1",
     name: "Runner One",
     isConnected: true,
-    status: "ready",
     lastSeenAt: "2026-03-10T17:30:00.000Z",
     agentSdks: [
       {
         id: "sdk-1",
         name: "codex",
+        status: "unconfigured",
         isAvailable: false,
+        codexAuthStatus: "waiting_for_completion",
+        codexAuthType: "device_code",
+        errorMessage: "Waiting for login to finish.",
         models: [
           {
             id: "model-1",
@@ -87,7 +90,11 @@ test("toLegacyRunnerPayload preserves connection and lifecycle status separately
 
   assert.equal(payload.id, "runner-1");
   assert.equal(payload.isConnected, true);
-  assert.equal(payload.status, "ready");
+  assert.equal(payload.status, "");
+  assert.equal(payload.availableAgentSdks?.[0]?.status, "unconfigured");
+  assert.equal(payload.availableAgentSdks?.[0]?.codexAuthStatus, "waiting_for_completion");
+  assert.equal(payload.availableAgentSdks?.[0]?.codexAuthType, "device_code");
+  assert.equal(payload.availableAgentSdks?.[0]?.errorMessage, "Waiting for login to finish.");
   assert.equal(payload.availableAgentSdks?.[0]?.isAvailable, false);
   assert.equal(payload.availableAgentSdks?.[0]?.availableModels?.[0]?.isAvailable, false);
   assert.equal(payload.lastSeenAt, "2026-03-10T17:30:00.000Z");
@@ -99,7 +106,6 @@ test("toLegacyRunnerPayload does not synthesize heartbeat timestamps", () => {
     id: "runner-2",
     name: "Runner Two",
     isConnected: true,
-    status: "ready",
     company: { id: "company-1" },
   });
 

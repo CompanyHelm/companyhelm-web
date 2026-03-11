@@ -229,7 +229,7 @@ export function AgentEditModal({
     const selectedRunner = agentRunners.find((runner) => runner.id === editingDraft.agentRunnerId) || null;
     const sdkEntries = selectedRunner ? normalizeRunnerAvailableAgentSdks(selectedRunner) : [];
     return sdkEntries.reduce((map, sdkEntry) => {
-      map.set(sdkEntry.name, sdkEntry.isAvailable ? "available" : "unavailable");
+      map.set(sdkEntry.name, sdkEntry.isAvailable && sdkEntry.status === "ready" ? "available" : "unavailable");
       return map;
     }, new Map<string, "available" | "unavailable">());
   }, [agentRunners, editingDraft?.agentRunnerId]);
