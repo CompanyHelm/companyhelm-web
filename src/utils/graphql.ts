@@ -3706,14 +3706,6 @@ export const COMPANY_API_CREATE_AGENT_MUTATION = `
       company {
         id
       }
-      runner {
-        id
-        name
-        isConnected
-        status
-        lastHealthCheckAt
-        lastSeenAt
-      }
     }
   }
 `;
@@ -3756,14 +3748,6 @@ export const COMPANY_API_UPDATE_AGENT_MUTATION = `
       defaultAdditionalModelInstructions
       company {
         id
-      }
-      runner {
-        id
-        name
-        isConnected
-        status
-        lastHealthCheckAt
-        lastSeenAt
       }
     }
   }

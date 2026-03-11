@@ -44,7 +44,17 @@ export function buildTaskExecutionPlan({
   for (const taskId of normalizedTaskIds) {
     const task = taskById.get(taskId);
     if (!task) {
-      missingTaskIds.push(taskId);
+      if (!normalizedFallbackAgentId) {
+        missingTaskIds.push(taskId);
+        continue;
+      }
+
+      if (groupTaskIdsByAgentId.has(normalizedFallbackAgentId)) {
+        groupTaskIdsByAgentId.get(normalizedFallbackAgentId)?.push(taskId);
+        continue;
+      }
+
+      groupTaskIdsByAgentId.set(normalizedFallbackAgentId, [taskId]);
       continue;
     }
     const assignedAgentId = String(task?.assigneeAgentId || "").trim();

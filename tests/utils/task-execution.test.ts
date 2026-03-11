@@ -40,7 +40,7 @@ test("buildTaskExecutionPlan marks tasks as missing when there is no assignee an
   });
 });
 
-test("buildTaskExecutionPlan normalizes task ids and treats unknown task ids as missing", () => {
+test("buildTaskExecutionPlan normalizes task ids and routes unknown selected tasks through fallback when available", () => {
   const executionPlan = buildTaskExecutionPlan({
     taskIds: [" task-1 ", "task-1", "task-2", "task-3"],
     tasks: [
@@ -51,11 +51,25 @@ test("buildTaskExecutionPlan normalizes task ids and treats unknown task ids as 
   });
 
   assert.deepEqual(executionPlan, {
-    missingTaskIds: ["task-3"],
+    missingTaskIds: [],
     groups: [
       { agentId: "agent-a", taskIds: ["task-1"] },
       { agentId: "agent-b", taskIds: ["task-2"] },
+      { agentId: "fallback-agent", taskIds: ["task-3"] },
     ],
+  });
+});
+
+test("buildTaskExecutionPlan treats unknown task ids as missing when no fallback is available", () => {
+  const executionPlan = buildTaskExecutionPlan({
+    taskIds: ["task-1", "task-3"],
+    tasks: [{ id: "task-1", assigneeAgentId: "agent-a" }],
+    fallbackAgentId: "",
+  });
+
+  assert.deepEqual(executionPlan, {
+    missingTaskIds: ["task-3"],
+    groups: [{ agentId: "agent-a", taskIds: ["task-1"] }],
   });
 });
 
