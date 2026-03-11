@@ -5,6 +5,8 @@ import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
 
+const REPO_ROOT = process.cwd();
+
 function writeExecutable(path: string, contents: string) {
   writeFileSync(path, contents, "utf8");
   chmodSync(path, 0o755);
@@ -12,7 +14,7 @@ function writeExecutable(path: string, contents: string) {
 
 test("docker-entrypoint requires COMPANYHELM_CONFIG_PATH", () => {
   const result = spawnSync("sh", ["scripts/docker-entrypoint.sh"], {
-    cwd: "/workspace/frontend",
+    cwd: REPO_ROOT,
     env: {
       ...process.env,
     },
@@ -41,7 +43,7 @@ exit 0
     );
 
     const result = spawnSync("sh", ["scripts/docker-entrypoint.sh"], {
-      cwd: "/workspace/frontend",
+      cwd: REPO_ROOT,
       env: {
         ...process.env,
         PATH: `${fakeBinDir}:${process.env.PATH || ""}`,
