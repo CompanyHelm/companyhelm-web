@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { resolveChatPageActionVisibility } from "../../src/pages/AgentChatPage.tsx";
+import {
+  getChatSettingsModalCardClassName,
+  resolveChatPageActionVisibility,
+} from "../../src/pages/AgentChatPage.tsx";
 
 test("resolveChatPageActionVisibility hides inert actions when no chat is selected on mobile", () => {
   const visibility = resolveChatPageActionVisibility({
@@ -56,4 +59,9 @@ test("resolveChatPageActionVisibility hides the mobile chat toggle outside the m
       showSettingsAction: true,
     },
   );
+});
+
+test("getChatSettingsModalCardClassName uses a dedicated solid surface class on mobile only", () => {
+  assert.equal(getChatSettingsModalCardClassName(true), "chat-settings-modal-card-mobile");
+  assert.equal(getChatSettingsModalCardClassName(false), "");
 });
