@@ -4,9 +4,7 @@ import { pathToFileURL } from "node:url";
 import { parse as parseYaml } from "yaml";
 import { runtimeConfigSchema } from "../../src/config/schema.ts";
 
-const CONFIG_PATH_ENV = "COMPANYHELM_CONFIG_PATH";
 const ENV_PLACEHOLDER_PATTERN = /\$\{([A-Z0-9_]+)\}/g;
-const LOCAL_CONFIG_PATH_SEGMENTS = ["config", "local.yaml"];
 
 export function parseCliConfigPathArgument(argv) {
   let configPath;
@@ -44,10 +42,14 @@ export function parseCliConfigPathArgument(argv) {
 }
 
 export function resolveConfigPath({ repoRoot = process.cwd(), configPath } = {}) {
-  const explicitConfigPath = String(configPath || process.env[CONFIG_PATH_ENV] || "").trim();
-  const resolvedPath = explicitConfigPath
-    ? (isAbsolute(explicitConfigPath) ? explicitConfigPath : resolve(repoRoot, explicitConfigPath))
-    : resolve(repoRoot, ...LOCAL_CONFIG_PATH_SEGMENTS);
+  const explicitConfigPath = String(configPath || "").trim();
+  if (!explicitConfigPath) {
+    throw new Error("Missing required --config-path <path> argument.");
+  }
+
+  const resolvedPath = isAbsolute(explicitConfigPath)
+    ? explicitConfigPath
+    : resolve(repoRoot, explicitConfigPath);
 
   if (!existsSync(resolvedPath)) {
     throw new Error(`Config file not found: ${resolvedPath}`);

@@ -4,12 +4,13 @@ import { spawn } from "node:child_process";
 import { pathToFileURL } from "node:url";
 
 const DEFAULT_PORT = "4173";
-const DEFAULT_CONFIG_PATH = "/run/companyhelm/config.yaml";
 
 export function resolveContainerConfigPath(env = process.env) {
-  const resolvedPath = String(env.COMPANYHELM_CONFIG_PATH || DEFAULT_CONFIG_PATH).trim();
+  const resolvedPath = String(env.COMPANYHELM_CONFIG_PATH || "").trim();
   if (!resolvedPath) {
-    throw new Error("COMPANYHELM_CONFIG_PATH cannot be empty.");
+    throw new Error(
+      "Missing COMPANYHELM_CONFIG_PATH. Container startup requires an explicit runtime config path.",
+    );
   }
 
   return resolvedPath;

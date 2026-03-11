@@ -15,7 +15,7 @@
   ],
   "scripts": {
     "config:generate": "tsx scripts/config/generate-runtime-config.js",
-    "dev": "node scripts/vite.js dev",
+    "dev": "node scripts/vite.js dev --config-path config/local.yaml",
     "build": "node scripts/vite.js build --config-path config/local.yaml",
     "preview": "node scripts/vite.js preview --config-path config/local.yaml",
     "preview:container": "node scripts/start-preview-container.js",

@@ -3,7 +3,6 @@
 import { spawn, spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 
-const DEFAULT_CONFIG_PATH = "config/local.yaml";
 const VITE_COMMANDS = new Set(["dev", "build", "preview"]);
 
 export function parseCliArgs(argv) {
@@ -15,7 +14,7 @@ export function parseCliArgs(argv) {
     );
   }
 
-  let configPath = DEFAULT_CONFIG_PATH;
+  let configPath;
   const passthrough = [];
 
   for (let index = 1; index < args.length; index += 1) {
@@ -48,6 +47,10 @@ export function parseCliArgs(argv) {
     }
 
     passthrough.push(current);
+  }
+
+  if (!configPath) {
+    throw new Error("Missing required --config-path <path> argument.");
   }
 
   return {

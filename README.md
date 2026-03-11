@@ -24,13 +24,13 @@ Runtime config is generated from YAML files under `config/` and written to
 - generated file: `src/generated/config.js` (gitignored)
 
 The script takes `--config-path <path>` and hard-fails when:
+- `--config-path` is omitted
 - `--config-path` is missing a value
 - the referenced YAML file is missing
 - YAML does not satisfy `runtimeConfigSchema`
 
 `npm run dev`, `npm run build`, and `npm run preview` run this generator first:
-- `dev` defaults to `config/local.yaml`
-- `build` and `preview` use `config/local.yaml` for local verification unless you provide another path
+- those package scripts pass `config/local.yaml` explicitly for local verification
 
 You can run the generator directly:
 
@@ -38,19 +38,21 @@ You can run the generator directly:
 npm run config:generate -- --config-path config/local.yaml
 ```
 
+Or point it at an explicit YAML file:
+
+```bash
+npm run config:generate -- --config-path /path/to/config.yaml
+```
+
 The app bootstraps by importing `src/generated/config.js` at startup.
 
-Resolution order for runtime config:
+In containers, the frontend image rebuilds the static bundle on startup from an
+explicit runtime config file. Set `COMPANYHELM_CONFIG_PATH` to the YAML path and
+optionally `COMPANYHELM_CONFIG_S3_URI` to download that file before the build
+runs.
 
-- `--config-path <path>`
-- `COMPANYHELM_CONFIG_PATH`
-- `config/local.yaml`
-
-In containers, the frontend image remains environment-agnostic. The container
-entrypoint optionally downloads YAML from `COMPANYHELM_CONFIG_S3_URI` into
-`COMPANYHELM_CONFIG_PATH` and rebuilds the static bundle from that explicit file.
-
-Deployment-owned dev/prod frontend YAML now lives in `companyhelm-infra`, not this repo.
+There is no runtime fallback order. Startup now requires an explicit config path.
+Deployment-owned dev/prod frontend YAML lives in `companyhelm-infra`, not this repo.
 
 Current config fields:
 - `api.graphqlApiUrl`
