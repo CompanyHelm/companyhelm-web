@@ -43,6 +43,12 @@ function createMockResponse(payload: unknown, status = 200, ok = true): Response
   } as unknown as Response;
 }
 
+function createCompanyhelmToken(): string {
+  return "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9."
+    + "eyJpc3MiOiJjb21wYW55aGVsbS5kZXYiLCJhdWQiOiJjb21wYW55aGVsbS13ZWIiLCJwcm92aWRlciI6ImNvbXBhbnloZWxtIn0."
+    + "signature";
+}
+
 test("createAuthProvider returns companyhelm provider", () => {
   const provider = createAuthProvider({
     authProvider: "companyhelm",
@@ -179,7 +185,7 @@ test("companyhelm provider emits auth state updates on sign in and sign out", as
     testGlobal.fetch = (async () => createMockResponse({
       data: {
         signIn: {
-          token: "token-1",
+          token: createCompanyhelmToken(),
           user: {
             id: "user-1",
             email: "user@example.com",
@@ -222,6 +228,45 @@ test("companyhelm provider emits auth state updates on sign in and sign out", as
       Reflect.deleteProperty(testGlobal, "fetch");
     } else {
       testGlobal.fetch = originalFetch;
+    }
+  }
+});
+
+test("companyhelm provider clears persisted non-companyhelm jwt sessions", () => {
+  const originalWindow = testGlobal.window;
+  const localStorageMap = new Map<string, string>();
+  localStorageMap.set(
+    "companyhelm.auth.token",
+    "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9."
+      + "eyJpc3MiOiJodHRwczovL2V4YW1wbGUuc3VwYWJhc2UuY28vYXV0aC92MSIsImF1ZCI6ImF1dGhlbnRpY2F0ZWQiLCJwcm92aWRlciI6InN1cGFiYXNlIn0."
+      + "signature",
+  );
+
+  try {
+    testGlobal.window = {
+      localStorage: createMockStorage(localStorageMap),
+    } as unknown as Window & typeof globalThis;
+
+    const provider = createAuthProvider({
+      authProvider: "companyhelm",
+      auth: {
+        companyhelm: {
+          tokenStorageKey: "companyhelm.auth.token",
+        },
+      },
+      api: {
+        graphqlApiUrl: "http://127.0.0.1:4000/graphql",
+      },
+    });
+
+    assert.equal(provider.hasSession(), false);
+    assert.equal(provider.getAuthorizationHeaderValue(), null);
+    assert.equal(localStorageMap.has("companyhelm.auth.token"), false);
+  } finally {
+    if (typeof originalWindow === "undefined") {
+      Reflect.deleteProperty(testGlobal, "window");
+    } else {
+      testGlobal.window = originalWindow;
     }
   }
 });

@@ -118,6 +118,60 @@ function clearStoredToken(storageKey: string): void {
   storage.removeItem(storageKey);
 }
 
+function decodeJwtPayloadSegment(segment: string): Record<string, unknown> | null {
+  const normalizedSegment = String(segment || "").trim();
+  if (!normalizedSegment) {
+    return null;
+  }
+
+  const base64 = normalizedSegment
+    .replace(/-/g, "+")
+    .replace(/_/g, "/")
+    .padEnd(Math.ceil(normalizedSegment.length / 4) * 4, "=");
+
+  try {
+    const decoded = typeof globalThis.atob === "function"
+      ? globalThis.atob(base64)
+      : Buffer.from(base64, "base64").toString("utf8");
+    return toRecord(JSON.parse(decoded));
+  } catch {
+    return null;
+  }
+}
+
+function isCompanyhelmJwtPayload(payload: Record<string, unknown> | null): boolean {
+  if (!payload) {
+    return false;
+  }
+
+  const issuer = String(payload.iss || "").trim();
+  const provider = String(payload.provider || "").trim();
+  const audience = payload.aud;
+  const audienceValues = Array.isArray(audience)
+    ? audience.map((value) => String(value || "").trim()).filter(Boolean)
+    : [String(audience || "").trim()].filter(Boolean);
+
+  return provider === "companyhelm"
+    && issuer.startsWith("companyhelm.")
+    && audienceValues.includes("companyhelm-web");
+}
+
+function getValidatedCompanyhelmToken(storageKey: string): string {
+  const token = getStoredToken(storageKey);
+  if (!token) {
+    return "";
+  }
+
+  const tokenParts = token.split(".");
+  const payload = tokenParts.length === 3 ? decodeJwtPayloadSegment(tokenParts[1] || "") : null;
+  if (isCompanyhelmJwtPayload(payload)) {
+    return token;
+  }
+
+  clearStoredToken(storageKey);
+  return "";
+}
+
 async function executeGraphQLAuthMutation(
   query: string,
   variables: Record<string, unknown>,
@@ -206,7 +260,7 @@ class CompanyhelmAuthProvider extends AuthProviderBase {
   }
 
   private getToken(): string {
-    return getStoredToken(this.config.tokenStorageKey);
+    return getValidatedCompanyhelmToken(this.config.tokenStorageKey);
   }
 
   hasSession(): boolean {
