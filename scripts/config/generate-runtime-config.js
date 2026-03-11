@@ -1,46 +1,59 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { isAbsolute, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parse as parseYaml } from "yaml";
 import { runtimeConfigSchema } from "../../src/config/schema.ts";
 
-const ALLOWED_ENVIRONMENTS = new Set(["local", "dev", "prod"]);
+const CONFIG_PATH_ENV = "COMPANYHELM_CONFIG_PATH";
 const ENV_PLACEHOLDER_PATTERN = /\$\{([A-Z0-9_]+)\}/g;
+const LOCAL_CONFIG_PATH_SEGMENTS = ["config", "local.yaml"];
 
-export function normalizeEnvironment(environment) {
-  const normalized = String(environment || "").trim().toLowerCase();
-  if (!normalized) {
-    throw new Error("Missing required --environment <local|dev|prod> argument.");
-  }
-  if (!ALLOWED_ENVIRONMENTS.has(normalized)) {
-    throw new Error(
-      `Invalid --environment "${environment}". Expected one of: ${Array.from(ALLOWED_ENVIRONMENTS).join(", ")}.`
-    );
-  }
-  return normalized;
-}
+export function parseCliConfigPathArgument(argv) {
+  let configPath;
 
-export function parseEnvironmentFromArgs(argv) {
-  let environment;
   for (let index = 0; index < argv.length; index += 1) {
     const argument = String(argv[index] || "").trim();
     if (!argument) {
       continue;
     }
-    if (argument === "--environment") {
-      environment = argv[index + 1];
+
+    if (argument === "--environment" || argument.startsWith("--environment=")) {
+      throw new Error("--environment is no longer supported. Use --config-path instead.");
+    }
+
+    if (argument === "--config-path") {
+      const value = String(argv[index + 1] || "").trim();
+      if (!value || value.startsWith("-")) {
+        throw new Error("Missing value for --config-path.");
+      }
+      configPath = value;
       index += 1;
       continue;
     }
-    if (argument.startsWith("--environment=")) {
-      environment = argument.slice("--environment=".length);
+
+    if (argument.startsWith("--config-path=")) {
+      const value = argument.slice("--config-path=".length).trim();
+      if (!value) {
+        throw new Error("Missing value for --config-path.");
+      }
+      configPath = value;
     }
   }
-  return normalizeEnvironment(environment);
+
+  return configPath;
 }
 
-export function resolveEnvironmentConfigPath(repoRoot, environment) {
-  return resolve(repoRoot, "config", `${normalizeEnvironment(environment)}.yaml`);
+export function resolveConfigPath({ repoRoot = process.cwd(), configPath } = {}) {
+  const explicitConfigPath = String(configPath || process.env[CONFIG_PATH_ENV] || "").trim();
+  const resolvedPath = explicitConfigPath
+    ? (isAbsolute(explicitConfigPath) ? explicitConfigPath : resolve(repoRoot, explicitConfigPath))
+    : resolve(repoRoot, ...LOCAL_CONFIG_PATH_SEGMENTS);
+
+  if (!existsSync(resolvedPath)) {
+    throw new Error(`Config file not found: ${resolvedPath}`);
+  }
+
+  return resolvedPath;
 }
 
 export function resolveGeneratedConfigPath(repoRoot) {
@@ -82,12 +95,8 @@ export function resolveConfigPlaceholders(value, path = "") {
   return value;
 }
 
-export function generateRuntimeConfig({ repoRoot, environment }) {
-  const sourcePath = resolveEnvironmentConfigPath(repoRoot, environment);
-  if (!existsSync(sourcePath)) {
-    throw new Error(`Config file not found: ${sourcePath}`);
-  }
-
+export function generateRuntimeConfig({ repoRoot = process.cwd(), configPath } = {}) {
+  const sourcePath = resolveConfigPath({ repoRoot, configPath });
   const rawYaml = readFileSync(sourcePath, "utf8");
   const parsedConfig = parseYaml(rawYaml);
   const resolvedConfig = resolveConfigPlaceholders(parsedConfig);
@@ -104,7 +113,6 @@ export function generateRuntimeConfig({ repoRoot, environment }) {
   writeFileSync(outputPath, generatedModuleSource, "utf8");
 
   return {
-    environment: normalizeEnvironment(environment),
     sourcePath,
     outputPath,
     config: validatedConfig,
@@ -112,11 +120,9 @@ export function generateRuntimeConfig({ repoRoot, environment }) {
 }
 
 export function run(argv, { repoRoot = process.cwd(), logger = console } = {}) {
-  const environment = parseEnvironmentFromArgs(argv);
-  const result = generateRuntimeConfig({ repoRoot, environment });
-  logger.log(
-    `Generated runtime config for environment "${result.environment}" from ${result.sourcePath} -> ${result.outputPath}`
-  );
+  const configPath = parseCliConfigPathArgument(argv);
+  const result = generateRuntimeConfig({ repoRoot, configPath });
+  logger.log(`Generated runtime config from ${result.sourcePath} -> ${result.outputPath}`);
 }
 
 const isMainModule = process.argv[1]

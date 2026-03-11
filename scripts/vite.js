@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 
 import { spawn, spawnSync } from "node:child_process";
+import { pathToFileURL } from "node:url";
 
+const DEFAULT_CONFIG_PATH = "config/local.yaml";
 const VITE_COMMANDS = new Set(["dev", "build", "preview"]);
 
-function parseCliArgs(argv) {
+export function parseCliArgs(argv) {
   const args = [...argv];
   const viteCommand = args[0] || "dev";
   if (!VITE_COMMANDS.has(viteCommand)) {
@@ -13,27 +15,35 @@ function parseCliArgs(argv) {
     );
   }
 
-  let environment = "local";
+  let configPath = DEFAULT_CONFIG_PATH;
   const passthrough = [];
 
   for (let index = 1; index < args.length; index += 1) {
-    const current = args[index];
-    if (current === "--environment") {
+    const current = String(args[index] || "").trim();
+    if (!current) {
+      continue;
+    }
+
+    if (current === "--environment" || current.startsWith("--environment=")) {
+      throw new Error("--environment is no longer supported. Use --config-path instead.");
+    }
+
+    if (current === "--config-path") {
       const nextValue = String(args[index + 1] || "").trim();
       if (!nextValue) {
-        throw new Error("Missing value for --environment.");
+        throw new Error("Missing value for --config-path.");
       }
-      environment = nextValue;
+      configPath = nextValue;
       index += 1;
       continue;
     }
 
-    if (current.startsWith("--environment=")) {
-      const value = current.slice("--environment=".length).trim();
+    if (current.startsWith("--config-path=")) {
+      const value = current.slice("--config-path=".length).trim();
       if (!value) {
-        throw new Error("Missing value for --environment.");
+        throw new Error("Missing value for --config-path.");
       }
-      environment = value;
+      configPath = value;
       continue;
     }
 
@@ -42,20 +52,20 @@ function parseCliArgs(argv) {
 
   return {
     viteCommand,
-    environment,
+    configPath,
     passthrough,
   };
 }
 
-function runConfigGeneration(environment) {
-  const result = spawnSync(
-    "npm",
-    ["run", "config:generate", "--", "--environment", environment],
-    {
-      stdio: "inherit",
-      shell: process.platform === "win32",
-    },
-  );
+export function buildConfigGenerateArgs(configPath) {
+  return ["run", "config:generate", "--", "--config-path", configPath];
+}
+
+function runConfigGeneration(configPath) {
+  const result = spawnSync("npm", buildConfigGenerateArgs(configPath), {
+    stdio: "inherit",
+    shell: process.platform === "win32",
+  });
 
   if (result.status !== 0) {
     process.exit(result.status || 1);
@@ -63,14 +73,10 @@ function runConfigGeneration(environment) {
 }
 
 function runVite(viteCommand, passthrough) {
-  const child = spawn(
-    "npm",
-    ["exec", "--", "vite", viteCommand, ...passthrough],
-    {
-      stdio: "inherit",
-      shell: process.platform === "win32",
-    },
-  );
+  const child = spawn("npm", ["exec", "--", "vite", viteCommand, ...passthrough], {
+    stdio: "inherit",
+    shell: process.platform === "win32",
+  });
 
   child.on("exit", (code, signal) => {
     if (signal) {
@@ -81,12 +87,18 @@ function runVite(viteCommand, passthrough) {
   });
 }
 
-try {
-  const { viteCommand, environment, passthrough } = parseCliArgs(process.argv.slice(2));
-  runConfigGeneration(environment);
-  runVite(viteCommand, passthrough);
-} catch (error) {
-  const message = error instanceof Error ? error.message : String(error);
-  console.error(`[vite-wrapper] ${message}`);
-  process.exit(1);
+const isMainModule = process.argv[1]
+  ? import.meta.url === pathToFileURL(process.argv[1]).href
+  : false;
+
+if (isMainModule) {
+  try {
+    const { viteCommand, configPath, passthrough } = parseCliArgs(process.argv.slice(2));
+    runConfigGeneration(configPath);
+    runVite(viteCommand, passthrough);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[vite-wrapper] ${message}`);
+    process.exit(1);
+  }
 }

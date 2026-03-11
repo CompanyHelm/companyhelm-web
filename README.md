@@ -19,33 +19,38 @@ Runtime config is generated from YAML files under `config/` and written to
 
 - source files:
   - `config/local.yaml`
-  - `config/dev.yaml`
-  - `config/prod.yaml`
 - generator: `scripts/config/generate-runtime-config.js`
 - validation schema: `src/config/schema.ts` (Zod)
 - generated file: `src/generated/config.js` (gitignored)
 
-The script takes `--environment <local|dev|prod>` and hard-fails when:
-- `--environment` is missing/invalid
-- `config/<environment>.yaml` is missing
+The script takes `--config-path <path>` and hard-fails when:
+- `--config-path` is missing a value
+- the referenced YAML file is missing
 - YAML does not satisfy `runtimeConfigSchema`
 
 `npm run dev`, `npm run build`, and `npm run preview` run this generator first:
-- `dev` uses `local`
-- `build` and `preview` use `prod`
+- `dev` defaults to `config/local.yaml`
+- `build` and `preview` use `config/local.yaml` for local verification unless you provide another path
 
 You can run the generator directly:
 
 ```bash
-npm run config:generate -- --environment local
+npm run config:generate -- --config-path config/local.yaml
 ```
 
 The app bootstraps by importing `src/generated/config.js` at startup.
 
+Resolution order for runtime config:
+
+- `--config-path <path>`
+- `COMPANYHELM_CONFIG_PATH`
+- `config/local.yaml`
+
 In containers, the frontend image remains environment-agnostic. The container
-entrypoint rebuilds the static bundle on startup using
-`COMPANYHELM_ENVIRONMENT=<dev|prod>`, which still flows through
-`config/<environment>.yaml` and `src/generated/config.js`.
+entrypoint optionally downloads YAML from `COMPANYHELM_CONFIG_S3_URI` into
+`COMPANYHELM_CONFIG_PATH` and rebuilds the static bundle from that explicit file.
+
+Deployment-owned dev/prod frontend YAML now lives in `companyhelm-infra`, not this repo.
 
 Current config fields:
 - `api.graphqlApiUrl`
@@ -69,9 +74,9 @@ npm run preview
 
 ## Deployment
 
-- `main` pushes build an immutable `main-<shortsha>` image and deploy it to the
-  dev ECS service.
-- `v*` tags promote the already-built `main-<shortsha>` image to prod.
+- `main` pushes build and publish `main-<shortsha>` and `latest` images to ECR.
+- `v*` tag pushes build and publish the matching release image tag without the leading `v`, for example `v0.0.1` -> `0.0.1`.
+- Deployments and runtime config publication are owned outside this repo.
 - Dev frontend traffic is expected at `https://app.dev.companyhelm.com`.
 
 ## Relay client
