@@ -2074,6 +2074,15 @@ export const COMPANY_API_DELETE_COMPANY_MUTATION = `
   }
 `;
 
+export const COMPANY_API_EXPORT_COMPANY_DATA_QUERY = `
+  query CompanyApiExportCompanyData($sections: [ExportSection!]!) {
+    exportCompanyData(sections: $sections) {
+      filename
+      yaml
+    }
+  }
+`;
+
 export const COMPANY_API_GITHUB_APP_CONFIG_QUERY = `
   query CompanyApiGithubAppConfig {
     githubAppConfig {

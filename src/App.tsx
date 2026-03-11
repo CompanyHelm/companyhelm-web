@@ -119,6 +119,7 @@ import {
   COMPANY_API_ME_QUERY,
   COMPANY_API_CREATE_COMPANY_MUTATION,
   COMPANY_API_DELETE_COMPANY_MUTATION,
+  COMPANY_API_EXPORT_COMPANY_DATA_QUERY,
   COMPANY_API_GITHUB_APP_CONFIG_QUERY,
   COMPANY_API_LIST_GITHUB_INSTALLATIONS_QUERY,
   COMPANY_API_LIST_REPOSITORIES_CONNECTION_QUERY,
@@ -305,7 +306,12 @@ import { ApprovalsPage } from "./pages/ApprovalsPage.tsx";
 import { McpServersPage } from "./pages/McpServersPage.tsx";
 import { AgentChatsPage } from "./pages/AgentChatsPage.tsx";
 import { AgentChatPage } from "./pages/AgentChatPage.tsx";
-import { SettingsPage } from "./pages/SettingsPage.tsx";
+import {
+  SettingsPage,
+  SETTINGS_EXPORT_PRESETS,
+  SETTINGS_EXPORT_SECTIONS,
+  applySettingsExportPreset,
+} from "./pages/SettingsPage.tsx";
 import { ReposPage } from "./pages/ReposPage.tsx";
 import { ProfilePage } from "./pages/ProfilePage.tsx";
 
@@ -347,6 +353,19 @@ async function executeRawGraphQL(query: any, variables: any, options: any = {}) 
     operationKind: options.operationKind,
     force: options.force,
   });
+}
+
+function normalizeSettingsExportSections(values: any) {
+  const allowedSectionIds = new Set(SETTINGS_EXPORT_SECTIONS.map((section) => section.id));
+  const normalizedValues = Array.isArray(values) ? values : [];
+  const selectedSections = new Set(
+    normalizedValues
+      .map((value) => String(value || "").trim())
+      .filter((value) => allowedSectionIds.has(value)),
+  );
+  return SETTINGS_EXPORT_SECTIONS
+    .map((section) => section.id)
+    .filter((sectionId) => selectedSections.has(sectionId));
 }
 
 function resolveLegacyId(...values: any) {
@@ -2866,6 +2885,11 @@ function App() {
   const [newCompanyName, setNewCompanyName] = useState<any>("");
   const [isCreatingCompany, setIsCreatingCompany] = useState<any>(false);
   const [isDeletingCompany, setIsDeletingCompany] = useState<any>(false);
+  const [selectedExportSections, setSelectedExportSections] = useState<any>(
+    () => [...SETTINGS_EXPORT_PRESETS.sharable],
+  );
+  const [isExportingCompanyData, setIsExportingCompanyData] = useState<any>(false);
+  const [exportCompanyDataError, setExportCompanyDataError] = useState<any>("");
   const [githubAppConfig, setGithubAppConfig] = useState<any>({
     appClientId: "",
     appLink: DEFAULT_GITHUB_APP_INSTALL_URL,
@@ -5622,6 +5646,61 @@ function App() {
       setCompanyError(deleteError.message);
     } finally {
       setIsDeletingCompany(false);
+    }
+  }
+
+  function handleSettingsExportSectionsChange(nextSections: any) {
+    setSelectedExportSections(normalizeSettingsExportSections(nextSections));
+    setExportCompanyDataError("");
+  }
+
+  function handleApplySettingsExportPreset(presetSections: any) {
+    setSelectedExportSections(
+      applySettingsExportPreset(selectedExportSections, normalizeSettingsExportSections(presetSections)),
+    );
+    setExportCompanyDataError("");
+  }
+
+  async function handleExportCompanyData() {
+    if (!selectedCompany) {
+      setExportCompanyDataError("Select a company before exporting.");
+      return;
+    }
+
+    const normalizedSections = normalizeSettingsExportSections(selectedExportSections);
+    if (normalizedSections.length === 0) {
+      setExportCompanyDataError("Select at least one section to export.");
+      return;
+    }
+
+    try {
+      setIsExportingCompanyData(true);
+      setExportCompanyDataError("");
+      const data = await executeRawGraphQL(
+        COMPANY_API_EXPORT_COMPANY_DATA_QUERY,
+        { sections: normalizedSections },
+        { force: true },
+      );
+      const payload = data?.exportCompanyData;
+      const filename = String(payload?.filename || "").trim();
+      const yaml = String(payload?.yaml || "");
+      if (!filename || !yaml) {
+        throw new Error("Export response was missing filename or YAML content.");
+      }
+
+      const downloadBlob = new Blob([yaml], { type: "application/yaml;charset=utf-8" });
+      const objectUrl = window.URL.createObjectURL(downloadBlob);
+      const downloadLink = document.createElement("a");
+      downloadLink.href = objectUrl;
+      downloadLink.download = filename;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      downloadLink.remove();
+      window.URL.revokeObjectURL(objectUrl);
+    } catch (exportError: any) {
+      setExportCompanyDataError(exportError?.message || "Failed to export company data.");
+    } finally {
+      setIsExportingCompanyData(false);
     }
   }
 
@@ -9875,9 +9954,15 @@ function App() {
             newCompanyName={newCompanyName}
             isCreatingCompany={isCreatingCompany}
             isDeletingCompany={isDeletingCompany}
+            selectedExportSections={selectedExportSections}
+            isExportingCompanyData={isExportingCompanyData}
+            exportError={exportCompanyDataError}
             onNewCompanyNameChange={setNewCompanyName}
             onCreateCompany={handleCreateCompany}
             onDeleteCompany={handleDeleteCompany}
+            onExportSectionsChange={handleSettingsExportSectionsChange}
+            onApplyExportPreset={handleApplySettingsExportPreset}
+            onExportCompanyData={handleExportCompanyData}
           />
         ) : null}
 
