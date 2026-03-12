@@ -32,6 +32,10 @@ function renderOnboardingPageMarkup(overrides: Record<string, unknown> = {}) {
       onAgentModelChange: () => {},
       onAgentModelReasoningLevelChange: () => {},
       onCreateAgent: async () => false,
+      createdAgent: null,
+      isCreatingPostCreateChat: false,
+      onChatNow: () => {},
+      onSkipPostCreate: () => {},
       onAdvanceToAgentPhase: () => {},
       codexAuthEvent: null,
       isStartingCodexAuth: false,
@@ -58,6 +62,21 @@ test("OnboardingPage still renders the onboarding agent form", () => {
   assert.match(markup, /id="onboarding-agent-name"/);
   assert.match(markup, /id="onboarding-agent-runner"/);
   assert.match(markup, /id="onboarding-agent-model"/);
+});
+
+test("OnboardingPage renders the post-create actions instead of the agent form after agent creation", () => {
+  const markup = renderOnboardingPageMarkup({
+    createdAgent: {
+      id: "agent-1",
+      name: "CEO Agent",
+    },
+  });
+
+  assert.match(markup, />Agent created</);
+  assert.match(markup, />CEO Agent</);
+  assert.match(markup, />Chat now</);
+  assert.match(markup, />Skip for now</);
+  assert.doesNotMatch(markup, /id="onboarding-agent-name"/);
 });
 
 test("OnboardingPage renders a distinct configuring screen without the runner creation form", () => {

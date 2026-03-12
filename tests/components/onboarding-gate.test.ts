@@ -39,6 +39,7 @@ function createBaseProps(overrides: Record<string, unknown> = {}) {
     codexAuthEvent: null,
     isStartingCodexAuth: false,
     onStartCodexDeviceAuth: () => {},
+    onCreateChatForAgent: async () => {},
     setOnboardingPhase: () => {},
     setOnboardingRunnerId: () => {},
     setOnboardingRunnerSecret: () => {},

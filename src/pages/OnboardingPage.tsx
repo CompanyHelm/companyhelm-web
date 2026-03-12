@@ -1,8 +1,10 @@
 import { useState, useMemo, type ChangeEvent, type FormEvent } from "react";
+import { AgentCreatedActions } from "../components/AgentCreatedActions.tsx";
 import { CodexAuthPanel } from "../components/CodexAuthPanel.tsx";
 import { Page } from "../components/Page.tsx";
 import { quoteShellArg } from "../utils/shell.ts";
 import { isRunnerReadyAndConnected } from "../utils/formatting.ts";
+import { getAgentCreationFormStatus, type CreatedAgentSummary } from "../utils/agent-creation.ts";
 import {
   getRunnerCodexModelEntriesForRunner,
   getRunnerModelNames,
@@ -40,6 +42,10 @@ export interface OnboardingPageProps {
   onAgentModelChange: (model: string) => void;
   onAgentModelReasoningLevelChange: (level: string) => void;
   onCreateAgent: (event: FormEvent<HTMLFormElement>) => Promise<any>;
+  createdAgent: CreatedAgentSummary | null;
+  isCreatingPostCreateChat: boolean;
+  onChatNow: () => void;
+  onSkipPostCreate: () => void;
   onAdvanceToAgentPhase: () => void;
   codexAuthEvent: RunnerSdkCodexAuthEvent | null;
   isStartingCodexAuth: boolean;
@@ -78,6 +84,10 @@ export function OnboardingPage({
   onAgentModelChange,
   onAgentModelReasoningLevelChange,
   onCreateAgent,
+  createdAgent,
+  isCreatingPostCreateChat,
+  onChatNow,
+  onSkipPostCreate,
   onAdvanceToAgentPhase,
   codexAuthEvent,
   isStartingCodexAuth,
@@ -146,6 +156,26 @@ export function OnboardingPage({
   const createRunnerReasoningLevels = useMemo(() => {
     return getRunnerReasoningLevels(createRunnerCodexModelEntries, agentModel);
   }, [agentModel, createRunnerCodexModelEntries]);
+
+  const createFormStatus = useMemo(() => {
+    return getAgentCreationFormStatus({
+      agentRunners,
+      runnerCodexModelEntriesById,
+      agentName,
+      agentRunnerId,
+      agentSdk,
+      agentModel,
+      agentModelReasoningLevel,
+    });
+  }, [
+    agentModel,
+    agentModelReasoningLevel,
+    agentName,
+    agentRunnerId,
+    agentRunners,
+    agentSdk,
+    runnerCodexModelEntriesById,
+  ]);
 
   return (
     <Page>
@@ -372,133 +402,145 @@ export function OnboardingPage({
             <div className="runner-onboarding-header">
               <div>
                 <p className="eyebrow">Setup</p>
-                <h1>Create your first agent</h1>
+                <h1>{createdAgent ? "Your first agent is ready" : "Create your first agent"}</h1>
                 <p className="subcopy">
-                  An agent is an AI-powered worker that runs tasks inside your runner.
-                  You can add MCP servers, skills, and additional instructions later from the Agent page.
+                  {createdAgent
+                    ? "Start a conversation now or leave this agent ready for later."
+                    : "An agent is an AI-powered worker that runs tasks inside your runner. You can add MCP servers, skills, and additional instructions later from the Agent page."}
                 </p>
               </div>
-              <button
-                type="button"
-                className="runner-onboarding-skip-btn"
-                onClick={onSkip}
-              >
-                Skip for now
-              </button>
+              {!createdAgent ? (
+                <button
+                  type="button"
+                  className="runner-onboarding-skip-btn"
+                  onClick={onSkip}
+                >
+                  Skip for now
+                </button>
+              ) : null}
             </div>
 
-            <form className="onboarding-agent-form" onSubmit={onCreateAgent}>
-              <label htmlFor="onboarding-agent-name">Agent name</label>
-              <input
-                id="onboarding-agent-name"
-                value={agentName}
-                onChange={(event: ChangeEvent<HTMLInputElement>) => onAgentNameChange(event.target.value)}
-                placeholder="e.g. CEO Agent"
-                disabled={isCreatingAgent}
-                autoFocus
-                required
+            {createdAgent ? (
+              <AgentCreatedActions
+                agentName={createdAgent.name}
+                isCreatingChat={isCreatingPostCreateChat}
+                onChatNow={onChatNow}
+                onSkipForNow={onSkipPostCreate}
               />
+            ) : (
+              <form className="onboarding-agent-form" onSubmit={onCreateAgent}>
+                <label htmlFor="onboarding-agent-name">Agent name</label>
+                <input
+                  id="onboarding-agent-name"
+                  value={agentName}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) => onAgentNameChange(event.target.value)}
+                  placeholder="e.g. CEO Agent"
+                  disabled={isCreatingAgent}
+                  autoFocus
+                  required
+                />
 
-              <label htmlFor="onboarding-agent-runner">Runner</label>
-              <select
-                id="onboarding-agent-runner"
-                value={agentRunnerId}
-                onChange={(event: ChangeEvent<HTMLSelectElement>) => onAgentRunnerChange(event.target.value)}
-                required
-                disabled={isCreatingAgent}
-              >
-                <option value="">Select a runner</option>
-                {agentRunners.map((runner) => (
-                  <option
-                    key={runner.id}
-                    value={runner.id}
-                    disabled={!isRunnerReadyAndConnected(runner)}
-                  >
-                    {runner.name || runner.id.slice(0, 8)} ({isRunnerReadyAndConnected(runner) ? "connected" : "offline"})
-                  </option>
-                ))}
-              </select>
+                <label htmlFor="onboarding-agent-runner">Runner</label>
+                <select
+                  id="onboarding-agent-runner"
+                  value={agentRunnerId}
+                  onChange={(event: ChangeEvent<HTMLSelectElement>) => onAgentRunnerChange(event.target.value)}
+                  required
+                  disabled={isCreatingAgent}
+                >
+                  <option value="">Select a runner</option>
+                  {agentRunners.map((runner) => (
+                    <option
+                      key={runner.id}
+                      value={runner.id}
+                      disabled={!isRunnerReadyAndConnected(runner)}
+                    >
+                      {runner.name || runner.id.slice(0, 8)} ({isRunnerReadyAndConnected(runner) ? "connected" : "offline"})
+                    </option>
+                  ))}
+                </select>
 
-              <label htmlFor="onboarding-agent-sdk">Agent SDK</label>
-              <select
-                id="onboarding-agent-sdk"
-                value={agentSdk}
-                onChange={(event: ChangeEvent<HTMLSelectElement>) => onAgentSdkChange(event.target.value)}
-                required
-                disabled={isCreatingAgent}
-              >
-                {AVAILABLE_AGENT_SDKS.map((sdkName) => (
-                  <option
-                    key={sdkName}
-                    value={sdkName}
-                    disabled={Boolean(agentRunnerId) && createRunnerSdkAvailabilityByName.get(sdkName) !== "available"}
-                  >
-                    {sdkName}
-                  </option>
-                ))}
-              </select>
+                <label htmlFor="onboarding-agent-sdk">Agent SDK</label>
+                <select
+                  id="onboarding-agent-sdk"
+                  value={agentSdk}
+                  onChange={(event: ChangeEvent<HTMLSelectElement>) => onAgentSdkChange(event.target.value)}
+                  required
+                  disabled={isCreatingAgent}
+                >
+                  {AVAILABLE_AGENT_SDKS.map((sdkName) => (
+                    <option
+                      key={sdkName}
+                      value={sdkName}
+                      disabled={Boolean(agentRunnerId) && createRunnerSdkAvailabilityByName.get(sdkName) !== "available"}
+                    >
+                      {sdkName}
+                    </option>
+                  ))}
+                </select>
 
-              <label htmlFor="onboarding-agent-model">Default model</label>
-              <select
-                id="onboarding-agent-model"
-                value={agentModel}
-                onChange={(event: ChangeEvent<HTMLSelectElement>) => onAgentModelChange(event.target.value)}
-                required
-                disabled={isCreatingAgent || !agentRunnerId}
-              >
-                {!agentRunnerId ? (
-                  <option value="">Select a runner first</option>
-                ) : createRunnerCodexModelEntries.length === 0 ? (
-                  <option value="">No models reported by runner</option>
-                ) : createRunnerModelNames.length === 0 ? (
-                  <option value="">No available models</option>
-                ) : (
-                  <>
-                    <option value="">Select model</option>
-                    {createRunnerCodexModelEntries.map((modelEntry: any) => (
-                      <option
-                        key={modelEntry.name}
-                        value={modelEntry.name}
-                        disabled={!modelEntry.isAvailable}
-                      >
-                        {modelEntry.name}{modelEntry.isAvailable ? "" : " (unavailable)"}
-                      </option>
-                    ))}
-                  </>
-                )}
-              </select>
+                <label htmlFor="onboarding-agent-model">Default model</label>
+                <select
+                  id="onboarding-agent-model"
+                  value={agentModel}
+                  onChange={(event: ChangeEvent<HTMLSelectElement>) => onAgentModelChange(event.target.value)}
+                  required
+                  disabled={isCreatingAgent || !agentRunnerId}
+                >
+                  {!agentRunnerId ? (
+                    <option value="">Select a runner first</option>
+                  ) : createRunnerCodexModelEntries.length === 0 ? (
+                    <option value="">No models reported by runner</option>
+                  ) : createRunnerModelNames.length === 0 ? (
+                    <option value="">No available models</option>
+                  ) : (
+                    <>
+                      <option value="">Select model</option>
+                      {createRunnerCodexModelEntries.map((modelEntry: any) => (
+                        <option
+                          key={modelEntry.name}
+                          value={modelEntry.name}
+                          disabled={!modelEntry.isAvailable}
+                        >
+                          {modelEntry.name}{modelEntry.isAvailable ? "" : " (unavailable)"}
+                        </option>
+                      ))}
+                    </>
+                  )}
+                </select>
 
-              <label htmlFor="onboarding-agent-reasoning">Default reasoning level</label>
-              <select
-                id="onboarding-agent-reasoning"
-                value={agentModelReasoningLevel}
-                onChange={(event: ChangeEvent<HTMLSelectElement>) => onAgentModelReasoningLevelChange(event.target.value)}
-                required
-                disabled={isCreatingAgent || !agentRunnerId || !agentModel}
-              >
-                {!agentRunnerId ? (
-                  <option value="">Select a runner first</option>
-                ) : !agentModel ? (
-                  <option value="">Select a model first</option>
-                ) : createRunnerReasoningLevels.length === 0 ? (
-                  <option value="">No reasoning levels for this model</option>
-                ) : (
-                  <>
-                    <option value="">Select reasoning level</option>
-                    {createRunnerReasoningLevels.map((level: string) => (
-                      <option key={level} value={level}>
-                        {level}
-                      </option>
-                    ))}
-                  </>
-                )}
-              </select>
+                <label htmlFor="onboarding-agent-reasoning">Default reasoning level</label>
+                <select
+                  id="onboarding-agent-reasoning"
+                  value={agentModelReasoningLevel}
+                  onChange={(event: ChangeEvent<HTMLSelectElement>) => onAgentModelReasoningLevelChange(event.target.value)}
+                  required
+                  disabled={isCreatingAgent || !agentRunnerId || !agentModel}
+                >
+                  {!agentRunnerId ? (
+                    <option value="">Select a runner first</option>
+                  ) : !agentModel ? (
+                    <option value="">Select a model first</option>
+                  ) : createRunnerReasoningLevels.length === 0 ? (
+                    <option value="">No reasoning levels for this model</option>
+                  ) : (
+                    <>
+                      <option value="">Select reasoning level</option>
+                      {createRunnerReasoningLevels.map((level: string) => (
+                        <option key={level} value={level}>
+                          {level}
+                        </option>
+                      ))}
+                    </>
+                  )}
+                </select>
 
-              <button type="submit" disabled={isCreatingAgent || !hasConfiguredRunner}>
-                {isCreatingAgent ? "Creating..." : "Create agent"}
-              </button>
-              {agentError ? <p className="error-banner">{agentError}</p> : null}
-            </form>
+                <button type="submit" disabled={isCreatingAgent || !createFormStatus.canSubmit}>
+                  {isCreatingAgent ? "Creating..." : "Create agent"}
+                </button>
+                {agentError ? <p className="error-banner">{agentError}</p> : null}
+              </form>
+            )}
           </section>
         ) : null}
       </div>
