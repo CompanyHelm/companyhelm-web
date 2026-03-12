@@ -8706,8 +8706,8 @@ function App() {
 
     const queuedMessage = queuedChatMessages.find((entry: any) => String(entry?.id || "").trim() === resolvedQueuedMessageId);
     const queuedMessageStatus = String(queuedMessage?.status || "").trim().toLowerCase();
-    if (queuedMessageStatus === "submitted" || queuedMessageStatus === "processed") {
-      setChatError("Submitted or processed queued messages cannot be deleted.");
+    if (queuedMessageStatus === "processed") {
+      setChatError("Processed queued messages cannot be deleted.");
       return;
     }
 

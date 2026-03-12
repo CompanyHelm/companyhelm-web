@@ -1326,7 +1326,7 @@ export function AgentChatPage({
                       : "queued";
                 const queuedMessageError = String(queuedMessage?.errorMessage || "").trim();
                 const queuedMessageSdkTurnId = String(queuedMessage?.sdkTurnId || "").trim();
-                const isLockedMessage = queuedMessageStatus === "submitted" || queuedMessageStatus === "processed";
+                const isLockedMessage = queuedMessageStatus === "processed";
                 const isSteerMode = Boolean(queuedMessage?.allowSteer);
                 const isSteeringThisMessage = steeringQueuedMessageId === queuedMessageId;
                 const isRetryingThisMessage = retryingQueuedMessageId === queuedMessageId;
@@ -1358,7 +1358,7 @@ export function AgentChatPage({
                         }
                         onClick={() => onDeleteQueuedMessage(queuedMessageId)}
                         aria-label="Delete queued message"
-                        title={isLockedMessage ? "Submitted or processed messages cannot be deleted." : "Delete queued message"}
+                        title={isLockedMessage ? "Processed queued messages cannot be deleted." : "Delete queued message"}
                       >
                         {isDeletingThisMessage ? "..." : "x"}
                       </button>
