@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { spawn } from "node:child_process";
+import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const DEFAULT_PORT = "4173";
@@ -35,7 +36,7 @@ export function buildPreviewBuildCommandArgs(configPath) {
 }
 
 export function buildPreviewServeCommandArgs(port) {
-  return ["scripts/serve-static-container.js", "--port", port];
+  return ["run", "--config", join(process.cwd(), "Caddyfile"), "--adapter", "caddyfile"];
 }
 
 function runCommand(command, args) {
@@ -65,7 +66,7 @@ export async function main(env = process.env) {
   const port = resolvePreviewPort(env);
 
   await runCommand(process.execPath, buildPreviewBuildCommandArgs(configPath));
-  await runCommand(process.execPath, buildPreviewServeCommandArgs(port));
+  await runCommand("caddy", buildPreviewServeCommandArgs(port));
 }
 
 const isMainModule = process.argv[1]
