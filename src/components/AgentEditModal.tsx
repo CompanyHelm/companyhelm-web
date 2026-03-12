@@ -16,7 +16,7 @@ import {
   getRunnerReasoningLevels,
   normalizeRunnerAvailableAgentSdks,
 } from "../utils/normalization.ts";
-import { formatRunnerLabel } from "../utils/formatting.ts";
+import { formatRunnerLabel, isRunnerReadyAndConnected } from "../utils/formatting.ts";
 import type {
   Agent,
   AgentDraft,
@@ -309,7 +309,11 @@ export function AgentEditModal({
             >
               <option value="">Unassigned</option>
               {agentRunners.map((runner) => (
-                <option key={runner.id} value={runner.id}>
+                <option
+                  key={runner.id}
+                  value={runner.id}
+                  disabled={!isRunnerReadyAndConnected(runner)}
+                >
                   {formatRunnerLabel(runner)}
                 </option>
               ))}

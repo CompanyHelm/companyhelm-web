@@ -26,9 +26,9 @@ test("isRunnerReadyAndConnected requires both conditions", () => {
   }), false);
 });
 
-test("formatRunnerLabel includes connection and status", () => {
+test("formatRunnerLabel returns the runner name", () => {
   assert.equal(
-    formatRunnerLabel({ id: "1234567890", isConnected: false }),
-    "12345678 (disconnected)",
+    formatRunnerLabel({ id: "1234567890", name: "Runner One", isConnected: false }),
+    "Runner One",
   );
 });
