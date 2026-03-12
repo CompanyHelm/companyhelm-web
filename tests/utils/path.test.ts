@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   clearGithubInstallCallbackFromLocation,
+  getAdminRouteFromPathname,
   getTasksRouteFromPathname,
+  resolveAdminTableNameForRoute,
 } from "../../src/utils/path.ts";
 
 type GlobalWithWindow = typeof global & {
@@ -50,6 +52,33 @@ test("getTasksRouteFromPathname returns detail view for /tasks/:taskId", () => {
 
 test("getTasksRouteFromPathname ignores non-task paths", () => {
   assert.deepEqual(getTasksRouteFromPathname("/skills/skill-1"), { view: "list", taskId: "" });
+});
+
+test("getAdminRouteFromPathname returns table view for /admin/tables/:tableName", () => {
+  assert.deepEqual(getAdminRouteFromPathname("/admin/tables/Runner_Requests"), {
+    view: "table",
+    tableName: "runner_requests",
+  });
+});
+
+test("resolveAdminTableNameForRoute returns the normalized table name for table routes", () => {
+  assert.equal(
+    resolveAdminTableNameForRoute({
+      view: "table",
+      tableName: " Runner_Requests ",
+    }),
+    "runner_requests",
+  );
+});
+
+test("resolveAdminTableNameForRoute falls back to the default table when the route is not a table view", () => {
+  assert.equal(
+    resolveAdminTableNameForRoute({
+      view: "home",
+      tableName: "ignored_table",
+    }),
+    "runner_requests",
+  );
 });
 
 test("clearGithubInstallCallbackFromLocation replaces the callback URL with /repos", () => {

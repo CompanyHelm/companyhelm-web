@@ -39,6 +39,8 @@ type AdminRoute = {
   tableName: string;
 };
 
+export const DEFAULT_ADMIN_TABLE_NAME = "runner_requests";
+
 export function normalizePathname(rawPathname: string): string {
   const trimmed = String(rawPathname || "").trim();
   if (!trimmed || trimmed === "/") {
@@ -223,6 +225,14 @@ export function getAdminRouteFromPathname(pathname: string = window.location.pat
   }
 
   return { view: "home", tableName: "" };
+}
+
+export function resolveAdminTableNameForRoute(adminRoute: AdminRoute): string {
+  const routeTableName = String(adminRoute?.tableName || "").trim().toLowerCase();
+  if (adminRoute?.view === "table" && routeTableName) {
+    return routeTableName;
+  }
+  return DEFAULT_ADMIN_TABLE_NAME;
 }
 
 export function setBrowserPath(pathname: string, { replace = false }: SetBrowserPathOptions = {}): void {

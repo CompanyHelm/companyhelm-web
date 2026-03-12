@@ -252,7 +252,9 @@ import {
   getTasksRouteFromPathname,
   getChatsRouteFromLocation,
   getChatsPath,
+  DEFAULT_ADMIN_TABLE_NAME,
   getAdminRouteFromPathname,
+  resolveAdminTableNameForRoute,
   setBrowserPath,
   getPathForPage,
   parseGithubInstallCallbackFromLocation,
@@ -352,7 +354,6 @@ export function shouldSuppressChatsRouteMissingAgentWarning({
 }
 const CHAT_LIST_STATUS_FILTER_ACTIVE = "active";
 const CHAT_LIST_STATUS_FILTER_ARCHIVED = "archived";
-const DEFAULT_ADMIN_TABLE_NAME = "runner_requests";
 
 function getRunnerSdkAuthKey(runnerId: any, sdkId: any) {
   const normalizedRunnerId = String(runnerId || "").trim();
@@ -3519,6 +3520,8 @@ function App() {
     syncChatSessionRunningStateFromSessions(sessionsSnapshot);
   }, [chatAgentId, syncChatSessionRunningStateFromSessions]);
 
+  const resolvedAdminTableName = resolveAdminTableNameForRoute(adminRoute);
+
   const breadcrumbItems = useMemo(() => {
     const currentPageLabel = activePage === "admin"
       ? "Admin"
@@ -3797,10 +3800,6 @@ function App() {
     activePage === "dashboard"
     || activePage === "agent-runner"
     || (hasLoadedAgentRunners && (agentRunners.length === 0 || onboardingPhase === "runner" || onboardingPhase === "agent"));
-  const resolvedAdminTableName =
-    adminRoute.view === "table" && String(adminRoute.tableName || "").trim()
-      ? String(adminRoute.tableName || "").trim().toLowerCase()
-      : DEFAULT_ADMIN_TABLE_NAME;
   const activeAdminTableSummary = useMemo(
     () => adminTables.find((table: any) => String(table?.name || "").trim().toLowerCase() === resolvedAdminTableName) || null,
     [adminTables, resolvedAdminTableName],
