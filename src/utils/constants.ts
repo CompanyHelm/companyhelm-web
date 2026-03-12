@@ -119,5 +119,5 @@ export const NAV_ITEM_LOOKUP = NAV_ITEMS.reduce((map, item) => {
   map.set(item.id, item);
   return map;
 }, new Map<string, NavigationItem>());
-export const HIDDEN_PAGE_IDS = ["flags"];
+export const HIDDEN_PAGE_IDS = ["flags", "admin"];
 export const PAGE_IDS = new Set([...NAV_ITEMS.map((item) => item.id), ...HIDDEN_PAGE_IDS]);

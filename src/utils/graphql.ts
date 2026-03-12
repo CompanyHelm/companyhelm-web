@@ -3431,6 +3431,55 @@ export const COMPANY_API_DELETE_AGENT_RUNNER_MUTATION = `
   }
 `;
 
+export const COMPANY_API_LIST_ADMIN_TABLES_QUERY = `
+  query CompanyApiListAdminTables {
+    adminTables {
+      name
+      label
+      description
+      featured
+      supportsStatusFilter
+      defaultLimit
+    }
+  }
+`;
+
+export const COMPANY_API_ADMIN_TABLE_QUERY = `
+  query CompanyApiAdminTable(
+    $tableName: String!
+    $first: Int = 50
+    $status: String
+    $search: String
+  ) {
+    adminTable(
+      tableName: $tableName
+      first: $first
+      status: $status
+      search: $search
+    ) {
+      name
+      label
+      description
+      featured
+      supportsStatusFilter
+      defaultLimit
+      availableStatuses
+      totalCount
+      columns {
+        key
+        label
+      }
+      rows {
+        id
+        cells {
+          key
+          value
+        }
+      }
+    }
+  }
+`;
+
 export const COMPANY_API_LIST_AGENTS_CONNECTION_QUERY = `
   query CompanyApiListAgents($first: Int!, $after: String) {
     agents(first: $first, after: $after) {

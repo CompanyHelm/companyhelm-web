@@ -181,6 +181,8 @@ import {
   COMPANY_API_CREATE_AGENT_RUNNER_MUTATION,
   COMPANY_API_REGENERATE_AGENT_RUNNER_SECRET_MUTATION,
   COMPANY_API_DELETE_AGENT_RUNNER_MUTATION,
+  COMPANY_API_LIST_ADMIN_TABLES_QUERY,
+  COMPANY_API_ADMIN_TABLE_QUERY,
   COMPANY_API_LIST_AGENTS_CONNECTION_QUERY,
   COMPANY_API_LIST_AGENTS_PAGE_QUERY,
   COMPANY_API_LIST_AGENTS_WITH_THREADS_CONNECTION_QUERY,
@@ -250,6 +252,7 @@ import {
   getTasksRouteFromPathname,
   getChatsRouteFromLocation,
   getChatsPath,
+  getAdminRouteFromPathname,
   setBrowserPath,
   getPathForPage,
   parseGithubInstallCallbackFromLocation,
@@ -298,6 +301,7 @@ import { CompanyRequiredPanel } from "./components/CompanyRequiredPanel.tsx";
 import { FirstCompanyOnboardingPage } from "./components/FirstCompanyOnboardingPage.tsx";
 import { OnboardingPage } from "./pages/OnboardingPage.tsx";
 import { FlagsPage } from "./pages/FlagsPage.tsx";
+import { AdminPage } from "./pages/AdminPage.tsx";
 
 import { DashboardPage } from "./pages/DashboardPage.tsx";
 import { TasksPage } from "./pages/TasksPage.tsx";
@@ -348,6 +352,7 @@ export function shouldSuppressChatsRouteMissingAgentWarning({
 }
 const CHAT_LIST_STATUS_FILTER_ACTIVE = "active";
 const CHAT_LIST_STATUS_FILTER_ARCHIVED = "archived";
+const DEFAULT_ADMIN_TABLE_NAME = "runner_requests";
 
 function getRunnerSdkAuthKey(runnerId: any, sdkId: any) {
   const normalizedRunnerId = String(runnerId || "").trim();
@@ -2947,6 +2952,7 @@ function App() {
   );
   const [runnersRoute, setRunnersRoute] = useState<any>(() => getRunnersRouteFromPathname());
   const [chatsRoute, setChatsRoute] = useState<any>(() => getChatsRouteFromLocation());
+  const [adminRoute, setAdminRoute] = useState<any>(() => getAdminRouteFromPathname());
   const [companies, setCompanies] = useState<any>([]);
   const [isLoadingCompanies, setIsLoadingCompanies] = useState<any>(true);
   const [companyError, setCompanyError] = useState<any>("");
@@ -2990,6 +2996,8 @@ function App() {
   const [secrets, setSecrets] = useState<any>([]);
   const [approvals, setApprovals] = useState<any>([]);
   const [mcpServers, setMcpServers] = useState<any>([]);
+  const [adminTables, setAdminTables] = useState<any>([]);
+  const [adminTableData, setAdminTableData] = useState<any>(null);
   const [agentRunners, setAgentRunners] = useState<any>([]);
   const [hasLoadedAgentRunners, setHasLoadedAgentRunners] = useState<any>(false);
   const [hasLoadedSkills, setHasLoadedSkills] = useState<any>(false);
@@ -3008,6 +3016,8 @@ function App() {
   const [isLoadingSecrets, setIsLoadingSecrets] = useState<any>(false);
   const [isLoadingApprovals, setIsLoadingApprovals] = useState<any>(false);
   const [isLoadingMcpServers, setIsLoadingMcpServers] = useState<any>(false);
+  const [isLoadingAdminTables, setIsLoadingAdminTables] = useState<any>(false);
+  const [isLoadingAdminTable, setIsLoadingAdminTable] = useState<any>(false);
   const [isLoadingRunners, setIsLoadingRunners] = useState<any>(false);
   const [isLoadingAgents, setIsLoadingAgents] = useState<any>(false);
   const [taskError, setTaskError] = useState<any>("");
@@ -3015,8 +3025,12 @@ function App() {
   const [secretError, setSecretError] = useState<any>("");
   const [approvalError, setApprovalError] = useState<any>("");
   const [mcpServerError, setMcpServerError] = useState<any>("");
+  const [adminError, setAdminError] = useState<any>("");
   const [runnerError, setRunnerError] = useState<any>("");
   const [agentError, setAgentError] = useState<any>("");
+  const [adminLimit, setAdminLimit] = useState<any>(100);
+  const [adminStatus, setAdminStatus] = useState<any>("");
+  const [adminSearch, setAdminSearch] = useState<any>("");
   const [isSubmittingTask, setIsSubmittingTask] = useState<any>(false);
   const [isCreatingSkill, setIsCreatingSkill] = useState<any>(false);
   const [isCreatingSecret, setIsCreatingSecret] = useState<any>(false);
@@ -3506,7 +3520,9 @@ function App() {
   }, [chatAgentId, syncChatSessionRunningStateFromSessions]);
 
   const breadcrumbItems = useMemo(() => {
-    const currentPageLabel = NAV_ITEM_LOOKUP.get(activePage)?.label || "Dashboard";
+    const currentPageLabel = activePage === "admin"
+      ? "Admin"
+      : (NAV_ITEM_LOOKUP.get(activePage)?.label || "Dashboard");
 
     const getAgentLabel = (agentId: any) => {
       const resolvedAgentId = String(agentId || "").trim();
@@ -3551,6 +3567,17 @@ function App() {
       }
       const matchingPackage = gitSkillPackages.find((pkg: any) => pkg.id === resolvedPackageId);
       return matchingPackage?.packageName || `Package ${resolvedPackageId.slice(0, 8)}`;
+    };
+
+    const getAdminTableLabel = (tableName: any) => {
+      const resolvedTableName = String(tableName || "").trim().toLowerCase();
+      if (!resolvedTableName) {
+        return "Admin";
+      }
+      const matchingTable = adminTables.find((table: any) =>
+        String(table?.name || "").trim().toLowerCase() === resolvedTableName,
+      );
+      return matchingTable?.label || resolvedTableName;
     };
 
     if (activePage === "agents") {
@@ -3651,9 +3678,24 @@ function App() {
       ];
     }
 
+    if (activePage === "admin") {
+      if (adminRoute.view === "table" && resolvedAdminTableName) {
+        return [
+          { label: "Admin", href: "/admin" },
+          {
+            label: getAdminTableLabel(resolvedAdminTableName),
+            href: `/admin/tables/${resolvedAdminTableName}`,
+          },
+        ];
+      }
+      return [{ label: "Admin", href: "/admin" }];
+    }
+
     return [{ label: currentPageLabel, href: getPathForPage(activePage) }];
   }, [
     activePage,
+    adminRoute.view,
+    adminTables,
     agents,
     agentRunners,
     agentsRoute.agentId,
@@ -3663,6 +3705,7 @@ function App() {
     gitSkillPackages,
     gitSkillPackagesRoute.packageId,
     gitSkillPackagesRoute.view,
+    resolvedAdminTableName,
     resolvedChatSessionId,
     taskOptions,
     taskPageTasks,
@@ -3735,6 +3778,7 @@ function App() {
     activePage === "secrets"
     || activePage === "mcp-servers";
   const shouldLoadApprovalData = activePage === "approvals";
+  const shouldLoadAdminData = activePage === "admin";
   const shouldLoadMcpServerData =
     activePage === "mcp-servers"
     || activePage === "skills"
@@ -3753,6 +3797,14 @@ function App() {
     activePage === "dashboard"
     || activePage === "agent-runner"
     || (hasLoadedAgentRunners && (agentRunners.length === 0 || onboardingPhase === "runner" || onboardingPhase === "agent"));
+  const resolvedAdminTableName =
+    adminRoute.view === "table" && String(adminRoute.tableName || "").trim()
+      ? String(adminRoute.tableName || "").trim().toLowerCase()
+      : DEFAULT_ADMIN_TABLE_NAME;
+  const activeAdminTableSummary = useMemo(
+    () => adminTables.find((table: any) => String(table?.name || "").trim().toLowerCase() === resolvedAdminTableName) || null,
+    [adminTables, resolvedAdminTableName],
+  );
   useEffect(() => {
     const nextAssignments = {};
     for (const role of roles) {
@@ -4206,6 +4258,65 @@ function App() {
       setIsLoadingMcpServers(false);
     }
   }, [selectedCompanyId]);
+
+  const loadAdminTables = useCallback(async () => {
+    if (!selectedCompanyId) {
+      setAdminTables([]);
+      setAdminTableData(null);
+      setAdminError("");
+      setIsLoadingAdminTables(false);
+      setIsLoadingAdminTable(false);
+      return [];
+    }
+
+    try {
+      setAdminError("");
+      setIsLoadingAdminTables(true);
+      const data = await executeRawGraphQL(COMPANY_API_LIST_ADMIN_TABLES_QUERY);
+      const nextTables = Array.isArray(data?.adminTables) ? data.adminTables : [];
+      setAdminTables(nextTables);
+      return nextTables;
+    } catch (loadError: any) {
+      setAdminError(loadError.message);
+      return [];
+    } finally {
+      setIsLoadingAdminTables(false);
+    }
+  }, [selectedCompanyId]);
+
+  const loadAdminTable = useCallback(async ({
+    tableName = DEFAULT_ADMIN_TABLE_NAME,
+    first = adminLimit,
+    status = adminStatus,
+    search = adminSearch,
+  }: any = {}) => {
+    if (!selectedCompanyId) {
+      setAdminTableData(null);
+      setAdminError("");
+      setIsLoadingAdminTable(false);
+      return null;
+    }
+
+    try {
+      setAdminError("");
+      setIsLoadingAdminTable(true);
+      const data = await executeRawGraphQL(COMPANY_API_ADMIN_TABLE_QUERY, {
+        tableName: String(tableName || DEFAULT_ADMIN_TABLE_NAME).trim().toLowerCase(),
+        first: Number.isInteger(first) ? first : adminLimit,
+        status: String(status || "").trim() || null,
+        search: String(search || "").trim() || null,
+      });
+      const nextTable = data?.adminTable || null;
+      setAdminTableData(nextTable);
+      return nextTable;
+    } catch (loadError: any) {
+      setAdminTableData(null);
+      setAdminError(loadError.message);
+      return null;
+    } finally {
+      setIsLoadingAdminTable(false);
+    }
+  }, [adminLimit, adminSearch, adminStatus, selectedCompanyId]);
 
   const loadSecretAccessLogs = useCallback(async (secretId: any, { first = 50 }: any = {}) => {
     const normalizedSecretId = String(secretId || "").trim();
@@ -5003,6 +5114,14 @@ function App() {
     setMcpServerCustomHeadersText("");
     setMcpServerEnabled(true);
     setMcpServerError("");
+    setAdminTables([]);
+    setAdminTableData(null);
+    setAdminError("");
+    setAdminLimit(100);
+    setAdminStatus("");
+    setAdminSearch("");
+    setIsLoadingAdminTables(false);
+    setIsLoadingAdminTable(false);
     setChatAgentId("");
     setChatSessions([]);
     setChatSessionsByAgent({});
@@ -5309,6 +5428,43 @@ function App() {
     }
     loadApprovals();
   }, [loadApprovals, selectedCompanyId, shouldLoadApprovalData]);
+
+  useEffect(() => {
+    if (!selectedCompanyId || !shouldLoadAdminData) {
+      return;
+    }
+    loadAdminTables();
+  }, [loadAdminTables, selectedCompanyId, shouldLoadAdminData]);
+
+  useEffect(() => {
+    if (!selectedCompanyId || !shouldLoadAdminData) {
+      return;
+    }
+    const nextLimit = Number(activeAdminTableSummary?.defaultLimit || 100);
+    setAdminLimit(nextLimit > 0 ? nextLimit : 100);
+    setAdminStatus("");
+    setAdminSearch("");
+  }, [activeAdminTableSummary?.defaultLimit, resolvedAdminTableName, selectedCompanyId, shouldLoadAdminData]);
+
+  useEffect(() => {
+    if (!selectedCompanyId || !shouldLoadAdminData) {
+      return;
+    }
+    loadAdminTable({
+      tableName: resolvedAdminTableName,
+      first: adminLimit,
+      status: adminStatus,
+      search: adminSearch,
+    });
+  }, [
+    adminLimit,
+    adminSearch,
+    adminStatus,
+    loadAdminTable,
+    resolvedAdminTableName,
+    selectedCompanyId,
+    shouldLoadAdminData,
+  ]);
 
   useEffect(() => {
     if (!selectedCompanyId || !shouldLoadMcpServerData) {
@@ -5671,6 +5827,7 @@ function App() {
       setGitSkillPackagesRoute(getGitSkillPackagesRouteFromPathname());
       setRunnersRoute(getRunnersRouteFromPathname());
       setChatsRoute(getChatsRouteFromLocation());
+      setAdminRoute(getAdminRouteFromPathname());
     };
 
     handlePopState();
@@ -9475,6 +9632,30 @@ function App() {
     }
   }
 
+  function handleOpenAdminTable(tableName: string) {
+    const normalizedTableName = String(tableName || "").trim().toLowerCase() || DEFAULT_ADMIN_TABLE_NAME;
+    const matchingTable = adminTables.find((table: any) => String(table?.name || "").trim().toLowerCase() === normalizedTableName);
+    const nextLimit = Number(matchingTable?.defaultLimit || 100);
+    setAdminLimit(nextLimit > 0 ? nextLimit : 100);
+    setAdminStatus("");
+    setAdminSearch("");
+    setBrowserPath(`/admin/tables/${normalizedTableName}`);
+  }
+
+  function handleApplyAdminFilters(nextFilters: { limit: number; status: string; search: string }) {
+    const normalizedLimit = Number.isInteger(nextFilters?.limit) ? Number(nextFilters.limit) : adminLimit;
+    setAdminLimit(normalizedLimit > 0 ? normalizedLimit : 100);
+    setAdminStatus(String(nextFilters?.status || "").trim());
+    setAdminSearch(String(nextFilters?.search || "").trim());
+  }
+
+  function handleResetAdminFilters() {
+    const nextLimit = Number(activeAdminTableSummary?.defaultLimit || 100);
+    setAdminLimit(nextLimit > 0 ? nextLimit : 100);
+    setAdminStatus("");
+    setAdminSearch("");
+  }
+
   function navigateTo(pageId: any) {
     if (String(pageId || "").trim().toLowerCase() === "chats") {
       const shouldForceChatsList = matchesMediaQuery(SIDEBAR_COLLAPSE_MEDIA_QUERY);
@@ -10068,6 +10249,23 @@ function App() {
             onStartMcpServerOAuth={handleStartMcpServerOAuth}
             onDisconnectMcpServerOAuth={handleDisconnectMcpServerOAuth}
             onDeleteMcpServer={handleDeleteMcpServer}
+          />
+        ) : null}
+
+        {selectedCompanyId && activePage === "admin" ? (
+          <AdminPage
+            adminTables={adminTables}
+            adminTableData={adminTableData}
+            activeTableName={resolvedAdminTableName}
+            isLoadingAdminTables={isLoadingAdminTables}
+            isLoadingAdminTable={isLoadingAdminTable}
+            adminError={adminError}
+            limit={adminLimit}
+            status={adminStatus}
+            search={adminSearch}
+            onApplyFilters={handleApplyAdminFilters}
+            onResetFilters={handleResetAdminFilters}
+            onOpenTable={handleOpenAdminTable}
           />
         ) : null}
 

@@ -34,6 +34,11 @@ type DetailRoute = {
   view: "list" | "detail";
 };
 
+type AdminRoute = {
+  view: "home" | "table";
+  tableName: string;
+};
+
 export function normalizePathname(rawPathname: string): string {
   const trimmed = String(rawPathname || "").trim();
   if (!trimmed || trimmed === "/") {
@@ -202,6 +207,22 @@ export function getChatsPath({ agentId = "", threadId = "" }: ChatsPathInput = {
   }
   const query = params.toString();
   return query ? `/chats?${query}` : "/chats";
+}
+
+export function getAdminRouteFromPathname(pathname: string = window.location.pathname): AdminRoute {
+  const segments = normalizePathname(pathname).split("/").filter(Boolean);
+  if (String(segments[0] || "").toLowerCase() !== "admin") {
+    return { view: "home", tableName: "" };
+  }
+
+  if (String(segments[1] || "").toLowerCase() === "tables") {
+    const tableName = String(segments[2] || "").trim().toLowerCase();
+    if (tableName) {
+      return { view: "table", tableName };
+    }
+  }
+
+  return { view: "home", tableName: "" };
 }
 
 export function setBrowserPath(pathname: string, { replace = false }: SetBrowserPathOptions = {}): void {
