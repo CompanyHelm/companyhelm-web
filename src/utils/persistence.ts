@@ -36,7 +36,7 @@ export function persistFlags(flags: Partial<AppFlags>) {
   }
 }
 
-export type OnboardingPhase = "runner" | "agent" | "done" | null;
+export type OnboardingPhase = "runner" | "configuring" | "agent" | "done" | null;
 
 export interface OnboardingState {
   phase: OnboardingPhase;
@@ -51,7 +51,7 @@ const DEFAULT_ONBOARDING: OnboardingState = {
 };
 
 function normalizeOnboardingPhase(value: unknown): OnboardingPhase {
-  if (value === "runner" || value === "agent" || value === "done") {
+  if (value === "runner" || value === "configuring" || value === "agent" || value === "done") {
     return value;
   }
   return null;
