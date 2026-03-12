@@ -47,6 +47,9 @@ jobs:
 
           echo "repository_uri=$REPOSITORY_URI" >> "$GITHUB_OUTPUT"
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -87,7 +90,7 @@ jobs:
           done
 
           docker buildx build \
-            --platform linux/amd64 \
+            --platform linux/amd64,linux/arm64 \
             "${TAG_ARGS[@]}" \
             --push \
             .
