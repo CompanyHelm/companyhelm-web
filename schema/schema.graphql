@@ -4,6 +4,43 @@ type AddGithubInstallationPayload {
   ok: Boolean!
 }
 
+type AdminTable {
+  availableStatuses: [String!]!
+  columns: [AdminTableColumn!]!
+  defaultLimit: Int!
+  description: String
+  featured: Boolean!
+  label: String!
+  name: String!
+  rows: [AdminTableRow!]!
+  supportsStatusFilter: Boolean!
+  totalCount: Int!
+}
+
+type AdminTableCell {
+  key: String!
+  value: String
+}
+
+type AdminTableColumn {
+  key: String!
+  label: String!
+}
+
+type AdminTableRow {
+  cells: [AdminTableCell!]!
+  id: ID!
+}
+
+type AdminTableSummary {
+  defaultLimit: Int!
+  description: String
+  featured: Boolean!
+  label: String!
+  name: String!
+  supportsStatusFilter: Boolean!
+}
+
 type Agent {
   agentRunnerSdk: AgentRunnerSdk!
   company: Company!
@@ -17,7 +54,7 @@ type Agent {
   roles: [Role!]!
   runner: AgentRunner!
   status: AgentStatus!
-  threads(after: String, first: Int = 20): ThreadConnection!
+  threads(after: String, first: Int = 20, status: ThreadStatus): ThreadConnection!
 }
 
 type AgentConnection {
@@ -35,8 +72,9 @@ type AgentRunner {
   company: Company!
   id: ID!
   isConnected: Boolean!
+  lastHealthCheckAt: String
+  lastSeenAt: String
   name: String!
-  status: AgentRunnerStatus!
 }
 
 type AgentRunnerConnection {
@@ -50,29 +88,36 @@ type AgentRunnerEdge {
 }
 
 type AgentRunnerSdk {
+  codexAuthStatus: CodexAuthStatus!
+  codexAuthType: CodexAuthType
   company: Company!
+  errorMessage: String
   id: ID!
+  isAvailable: Boolean!
   models: [AgentRunnerSdkModel!]!
   name: String!
   runner: AgentRunner!
+  status: AgentRunnerSdkStatus!
 }
 
 type AgentRunnerSdkModel {
   company: Company!
   id: ID!
+  isAvailable: Boolean!
   name: String!
   reasoning: [String!]!
   sdk: AgentRunnerSdk!
 }
 
+enum AgentRunnerSdkStatus {
+  error
+  ready
+  unconfigured
+}
+
 type AgentRunnerSecretPayload {
   agentRunner: AgentRunner!
   secret: String!
-}
-
-enum AgentRunnerStatus {
-  connected
-  disconnected
 }
 
 enum AgentStatus {
@@ -139,6 +184,19 @@ type BatchTaskMutationPayload {
   tasks: [Task!]!
 }
 
+enum CodexAuthStatus {
+  failed
+  idle
+  requested
+  waiting_for_completion
+  waiting_for_device_code
+}
+
+enum CodexAuthType {
+  api_key
+  device_code
+}
+
 type Company {
   id: ID!
   name: String!
@@ -152,6 +210,11 @@ type CompanyConnection {
 type CompanyEdge {
   cursor: String!
   node: Company!
+}
+
+type CompanyExportPayload {
+  filename: String!
+  yaml: String!
 }
 
 type CreateGitSkillPackagePayload {
@@ -221,6 +284,21 @@ type DeleteTaskPayload {
   ok: Boolean!
 }
 
+enum ExportSection {
+  agentRunners
+  agents
+  approvals
+  companyProfile
+  mcpServers
+  repositories
+  roles
+  skillGroups
+  skills
+  tasks
+  threadData
+  threads
+}
+
 type GitSkillPackage {
   company: Company!
   currentCommitHash: String!
@@ -274,6 +352,17 @@ input McpHeaderInput {
   value: String!
 }
 
+type McpOAuthConnectionMutationPayload {
+  error: String
+  ok: Boolean!
+}
+
+type McpOAuthStartPayload {
+  authorizationUrl: String
+  error: String
+  ok: Boolean!
+}
+
 type McpServer {
   args: [String!]!
   authType: String!
@@ -285,6 +374,8 @@ type McpServer {
   envVars: [McpEnvVar!]!
   id: ID!
   name: String!
+  oauthConnectionStatus: String
+  oauthLastError: String
   transportType: String!
   url: String
 }
@@ -303,6 +394,7 @@ type Mutation {
   addSkillToSkillGroup(skillGroupId: ID!, skillId: ID!): SkillGroupMutationPayload!
   addTaskDependency(dependencyTaskId: ID!, taskId: ID!): TaskMutationPayload!
   approveApproval(id: ID!): ApprovalMutationPayload!
+  archiveThread(threadId: ID!): Thread!
   batchDeleteTasks(ids: [ID!]!): BatchDeleteTasksPayload!
   batchExecuteTasks(agentId: ID!, taskIds: [ID!]!): BatchTaskMutationPayload!
   createAgent(agentRunnerId: ID!, agentRunnerSdkId: ID!, defaultAdditionalModelInstructions: String, defaultModelId: ID!, defaultReasoningLevel: String, mcpServerIds: [ID!], name: String!, roleIds: [ID!]): Agent!
@@ -329,6 +421,7 @@ type Mutation {
   deleteSkillGroup(id: ID!): DeleteSkillGroupPayload!
   deleteTask(id: ID!): DeleteTaskPayload!
   deleteThread(threadId: ID!): Thread!
+  disconnectMcpServerOAuth(mcpServerId: ID!): McpOAuthConnectionMutationPayload!
   executeTask(agentId: ID!, taskId: ID!): TaskMutationPayload!
   interruptTurn(threadId: ID!): Boolean!
   previewGitSkillPackage(gitRepositoryUrl: String!): PreviewGitSkillPackagePayload!
@@ -347,6 +440,8 @@ type Mutation {
   setTaskStatus(status: TaskStatus!, taskId: ID!): TaskMutationPayload!
   signIn(email: String!, password: String!): AuthPayload!
   signUp(email: String!, firstName: String!, lastName: String, password: String!): AuthPayload!
+  startMcpServerOAuth(mcpServerId: ID!, oauthClientId: String, oauthClientSecret: String, requestedScopes: [String!]): McpOAuthStartPayload!
+  startRunnerSdkAuth(apiKey: String, authType: CodexAuthType!, runnerId: ID!, sdkId: ID!): AgentRunnerSdk!
   steerQueuedUserMessage(queuedMessageId: ID!): QueuedUserMessage!
   updateAgent(agentId: ID!, agentRunnerId: ID!, agentRunnerSdkId: ID!, defaultAdditionalModelInstructions: String, defaultModelId: ID!, defaultReasoningLevel: String, mcpServerIds: [ID!], name: String!, roleIds: [ID!]): Agent!
   updateMcpServer(args: [String!], authType: String, bearerTokenSecretId: ID, command: String, customHeaders: [McpHeaderInput!], enabled: Boolean, envVars: [McpEnvVarInput!], id: ID!, name: String!, transportType: String, url: String): McpServerMutationPayload!
@@ -385,6 +480,8 @@ enum PrincipalKind {
 }
 
 type Query {
+  adminTable(first: Int = 50, search: String, status: String, tableName: String!): AdminTable!
+  adminTables: [AdminTableSummary!]!
   agent(id: ID!): Agent
   agentRunner(id: ID!): AgentRunner
   agentRunners(after: String, first: Int = 20): AgentRunnerConnection!
@@ -392,6 +489,7 @@ type Query {
   approvals(first: Int = 50, status: ApprovalStatus): [Approval!]!
   companies(after: String, first: Int = 20): CompanyConnection!
   company(id: ID!): Company
+  exportCompanyData(sections: [ExportSection!]!): CompanyExportPayload!
   gitSkillPackage(id: ID!): GitSkillPackage
   gitSkillPackages: [GitSkillPackage!]!
   githubAppConfig: GithubAppConfig!
@@ -412,7 +510,7 @@ type Query {
   tasks(maxDepth: Int, rootTaskId: ID, topLevelOnly: Boolean): [Task!]!
   thread(id: ID!): Thread
   threadTurns(after: String, first: Int = 20, threadId: ID!): ThreadTurnConnection!
-  threads(after: String, agentId: ID, first: Int = 20): ThreadConnection!
+  threads(after: String, agentId: ID, first: Int = 20, status: ThreadStatus): ThreadConnection!
 }
 
 type QueuedUserMessage {
@@ -482,6 +580,15 @@ type RoleMutationPayload {
   error: String
   ok: Boolean!
   role: Role
+}
+
+type RunnerSdkCodexAuthEvent {
+  codexAuthStatus: CodexAuthStatus!
+  codexAuthType: CodexAuthType
+  deviceCode: String
+  errorMessage: String
+  runnerId: ID!
+  sdkId: ID!
 }
 
 type Secret {
@@ -561,9 +668,11 @@ type SkillGroupMutationPayload {
 
 type Subscription {
   agentRunnersUpdated(after: String, first: Int = 20): AgentRunnerConnection!
-  agentThreadsUpdated(after: String, agentId: ID, first: Int = 20): ThreadConnection!
+  agentThreadsUpdated(after: String, agentId: ID, first: Int = 20, status: ThreadStatus): ThreadConnection!
   agentTurnsUpdated(after: String, agentId: ID!, first: Int = 20, threadId: ID!): ThreadTurnConnection!
   queuedUserMessagesUpdated(agentId: ID!, first: Int = 200, threadId: ID!): [QueuedUserMessage!]!
+  runnerSdkCodexAuthUpdated(runnerId: ID!, sdkId: ID!): RunnerSdkCodexAuthEvent!
+  tasksUpdated(maxDepth: Int, rootTaskId: ID, topLevelOnly: Boolean): TasksUpdatedPayload!
 }
 
 type Task {
@@ -619,9 +728,16 @@ enum TaskStatus {
   pending
 }
 
+type TasksUpdatedPayload {
+  deletedTaskIds: [ID!]!
+  membershipChanged: Boolean!
+  tasks: [Task!]!
+}
+
 type Thread {
   additionalModelInstructions: String
   agent: Agent!
+  archivedAt: String
   company: Company!
   currentModel: AgentRunnerSdkModel!
   currentReasoningLevel: String
@@ -643,6 +759,8 @@ type ThreadEdge {
 }
 
 enum ThreadStatus {
+  archived
+  archiving
   deleting
   error
   pending

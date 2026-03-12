@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   DEFAULT_RUNNER_GRPC_TARGET,
@@ -281,6 +281,10 @@ import {
   getPostAgentCreationOnboardingRedirectPath,
 } from "./utils/onboarding.ts";
 
+const RelayTasksRoute = lazy(() =>
+  import("./tasks/relay/TasksRoute.tsx").then((module) => ({ default: module.TasksRoute })),
+);
+
 import {
   createRelationshipDrafts,
   createAgentDrafts,
@@ -304,7 +308,6 @@ import { FlagsPage } from "./pages/FlagsPage.tsx";
 import { AdminPage } from "./pages/AdminPage.tsx";
 
 import { DashboardPage } from "./pages/DashboardPage.tsx";
-import { TasksPage } from "./pages/TasksPage.tsx";
 import { AgentRunnerPage } from "./pages/AgentRunnerPage.tsx";
 import { AgentRunnerDetailPage } from "./pages/AgentRunnerDetailPage.tsx";
 import { AgentsPage } from "./pages/AgentsPage.tsx";
@@ -3753,9 +3756,10 @@ function App() {
   const shouldLoadGithubPageData = activePage === "settings" || activePage === "repos";
   const shouldLoadGithubRepositoryData = activePage === "repos";
   const shouldLoadCurrentUserData = activePage === "profile";
+  const useRelayTasksRoute = activePage === "tasks";
   const shouldLoadAllTaskData = activePage === "dashboard" || activePage === "profile";
-  const shouldLoadTaskPageData = activePage === "tasks";
-  const shouldLoadTaskAssignablePrincipalData = activePage === "tasks";
+  const shouldLoadTaskPageData = activePage === "tasks" && !useRelayTasksRoute;
+  const shouldLoadTaskAssignablePrincipalData = activePage === "tasks" && !useRelayTasksRoute;
   const shouldLoadSkillData =
     activePage === "skills"
     || activePage === "roles"
@@ -3791,7 +3795,6 @@ function App() {
     activePage === "agent-runner" ||
     !appFlags.skipOnboarding;
   const shouldLoadAgentData =
-    activePage === "tasks" ||
     activePage === "agents" ||
     activePage === "profile" ||
     !appFlags.skipOnboarding;
@@ -10002,47 +10005,17 @@ function App() {
         ) : null}
 
         {selectedCompanyId && activePage === "tasks" ? (
-          <TasksPage
-            tasks={taskPageTasks}
-            taskOptions={taskOptions}
-            agents={agents}
-            principals={taskAssignablePrincipals}
-            isLoadingTasks={isLoadingTaskPageTasks}
-            taskError={taskError}
-            isSubmittingTask={isSubmittingTask}
-            savingTaskId={savingTaskId}
-            commentingTaskId={commentingTaskId}
-            deletingTaskId={deletingTaskId}
-            name={name}
-            description={description}
-            assigneePrincipalId={taskAssigneePrincipalId}
-            status={taskStatus}
-            parentTaskId={parentTaskId}
-            dependencyTaskIds={dependencyTaskIds}
-            relationshipDrafts={relationshipDrafts}
-            onNameChange={setName}
-            onDescriptionChange={setDescription}
-            onAssigneePrincipalIdChange={setTaskAssigneePrincipalId}
-            onStatusChange={setTaskStatus}
-            onParentTaskIdChange={setParentTaskId}
-            onDependencyTaskIdsChange={setDependencyTaskIds}
-            onCreateTask={handleCreateTask}
-            onCreateAndExecuteTask={handleCreateAndExecuteTask}
-            onDraftChange={handleDraftChange}
-            onSaveRelationships={handleRelationshipSave}
-            onExecuteTask={handleExecuteTask}
-            onAddDependency={handleAddTaskDependency}
-            onCreateTaskComment={handleCreateTaskComment}
-            onDeleteTask={handleDeleteTask}
-            onBatchDeleteTasks={handleBatchDeleteTasks}
-            onBatchExecuteTasks={handleBatchExecuteTasks}
-            onOpenTaskThread={handleOpenTaskThread}
-            activeTaskId={tasksRoute.view === "detail" ? tasksRoute.taskId : ""}
-            visibleDepth={taskPageDepth}
-            onVisibleDepthChange={setTaskPageDepth}
-            onOpenTask={(taskId: string) => setBrowserPath(`/tasks/${taskId}`)}
-            onBackToTasks={() => setBrowserPath("/tasks")}
-          />
+          <Suspense fallback={<div className="page-empty-panel"><p>Loading tasks...</p></div>}>
+            <RelayTasksRoute
+              activeTaskId={tasksRoute.view === "detail" ? tasksRoute.taskId : ""}
+              visibleDepth={taskPageDepth}
+              onVisibleDepthChange={setTaskPageDepth}
+              onOpenTask={(taskId: string) => setBrowserPath(`/tasks/${taskId}`)}
+              onBackToTasks={() => setBrowserPath("/tasks")}
+              onOpenTaskThread={handleOpenTaskThread}
+              onRequestConfirmation={requestConfirmation}
+            />
+          </Suspense>
         ) : null}
 
         {selectedCompanyId && activePage === "skills" ? (
