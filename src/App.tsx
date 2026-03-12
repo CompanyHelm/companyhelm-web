@@ -4686,18 +4686,24 @@ function App() {
     }
     const nextRunnerNodes = toConnectionNodes(payload?.agentRunnersUpdated);
     const nextRunnerPayload = nextRunnerNodes.map((runnerNode: any) => toLegacyRunnerPayload(runnerNode));
+    const authKeysToReset = new Set<string>();
     setRunnerSdkCodexAuthEventsByKey((currentEvents: any) => {
       const nextEvents = { ...(currentEvents || {}) };
       let hasChanged = false;
       for (const runner of nextRunnerPayload) {
         for (const sdkEntry of normalizeRunnerAvailableAgentSdks(runner)) {
           const authKey = getRunnerSdkAuthKey(runner?.id, sdkEntry?.id);
+          const runnerDisconnected = runner?.isConnected !== true;
           const shouldClearAuthEvent =
-            String(sdkEntry?.status || "").trim().toLowerCase() === "ready"
+            runnerDisconnected
+            || String(sdkEntry?.status || "").trim().toLowerCase() === "ready"
             || String(sdkEntry?.status || "").trim().toLowerCase() === "error"
             || ["idle", "requested", "failed"].includes(
               String(sdkEntry?.codexAuthStatus || "").trim().toLowerCase(),
             );
+          if (authKey && shouldClearAuthEvent) {
+            authKeysToReset.add(authKey);
+          }
           if (authKey && nextEvents[authKey] && shouldClearAuthEvent) {
             delete nextEvents[authKey];
             hasChanged = true;
@@ -4706,6 +4712,11 @@ function App() {
       }
       return hasChanged ? nextEvents : currentEvents;
     });
+    if (authKeysToReset.size > 0) {
+      setStartingRunnerSdkAuthKey((currentKey: any) => (
+        authKeysToReset.has(String(currentKey || "")) ? "" : currentKey
+      ));
+    }
     setAgentRunners((currentRunners: any) =>
       mergeAgentRunnerPayloadList(currentRunners, nextRunnerPayload),
     );

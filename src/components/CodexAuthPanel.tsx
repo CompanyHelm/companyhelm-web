@@ -6,7 +6,15 @@ const CODEX_DEVICE_LOGIN_URL = "https://auth.openai.com/codex/device";
 function resolveStatusTone(params: {
   sdk: RunnerSdkEntry | null;
   authEvent: RunnerSdkCodexAuthEvent | null;
+  isRunnerConnected: boolean;
 }): { className: string; label: string; description: string } {
+  if (!params.isRunnerConnected) {
+    return {
+      className: "codex-auth-status-queued",
+      label: "disconnected",
+      description: "Runner offline. Reconnect it before starting Codex device auth again.",
+    };
+  }
   if (params.sdk?.status === "ready") {
     return {
       className: "codex-auth-status-authenticated",
@@ -65,10 +73,14 @@ export function CodexAuthPanel({
   onStartDeviceCodeAuth: (runnerId: string, sdkId: string) => void;
 }) {
   const [copyFeedback, setCopyFeedback] = useState("");
-  const statusTone = useMemo(() => resolveStatusTone({ sdk, authEvent }), [sdk, authEvent]);
-  const deviceCode = authEvent?.codexAuthStatus === "waiting_for_device_code"
+  const statusTone = useMemo(
+    () => resolveStatusTone({ sdk, authEvent, isRunnerConnected }),
+    [sdk, authEvent, isRunnerConnected],
+  );
+  const deviceCode = isRunnerConnected && authEvent?.codexAuthStatus === "waiting_for_device_code"
     ? String(authEvent.deviceCode || "").trim()
     : "";
+  const showRetryAction = isRunnerConnected && (sdk?.codexAuthStatus === "failed" || sdk?.status === "error");
 
   useEffect(() => {
     setCopyFeedback("");
@@ -117,7 +129,7 @@ export function CodexAuthPanel({
             </p>
           </>
         ) : null}
-        {sdk?.errorMessage && (sdk?.codexAuthStatus === "failed" || sdk?.status === "error") ? (
+        {isRunnerConnected && sdk?.errorMessage && (sdk?.codexAuthStatus === "failed" || sdk?.status === "error") ? (
           <p className="codex-auth-row">{sdk.errorMessage}</p>
         ) : null}
         {sdk?.status !== "ready" && sdk?.id ? (
@@ -128,7 +140,7 @@ export function CodexAuthPanel({
               disabled={!isRunnerConnected || isStarting}
               onClick={() => onStartDeviceCodeAuth(runnerId, sdk.id)}
             >
-              {isStarting ? "Starting..." : "Start device code auth"}
+              {isStarting ? "Starting..." : showRetryAction ? "Retry device code auth" : "Start device code auth"}
             </button>
           </p>
         ) : null}
