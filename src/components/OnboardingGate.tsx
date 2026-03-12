@@ -1,13 +1,18 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { isRunnerReadyAndConnected } from "../utils/formatting.ts";
 import {
   deriveEffectiveOnboardingPhase,
   reconcileOnboardingPhase,
 } from "../utils/onboarding.ts";
+import { setBrowserPath } from "../utils/path.ts";
+import type { CreatedAgentSummary } from "../utils/agent-creation.ts";
 import type { OnboardingState } from "../utils/persistence.ts";
 import { OnboardingPage, type OnboardingPageProps } from "../pages/OnboardingPage.tsx";
 
-interface OnboardingGateProps extends Omit<OnboardingPageProps, "onboardingPhase" | "provisionedSecret" | "onboardingRunnerId"> {
+interface OnboardingGateProps extends Omit<
+  OnboardingPageProps,
+  "onboardingPhase" | "provisionedSecret" | "onboardingRunnerId" | "createdAgent" | "isCreatingPostCreateChat" | "onChatNow" | "onSkipPostCreate"
+> {
   selectedCompanyId: string;
   skipOnboarding: boolean;
   hasLoadedAgentRunners: boolean;
@@ -20,6 +25,7 @@ interface OnboardingGateProps extends Omit<OnboardingPageProps, "onboardingPhase
   setOnboardingRunnerId: (runnerId: string) => void;
   setOnboardingRunnerSecret: (runnerSecret: string) => void;
   persistOnboarding: (state: Partial<OnboardingState>) => void;
+  onCreateChatForAgent: (agentId: string) => Promise<void> | void;
 }
 
 function resolveOnboardingPhase({
@@ -62,10 +68,13 @@ export function OnboardingGate({
   setOnboardingRunnerId,
   setOnboardingRunnerSecret,
   persistOnboarding,
+  onCreateChatForAgent,
   ...onboardingPageProps
 }: OnboardingGateProps) {
   const normalizedCompanyId = String(selectedCompanyId || "").trim();
   const normalizedRunnerId = String(onboardingRunnerId || "").trim();
+  const [createdAgent, setCreatedAgent] = useState<CreatedAgentSummary | null>(null);
+  const [isCreatingPostCreateChat, setIsCreatingPostCreateChat] = useState(false);
 
   const onboardingCounts = useMemo(() => {
     const runnerCount = agentRunners.length;
@@ -78,11 +87,14 @@ export function OnboardingGate({
     if (!normalizedCompanyId || skipOnboarding || !hasLoadedAgentRunners) {
       return null;
     }
+    if (createdAgent) {
+      return "agent";
+    }
     return resolveOnboardingPhase({
       onboardingPhase,
       ...onboardingCounts,
     });
-  }, [hasLoadedAgentRunners, normalizedCompanyId, onboardingCounts, onboardingPhase, skipOnboarding]);
+  }, [createdAgent, hasLoadedAgentRunners, normalizedCompanyId, onboardingCounts, onboardingPhase, skipOnboarding]);
 
   const resolvedOnboardingRunnerId = useMemo(() => {
     if (normalizedRunnerId && agentRunners.some((runner) => String(runner?.id || "").trim() === normalizedRunnerId)) {
@@ -93,6 +105,9 @@ export function OnboardingGate({
 
   useEffect(() => {
     if (!normalizedCompanyId || skipOnboarding || !hasLoadedAgentRunners) {
+      return;
+    }
+    if (createdAgent) {
       return;
     }
 
@@ -139,7 +154,51 @@ export function OnboardingGate({
     setOnboardingRunnerId,
     setOnboardingRunnerSecret,
     skipOnboarding,
+    createdAgent,
   ]);
+
+  function completeOnboarding() {
+    setCreatedAgent(null);
+    setOnboardingPhase("done");
+    setOnboardingRunnerId("");
+    setOnboardingRunnerSecret("");
+    persistOnboarding({
+      phase: "done",
+      runnerId: "",
+      runnerSecret: "",
+    });
+  }
+
+  async function handleCreateAgent(event: Parameters<OnboardingPageProps["onCreateAgent"]>[0]) {
+    const createdAgentName = String(onboardingPageProps.agentName || "").trim() || "New agent";
+    const result = await onboardingPageProps.onCreateAgent(event);
+    if (typeof result === "string") {
+      setCreatedAgent({
+        id: result,
+        name: createdAgentName,
+      });
+    }
+    return result;
+  }
+
+  async function handleChatNow() {
+    if (!createdAgent?.id) {
+      return;
+    }
+
+    try {
+      setIsCreatingPostCreateChat(true);
+      await onCreateChatForAgent(createdAgent.id);
+      completeOnboarding();
+    } finally {
+      setIsCreatingPostCreateChat(false);
+    }
+  }
+
+  function handleSkipPostCreate() {
+    completeOnboarding();
+    setBrowserPath("/agents");
+  }
 
   if (!normalizedCompanyId || skipOnboarding || !hasLoadedAgentRunners || resolvedPhase === null) {
     return null;
@@ -152,6 +211,11 @@ export function OnboardingGate({
       onboardingRunnerId={resolvedOnboardingRunnerId}
       agentRunners={agentRunners}
       onboardingPhase={resolvedPhase}
+      onCreateAgent={handleCreateAgent}
+      createdAgent={createdAgent}
+      isCreatingPostCreateChat={isCreatingPostCreateChat}
+      onChatNow={handleChatNow}
+      onSkipPostCreate={handleSkipPostCreate}
     />
   );
 }

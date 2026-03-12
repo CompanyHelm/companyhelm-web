@@ -278,8 +278,10 @@ import { createSingleFlightByKey } from "./utils/single-flight.ts";
 
 import { buildRunnerStartCommand } from "./utils/shell.ts";
 import {
-  getPostAgentCreationOnboardingRedirectPath,
-} from "./utils/onboarding.ts";
+  createAgentRecord,
+  resolveAgentModelSelectionChange,
+  resolveAgentRunnerSelectionChange,
+} from "./utils/agent-creation.ts";
 
 const RelayTasksRoute = lazy(() =>
   import("./tasks/relay/TasksRoute.tsx").then((module) => ({ default: module.TasksRoute })),
@@ -8177,118 +8179,28 @@ function App() {
 
   async function handleCreateAgent(event: any) {
     event.preventDefault();
-    if (!selectedCompanyId) {
-      setAgentError("Select a company before creating agents.");
-      return false;
-    }
-    if (agentRunners.length === 0) {
-      setAgentError("Register at least one runner before creating an agent.");
-      return false;
-    }
-    if (!agentName.trim()) {
-      setAgentError("Agent name is required.");
-      return false;
-    }
-    if (!agentRunnerId) {
-      setAgentError("Assign a runner before creating an agent.");
-      return false;
-    }
-
-    const selectedRunner = agentRunnerLookup.get(agentRunnerId);
-    if (!selectedRunner) {
-      setAgentError(`Assigned runner ${agentRunnerId} was not found for this company.`);
-      return false;
-    }
-    if (!isRunnerReadyAndConnected(selectedRunner)) {
-      setAgentError(`Assigned runner ${agentRunnerId} must be connected with a configured Codex SDK before creating an agent.`);
-      return false;
-    }
-
-    const normalizedSdk = normalizeAgentSdkValue(agentSdk);
-    if (!isAvailableAgentSdk(normalizedSdk)) {
-      setAgentError(`agentSdk must be one of: ${AVAILABLE_AGENT_SDKS.join(", ")}.`);
-      return false;
-    }
-
-    const selectedRunnerCodexModels = getRunnerCodexModelEntriesForRunner(
-      runnerCodexModelEntriesById,
-      agentRunnerId,
-    );
-    if (selectedRunnerCodexModels.length === 0) {
-      setAgentError(`Runner ${agentRunnerId} has not reported any available models yet.`);
-      return false;
-    }
-
-    const normalizedModel = String(agentModel || "").trim();
-    if (!normalizedModel) {
-      setAgentError("Model is required.");
-      return false;
-    }
-    if (!getRunnerModelNames(selectedRunnerCodexModels).includes(normalizedModel)) {
-      setAgentError(
-        `Model "${normalizedModel}" is not available on runner ${agentRunnerId}. Wait for runner model updates and try again.`,
-      );
-      return false;
-    }
-
-    const normalizedReasoning = String(agentModelReasoningLevel || "").trim();
-    if (!normalizedReasoning) {
-      setAgentError("Model reasoning level is required.");
-      return false;
-    }
-    if (!getRunnerReasoningLevels(selectedRunnerCodexModels, normalizedModel).includes(normalizedReasoning)) {
-      setAgentError(
-        `Reasoning "${normalizedReasoning}" is not available for model "${normalizedModel}" on runner ${agentRunnerId}.`,
-      );
-      return false;
-    }
-    const { agentRunnerSdkId, defaultModelId } = resolveRunnerSdkAndModelIds({
-      runner: selectedRunner,
-      sdkName: normalizedSdk,
-      modelName: normalizedModel,
-    });
-    if (!agentRunnerSdkId) {
-      setAgentError(
-        `Runner ${agentRunnerId} did not provide SDK metadata for "${normalizedSdk}". Refresh runners and try again.`,
-      );
-      return false;
-    }
-    if (!defaultModelId) {
-      setAgentError(
-        `Runner ${agentRunnerId} did not provide model metadata for "${normalizedModel}". Refresh runners and try again.`,
-      );
-      return false;
-    }
-
     try {
       setIsCreatingAgent(true);
       setAgentError("");
-      const cleanAgentMcpServerIds = resolveEffectiveRoleMcpServerIds(
+      const result = await createAgentRecord({
+        selectedCompanyId,
+        agentRunners,
+        agentRunnerLookup,
+        runnerCodexModelEntriesById,
         agentRoleIds,
-        roles,
-        roleMcpServerIdsByRoleId,
-      );
-      const normalizedDefaultAdditionalModelInstructions = normalizeOptionalInstructions(
+        agentName,
+        agentRunnerId,
+        agentSdk,
+        agentModel,
+        agentModelReasoningLevel,
         agentDefaultAdditionalModelInstructions,
-      );
-      const data = await executeGraphQL(CREATE_AGENT_MUTATION, {
-        companyId: selectedCompanyId,
-        agentRunnerId: agentRunnerId || null,
-        roleIds: agentRoleIds,
-        mcpServerIds: cleanAgentMcpServerIds,
-        defaultAdditionalModelInstructions: normalizedDefaultAdditionalModelInstructions,
-        name: agentName.trim(),
-        agentSdk: normalizedSdk,
-        model: normalizedModel,
-        modelReasoningLevel: normalizedReasoning,
-        agentRunnerSdkId,
-        defaultModelId,
-        defaultReasoningLevel: normalizedReasoning,
+        resolveEffectiveMcpServerIds: () => resolveEffectiveRoleMcpServerIds(
+          agentRoleIds,
+          roles,
+          roleMcpServerIdsByRoleId,
+        ),
+        executeCreateAgent: (variables) => executeGraphQL(CREATE_AGENT_MUTATION, variables),
       });
-      const result = data.createAgent;
-      if (!result.ok) {
-        throw new Error(result.error || "Agent creation failed.");
-      }
       setAgentName("");
       setAgentRunnerId("");
       setAgentRoleIds([]);
@@ -8298,7 +8210,7 @@ function App() {
       setAgentModelReasoningLevel("");
       setAgentDefaultAdditionalModelInstructions("");
       await loadAgents();
-      return result.agent?.id || true;
+      return result.createdAgentId || true;
     } catch (createError: any) {
       setAgentError(createError.message);
       return false;
@@ -9360,22 +9272,16 @@ function App() {
   }
 
   function handleCreateAgentRunnerChange(nextRunnerId: any) {
-    const normalizedRunnerId = String(nextRunnerId || "").trim();
-    setAgentRunnerId(normalizedRunnerId);
-
-    const selectedRunnerCodexModels = getRunnerCodexModelEntriesForRunner(
+    const nextSelection = resolveAgentRunnerSelectionChange({
+      nextRunnerId: String(nextRunnerId || "").trim(),
+      currentModel: agentModel,
+      currentReasoningLevel: agentModelReasoningLevel,
       runnerCodexModelEntriesById,
-      normalizedRunnerId,
-    );
-    const resolvedSelection = resolveRunnerBackedModelSelection({
-      codexModelEntries: selectedRunnerCodexModels,
-      requestedModel: agentModel,
-      requestedReasoning: agentModelReasoningLevel,
     });
-
-    setAgentSdk(DEFAULT_AGENT_SDK);
-    setAgentModel(resolvedSelection.model);
-    setAgentModelReasoningLevel(resolvedSelection.modelReasoningLevel);
+    setAgentRunnerId(nextSelection.agentRunnerId);
+    setAgentSdk(nextSelection.agentSdk);
+    setAgentModel(nextSelection.agentModel);
+    setAgentModelReasoningLevel(nextSelection.agentModelReasoningLevel);
   }
 
   function handleCreateAgentSdkChange(nextSdk: any) {
@@ -9387,19 +9293,14 @@ function App() {
   }
 
   function handleCreateAgentModelChange(nextModel: any) {
-    const normalizedModel = String(nextModel || "").trim();
-    const selectedRunnerCodexModels = getRunnerCodexModelEntriesForRunner(
-      runnerCodexModelEntriesById,
+    const nextSelection = resolveAgentModelSelectionChange({
       agentRunnerId,
-    );
-    const resolvedSelection = resolveRunnerBackedModelSelection({
-      codexModelEntries: selectedRunnerCodexModels,
-      requestedModel: normalizedModel,
-      requestedReasoning: agentModelReasoningLevel,
+      nextModel: String(nextModel || "").trim(),
+      currentReasoningLevel: agentModelReasoningLevel,
+      runnerCodexModelEntriesById,
     });
-
-    setAgentModel(resolvedSelection.model);
-    setAgentModelReasoningLevel(resolvedSelection.modelReasoningLevel);
+    setAgentModel(nextSelection.agentModel);
+    setAgentModelReasoningLevel(nextSelection.agentModelReasoningLevel);
   }
 
   function handleCreateAgentReasoningLevelChange(nextReasoningLevel: any) {
@@ -9945,22 +9846,8 @@ function App() {
               onAgentSdkChange={handleCreateAgentSdkChange}
               onAgentModelChange={handleCreateAgentModelChange}
               onAgentModelReasoningLevelChange={handleCreateAgentReasoningLevelChange}
-              onCreateAgent={async (event: any) => {
-                const result = await handleCreateAgent(event);
-                if (typeof result === "string") {
-                  setOnboardingPhase("done");
-                  setOnboardingRunnerSecret("");
-                  setOnboardingRunnerId("");
-                  setRunnerSdkCodexAuthEventsByKey({});
-                  persistOnboarding({
-                    phase: "done",
-                    runnerId: "",
-                    runnerSecret: "",
-                  });
-                  setBrowserPath(getPostAgentCreationOnboardingRedirectPath(result));
-                }
-                return result;
-              }}
+              onCreateAgent={handleCreateAgent}
+              onCreateChatForAgent={handleCreateChatForAgent}
               onAdvanceToAgentPhase={() => {
                 if (onboardingRunnerId) {
                   handleCreateAgentRunnerChange(onboardingRunnerId);
@@ -10448,6 +10335,7 @@ function App() {
               onInitializeAgent={handleInitializeAgent}
               onRetryAgentSkillInstall={handleRetryAgentSkillInstall}
               onOpenAgentSessions={handleOpenAgentSessions}
+              onCreateChatForAgent={handleCreateChatForAgent}
               onDeleteAgent={handleDeleteAgent}
               pendingEditAgentId={pendingEditAgentId}
               onClearPendingEditAgentId={() => setPendingEditAgentId("")}

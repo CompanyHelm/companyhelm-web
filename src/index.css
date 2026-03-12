@@ -810,6 +810,28 @@ h3 {
   margin-top: 0.3rem;
 }
 
+.agent-created-actions {
+  margin-top: 0.4rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.agent-created-actions-copy {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.agent-created-actions-copy h2 {
+  margin: 0;
+  font-family: "Syne", sans-serif;
+  font-size: clamp(1.4rem, 3vw, 1.9rem);
+}
+
+.agent-created-actions-copy .subcopy {
+  margin: 0;
+  max-width: 34rem;
+}
+
 /* ── Onboarding chat form ── */
 .onboarding-chat-form {
   margin-top: 0.4rem;

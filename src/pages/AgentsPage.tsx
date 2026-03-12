@@ -9,9 +9,11 @@ import {
   type MouseEvent,
 } from "react";
 import { Page } from "../components/Page.tsx";
+import { AgentCreateModal } from "../components/AgentCreateModal.tsx";
 import { CreationModal } from "../components/CreationModal.tsx";
 import { AgentEditModal } from "../components/AgentEditModal.tsx";
-import { AVAILABLE_AGENT_SDKS, DEFAULT_AGENT_SDK } from "../utils/constants.ts";
+import { DEFAULT_AGENT_SDK } from "../utils/constants.ts";
+import { getAgentCreationFormStatus, type CreatedAgentSummary } from "../utils/agent-creation.ts";
 import {
   normalizeUniqueStringList,
   getRunnerCodexModelEntriesForRunner,
@@ -76,19 +78,6 @@ function resolveEffectiveRoleMcpServerIds(expandedRoleIds: string[], roleMcpServ
   return effectiveMcpServerIds;
 }
 
-function formatAvailabilityOptionLabel(
-  name: string,
-  availabilityState: "available" | "unavailable" | "not-reported",
-) {
-  if (availabilityState === "available") {
-    return `${name} (available)`;
-  }
-  if (availabilityState === "unavailable") {
-    return `${name} (unavailable)`;
-  }
-  return `${name} (not reported)`;
-}
-
 type AgentDraftField = keyof AgentDraft;
 
 interface AgentsPageProps {
@@ -129,6 +118,7 @@ interface AgentsPageProps {
   onEnsureAgentEditorData: () => Promise<void> | void;
   onSaveAgent: (agentId: string) => Promise<boolean> | boolean;
   onOpenAgentSessions: (agentId: string) => void;
+  onCreateChatForAgent: (agentId: string) => Promise<void> | void;
   onDeleteAgent: (agentId: string, agentName: string, forceDelete: boolean) => Promise<boolean> | boolean;
   pendingEditAgentId: string;
   onClearPendingEditAgentId: () => void;
@@ -172,11 +162,14 @@ export function AgentsPage({
   onEnsureAgentEditorData,
   onSaveAgent,
   onOpenAgentSessions,
+  onCreateChatForAgent,
   onDeleteAgent,
   pendingEditAgentId,
   onClearPendingEditAgentId,
 }: AgentsPageProps) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [createdAgent, setCreatedAgent] = useState<CreatedAgentSummary | null>(null);
+  const [isCreatingPostCreateChat, setIsCreatingPostCreateChat] = useState(false);
   const [editingAgentId, setEditingAgentId] = useState("");
   const [pendingDeleteAgent, setPendingDeleteAgent] = useState<{ id: string; name: string } | null>(null);
   const [forceDeleteAgent, setForceDeleteAgent] = useState(false);
@@ -243,6 +236,32 @@ export function AgentsPage({
       roles.filter((role) => !createAssignedRoleIds.includes(role.id)),
     [createAssignedRoleIds, roles],
   );
+  const createFormStatus = useMemo(() => {
+    return getAgentCreationFormStatus({
+      agentRunners,
+      runnerCodexModelEntriesById,
+      agentName,
+      agentRunnerId,
+      agentSdk,
+      agentModel,
+      agentModelReasoningLevel,
+    });
+  }, [
+    agentModel,
+    agentModelReasoningLevel,
+    agentName,
+    agentRunnerId,
+    agentRunners,
+    agentSdk,
+    runnerCodexModelEntriesById,
+  ]);
+  const createEffectiveMcpServerLabels = useMemo(
+    () => createEffectiveMcpServerIds.map((mcpServerId) => {
+      const mcpServer = mcpServerLookup.get(mcpServerId);
+      return mcpServer ? mcpServer.name : mcpServerId;
+    }),
+    [createEffectiveMcpServerIds, mcpServerLookup],
+  );
   const hasReadyConnectedRunner = agentRunners.some((runner) => isRunnerReadyAndConnected(runner));
   const isCreateBlockedByRunners = hasLoadedAgentRunners && !hasReadyConnectedRunner;
   const createAgentButtonTitle = isCreateBlockedByRunners
@@ -261,13 +280,42 @@ export function AgentsPage({
 
   const openCreateAgentModal = useCallback(() => {
     void onEnsureAgentEditorData();
+    setCreatedAgent(null);
     setIsCreateModalOpen(true);
   }, [onEnsureAgentEditorData]);
 
+  function closeCreateAgentModal() {
+    setCreatedAgent(null);
+    setIsCreatingPostCreateChat(false);
+    setIsCreateModalOpen(false);
+  }
+
   async function handleCreateAgentSubmit(event: FormEvent<HTMLFormElement>) {
+    const createdAgentName = String(agentName || "").trim() || "New agent";
     const didCreate = await onCreateAgent(event);
+    if (typeof didCreate === "string") {
+      setCreatedAgent({
+        id: didCreate,
+        name: createdAgentName,
+      });
+      return;
+    }
     if (didCreate) {
-      setIsCreateModalOpen(false);
+      closeCreateAgentModal();
+    }
+  }
+
+  async function handleCreateModalChatNow() {
+    if (!createdAgent?.id) {
+      return;
+    }
+
+    try {
+      setIsCreatingPostCreateChat(true);
+      await onCreateChatForAgent(createdAgent.id);
+      closeCreateAgentModal();
+    } finally {
+      setIsCreatingPostCreateChat(false);
     }
   }
 
@@ -456,223 +504,40 @@ export function AgentsPage({
         ) : null}
       </section>
 
-      <CreationModal
-        modalId="create-agent-modal"
-        title="Create agent"
-        description="Register a new agent profile for this company. A connected runner with a configured Codex SDK is required."
+      <AgentCreateModal
         isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-      >
-        <form className="task-form" onSubmit={handleCreateAgentSubmit}>
-          <label htmlFor="agent-runner-id">Assigned runner</label>
-          <select
-            id="agent-runner-id"
-            name="agentRunnerId"
-            value={agentRunnerId}
-            onChange={(event: ChangeEvent<HTMLSelectElement>) => onAgentRunnerChange(event.target.value)}
-            required
-            disabled={!hasLoadedAgentRunners || !hasReadyConnectedRunner}
-          >
-            {!hasLoadedAgentRunners ? (
-              <option value="">Loading runners...</option>
-            ) : !hasReadyConnectedRunner ? (
-              <option value="">No connected runners with configured Codex available</option>
-            ) : (
-              <>
-                <option value="">Select runner</option>
-                {agentRunners.map((runner) => (
-                  <option key={runner.id} value={runner.id}>
-                    {formatRunnerLabel(runner)}
-                  </option>
-                ))}
-              </>
-            )}
-          </select>
-
-          <label htmlFor="create-agent-skills-assigned">Assigned roles (optional)</label>
-          <div id="create-agent-skills-assigned" className="inline-selection-list">
-            {createAssignedRoleIds.length === 0 ? (
-              <span className="empty-hint">No roles assigned.</span>
-            ) : (
-              createAssignedRoleIds.map((roleId) => {
-                const role = roleLookup.get(roleId);
-                const roleLabel = role ? role.name : roleId;
-                return (
-                  <button
-                    key={`create-agent-remove-skill-${roleId}`}
-                    type="button"
-                    className="tag-remove-btn"
-                    onClick={() =>
-                      onAgentRoleIdsChange(
-                        createAssignedRoleIds.filter(
-                          (candidateId) => candidateId !== roleId,
-                        ),
-                      )
-                    }
-                    title={`Remove ${roleLabel}`}
-                  >
-                    {roleLabel} ×
-                  </button>
-                );
-              })
-            )}
-          </div>
-
-          <label htmlFor="create-agent-skill-add">Add role</label>
-          <select
-            id="create-agent-skill-add"
-            value=""
-            onChange={(event: ChangeEvent<HTMLSelectElement>) => {
-              const nextRoleId = String(event.target.value || "").trim();
-              if (!nextRoleId) {
-                return;
-              }
-              onAgentRoleIdsChange([...createAssignedRoleIds, nextRoleId]);
-            }}
-            disabled={createAvailableRoles.length === 0}
-          >
-            <option value="">
-              {createAvailableRoles.length === 0
-                ? "All roles already assigned"
-                : "Select role to assign"}
-            </option>
-            {createAvailableRoles.map((role) => (
-              <option key={`create-agent-skill-${role.id}`} value={role.id}>
-                {role.name}
-              </option>
-            ))}
-          </select>
-
-          <label htmlFor="create-agent-effective-mcp">Effective MCP servers (from roles)</label>
-          <div id="create-agent-effective-mcp" className="inline-selection-list">
-            {createEffectiveMcpServerIds.length === 0 ? (
-              <span className="empty-hint">No MCP servers inherited from assigned roles.</span>
-            ) : (
-              createEffectiveMcpServerIds.map((mcpServerId) => {
-                const mcpServer = mcpServerLookup.get(mcpServerId);
-                const mcpServerLabel = mcpServer ? mcpServer.name : mcpServerId;
-                return (
-                  <span key={`create-agent-effective-mcp-${mcpServerId}`} className="tag-pill">
-                    {mcpServerLabel}
-                  </span>
-                );
-              })
-            )}
-          </div>
-
-          <label htmlFor="agent-name">Name</label>
-          <input
-            id="agent-name"
-            name="name"
-            placeholder="e.g. CEO Agent"
-            value={agentName}
-            onChange={(event: ChangeEvent<HTMLInputElement>) => onAgentNameChange(event.target.value)}
-            required
-            autoFocus
-          />
-
-          <label htmlFor="agent-sdk">Agent SDK</label>
-          <select
-            id="agent-sdk"
-            name="agentSdk"
-            value={agentSdk}
-            onChange={(event: ChangeEvent<HTMLSelectElement>) => onAgentSdkChange(event.target.value)}
-            required
-          >
-            {AVAILABLE_AGENT_SDKS.map((sdkName) => (
-              <option
-                key={`create-agent-sdk-${sdkName}`}
-                value={sdkName}
-                disabled={Boolean(agentRunnerId) && createRunnerSdkAvailabilityByName.get(sdkName) !== "available"}
-              >
-                {formatAvailabilityOptionLabel(
-                  sdkName,
-                  createRunnerSdkAvailabilityByName.get(sdkName) || "not-reported",
-                )}
-              </option>
-            ))}
-          </select>
-
-          <label htmlFor="agent-model">Default model</label>
-          <select
-            id="agent-model"
-            name="defaultModel"
-            value={agentModel}
-            onChange={(event: ChangeEvent<HTMLSelectElement>) => onAgentModelChange(event.target.value)}
-            required
-            disabled={!agentRunnerId}
-          >
-            {!agentRunnerId ? (
-              <option value="">Select a runner first</option>
-            ) : createRunnerCodexModelEntries.length === 0 ? (
-              <option value="">No models reported by selected runner</option>
-            ) : createRunnerModelNames.length === 0 ? (
-              <option value="">No available models reported by selected runner</option>
-            ) : (
-              <>
-                <option value="">Select default model</option>
-                {createRunnerCodexModelEntries.map((modelEntry) => (
-                  <option
-                    key={`create-agent-model-${modelEntry.name}`}
-                    value={modelEntry.name}
-                    disabled={!modelEntry.isAvailable}
-                  >
-                    {formatAvailabilityOptionLabel(
-                      modelEntry.name,
-                      modelEntry.isAvailable ? "available" : "unavailable",
-                    )}
-                  </option>
-                ))}
-              </>
-            )}
-          </select>
-
-          <label htmlFor="agent-reasoning-level">Default reasoning level</label>
-          <select
-            id="agent-reasoning-level"
-            name="defaultReasoningLevel"
-            value={agentModelReasoningLevel}
-            onChange={(event: ChangeEvent<HTMLSelectElement>) => onAgentModelReasoningLevelChange(event.target.value)}
-            required
-            disabled={!agentRunnerId || !agentModel}
-          >
-            {!agentRunnerId ? (
-              <option value="">Select a runner first</option>
-            ) : !agentModel ? (
-              <option value="">Select a model first</option>
-            ) : createRunnerReasoningLevels.length === 0 ? (
-              <option value="">No reasoning levels reported for this model</option>
-            ) : (
-              <>
-                <option value="">Select default reasoning level</option>
-                {createRunnerReasoningLevels.map((reasoningLevel) => (
-                  <option key={`create-agent-reasoning-${reasoningLevel}`} value={reasoningLevel}>
-                    {reasoningLevel}
-                  </option>
-                ))}
-              </>
-            )}
-          </select>
-
-          <label htmlFor="agent-default-additional-model-instructions">
-            Default additional model instructions (optional)
-          </label>
-          <textarea
-            id="agent-default-additional-model-instructions"
-            name="defaultAdditionalModelInstructions"
-            value={agentDefaultAdditionalModelInstructions}
-            onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
-              onAgentDefaultAdditionalModelInstructionsChange(event.target.value)
-            }
-            rows={4}
-            placeholder="Optional. Used for new chats when no thread-specific instructions are provided."
-          />
-
-          <button type="submit" disabled={isCreatingAgent || !hasReadyConnectedRunner}>
-            {isCreatingAgent ? "Creating..." : "Create agent"}
-          </button>
-        </form>
-      </CreationModal>
+        hasLoadedAgentRunners={hasLoadedAgentRunners}
+        formStatus={createFormStatus}
+        agentRunners={agentRunners}
+        createAssignedRoleIds={createAssignedRoleIds}
+        createAvailableRoles={createAvailableRoles}
+        createEffectiveMcpServerLabels={createEffectiveMcpServerLabels}
+        roleLabelById={new Map(roles.map((role) => [role.id, role.name]))}
+        agentRunnerId={agentRunnerId}
+        agentName={agentName}
+        agentSdk={agentSdk}
+        agentModel={agentModel}
+        agentModelReasoningLevel={agentModelReasoningLevel}
+        agentDefaultAdditionalModelInstructions={agentDefaultAdditionalModelInstructions}
+        sdkAvailabilityByName={createRunnerSdkAvailabilityByName}
+        runnerModelEntries={createRunnerCodexModelEntries}
+        runnerModelNames={createRunnerModelNames}
+        runnerReasoningLevels={createRunnerReasoningLevels}
+        isCreatingAgent={isCreatingAgent}
+        createdAgent={createdAgent}
+        isCreatingPostCreateChat={isCreatingPostCreateChat}
+        onClose={closeCreateAgentModal}
+        onCreateAgent={handleCreateAgentSubmit}
+        onAgentRunnerChange={onAgentRunnerChange}
+        onAgentRoleIdsChange={onAgentRoleIdsChange}
+        onAgentNameChange={onAgentNameChange}
+        onAgentSdkChange={onAgentSdkChange}
+        onAgentModelChange={onAgentModelChange}
+        onAgentModelReasoningLevelChange={onAgentModelReasoningLevelChange}
+        onAgentDefaultAdditionalModelInstructionsChange={onAgentDefaultAdditionalModelInstructionsChange}
+        onChatNow={handleCreateModalChatNow}
+        onSkipPostCreate={closeCreateAgentModal}
+      />
 
       <AgentEditModal
         agents={agents}
