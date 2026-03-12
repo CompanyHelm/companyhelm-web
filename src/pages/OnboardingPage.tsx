@@ -1,7 +1,7 @@
 import { useState, useMemo, type ChangeEvent, type FormEvent } from "react";
 import { CodexAuthPanel } from "../components/CodexAuthPanel.tsx";
 import { Page } from "../components/Page.tsx";
-import { quoteShellArg } from "../utils/shell.ts";
+import { buildRunnerStartCommand } from "../utils/shell.ts";
 import { isRunnerReadyAndConnected } from "../utils/formatting.ts";
 import {
   getRunnerCodexModelEntriesForRunner,
@@ -109,12 +109,21 @@ export function OnboardingPage({
 
   const localStartCommand = useMemo(() => {
     const secret = provisionedSecret || "<RUNNER_SECRET>";
-    return `npx companyhelm runner start --use-host-docker-runtime --use-dedicated-auth --secret ${quoteShellArg(secret)} --daemon`;
+    return buildRunnerStartCommand({
+      runnerSecret: secret,
+      useHostDockerRuntime: true,
+      useDedicatedAuth: true,
+      daemon: true,
+    });
   }, [provisionedSecret]);
 
   const vmStartCommand = useMemo(() => {
     const secret = provisionedSecret || "<RUNNER_SECRET>";
-    return `npx companyhelm runner start --use-dedicated-auth --secret ${quoteShellArg(secret)} --daemon`;
+    return buildRunnerStartCommand({
+      runnerSecret: secret,
+      useDedicatedAuth: true,
+      daemon: true,
+    });
   }, [provisionedSecret]);
 
   const onboardingCodexSdk = useMemo(() => {

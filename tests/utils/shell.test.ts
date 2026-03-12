@@ -8,5 +8,19 @@ test("buildRunnerStartCommand returns the runner start command with secret", () 
     runnerSecret: "secret-123",
   });
 
-  assert.equal(command, "companyhelm runner start --secret secret-123");
+  assert.equal(command, "npx @companyhelm/runner start --secret secret-123");
+});
+
+test("buildRunnerStartCommand includes onboarding flags when requested", () => {
+  const command = buildRunnerStartCommand({
+    runnerSecret: "secret-123",
+    useHostDockerRuntime: true,
+    useDedicatedAuth: true,
+    daemon: true,
+  });
+
+  assert.equal(
+    command,
+    "npx @companyhelm/runner start --use-host-docker-runtime --use-dedicated-auth --secret secret-123 --daemon",
+  );
 });
