@@ -111,7 +111,7 @@ export function AdminPage({
   }
 
   return (
-    <Page><div className="page-stack">
+    <Page className="page-container-full"><div className="page-stack admin-page-stack">
       <section className="dashboard-grid">
         <article className="panel stat-panel">
           <p className="stat-label">Current table</p>
@@ -165,7 +165,7 @@ export function AdminPage({
         </aside>
 
         <div className="admin-main-column">
-          <section className="panel list-panel">
+          <section className="panel list-panel admin-filters-panel">
             <form className="admin-filter-form" onSubmit={handleApplyFilters}>
               <label className="admin-filter-field">
                 <span>Limit</span>
@@ -220,7 +220,7 @@ export function AdminPage({
             {adminError ? <p className="error-banner">{adminError}</p> : null}
           </section>
 
-          <section className="panel list-panel">
+          <section className="panel list-panel admin-table-panel">
             <div className="admin-table-header">
               <div>
                 <p className="chat-card-title">

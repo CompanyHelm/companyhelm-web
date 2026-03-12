@@ -3638,16 +3638,30 @@ button:disabled {
   cursor: not-allowed;
 }
 
+.admin-page-stack {
+  min-width: 0;
+  overflow-x: hidden;
+}
+
 .admin-layout {
   display: grid;
   grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
   gap: 1rem;
   align-items: start;
+  min-width: 0;
+}
+
+.admin-layout > * {
+  min-width: 0;
 }
 
 .admin-main-column {
   display: grid;
   gap: 1rem;
+  min-width: 0;
+}
+
+.admin-main-column > .panel {
   min-width: 0;
 }
 
@@ -3711,6 +3725,11 @@ button:disabled {
   align-items: end;
 }
 
+.admin-filters-panel,
+.admin-table-panel {
+  min-width: 0;
+}
+
 .admin-filter-field {
   display: grid;
   gap: 0.3rem;
@@ -3750,7 +3769,13 @@ button:disabled {
 }
 
 .admin-table-scroll {
+  width: 100%;
+  max-width: 100%;
   max-height: 70vh;
+}
+
+.admin-table-panel {
+  overflow: hidden;
 }
 
 .admin-table {
