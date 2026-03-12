@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   buildPreviewBuildCommandArgs,
+  buildPreviewServeCommandArgs,
   resolveContainerConfigPath,
   resolvePreviewPort,
 } from "../../scripts/start-preview-container.js";
@@ -26,6 +27,14 @@ test("buildPreviewBuildCommandArgs forwards --config-path to vite wrapper", () =
     "build",
     "--config-path",
     "/run/companyhelm/config.yaml",
+  ]);
+});
+
+test("buildPreviewServeCommandArgs launches the static container server on the requested port", () => {
+  assert.deepEqual(buildPreviewServeCommandArgs("4173"), [
+    "scripts/serve-static-container.js",
+    "--port",
+    "4173",
   ]);
 });
 

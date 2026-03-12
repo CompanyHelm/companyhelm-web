@@ -34,6 +34,10 @@ export function buildPreviewBuildCommandArgs(configPath) {
   return ["scripts/vite.js", "build", "--config-path", configPath];
 }
 
+export function buildPreviewServeCommandArgs(port) {
+  return ["scripts/serve-static-container.js", "--port", port];
+}
+
 function runCommand(command, args) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
@@ -61,7 +65,7 @@ export async function main(env = process.env) {
   const port = resolvePreviewPort(env);
 
   await runCommand(process.execPath, buildPreviewBuildCommandArgs(configPath));
-  await runCommand("npm", ["exec", "--", "vite", "preview", "--host", "0.0.0.0", "--port", port]);
+  await runCommand(process.execPath, buildPreviewServeCommandArgs(port));
 }
 
 const isMainModule = process.argv[1]
