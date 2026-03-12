@@ -366,7 +366,6 @@ export function AgentChatPage({
   onDeleteQueuedMessage,
   onCreateChatForAgent,
   onOpenChatFromList,
-  initialExpandedTranscriptItemIds = {},
 }: any) {
   const canChat = Boolean(agent && session);
   const selectedAgentId = String(agent?.id || "").trim();
@@ -404,9 +403,7 @@ export function AgentChatPage({
   const [isComposerExpanded, setIsComposerExpanded] = useState<any>(false);
   const [isMobileChatListOpen, setIsMobileChatListOpen] = useState<any>(false);
   const [expandedMessageMetaId, setExpandedMessageMetaId] = useState<any>("");
-  const [expandedTranscriptItemIds, setExpandedTranscriptItemIds] = useState<any>(() => ({
-    ...(initialExpandedTranscriptItemIds || {}),
-  }));
+  const [expandedTranscriptItemIds, setExpandedTranscriptItemIds] = useState<any>({});
   const expandedTextareaRef = useRef<any>(null);
   const [chatSidebarWidth, setChatSidebarWidth] = useState<any>(() => {
     if (typeof window === "undefined") {
@@ -488,10 +485,8 @@ export function AgentChatPage({
     pendingTranscriptScrollRestoreRef.current = null;
     previousTotalMessageCountRef.current = null;
     setExpandedMessageMetaId("");
-    setExpandedTranscriptItemIds({
-      ...(initialExpandedTranscriptItemIds || {}),
-    });
-  }, [initialExpandedTranscriptItemIds, session?.id]);
+    setExpandedTranscriptItemIds({});
+  }, [session?.id]);
 
   useEffect(() => {
     const previousTotalMessageCount = previousTotalMessageCountRef.current;
