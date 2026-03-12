@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { RunnerSdkCodexAuthEvent, RunnerSdkEntry } from "../types/domain.ts";
 
-const CHATGPT_DEVICE_LOGIN_URL = "https://chatgpt.com/auth/device";
+const CODEX_DEVICE_LOGIN_URL = "https://auth.openai.com/codex/device";
 
 function resolveStatusTone(params: {
   sdk: RunnerSdkEntry | null;
@@ -18,7 +18,7 @@ function resolveStatusTone(params: {
     return {
       className: "codex-auth-status-pending",
       label: "device code ready",
-      description: "Enter the one-time code in ChatGPT to finish sign-in.",
+      description: "Enter the one-time code in OpenAI auth to finish sign-in.",
     };
   }
   if (params.sdk?.codexAuthStatus === "requested") {
@@ -109,10 +109,10 @@ export function CodexAuthPanel({
               {copyFeedback ? <span className="codex-auth-copy-feedback">{copyFeedback}</span> : null}
             </p>
             <p className="codex-auth-row">
-              Login in ChatGPT:
+              Login in OpenAI auth:
               {" "}
-              <a className="codex-auth-link" href={CHATGPT_DEVICE_LOGIN_URL} target="_blank" rel="noreferrer">
-                {CHATGPT_DEVICE_LOGIN_URL}
+              <a className="codex-auth-link" href={CODEX_DEVICE_LOGIN_URL} target="_blank" rel="noreferrer">
+                {CODEX_DEVICE_LOGIN_URL}
               </a>
             </p>
           </>
