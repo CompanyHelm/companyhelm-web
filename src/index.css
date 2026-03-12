@@ -5405,12 +5405,6 @@ button:disabled {
   }
 }
 
-@media (max-height: 900px) {
-  .page-shell-chat-layout .breadcrumb-panel {
-    display: none;
-  }
-}
-
 @media (max-width: 1080px) {
   .layout-shell,
   .layout-shell-menu-collapsed {
@@ -5544,10 +5538,6 @@ button:disabled {
     min-height: 0;
     flex: 1 1 0;
     overflow: hidden;
-  }
-
-  .page-shell-chat-layout .breadcrumb-panel {
-    display: none;
   }
 
   .chat-page-stack {
