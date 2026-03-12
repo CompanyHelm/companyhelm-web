@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { spawn } from "node:child_process";
+import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const DEFAULT_PORT = "4173";
@@ -34,6 +35,10 @@ export function buildPreviewBuildCommandArgs(configPath) {
   return ["scripts/vite.js", "build", "--config-path", configPath];
 }
 
+export function buildPreviewServeCommandArgs(port) {
+  return ["run", "--config", join(process.cwd(), "Caddyfile"), "--adapter", "caddyfile"];
+}
+
 function runCommand(command, args) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
@@ -61,7 +66,7 @@ export async function main(env = process.env) {
   const port = resolvePreviewPort(env);
 
   await runCommand(process.execPath, buildPreviewBuildCommandArgs(configPath));
-  await runCommand("npm", ["exec", "--", "vite", "preview", "--host", "0.0.0.0", "--port", port]);
+  await runCommand("caddy", buildPreviewServeCommandArgs(port));
 }
 
 const isMainModule = process.argv[1]

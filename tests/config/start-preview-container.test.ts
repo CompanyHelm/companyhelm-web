@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import test from "node:test";
 import {
   buildPreviewBuildCommandArgs,
+  buildPreviewServeCommandArgs,
   resolveContainerConfigPath,
   resolvePreviewPort,
 } from "../../scripts/start-preview-container.js";
@@ -27,6 +30,24 @@ test("buildPreviewBuildCommandArgs forwards --config-path to vite wrapper", () =
     "--config-path",
     "/run/companyhelm/config.yaml",
   ]);
+});
+
+test("buildPreviewServeCommandArgs launches Caddy with the checked-in Caddyfile", () => {
+  assert.deepEqual(buildPreviewServeCommandArgs("4173"), [
+    "run",
+    "--config",
+    join(process.cwd(), "Caddyfile"),
+    "--adapter",
+    "caddyfile",
+  ]);
+});
+
+test("package.json includes Caddyfile in published files for the runtime image", () => {
+  const packageJson = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as {
+    files?: string[];
+  };
+
+  assert.ok(packageJson.files?.includes("Caddyfile"));
 });
 
 test("resolvePreviewPort defaults to 4173", () => {

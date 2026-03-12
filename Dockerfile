@@ -12,7 +12,7 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-RUN apk add --no-cache aws-cli
+RUN apk add --no-cache aws-cli caddy
 
 COPY --from=packager /tmp/*.tgz /tmp/companyhelm-web.tgz
 

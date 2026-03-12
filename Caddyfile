@@ -1,0 +1,19 @@
+{
+  auto_https off
+}
+
+:{$PORT:4173} {
+  bind {$HOST:0.0.0.0}
+
+  root * /app/dist
+
+  @static_assets path /assets/* *.css *.ico *.js *.json *.map *.png *.svg *.txt *.woff *.woff2
+  handle @static_assets {
+    file_server
+  }
+
+  handle {
+    try_files {path} /index.html
+    file_server
+  }
+}
