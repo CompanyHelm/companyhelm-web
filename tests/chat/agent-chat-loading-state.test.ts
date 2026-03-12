@@ -167,6 +167,28 @@ test("AgentChatPage disables the composer when the runner is not ready and conne
   assert.match(markup, /disabled=""/);
 });
 
+test("AgentChatPage allows deleting submitted queued messages", () => {
+  const markup = renderAgentChatPageMarkup({
+    queuedChatMessages: [
+      {
+        id: "queued-1",
+        status: "submitted",
+        allowSteer: false,
+        text: "runner logs should print full log",
+        errorMessage: null,
+        sdkTurnId: null,
+      },
+    ],
+  });
+
+  assert.match(markup, /Delete queued message/);
+  assert.match(markup, /chat-queued-delete-btn/);
+  assert.doesNotMatch(
+    markup,
+    /<button[^>]*class="chat-queued-delete-btn"[^>]*disabled=""[^>]*title="Delete queued message"/,
+  );
+});
+
 test("applyChatPromptSuggestion updates the draft and focuses the composer", () => {
   const applyChatPromptSuggestion = (AgentChatPageModule as Record<string, any>).applyChatPromptSuggestion;
 
