@@ -15,7 +15,7 @@ import type { OnboardingPhase } from "../utils/persistence.ts";
 
 type DeployTarget = "local" | "vm" | null;
 
-interface OnboardingPageProps {
+export interface OnboardingPageProps {
   isCreatingRunner: boolean;
   runnerNameDraft: string;
   runnerError: string;
@@ -49,6 +49,7 @@ interface OnboardingPageProps {
 const PHASES = [
   { key: "company", label: "Create company" },
   { key: "runner", label: "Create agent runner" },
+  { key: "configuring", label: "Configuring runner" },
   { key: "agent", label: "Create first agent" },
 ] as const;
 
@@ -103,6 +104,7 @@ export function OnboardingPage({
   const phaseIndex = PHASES.findIndex((p) => p.key === currentPhase);
 
   const showRunnerSection = currentPhase === "runner";
+  const showConfiguringSection = currentPhase === "configuring";
   const showAgentSection = currentPhase === "agent";
 
   const localStartCommand = useMemo(() => {
@@ -217,42 +219,62 @@ export function OnboardingPage({
                   {runnerError ? <p className="error-banner">{runnerError}</p> : null}
                 </form>
               ) : null}
+            </section>
+          </>
+        ) : null}
 
-              {provisionedSecret ? (
-                <>
-                  <p className="runner-onboarding-section-title">Where will this runner run?</p>
-                  <div className="runner-onboarding-targets">
-                    <button
-                      type="button"
-                      className={`runner-onboarding-target-btn${deployTarget === "local" ? " runner-onboarding-target-btn-active" : ""}`}
-                      onClick={() => setDeployTarget("local")}
-                    >
-                      <svg className="runner-onboarding-target-icon" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
-                        <rect x="4" y="8" width="40" height="26" rx="3" fill="none" stroke="currentColor" strokeWidth="2.2" />
-                        <line x1="14" y1="40" x2="34" y2="40" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-                        <line x1="24" y1="34" x2="24" y2="40" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-                      </svg>
-                      <span className="runner-onboarding-target-label">Local Machine</span>
-                      <span className="runner-onboarding-target-desc">Docker on your computer</span>
-                    </button>
-                    <button
-                      type="button"
-                      className={`runner-onboarding-target-btn${deployTarget === "vm" ? " runner-onboarding-target-btn-active" : ""}`}
-                      onClick={() => setDeployTarget("vm")}
-                    >
-                      <svg className="runner-onboarding-target-icon" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
-                        <rect x="10" y="4" width="28" height="40" rx="3" fill="none" stroke="currentColor" strokeWidth="2.2" />
-                        <line x1="18" y1="10" x2="30" y2="10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                        <line x1="18" y1="15" x2="30" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                        <line x1="18" y1="20" x2="30" y2="20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                        <circle cx="24" cy="34" r="3" fill="none" stroke="currentColor" strokeWidth="2" />
-                      </svg>
-                      <span className="runner-onboarding-target-label">VPS / VM</span>
-                      <span className="runner-onboarding-target-desc">Deploy on remote Linux infrastructure</span>
-                    </button>
-                  </div>
-                </>
-              ) : null}
+        {showConfiguringSection ? (
+          <>
+            <section className="panel runner-onboarding-panel">
+              <div className="runner-onboarding-header">
+                <div>
+                  <p className="eyebrow">Setup</p>
+                  <h1>Configuring runner</h1>
+                  <p className="subcopy">
+                    Your runner has been created. Start it, complete Codex auth, and wait for it to
+                    report ready before creating your first agent.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="runner-onboarding-skip-btn"
+                  onClick={onSkip}
+                >
+                  Skip for now
+                </button>
+              </div>
+
+              <p className="runner-onboarding-section-title">Where will this runner run?</p>
+              <div className="runner-onboarding-targets">
+                <button
+                  type="button"
+                  className={`runner-onboarding-target-btn${deployTarget === "local" ? " runner-onboarding-target-btn-active" : ""}`}
+                  onClick={() => setDeployTarget("local")}
+                >
+                  <svg className="runner-onboarding-target-icon" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+                    <rect x="4" y="8" width="40" height="26" rx="3" fill="none" stroke="currentColor" strokeWidth="2.2" />
+                    <line x1="14" y1="40" x2="34" y2="40" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+                    <line x1="24" y1="34" x2="24" y2="40" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+                  </svg>
+                  <span className="runner-onboarding-target-label">Local Machine</span>
+                  <span className="runner-onboarding-target-desc">Docker on your computer</span>
+                </button>
+                <button
+                  type="button"
+                  className={`runner-onboarding-target-btn${deployTarget === "vm" ? " runner-onboarding-target-btn-active" : ""}`}
+                  onClick={() => setDeployTarget("vm")}
+                >
+                  <svg className="runner-onboarding-target-icon" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+                    <rect x="10" y="4" width="28" height="40" rx="3" fill="none" stroke="currentColor" strokeWidth="2.2" />
+                    <line x1="18" y1="10" x2="30" y2="10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    <line x1="18" y1="15" x2="30" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    <line x1="18" y1="20" x2="30" y2="20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    <circle cx="24" cy="34" r="3" fill="none" stroke="currentColor" strokeWidth="2" />
+                  </svg>
+                  <span className="runner-onboarding-target-label">VPS / VM</span>
+                  <span className="runner-onboarding-target-desc">Deploy on remote Linux infrastructure</span>
+                </button>
+              </div>
             </section>
 
             {provisionedSecret && deployTarget === "local" ? (

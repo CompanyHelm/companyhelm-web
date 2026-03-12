@@ -5,6 +5,7 @@ import type { AppFlags, OnboardingPhase } from "../utils/persistence.ts";
 const PHASE_OPTIONS: { value: string; label: string }[] = [
   { value: "none", label: "none (auto-detect)" },
   { value: "runner", label: "runner" },
+  { value: "configuring", label: "configuring" },
   { value: "agent", label: "agent" },
   { value: "done", label: "done" },
 ];
