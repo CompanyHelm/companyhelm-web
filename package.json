@@ -19,6 +19,7 @@
     "build": "node scripts/vite.js build --config-path config/local.yaml",
     "preview": "node scripts/vite.js preview --config-path config/local.yaml",
     "preview:container": "node scripts/start-preview-container.js",
+    "relay": "relay-compiler",
     "test": "tsx --test tests/**/*.test.ts"
   },
   "dependencies": {
@@ -41,6 +42,8 @@
     "@types/react-relay": "^18.2.1",
     "@types/relay-runtime": "^20.1.1",
     "@vitejs/plugin-react": "^4.3.4",
+    "babel-plugin-relay": "^20.1.1",
+    "relay-compiler": "^20.1.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vite": "^5.4.10",
