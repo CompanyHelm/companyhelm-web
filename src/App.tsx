@@ -278,9 +278,7 @@ import { createSingleFlightByKey } from "./utils/single-flight.ts";
 
 import { buildRunnerStartCommand } from "./utils/shell.ts";
 import {
-  deriveInitialOnboardingPhase,
   getPostAgentCreationOnboardingRedirectPath,
-  reconcileOnboardingPhase,
 } from "./utils/onboarding.ts";
 
 import {
@@ -301,7 +299,7 @@ import { CreationModal } from "./components/CreationModal.tsx";
 import { PageActionsProvider, usePageActions } from "./components/PageActionsContext.tsx";
 import { CompanyRequiredPanel } from "./components/CompanyRequiredPanel.tsx";
 import { FirstCompanyOnboardingPage } from "./components/FirstCompanyOnboardingPage.tsx";
-import { OnboardingPage } from "./pages/OnboardingPage.tsx";
+import { OnboardingGate } from "./components/OnboardingGate.tsx";
 import { FlagsPage } from "./pages/FlagsPage.tsx";
 import { AdminPage } from "./pages/AdminPage.tsx";
 
@@ -3249,7 +3247,7 @@ function App() {
         sdkId: detailCodexSdk.id,
       };
     }
-    if (onboardingPhase === "runner" && onboardingRunner?.id && onboardingCodexSdk?.id) {
+    if (onboardingPhase === "configuring" && onboardingRunner?.id && onboardingCodexSdk?.id) {
       return {
         runnerId: onboardingRunner.id,
         sdkId: onboardingCodexSdk.id,
@@ -3790,7 +3788,8 @@ function App() {
     || activePage === "profile";
   const shouldLoadRunnerData =
     activePage === "dashboard" ||
-    activePage === "agent-runner";
+    activePage === "agent-runner" ||
+    !appFlags.skipOnboarding;
   const shouldLoadAgentData =
     activePage === "tasks" ||
     activePage === "agents" ||
@@ -3799,7 +3798,12 @@ function App() {
   const shouldSubscribeAgentRunners =
     activePage === "dashboard"
     || activePage === "agent-runner"
-    || (hasLoadedAgentRunners && (agentRunners.length === 0 || onboardingPhase === "runner" || onboardingPhase === "agent"));
+    || (hasLoadedAgentRunners && (
+      agentRunners.length === 0
+      || onboardingPhase === "runner"
+      || onboardingPhase === "configuring"
+      || onboardingPhase === "agent"
+    ));
   const activeAdminTableSummary = useMemo(
     () => adminTables.find((table: any) => String(table?.name || "").trim().toLowerCase() === resolvedAdminTableName) || null,
     [adminTables, resolvedAdminTableName],
@@ -5485,49 +5489,6 @@ function App() {
     }
     loadAgents();
   }, [loadAgents, selectedCompanyId, shouldLoadAgentData]);
-
-  // Determine or reconcile onboarding phase after selected-company data loads.
-  useEffect(() => {
-    if (!selectedCompanyId || !hasLoadedAgentRunners || appFlags.skipOnboarding) {
-      return;
-    }
-
-    const configuredRunnerCount = agentRunners.filter((runner: any) => isRunnerReadyAndConnected(runner)).length;
-    const nextPhase = onboardingPhase === null
-      ? deriveInitialOnboardingPhase({
-        runnerCount: configuredRunnerCount,
-        agentCount: agents.length,
-      })
-      : reconcileOnboardingPhase({
-        phase: onboardingPhase,
-        runnerCount: configuredRunnerCount,
-        agentCount: agents.length,
-      });
-
-    if (nextPhase === onboardingPhase) {
-      return;
-    }
-    setOnboardingPhase(nextPhase);
-    if (nextPhase === null || nextPhase === "done") {
-      setOnboardingRunnerSecret("");
-      clearPersistedOnboarding();
-    } else {
-      persistOnboarding({
-        phase: nextPhase,
-        runnerId: onboardingRunnerId,
-        runnerSecret: onboardingRunnerSecret,
-      });
-    }
-  }, [
-    selectedCompanyId,
-    hasLoadedAgentRunners,
-    appFlags.skipOnboarding,
-    onboardingPhase,
-    onboardingRunnerId,
-    onboardingRunnerSecret,
-    agents.length,
-    agentRunners.length,
-  ]);
 
   useEffect(() => {
     const normalizedRunnerId = String(onboardingRunnerId || "").trim();
@@ -8150,9 +8111,9 @@ function App() {
       const provisionedRunnerSecret = result.provisionedAuthSecret || "";
       setOnboardingRunnerId(createdRunnerId);
       setOnboardingRunnerSecret(provisionedRunnerSecret);
-      setOnboardingPhase("runner");
+      setOnboardingPhase("configuring");
       persistOnboarding({
-        phase: "runner",
+        phase: "configuring",
         runnerSecret: provisionedRunnerSecret,
         runnerId: createdRunnerId,
       });
@@ -9820,9 +9781,6 @@ function App() {
   const showOnboarding = !showFirstCompanyOnboarding
     && !appFlags.skipOnboarding
     && Boolean(selectedCompanyId)
-    && hasLoadedAgentRunners
-    && (onboardingPhase === "runner" || onboardingPhase === "agent"
-      || (onboardingPhase === null && (agentRunners.length === 0 || agents.length === 0)))
     && activePage !== "settings"
     && activePage !== "profile"
     && activePage !== "flags";
@@ -9952,14 +9910,22 @@ function App() {
               onCreateCompany={handleCreateCompany}
             />
           ) : showOnboarding ? (
-            <OnboardingPage
+            <OnboardingGate
+              selectedCompanyId={selectedCompanyId}
+              skipOnboarding={appFlags.skipOnboarding}
+              hasLoadedAgentRunners={hasLoadedAgentRunners}
+              onboardingPhase={onboardingPhase}
+              onboardingRunnerId={onboardingRunnerId}
+              onboardingRunnerSecret={onboardingRunnerSecret}
+              setOnboardingPhase={setOnboardingPhase}
+              setOnboardingRunnerId={setOnboardingRunnerId}
+              setOnboardingRunnerSecret={setOnboardingRunnerSecret}
+              persistOnboarding={persistOnboarding}
               isCreatingRunner={isCreatingRunner}
               runnerNameDraft={runnerNameDraft}
               runnerError={runnerError}
-              provisionedSecret={onboardingRunnerSecret}
-              onboardingRunnerId={onboardingRunnerId}
               agentRunners={agentRunners}
-              onboardingPhase={onboardingPhase}
+              agents={agents}
               onRunnerNameChange={setRunnerNameDraft}
               onCreateRunner={handleCreateOnboardingRunner}
               onSkip={handleSkipOnboarding}
@@ -9983,7 +9949,11 @@ function App() {
                   setOnboardingRunnerSecret("");
                   setOnboardingRunnerId("");
                   setRunnerSdkCodexAuthEventsByKey({});
-                  clearPersistedOnboarding();
+                  persistOnboarding({
+                    phase: "done",
+                    runnerId: "",
+                    runnerSecret: "",
+                  });
                   setBrowserPath(getPostAgentCreationOnboardingRedirectPath(result));
                 }
                 return result;
