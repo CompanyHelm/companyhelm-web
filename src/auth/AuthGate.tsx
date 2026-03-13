@@ -125,15 +125,17 @@ export default function AuthGate({ children }: AuthGateProps) {
     <main className="auth-gate">
       <section className="auth-card">
         <h1>{title}</h1>
-        <form onSubmit={handleSubmit} className="auth-form">
+        <form onSubmit={handleSubmit} className="auth-form" autoComplete="on">
           {!isSignInMode && requiresProfileOnSignUp ? (
             <label htmlFor="auth-first-name">
               First name
               <input
                 id="auth-first-name"
+                name="firstName"
                 type="text"
                 value={formState.firstName}
                 onChange={handleChange("firstName")}
+                autoComplete="given-name"
                 required
               />
             </label>
@@ -143,9 +145,11 @@ export default function AuthGate({ children }: AuthGateProps) {
               Last name
               <input
                 id="auth-last-name"
+                name="lastName"
                 type="text"
                 value={formState.lastName}
                 onChange={handleChange("lastName")}
+                autoComplete="family-name"
               />
             </label>
           ) : null}
@@ -153,9 +157,11 @@ export default function AuthGate({ children }: AuthGateProps) {
             Email
             <input
               id="auth-email"
+              name="email"
               type="email"
               value={formState.email}
               onChange={handleChange("email")}
+              autoComplete="email"
               required
             />
           </label>
@@ -164,6 +170,7 @@ export default function AuthGate({ children }: AuthGateProps) {
               Password
               <input
                 id="auth-password"
+                name="password"
                 type="password"
                 value={formState.password}
                 onChange={handleChange("password")}
