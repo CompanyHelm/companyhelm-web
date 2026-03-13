@@ -21,3 +21,18 @@ test("TaskGraphView keeps graph layout independent from onTaskClick callback ide
     /\}, \[rawNodes, rawEdges, onTaskClick, setNodes, setEdges\]\);/,
   );
 });
+
+test("TaskGraphView refits the viewport after async layout applies nodes", () => {
+  assert.match(
+    taskGraphViewSource,
+    /const reactFlowInstanceRef = useRef<ReactFlowInstance<TaskGraphNode, TaskGraphEdge> \| null>\(null\);/,
+  );
+  assert.match(
+    taskGraphViewSource,
+    /useEffect\(\(\) => \{\s+if \(!isLayoutReady \|\| nodes\.length === 0\) \{\s+return;\s+\}\s+const reactFlowInstance = reactFlowInstanceRef\.current;\s+if \(!reactFlowInstance\) \{\s+return;\s+\}\s+void reactFlowInstance\.fitView\(\{\s+padding: 0\.2,\s+duration: 200,\s+\}\);\s+\}, \[isLayoutReady, nodes\.length\]\);/s,
+  );
+  assert.match(
+    taskGraphViewSource,
+    /onInit=\{\(instance\) => \{\s+reactFlowInstanceRef\.current = instance;\s+\}\}/,
+  );
+});
