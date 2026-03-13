@@ -116,6 +116,7 @@ test("AgentChatPage mobile sidebar renders archive actions for active chat sessi
     assert.equal(archiveLabels.length, 2);
     assert.match(markup, /Thread 1/);
     assert.match(markup, /Thread 2/);
+    assert.match(markup, /Thread 2[\s\S]*chat-thread-status chat-thread-status-error">error</);
   } finally {
     if (typeof originalWindow === "undefined") {
       Reflect.deleteProperty(testGlobal, "window");
@@ -162,6 +163,7 @@ test("AgentChatPage mobile sidebar renders permanent delete actions in archived 
     assert.equal(deleteLabels.length, 2);
     assert.match(markup, /Thread 1/);
     assert.match(markup, /Thread 2/);
+    assert.match(markup, /Thread 1[\s\S]*chat-thread-status chat-thread-status-archived">archived</);
     assert.doesNotMatch(markup, /aria-label="New chat"/);
     assert.doesNotMatch(markup, /aria-label="Start new chat"/);
   } finally {
