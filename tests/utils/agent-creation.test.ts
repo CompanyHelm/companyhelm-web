@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getAgentCreationFormStatus } from "../../src/utils/agent-creation.ts";
+import { createAgentRecord, getAgentCreationFormStatus } from "../../src/utils/agent-creation.ts";
 
 function createRunner(overrides: Record<string, unknown> = {}) {
   return {
@@ -200,4 +200,135 @@ test("getAgentCreationFormStatus blocks submission when the selected model or re
   assert.equal(missingModelStatus.selectedModelIsAvailable, false);
   assert.equal(missingReasoningStatus.canSubmit, false);
   assert.equal(missingReasoningStatus.selectedReasoningLevelIsAvailable, false);
+});
+
+test("getAgentCreationFormStatus can allow onboarding submission when the selected model has no reasoning levels", () => {
+  const formStatus = getAgentCreationFormStatus({
+    agentRunners: [createRunner({
+      availableAgentSdks: [
+        {
+          id: "sdk-1",
+          name: "codex",
+          status: "ready",
+          isAvailable: true,
+          availableModels: [
+            {
+              id: "model-1",
+              name: "gpt-5",
+              isAvailable: true,
+              reasoningLevels: [],
+            },
+          ],
+        },
+      ],
+    })],
+    runnerCodexModelEntriesById: new Map([
+      [
+        "runner-1",
+        [
+          {
+            id: "model-1",
+            sdkId: "sdk-1",
+            name: "gpt-5",
+            reasoning: [],
+            isAvailable: true,
+          },
+        ],
+      ],
+    ]),
+    agentName: "CEO Agent",
+    agentRunnerId: "runner-1",
+    agentSdk: "codex",
+    agentModel: "gpt-5",
+    agentModelReasoningLevel: "",
+    allowEmptyReasoningWhenUnavailable: true,
+  });
+
+  assert.equal(formStatus.canSubmit, true);
+  assert.equal(formStatus.selectedReasoningLevelIsAvailable, true);
+});
+
+test("createAgentRecord can allow onboarding submission when the selected model has no reasoning levels", async () => {
+  let submittedVariables: Record<string, unknown> | null = null;
+
+  const result = await createAgentRecord({
+    selectedCompanyId: "company-1",
+    agentRunners: [createRunner({
+      availableAgentSdks: [
+        {
+          id: "sdk-1",
+          name: "codex",
+          status: "ready",
+          isAvailable: true,
+          availableModels: [
+            {
+              id: "model-1",
+              name: "gpt-5",
+              isAvailable: true,
+              reasoningLevels: [],
+            },
+          ],
+        },
+      ],
+    })],
+    agentRunnerLookup: new Map([
+      [
+        "runner-1",
+        createRunner({
+          availableAgentSdks: [
+            {
+              id: "sdk-1",
+              name: "codex",
+              status: "ready",
+              isAvailable: true,
+              availableModels: [
+                {
+                  id: "model-1",
+                  name: "gpt-5",
+                  isAvailable: true,
+                  reasoningLevels: [],
+                },
+              ],
+            },
+          ],
+        }),
+      ],
+    ]),
+    runnerCodexModelEntriesById: new Map([
+      [
+        "runner-1",
+        [
+          {
+            id: "model-1",
+            sdkId: "sdk-1",
+            name: "gpt-5",
+            reasoning: [],
+            isAvailable: true,
+          },
+        ],
+      ],
+    ]),
+    agentRoleIds: [],
+    agentName: "CEO Agent",
+    agentRunnerId: "runner-1",
+    agentSdk: "codex",
+    agentModel: "gpt-5",
+    agentModelReasoningLevel: "",
+    allowEmptyReasoningWhenUnavailable: true,
+    agentDefaultAdditionalModelInstructions: "",
+    resolveEffectiveMcpServerIds: () => [],
+    executeCreateAgent: async (variables) => {
+      submittedVariables = variables;
+      return {
+        createAgent: {
+          ok: true,
+          agent: { id: "agent-1" },
+        },
+      };
+    },
+  });
+
+  assert.equal(result.createdAgentId, "agent-1");
+  assert.equal(submittedVariables?.modelReasoningLevel, "");
+  assert.equal(submittedVariables?.defaultReasoningLevel, "");
 });

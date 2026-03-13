@@ -8177,7 +8177,7 @@ function App() {
     persistFlags(next);
   }
 
-  async function handleCreateAgent(event: any) {
+  async function submitCreateAgent(event: any, { allowEmptyReasoningWhenUnavailable = false }: { allowEmptyReasoningWhenUnavailable?: boolean } = {}) {
     event.preventDefault();
     try {
       setIsCreatingAgent(true);
@@ -8193,6 +8193,7 @@ function App() {
         agentSdk,
         agentModel,
         agentModelReasoningLevel,
+        allowEmptyReasoningWhenUnavailable,
         agentDefaultAdditionalModelInstructions,
         resolveEffectiveMcpServerIds: () => resolveEffectiveRoleMcpServerIds(
           agentRoleIds,
@@ -8217,6 +8218,14 @@ function App() {
     } finally {
       setIsCreatingAgent(false);
     }
+  }
+
+  async function handleCreateAgent(event: any) {
+    return submitCreateAgent(event);
+  }
+
+  async function handleCreateOnboardingAgent(event: any) {
+    return submitCreateAgent(event, { allowEmptyReasoningWhenUnavailable: true });
   }
 
   async function handleSaveAgent(agentId: any) {
@@ -9846,7 +9855,7 @@ function App() {
               onAgentSdkChange={handleCreateAgentSdkChange}
               onAgentModelChange={handleCreateAgentModelChange}
               onAgentModelReasoningLevelChange={handleCreateAgentReasoningLevelChange}
-              onCreateAgent={handleCreateAgent}
+              onCreateAgent={handleCreateOnboardingAgent}
               onCreateChatForAgent={handleCreateChatForAgent}
               onAdvanceToAgentPhase={() => {
                 if (onboardingRunnerId) {

@@ -26,6 +26,7 @@ interface AgentCreationFormStatusInput {
   agentSdk: string;
   agentModel: string;
   agentModelReasoningLevel: string;
+  allowEmptyReasoningWhenUnavailable?: boolean;
 }
 
 export interface AgentCreationFormStatus {
@@ -45,6 +46,7 @@ export function getAgentCreationFormStatus({
   agentSdk,
   agentModel,
   agentModelReasoningLevel,
+  allowEmptyReasoningWhenUnavailable = false,
 }: AgentCreationFormStatusInput): AgentCreationFormStatus {
   const normalizedRunnerId = String(agentRunnerId || "").trim();
   const normalizedAgentName = String(agentName || "").trim();
@@ -66,10 +68,16 @@ export function getAgentCreationFormStatus({
   const runnerCodexModelEntries = getRunnerCodexModelEntriesForRunner(runnerCodexModelEntriesById, normalizedRunnerId);
   const selectedModelEntry = runnerCodexModelEntries.find((modelEntry) => modelEntry.name === normalizedModel) || null;
   const selectedModelIsAvailable = Boolean(selectedModelEntry?.isAvailable);
-  const selectedReasoningLevelIsAvailable = getRunnerReasoningLevels(
+  const availableReasoningLevels = getRunnerReasoningLevels(
     runnerCodexModelEntries,
     normalizedModel,
-  ).includes(normalizedReasoningLevel);
+  );
+  const selectedReasoningLevelIsAvailable = availableReasoningLevels.includes(normalizedReasoningLevel)
+    || Boolean(
+      allowEmptyReasoningWhenUnavailable
+      && availableReasoningLevels.length === 0
+      && !normalizedReasoningLevel,
+    );
 
   return {
     canSubmit: Boolean(
@@ -155,6 +163,7 @@ export async function createAgentRecord({
   agentSdk,
   agentModel,
   agentModelReasoningLevel,
+  allowEmptyReasoningWhenUnavailable = false,
   agentDefaultAdditionalModelInstructions,
   resolveEffectiveMcpServerIds,
   executeCreateAgent,
@@ -169,6 +178,7 @@ export async function createAgentRecord({
   agentSdk: string;
   agentModel: string;
   agentModelReasoningLevel: string;
+  allowEmptyReasoningWhenUnavailable?: boolean;
   agentDefaultAdditionalModelInstructions: string;
   resolveEffectiveMcpServerIds: () => string[];
   executeCreateAgent: (variables: Record<string, unknown>) => Promise<any>;
@@ -223,10 +233,13 @@ export async function createAgentRecord({
   }
 
   const normalizedReasoning = String(agentModelReasoningLevel || "").trim();
-  if (!normalizedReasoning) {
+  const availableReasoningLevels = getRunnerReasoningLevels(selectedRunnerCodexModels, normalizedModel);
+  const canOmitReasoning = allowEmptyReasoningWhenUnavailable
+    && availableReasoningLevels.length === 0;
+  if (!normalizedReasoning && !canOmitReasoning) {
     throw new Error("Model reasoning level is required.");
   }
-  if (!getRunnerReasoningLevels(selectedRunnerCodexModels, normalizedModel).includes(normalizedReasoning)) {
+  if (normalizedReasoning && !availableReasoningLevels.includes(normalizedReasoning)) {
     throw new Error(
       `Reasoning "${normalizedReasoning}" is not available for model "${normalizedModel}" on runner ${normalizedRunnerId}.`,
     );
