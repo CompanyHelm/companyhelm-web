@@ -44,7 +44,10 @@ export function AgentRunnerDetailPage({
 
   const runnerCommand = useMemo(() => {
     const secret = runnerSecret || "<RUNNER_SECRET>";
-    return buildRunnerStartCommand({ runnerSecret: secret });
+    return buildRunnerStartCommand({
+      runnerSecret: secret,
+      daemon: true,
+    });
   }, [runnerSecret]);
 
   return (

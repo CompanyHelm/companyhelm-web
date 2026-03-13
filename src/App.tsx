@@ -1551,6 +1551,7 @@ async function executeGraphQL(query: any, variables: any = {}) {
         runnerLaunchCommand: secret
           ? buildRunnerStartCommand({
               runnerSecret: secret,
+              daemon: true,
             })
           : null,
         agentRunner: legacyRunner,
@@ -1573,6 +1574,7 @@ async function executeGraphQL(query: any, variables: any = {}) {
         runnerLaunchCommand: secret
           ? buildRunnerStartCommand({
               runnerSecret: secret,
+              daemon: true,
             })
           : null,
         agentRunner: toLegacyRunnerPayload(payload?.agentRunner),
