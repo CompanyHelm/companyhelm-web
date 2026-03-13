@@ -15,6 +15,7 @@ import {
   type NodeMouseHandler,
   type NodeProps,
   type NodeTypes,
+  type ReactFlowInstance,
 } from "@xyflow/react";
 import ELK from "elkjs/lib/elk.bundled.js";
 
@@ -555,6 +556,7 @@ export function TaskGraphView({ tasks, onTaskClick, onAddDependency }: TaskGraph
   const [edges, setEdges, onEdgesChange] = useEdgesState<TaskGraphEdge>([]);
   const [isLayoutReady, setIsLayoutReady] = useState(false);
   const onTaskClickRef = useRef(onTaskClick);
+  const reactFlowInstanceRef = useRef<ReactFlowInstance<TaskGraphNode, TaskGraphEdge> | null>(null);
 
   const { nodes: rawNodes, edges: rawEdges } = useMemo(
     () => buildGraphElements(tasks),
@@ -610,6 +612,22 @@ export function TaskGraphView({ tasks, onTaskClick, onAddDependency }: TaskGraph
     };
   }, [rawNodes, rawEdges, setNodes, setEdges]);
 
+  useEffect(() => {
+    if (!isLayoutReady || nodes.length === 0) {
+      return;
+    }
+
+    const reactFlowInstance = reactFlowInstanceRef.current;
+    if (!reactFlowInstance) {
+      return;
+    }
+
+    void reactFlowInstance.fitView({
+      padding: 0.2,
+      duration: 200,
+    });
+  }, [isLayoutReady, nodes.length]);
+
   const handleNodeClick = useCallback<NodeMouseHandler<TaskGraphNode>>(
     (_event, node) => {
       onTaskClick(node.id);
@@ -660,8 +678,10 @@ export function TaskGraphView({ tasks, onTaskClick, onAddDependency }: TaskGraph
         onNodeClick={handleNodeClick}
         onConnect={handleConnect}
         isValidConnection={isValidConnection}
+        onInit={(instance) => {
+          reactFlowInstanceRef.current = instance;
+        }}
         nodeTypes={nodeTypes}
-        fitView
         fitViewOptions={{ padding: 0.2 }}
         proOptions={{ hideAttribution: true }}
         minZoom={0.1}
