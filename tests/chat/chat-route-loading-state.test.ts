@@ -90,3 +90,37 @@ test("shouldKeepThreadOnlyChatsRoutePending returns false when the route already
     false,
   );
 });
+
+test("shouldKeepExplicitChatsRoutePending returns true while an explicit chats route is still resolving", () => {
+  const { shouldKeepExplicitChatsRoutePending } = AppModule as Record<string, any>;
+
+  assert.equal(typeof shouldKeepExplicitChatsRoutePending, "function");
+  assert.equal(
+    shouldKeepExplicitChatsRoutePending({
+      activePage: "chats",
+      routeAgentId: "agent-1",
+      routeThreadId: "thread-new",
+      isLoadingChatIndex: true,
+      hasResolvedExactThread: false,
+      routeResolutionKind: "pending",
+    }),
+    true,
+  );
+});
+
+test("shouldKeepExplicitChatsRoutePending returns false for a resolved not-found route", () => {
+  const { shouldKeepExplicitChatsRoutePending } = AppModule as Record<string, any>;
+
+  assert.equal(typeof shouldKeepExplicitChatsRoutePending, "function");
+  assert.equal(
+    shouldKeepExplicitChatsRoutePending({
+      activePage: "chats",
+      routeAgentId: "agent-1",
+      routeThreadId: "thread-missing",
+      isLoadingChatIndex: false,
+      hasResolvedExactThread: false,
+      routeResolutionKind: "not_found",
+    }),
+    false,
+  );
+});

@@ -108,6 +108,20 @@ test("AgentChatPage shows starter prompts after an empty transcript resolves", (
   }
 });
 
+test("AgentChatPage shows explicit route not-found copy instead of starter prompts", () => {
+  const markup = renderAgentChatPageMarkup({
+    session: null,
+    chatSessionsByAgent: {
+      "agent-1": [],
+    },
+    routeNotFoundMessage: "Chat not found.",
+    isLoadingChat: false,
+  });
+
+  assert.match(markup, /Chat not found\./);
+  assert.doesNotMatch(markup, /No messages yet\. Start with one of these prompts\./);
+});
+
 test("AgentChatPage shows pending thread copy while the thread is still provisioning", () => {
   const markup = renderAgentChatPageMarkup({
     session: {
