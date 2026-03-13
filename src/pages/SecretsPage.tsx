@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Page } from "../components/Page.tsx";
 import { CreationModal } from "../components/CreationModal.tsx";
 import { useSetPageActions } from "../components/PageActionsContext.tsx";
+import { getIgnoredSecretInputProps } from "../utils/autofill.ts";
 
 function formatAccessedAt(value: any) {
   const normalized = String(value || "").trim();
@@ -258,6 +259,7 @@ export function SecretsPage({
               value={secretValue}
               onChange={(event: any) => onSecretValueChange(event.target.value)}
               placeholder="Paste secret value"
+              {...getIgnoredSecretInputProps("secretValue")}
               required
             />
             <button
@@ -358,6 +360,7 @@ export function SecretsPage({
                     type={isCurrentSecretValueVisible ? "text" : "password"}
                     value={currentSecretValue}
                     readOnly
+                    {...getIgnoredSecretInputProps("currentSecretValue")}
                     placeholder={
                       hasLoadedCurrentSecretValue
                         ? ""
@@ -403,6 +406,7 @@ export function SecretsPage({
                       onSecretDraftChange(editingSecretId, "value", event.target.value)
                     }
                     placeholder="Set only when rotating the secret"
+                    {...getIgnoredSecretInputProps("nextSecretValue")}
                     disabled={isSavingOrDeleting}
                   />
                   <button

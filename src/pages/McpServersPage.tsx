@@ -12,6 +12,7 @@ import {
   MCP_AUTH_TYPE_OPTIONS,
 } from "../utils/constants.ts";
 import { useSetPageActions } from "../components/PageActionsContext.tsx";
+import { getIgnoredSecretInputProps } from "../utils/autofill.ts";
 
 function formatOauthConnectionStatus(status: any) {
   const normalizedStatus = String(status || "").trim().toLowerCase();
@@ -660,6 +661,7 @@ export function McpServersPage({
                             onMcpServerDraftChange(editingMcpServerId, "oauthClientSecret", event.target.value)
                           }
                           placeholder="Optional if already stored"
+                          {...getIgnoredSecretInputProps("oauthClientSecret")}
                           disabled={isSavingOrDeleting}
                         />
                         <p className="chat-card-meta">

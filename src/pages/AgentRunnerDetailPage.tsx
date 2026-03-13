@@ -9,6 +9,7 @@ import { normalizeRunnerAvailableAgentSdks, normalizeRunnerCodexAvailableModels 
 import { DEFAULT_AGENT_SDK } from "../utils/constants.ts";
 import { getChatsPath, setBrowserPath } from "../utils/path.ts";
 import { buildRunnerStartCommand } from "../utils/shell.ts";
+import { getIgnoredSecretInputProps } from "../utils/autofill.ts";
 
 function formatAvailabilityLabel(value: string, isAvailable: boolean) {
   return `${value} (${isAvailable ? "available" : "unavailable"})`;
@@ -220,8 +221,7 @@ export function AgentRunnerDetailPage({
                 onRunnerCommandSecretChange(runner.id, event.target.value)
               }
               placeholder="Paste runner secret to complete command"
-              autoComplete="off"
-              spellCheck={false}
+              {...getIgnoredSecretInputProps("runnerSecret")}
               disabled={isBusy}
             />
             {!runnerSecret ? (
