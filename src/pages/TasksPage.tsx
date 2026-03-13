@@ -249,7 +249,7 @@ export function TasksPage({
   }, []);
 
   const handleDeleteTask = useCallback((taskId: string, taskName?: string) => {
-    onDeleteTask(taskId, taskName || taskId);
+    onDeleteTask(taskId, taskName || "Untitled task");
     setEditingTaskId("");
   }, [onDeleteTask]);
 
@@ -313,7 +313,7 @@ export function TasksPage({
     ? taskLookup.get(String(activeTaskDraft.parentTaskId || "").trim()) || null
     : null;
   const dependencyLabels = (activeTaskDraft?.dependencyTaskIds || [])
-    .map((taskId) => taskLookup.get(String(taskId || "").trim())?.name || String(taskId || "").trim())
+    .map((taskId) => taskLookup.get(String(taskId || "").trim())?.name || "Untitled task")
     .filter(Boolean);
   const isOverviewSavePending = activeTask ? savingTaskId === activeTask.id : false;
   const isOverviewCommentPending = activeTask ? commentingTaskId === activeTask.id : false;
@@ -365,7 +365,7 @@ export function TasksPage({
               className="secondary-btn"
               onClick={() => onOpenTask(String(currentParentTask.id || "").trim())}
             >
-              Parent: {currentParentTask.name || `Task ${currentParentTask.id}`}
+              Parent: {currentParentTask.name || "Untitled task"}
             </button>
           ) : null}
           <button type="button" className="secondary-btn" onClick={onBackToTasks}>
@@ -516,7 +516,7 @@ export function TasksPage({
 
                       <div className="task-overview-field">
                         <span className="task-overview-field-label">Name</span>
-                        <strong>{activeTask.name || `Task ${activeTask.id}`}</strong>
+                        <strong>{activeTask.name || "Untitled task"}</strong>
                       </div>
                       <div className="task-overview-field">
                         <span className="task-overview-field-label">Description</span>
@@ -655,7 +655,7 @@ export function TasksPage({
                             <li key={`overview-task-comment-${comment.id}`} className="task-comment-item">
                               <p>{comment.comment}</p>
                               <span className="chat-card-meta">
-                                {comment.authorPrincipal?.displayName || comment.authorPrincipalId || "Unknown principal"} · {" "}
+                                {String(comment.authorPrincipal?.displayName || "").trim() || "Unknown principal"} · {" "}
                                 {comment.authorPrincipal?.kind === "agent" ? "Agent" : "Human"} · {" "}
                                 {comment.createdAt ? new Date(comment.createdAt).toLocaleString() : ""}
                               </span>

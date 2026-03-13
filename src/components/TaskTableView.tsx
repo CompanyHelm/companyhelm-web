@@ -138,7 +138,7 @@ function buildDependencyMaps(tasks: TaskTableTask[]) {
   const blocksMap = new Map<string, string[]>();
 
   for (const task of taskArray) {
-    nameById.set(String(task.id), task.name || `Task ${task.id}`);
+    nameById.set(String(task.id), task.name || "Untitled task");
   }
 
   for (const task of taskArray) {
@@ -473,7 +473,7 @@ export function TaskTableView({
                   >
                     <input
                       type="checkbox"
-                      aria-label={`Select task ${task.name || taskId}`}
+                      aria-label={`Select task ${task.name || "Untitled task"}`}
                       checked={isSelected}
                       onChange={(event) => toggleTaskSelection(taskId, event.target.checked)}
                     />
@@ -484,7 +484,7 @@ export function TaskTableView({
                       style={{ "--task-depth": taskDepth } as CSSProperties}
                     >
                       {taskDepth > 0 ? <span className="task-table-tree-branch" aria-hidden="true" /> : null}
-                      <span className="task-table-name-text">{task.name || `Task ${taskId}`}</span>
+                      <span className="task-table-name-text">{task.name || "Untitled task"}</span>
                     </div>
                   </td>
                   {visibleOptionalColumns.map((column) => (

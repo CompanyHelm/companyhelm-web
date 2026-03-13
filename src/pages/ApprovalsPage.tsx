@@ -52,7 +52,7 @@ export function ApprovalsPage({
                 <li key={approval.id} className="chat-card">
                   <div className="chat-card-main">
                     <p className="chat-card-title">
-                      <strong>{approval.secretName || approval.secretId || "Unknown secret"}</strong>
+                      <strong>{String(approval.secretName || "").trim() || "Unknown secret"}</strong>
                     </p>
                     <p className="chat-card-meta">Requested by: {approval.requestingAgentName || "Unknown agent"}</p>
                     <p className="chat-card-meta">Reason: {approval.reason || "-"}</p>

@@ -33,7 +33,7 @@ export function formatRunnerLabel(runner: any) {
   if (!runner) {
     return "Unassigned";
   }
-  return String(runner.name || "").trim();
+  return String(runner?.name || "").trim() || "Unnamed runner";
 }
 
 export function toSortableTimestamp(value: any) {

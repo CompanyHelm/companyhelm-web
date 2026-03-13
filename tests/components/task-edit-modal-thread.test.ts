@@ -58,11 +58,11 @@ test("TaskEditModal shows a fallback message when task thread is not present", (
   assert.match(markup, /Thread not present\./);
 });
 
-test("TaskEditModal shows the thread id and open action when task thread exists", () => {
+test("TaskEditModal hides the thread id and shows only the open action when task thread exists", () => {
   const markup = renderTaskEditModalMarkup({ threadId: "thread-123" });
 
-  assert.match(markup, /thread-123/);
   assert.match(markup, /Open thread chat/);
+  assert.doesNotMatch(markup, /thread-123/);
 });
 
 test("TaskEditModal shows assignee and status controls", () => {
@@ -91,4 +91,25 @@ test("TaskEditModal shows comment creator principal and type badge", () => {
 
   assert.match(markup, /Jane Doe/);
   assert.match(markup, /Human/);
+});
+
+test("TaskEditModal uses a neutral fallback when a comment author name is missing", () => {
+  const markup = renderTaskEditModalMarkup({
+    comments: [
+      {
+        id: "comment-1",
+        comment: "Needs review",
+        createdAt: "2026-03-05T08:00:00.000Z",
+        authorPrincipalId: "principal-user-1",
+        authorPrincipal: {
+          id: "principal-user-1",
+          kind: "user",
+          displayName: "",
+        },
+      },
+    ],
+  });
+
+  assert.match(markup, /Unknown principal/);
+  assert.doesNotMatch(markup, /<span class="chat-card-meta">principal-user-1/);
 });

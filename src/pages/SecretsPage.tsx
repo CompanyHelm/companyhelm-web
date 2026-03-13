@@ -444,13 +444,10 @@ export function SecretsPage({
                 {!isLoadingAccessLogs && !accessLogError && accessLogs.length > 0 ? (
                   <ul className="chat-card-list">
                     {accessLogs.map((accessLog: any) => {
-                      const agentName = String(accessLog?.agent?.name || accessLog?.agentId || "Unknown agent");
-                      const threadId = String(accessLog?.threadId || accessLog?.thread?.id || "").trim();
+                      const agentName = String(accessLog?.agent?.name || "").trim() || "Unnamed agent";
                       const threadTitle = String(accessLog?.thread?.title || "").trim();
-                      const mcpServerName = String(accessLog?.mcpServer?.name || accessLog?.mcpServerId || "-");
-                      const threadLabel = threadTitle
-                        ? `${threadTitle} (${threadId || "-"})`
-                        : (threadId || "-");
+                      const mcpServerName = String(accessLog?.mcpServer?.name || "").trim() || "Unknown MCP server";
+                      const threadLabel = threadTitle || "Untitled chat";
 
                       return (
                         <li key={accessLog.id} className="chat-card">

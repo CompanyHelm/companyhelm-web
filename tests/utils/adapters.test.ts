@@ -112,3 +112,23 @@ test("toLegacyRunnerPayload does not synthesize heartbeat timestamps", () => {
   assert.equal(payload.lastSeenAt, null);
   assert.equal(payload.lastHealthCheckAt, null);
 });
+
+test("toLegacyRunnerPayload preserves missing runner names instead of falling back to runner ids", () => {
+  const payload = toLegacyRunnerPayload({
+    id: "runner-3",
+    isConnected: false,
+    company: { id: "company-1" },
+  });
+
+  assert.equal(payload.name, "");
+});
+
+test("toLegacyThreadPayload preserves missing titles instead of synthesizing thread ids", () => {
+  const payload = toLegacyThreadPayload({
+    id: "thread-3",
+    company: { id: "company-1" },
+    agent: { id: "agent-1" },
+  });
+
+  assert.equal(payload.title, "");
+});

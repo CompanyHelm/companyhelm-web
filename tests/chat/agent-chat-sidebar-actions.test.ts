@@ -174,3 +174,46 @@ test("AgentChatPage mobile sidebar renders permanent delete actions in archived 
     }
   }
 });
+
+test("AgentChatPage sidebar uses neutral fallbacks for unnamed agents and chats", () => {
+  const originalWindow = testGlobal.window;
+  const localStorageMap = new Map<string, string>();
+
+  try {
+    testGlobal.window = {
+      localStorage: createMockStorage(localStorageMap),
+      matchMedia: () => ({ matches: true }),
+    } as unknown as Window & typeof globalThis;
+
+    const markup = renderAgentChatPageMarkup({
+      agents: [
+        {
+          id: "agent-secret-1",
+          name: "",
+          agentSdk: "codex",
+          model: "gpt-5",
+        },
+      ],
+      chatSessionsByAgent: {
+        "agent-secret-1": [
+          {
+            id: "thread-secret-1",
+            title: "",
+            status: "ready",
+          },
+        ],
+      },
+    });
+
+    assert.match(markup, /Unnamed agent/);
+    assert.match(markup, /Untitled chat/);
+    assert.doesNotMatch(markup, /Agent agent-sec/);
+    assert.doesNotMatch(markup, /thread-secret-1/);
+  } finally {
+    if (typeof originalWindow === "undefined") {
+      Reflect.deleteProperty(testGlobal, "window");
+    } else {
+      testGlobal.window = originalWindow;
+    }
+  }
+});

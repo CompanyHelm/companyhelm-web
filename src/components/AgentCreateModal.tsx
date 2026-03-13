@@ -153,9 +153,9 @@ export function AgentCreateModal({
                       ),
                     )
                   }
-                  title={`Remove ${roleLabelById.get(roleId) || roleId}`}
+                  title={`Remove ${roleLabelById.get(roleId) || "Unknown role"}`}
                 >
-                  {roleLabelById.get(roleId) || roleId} ×
+                  {roleLabelById.get(roleId) || "Unknown role"} ×
                 </button>
               ))
             )}

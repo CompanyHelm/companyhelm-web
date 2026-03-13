@@ -88,7 +88,7 @@ function resolveEffectiveRoleSkills(expandedRoleIds: string[], roleLookup: Map<s
       seenSkillIds.add(skillId);
       effectiveSkills.push({
         id: skillId,
-        name: String(skill?.name || "").trim() || skillId,
+        name: String(skill?.name || "").trim() || "Unknown skill",
       });
     }
   }
@@ -481,7 +481,7 @@ export function AgentEditModal({
               ) : (
                 editingRoleIds.map((roleId) => {
                   const role = roleLookup.get(roleId);
-                  const roleLabel = role ? role.name : roleId;
+                  const roleLabel = role?.name || "Unknown role";
                   return (
                     <button
                       key={`edit-agent-remove-skill-${editingAgent.id}-${roleId}`}
@@ -578,7 +578,7 @@ export function AgentEditModal({
               ) : (
                 editingEffectiveMcpServerIds.map((mcpServerId) => {
                   const mcpServer = mcpServerLookup.get(mcpServerId);
-                  const mcpServerLabel = mcpServer ? mcpServer.name : mcpServerId;
+                  const mcpServerLabel = mcpServer?.name || "Unknown MCP server";
                   return (
                     <span key={`edit-agent-effective-mcp-${editingAgent.id}-${mcpServerId}`} className="tag-pill">
                       {mcpServerLabel}

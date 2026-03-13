@@ -429,7 +429,7 @@ export function RolesPage({
                 <div className="role-detail-pills">
                 {assignedMcpServerIds.map((mcpServerId) => {
                   const mcpServer = mcpServers.find((server) => server.id === mcpServerId);
-                  const label = mcpServer ? mcpServer.name : mcpServerId;
+                  const label = mcpServer?.name || "Unknown MCP server";
                   return (
                     <button
                       key={`rm-mcp-${mcpServerId}`}
@@ -475,7 +475,7 @@ export function RolesPage({
                 <div className="role-detail-pills">
                 {assignedSkillGroupIds.map((groupId) => {
                   const group = skillGroups.find((skillGroup) => skillGroup.id === groupId);
-                  const label = group ? group.name : groupId;
+                  const label = group?.name || "Unknown skill group";
                   return (
                     <button
                       key={`rm-sg-${groupId}`}

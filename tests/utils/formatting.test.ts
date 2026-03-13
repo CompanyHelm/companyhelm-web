@@ -26,9 +26,16 @@ test("isRunnerReadyAndConnected requires both conditions", () => {
   }), false);
 });
 
-test("formatRunnerLabel returns the runner name", () => {
+test("formatRunnerLabel prefers runner names", () => {
   assert.equal(
     formatRunnerLabel({ id: "1234567890", name: "Runner One", isConnected: false }),
     "Runner One",
+  );
+});
+
+test("formatRunnerLabel uses a neutral fallback when the runner is unnamed", () => {
+  assert.equal(
+    formatRunnerLabel({ id: "1234567890", isConnected: false }),
+    "Unnamed runner",
   );
 });

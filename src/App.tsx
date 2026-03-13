@@ -723,7 +723,7 @@ function toLegacyRunnerPayload(agentRunner: any) {
   ) || null;
 
   const nextMetadata = {
-    name: runnerName || currentMetadata.name || runnerId,
+    name: runnerName || currentMetadata.name || "",
     createdAt: resolveLegacyId(agentRunner?.createdAt, currentMetadata.createdAt) || nowIso,
     updatedAt: resolveLegacyId(agentRunner?.updatedAt, currentMetadata.updatedAt) || nowIso,
     lastSeenAt,
@@ -1051,13 +1051,13 @@ function toSecretAccessLogPayload(secretAccessLog: any) {
     agent: agentId
       ? {
         id: agentId,
-        name: agentName || agentId,
+        name: agentName || "",
       }
       : null,
     mcpServer: mcpServerId
       ? {
         id: mcpServerId,
-        name: mcpServerName || mcpServerId,
+        name: mcpServerName || "",
       }
       : null,
   };
@@ -1187,7 +1187,7 @@ function toLegacyThreadPayload(thread: any, {
       : undefined;
   const normalizedExplicitTitle = typeof explicitTitleValue === "string" ? explicitTitleValue.trim() : "";
   const fallbackTitle = explicitTitleValue === undefined ? resolveLegacyId(currentMetadata.title) : "";
-  const resolvedTitle = normalizedExplicitTitle || fallbackTitle || `Thread ${threadId.slice(0, 8)}`;
+  const resolvedTitle = normalizedExplicitTitle || fallbackTitle;
   const overrideProvidesAdditionalModelInstructions = Boolean(
     metadataOverride && Object.prototype.hasOwnProperty.call(metadataOverride, "additionalModelInstructions"),
   );
@@ -3339,7 +3339,7 @@ function App() {
       }
       const selectedAgent = agents.find((agent: any) => agent.id === resolvedAgentId) || null;
       if (!selectedAgent) {
-        return `Agent ${resolvedAgentId} was not found for this company.`;
+        return "The selected agent was not found for this company.";
       }
       return getChatCreateBlockedReasonForAgent(selectedAgent);
     },
@@ -3393,7 +3393,7 @@ function App() {
       }
       const selectedAgent = agents.find((agent: any) => agent.id === resolvedAgentId) || null;
       if (!selectedAgent) {
-        return `Agent ${resolvedAgentId} was not found for this company.`;
+        return "The selected agent was not found for this company.";
       }
       return getChatSendBlockedReasonForAgent(selectedAgent);
     },
@@ -3428,7 +3428,7 @@ function App() {
       companyId: selectedCompanyId,
       agentId: chatAgentId,
       runnerId: resolveLegacyId(metadata.runnerId) || null,
-      title: resolveLegacyId(metadata.title) || `Thread ${resolvedSessionId.slice(0, 8)}`,
+      title: resolveLegacyId(metadata.title) || "",
       status: resolveLegacyId(metadata.status),
       currentModelId: resolveLegacyId(metadata.currentModelId) || null,
       currentModelName: resolveLegacyId(metadata.currentModelName) || null,
@@ -3533,37 +3533,37 @@ function App() {
     const getAgentLabel = (agentId: any) => {
       const resolvedAgentId = String(agentId || "").trim();
       if (!resolvedAgentId) {
-        return "Agent";
+        return "Unnamed agent";
       }
       const matchingAgent = agents.find((agent: any) => agent.id === resolvedAgentId);
-      return matchingAgent?.name || `Agent ${resolvedAgentId.slice(0, 8)}`;
+      return String(matchingAgent?.name || "").trim() || "Unnamed agent";
     };
 
     const getChatLabel = (sessionId: any) => {
       const resolvedSessionId = String(sessionId || "").trim();
       if (!resolvedSessionId) {
-        return "Chat";
+        return "Untitled chat";
       }
       const chatTitle = String(selectedChatSession?.title || "").trim();
-      return chatTitle || `Chat ${resolvedSessionId.slice(0, 8)}`;
+      return chatTitle || "Untitled chat";
     };
 
     const getSkillLabel = (skillId: any) => {
       const resolvedSkillId = String(skillId || "").trim();
       if (!resolvedSkillId) {
-        return "Skill";
+        return "Unknown skill";
       }
       const matchingSkill = skills.find((skill: any) => skill.id === resolvedSkillId);
-      return matchingSkill?.name || `Skill ${resolvedSkillId.slice(0, 8)}`;
+      return String(matchingSkill?.name || "").trim() || "Unknown skill";
     };
 
     const getRoleLabel = (roleId: any) => {
       const resolvedRoleId = String(roleId || "").trim();
       if (!resolvedRoleId) {
-        return "Role";
+        return "Unknown role";
       }
       const matchingRole = roles.find((role: any) => role.id === resolvedRoleId);
-      return matchingRole?.name || `Role ${resolvedRoleId.slice(0, 8)}`;
+      return String(matchingRole?.name || "").trim() || "Unknown role";
     };
 
     const getGitSkillPackageLabel = (packageId: any) => {
@@ -3572,7 +3572,7 @@ function App() {
         return "Git Skill Package";
       }
       const matchingPackage = gitSkillPackages.find((pkg: any) => pkg.id === resolvedPackageId);
-      return matchingPackage?.packageName || `Package ${resolvedPackageId.slice(0, 8)}`;
+      return String(matchingPackage?.packageName || "").trim() || "Git Skill Package";
     };
 
     const getAdminTableLabel = (tableName: any) => {
@@ -3646,7 +3646,7 @@ function App() {
       return [
         { label: "Tasks", href: "/tasks" },
         {
-          label: matchingTask?.name || `Task ${String(tasksRoute.taskId || "").slice(0, 8)}`,
+          label: String(matchingTask?.name || "").trim() || "Untitled task",
           href: `/tasks/${tasksRoute.taskId}`,
         },
       ];
@@ -3673,7 +3673,7 @@ function App() {
     ) {
       const getRunnerLabel = (runnerId: any) => {
         const matchingRunner = agentRunners.find((r: any) => r.id === runnerId);
-        return matchingRunner?.name || `Runner ${runnerId.slice(0, 8)}`;
+        return String(matchingRunner?.name || "").trim() || "Unnamed runner";
       };
       return [
         { label: "Runners", href: "/agent-runner" },
@@ -8394,13 +8394,13 @@ function App() {
 
     const agent = agents.find((candidate: any) => candidate.id === agentId);
     if (!agent) {
-      setAgentError(`Agent ${agentId} not found in the current list.`);
+      setAgentError("The selected agent was not found in the current list.");
       return;
     }
 
     const assignedRunner = agent.agentRunnerId ? agentRunnerLookup.get(agent.agentRunnerId) : null;
     if (agent.agentRunnerId && !assignedRunner) {
-      setAgentError(`Assigned runner ${agent.agentRunnerId} was not found for this company.`);
+      setAgentError("The assigned runner was not found for this company.");
       return;
     }
 
@@ -8412,7 +8412,7 @@ function App() {
     if (!readyRunner) {
       setAgentError(
         assignedRunner
-          ? `Assigned runner ${assignedRunner.id} must be connected with a configured Codex SDK.`
+          ? "The assigned runner must be connected with a configured Codex SDK."
           : "No connected runner with a configured Codex SDK was found. Start a runner and finish Codex auth before initializing agents.",
       );
       return;
@@ -8454,7 +8454,7 @@ function App() {
 
     const selectedAgent = agents.find((agent: any) => agent.id === resolvedAgentId) || null;
     if (!selectedAgent) {
-      setAgentError(`Agent ${resolvedAgentId} was not found.`);
+      setAgentError("The selected agent was not found.");
       return;
     }
     if (!selectedAgent.agentRunnerId) {
@@ -8764,7 +8764,7 @@ function App() {
 
     const selectedAgentForChat = agents.find((agent: any) => agent.id === targetAgentId) || null;
     if (!selectedAgentForChat) {
-      setChatError(`Agent ${targetAgentId} was not found for this company.`);
+      setChatError("The selected agent was not found for this company.");
       return null;
     }
     const createChatAvailabilityIssue = getChatCreateAvailabilityIssue(selectedAgentForChat, agentRunnerLookup);
@@ -8815,7 +8815,7 @@ function App() {
           ) || null,
           title:
             String(result.thread?.title || "").trim()
-              || `Thread ${createdThreadId.slice(0, 8)}`,
+              || "",
           status: resolveLegacyId(result.thread?.status),
           additionalModelInstructions:
             normalizeOptionalInstructions(
@@ -9147,7 +9147,7 @@ function App() {
               resolveLegacyId(result?.thread?.title)
               || resolvedTitle
               || String(matchingSession?.title || "").trim()
-              || `Thread ${targetSessionId.slice(0, 8)}`,
+              || "",
             status: "deleting",
             updatedAt: resolveLegacyId(result?.thread?.updatedAt) || nowIso,
           }
@@ -9156,7 +9156,7 @@ function App() {
             id: targetSessionId,
             threadId: targetSessionId,
             agentId: targetAgentId,
-            title: resolvedTitle || String(matchingSession?.title || "").trim() || `Thread ${targetSessionId.slice(0, 8)}`,
+            title: resolvedTitle || String(matchingSession?.title || "").trim() || "",
             status: "deleting",
             updatedAt: nowIso,
           };

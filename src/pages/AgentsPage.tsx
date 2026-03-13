@@ -258,7 +258,7 @@ export function AgentsPage({
   const createEffectiveMcpServerLabels = useMemo(
     () => createEffectiveMcpServerIds.map((mcpServerId) => {
       const mcpServer = mcpServerLookup.get(mcpServerId);
-      return mcpServer ? mcpServer.name : mcpServerId;
+      return mcpServer?.name || "Unknown MCP server";
     }),
     [createEffectiveMcpServerIds, mcpServerLookup],
   );
@@ -416,7 +416,7 @@ export function AgentsPage({
               const assignedRoleIds = normalizeUniqueStringList(agent.roleIds || []);
               const assignedRoleLabels = assignedRoleIds.map((roleId) => {
                 const role = roleLookup.get(roleId);
-                return role ? role.name : roleId;
+                return role?.name || "Unknown role";
               });
               const assignedRoleSummary =
                 assignedRoleLabels.length > 0 ? assignedRoleLabels.join(", ") : "none";
@@ -427,7 +427,7 @@ export function AgentsPage({
               );
               const assignedMcpServerLabels = effectiveMcpServerIds.map((mcpServerId) => {
                 const mcpServer = mcpServerLookup.get(mcpServerId);
-                return mcpServer ? mcpServer.name : mcpServerId;
+                return mcpServer?.name || "Unknown MCP server";
               });
               const assignedMcpServerSummary =
                 assignedMcpServerLabels.length > 0 ? assignedMcpServerLabels.join(", ") : "none";

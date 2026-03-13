@@ -143,7 +143,7 @@ export function DashboardPage({
                 return (
                   <li key={`dashboard-runner-${runner.id}`} className="compact-item">
                     <div>
-                      <strong>{runner.name || runner.id}</strong>
+                      <strong>{String(runner.name || "").trim() || "Unnamed runner"}</strong>
                       <p>{connectionState} · Seen {formatTimestamp(runner.lastSeenAt)}</p>
                     </div>
                     <span className={`runner-status runner-status-${connectionState}`}>

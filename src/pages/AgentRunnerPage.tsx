@@ -151,7 +151,7 @@ export function AgentRunnerPage({
                         </span>
                       </p>
                       <p className="chat-card-meta">
-                        {runner.id} &middot; Last seen {formatTimestamp(runner.lastSeenAt)}
+                        Last seen {formatTimestamp(runner.lastSeenAt)}
                       </p>
                     </div>
                     <div className="chat-card-actions">

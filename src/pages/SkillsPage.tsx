@@ -485,7 +485,7 @@ export function SkillsPage({
                   ) : (
                     assignedRoleMcpServerIds.map((mcpServerId) => {
                       const mcpServer = mcpServers.find((server) => server.id === mcpServerId);
-                      const mcpServerLabel = mcpServer ? mcpServer.name : mcpServerId;
+                      const mcpServerLabel = mcpServer?.name || "Unknown MCP server";
                       return (
                         <button
                           key={`role-remove-mcp-${editingRole.id}-${mcpServerId}`}
