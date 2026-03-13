@@ -5882,6 +5882,11 @@ button:disabled {
     backdrop-filter: none;
   }
 
+  .page-shell-chat-layout :is(.modal-card, .modal-card-wide, .modal-card-fullscreen) {
+    background: #f6f6f2;
+    backdrop-filter: none;
+  }
+
   .page-shell-chat-layout :is(
     .chat-sidebar-panel-mobile-full,
     .chat-sidebar-panel-mobile-overlay,
