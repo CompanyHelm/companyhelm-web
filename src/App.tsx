@@ -3137,6 +3137,7 @@ function App() {
   const [agentName, setAgentName] = useState<any>("");
   const [agentRunnerId, setAgentRunnerId] = useState<any>("");
   const [agentRoleIds, setAgentRoleIds] = useState<any>([]);
+  const [agentSkillIds, setAgentSkillIds] = useState<any>([]);
   const [agentMcpServerIds, setAgentMcpServerIds] = useState<any>([]);
   const [roleSkillGroupIdsByRoleId, setRoleSkillGroupIdsByRoleId] = useState<any>({});
   const [roleMcpServerIdsByRoleId, setRoleMcpServerIdsByRoleId] = useState<any>({});
@@ -8271,6 +8272,8 @@ function App() {
         agentRunnerLookup,
         runnerCodexModelEntriesById,
         agentRoleIds,
+        agentSkillIds,
+        agentMcpServerIds,
         agentName,
         agentRunnerId,
         agentSdk,
@@ -8278,16 +8281,12 @@ function App() {
         agentModelReasoningLevel,
         allowEmptyReasoningWhenUnavailable,
         agentDefaultAdditionalModelInstructions,
-        resolveEffectiveMcpServerIds: () => resolveEffectiveRoleMcpServerIds(
-          agentRoleIds,
-          roles,
-          roleMcpServerIdsByRoleId,
-        ),
         executeCreateAgent: (variables) => executeGraphQL(CREATE_AGENT_MUTATION, variables),
       });
       setAgentName("");
       setAgentRunnerId("");
       setAgentRoleIds([]);
+      setAgentSkillIds([]);
       setAgentMcpServerIds([]);
       setAgentSdk(DEFAULT_AGENT_SDK);
       setAgentModel("");
@@ -8319,6 +8318,7 @@ function App() {
     const draft = agentDrafts[agentId] || {
       agentRunnerId: "",
       roleIds: [],
+      skillIds: [],
       mcpServerIds: [],
       name: "",
       agentSdk: DEFAULT_AGENT_SDK,
@@ -8404,11 +8404,6 @@ function App() {
     try {
       setSavingAgentId(agentId);
       setAgentError("");
-      const cleanDraftMcpServerIds = resolveEffectiveRoleMcpServerIds(
-        draft.roleIds || [],
-        roles,
-        roleMcpServerIdsByRoleId,
-      );
       const normalizedDefaultAdditionalModelInstructions = normalizeOptionalInstructions(
         draft.defaultAdditionalModelInstructions,
       );
@@ -8416,8 +8411,9 @@ function App() {
         companyId: selectedCompanyId,
         id: agentId,
         agentRunnerId: draft.agentRunnerId || null,
-        roleIds: draft.roleIds || [],
-        mcpServerIds: cleanDraftMcpServerIds,
+        roleIds: normalizeUniqueStringList(draft.roleIds || []),
+        skillIds: normalizeUniqueStringList(draft.skillIds || []),
+        mcpServerIds: normalizeUniqueStringList(draft.mcpServerIds || []),
         defaultAdditionalModelInstructions: normalizedDefaultAdditionalModelInstructions,
         name: draft.name.trim(),
         agentSdk: normalizedSdk,
@@ -9458,11 +9454,20 @@ function App() {
     setAgentRoleIds(normalizeUniqueStringList(nextRoleIds));
   }
 
+  function handleCreateAgentSkillIdsChange(nextSkillIds: any) {
+    setAgentSkillIds(normalizeUniqueStringList(nextSkillIds));
+  }
+
+  function handleCreateAgentMcpServerIdsChange(nextMcpServerIds: any) {
+    setAgentMcpServerIds(normalizeUniqueStringList(nextMcpServerIds));
+  }
+
   function handleAgentDraftChange(agentId: any, field: any, value: any) {
     setAgentDrafts((currentDrafts: any) => {
       const currentDraft = currentDrafts[agentId] || {
         agentRunnerId: "",
         roleIds: [],
+        skillIds: [],
         mcpServerIds: [],
         name: "",
         agentSdk: DEFAULT_AGENT_SDK,
@@ -9485,6 +9490,9 @@ function App() {
       }
       if (field === "roleIds") {
         nextDraft.roleIds = normalizeUniqueStringList(value);
+      }
+      if (field === "skillIds") {
+        nextDraft.skillIds = normalizeUniqueStringList(value);
       }
       if (field === "mcpServerIds") {
         nextDraft.mcpServerIds = normalizeUniqueStringList(value);
@@ -10261,6 +10269,7 @@ function App() {
                 navigateTo("agents");
               }}
               agentRunners={agentRunners}
+              skills={skills}
               roles={roles}
               mcpServers={mcpServers}
               roleMcpServerIdsByRoleId={roleMcpServerIdsByRoleId}
@@ -10342,6 +10351,8 @@ function App() {
               hasLoadedAgentRunners={hasLoadedAgentRunners}
               agentRunnerId={agentRunnerId}
               agentRoleIds={agentRoleIds}
+              agentSkillIds={agentSkillIds}
+              agentMcpServerIds={agentMcpServerIds}
               roleMcpServerIdsByRoleId={roleMcpServerIdsByRoleId}
               agentName={agentName}
               agentSdk={agentSdk}
@@ -10352,6 +10363,8 @@ function App() {
               agentCountLabel={agentCountLabel}
               onAgentRunnerChange={handleCreateAgentRunnerChange}
               onAgentRoleIdsChange={handleCreateAgentRoleIdsChange}
+              onAgentSkillIdsChange={handleCreateAgentSkillIdsChange}
+              onAgentMcpServerIdsChange={handleCreateAgentMcpServerIdsChange}
               onAgentNameChange={setAgentName}
               onAgentSdkChange={handleCreateAgentSdkChange}
               onAgentModelChange={handleCreateAgentModelChange}

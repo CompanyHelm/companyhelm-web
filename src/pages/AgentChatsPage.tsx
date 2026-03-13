@@ -75,6 +75,46 @@ function resolveEffectiveRoleMcpServerIds(roleIds: any, roles: any, roleMcpServe
   return mcpServerIds;
 }
 
+function resolveEffectiveRoleSkills(roleIds: any, roles: any) {
+  const expandedRoleIds = collectRoleAndSubroleIds(roleIds, roles);
+  const effectiveSkills: any[] = [];
+  const seenSkillIds = new Set<any>();
+
+  for (const roleId of expandedRoleIds) {
+    const role = (Array.isArray(roles) ? roles : []).find((candidate: any) => String(candidate?.id || "").trim() === roleId);
+    const roleEffectiveSkills = Array.isArray(role?.effectiveSkills) ? role.effectiveSkills : [];
+    for (const skill of roleEffectiveSkills) {
+      const skillId = String(skill?.id || "").trim();
+      if (!skillId || seenSkillIds.has(skillId)) {
+        continue;
+      }
+      seenSkillIds.add(skillId);
+      effectiveSkills.push({
+        id: skillId,
+        name: String(skill?.name || "").trim() || "Unknown skill",
+      });
+    }
+  }
+
+  return effectiveSkills;
+}
+
+function unionAssignments(directAssignments: any[], inheritedAssignments: any[]) {
+  const mergedAssignments: any[] = [];
+  const seenAssignmentIds = new Set<any>();
+
+  for (const assignment of [...directAssignments, ...inheritedAssignments]) {
+    const assignmentId = String(assignment?.id || "").trim();
+    if (!assignmentId || seenAssignmentIds.has(assignmentId)) {
+      continue;
+    }
+    seenAssignmentIds.add(assignmentId);
+    mergedAssignments.push(assignment);
+  }
+
+  return mergedAssignments;
+}
+
 function normalizeChatListStatusFilter(value: any) {
   return String(value || "").trim().toLowerCase() === "archived" ? "archived" : "active";
 }
@@ -105,6 +145,7 @@ export function AgentChatsPage({
   onBackToAgents,
   onSetChatDraftMessage,
   agentRunners,
+  skills,
   roles,
   mcpServers,
   roleMcpServerIdsByRoleId,
@@ -183,17 +224,47 @@ export function AgentChatsPage({
       return role?.name || "Unknown role";
     });
     const assignedRoleSummary = assignedRoleLabels.length > 0 ? assignedRoleLabels.join(", ") : "none";
-    const effectiveMcpServerIds = resolveEffectiveRoleMcpServerIds(
+    const directSkillIds = normalizeUniqueStringList(agent.skillIds || []);
+    const directSkills = directSkillIds.map((skillId: any) => {
+      const skill = (Array.isArray(skills) ? skills : []).find((candidate: any) => String(candidate?.id || "").trim() === skillId);
+      return {
+        id: skillId,
+        name: String(skill?.name || "").trim() || "Unknown skill",
+      };
+    });
+    const inheritedSkills = resolveEffectiveRoleSkills(assignedRoleIds, roles);
+    const effectiveSkills = unionAssignments(directSkills, inheritedSkills);
+    const directSkillSummary = directSkills.length > 0
+      ? directSkills.map((skill: any) => skill.name).join(", ")
+      : "none";
+    const effectiveSkillSummary = effectiveSkills.length > 0
+      ? effectiveSkills.map((skill: any) => skill.name).join(", ")
+      : "none";
+    const inheritedMcpServerIds = resolveEffectiveRoleMcpServerIds(
       assignedRoleIds,
       roles,
       roleMcpServerIdsByRoleId,
     );
-    const effectiveMcpServerLabels = effectiveMcpServerIds.map((mcpServerId: any) => {
+    const directMcpServerIds = normalizeUniqueStringList(agent.mcpServerIds || []);
+    const directMcpServers = directMcpServerIds.map((mcpServerId: any) => {
       const mcpServer = mcpServerLookup.get(mcpServerId);
-      return mcpServer?.name || "Unknown MCP server";
+      return {
+        id: mcpServerId,
+        name: mcpServer?.name || "Unknown MCP server",
+      };
     });
+    const inheritedMcpServers = inheritedMcpServerIds.map((mcpServerId: any) => {
+      const mcpServer = mcpServerLookup.get(mcpServerId);
+      return {
+        id: mcpServerId,
+        name: mcpServer?.name || "Unknown MCP server",
+      };
+    });
+    const effectiveMcpServers = unionAssignments(directMcpServers, inheritedMcpServers);
+    const directMcpServerSummary =
+      directMcpServers.length > 0 ? directMcpServers.map((mcpServer: any) => mcpServer.name).join(", ") : "none";
     const effectiveMcpServerSummary =
-      effectiveMcpServerLabels.length > 0 ? effectiveMcpServerLabels.join(", ") : "none";
+      effectiveMcpServers.length > 0 ? effectiveMcpServers.map((mcpServer: any) => mcpServer.name).join(", ") : "none";
     const modelLabel = String(agent.model || "").trim() || "n/a";
     const reasoningLabel = String(agent.modelReasoningLevel || "").trim() || "n/a";
     const instructions = String(agent.defaultAdditionalModelInstructions || "").trim();
@@ -201,12 +272,15 @@ export function AgentChatsPage({
     return {
       assignedRunnerLabel,
       assignedRoleSummary,
+      directSkillSummary,
+      effectiveSkillSummary,
+      directMcpServerSummary,
       effectiveMcpServerSummary,
       modelLabel,
       reasoningLabel,
       instructions,
     };
-  }, [agent, mcpServerLookup, roleLookup, roleMcpServerIdsByRoleId, roles, runnerLookup]);
+  }, [agent, mcpServerLookup, roleLookup, roleMcpServerIdsByRoleId, roles, runnerLookup, skills]);
   const visibleArchivedChats = useMemo(() => {
     if (!agent || normalizedChatListStatusFilter !== "archived") {
       return [];
@@ -387,24 +461,117 @@ export function AgentChatsPage({
               {/* Effective MCP Servers */}
               <div className="role-detail-card role-detail-card-muted">
                 <div className="role-detail-card-header">
+                  <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>
+                  <h3>Direct Skills</h3>
+                </div>
+                {(() => {
+                  const directSkillIds = normalizeUniqueStringList(agent.skillIds || []);
+                  return directSkillIds.length === 0 ? (
+                    <div className="role-detail-empty">No direct skills assigned</div>
+                  ) : (
+                    <div className="role-detail-pills">
+                      {directSkillIds.map((skillId: any) => {
+                        const skill = (Array.isArray(skills) ? skills : []).find((candidate: any) => String(candidate?.id || "").trim() === skillId);
+                        return (
+                          <span key={`direct-skill-${skillId}`} className="tag-pill">
+                            {String(skill?.name || "").trim() || "Unknown skill"}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              <div className="role-detail-card role-detail-card-muted">
+                <div className="role-detail-card-header">
+                  <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>
+                  <h3>Effective Skills</h3>
+                </div>
+                {(() => {
+                  const directSkills = normalizeUniqueStringList(agent.skillIds || []).map((skillId: any) => {
+                    const skill = (Array.isArray(skills) ? skills : []).find((candidate: any) => String(candidate?.id || "").trim() === skillId);
+                    return {
+                      id: skillId,
+                      name: String(skill?.name || "").trim() || "Unknown skill",
+                    };
+                  });
+                  const inheritedSkills = resolveEffectiveRoleSkills(
+                    normalizeUniqueStringList(agent.roleIds || []),
+                    roles,
+                  );
+                  const effectiveSkills = unionAssignments(directSkills, inheritedSkills);
+                  return effectiveSkills.length === 0 ? (
+                    <div className="role-detail-empty">No effective skills assigned</div>
+                  ) : (
+                    <div className="role-detail-pills">
+                      {effectiveSkills.map((skill: any) => (
+                        <span key={`eff-skill-${skill.id}`} className="tag-pill">
+                          {skill.name}
+                        </span>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              <div className="role-detail-card role-detail-card-muted">
+                <div className="role-detail-card-header">
+                  <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="6" rx="2" /><rect x="2" y="15" width="20" height="6" rx="2" /><path d="M12 9v6" /></svg>
+                  <h3>Direct MCP Servers</h3>
+                </div>
+                {(() => {
+                  const directMcpServerIds = normalizeUniqueStringList(agent.mcpServerIds || []);
+                  return directMcpServerIds.length === 0 ? (
+                    <div className="role-detail-empty">No direct MCP servers assigned</div>
+                  ) : (
+                    <div className="role-detail-pills">
+                      {directMcpServerIds.map((mcpServerId: any) => {
+                        const mcpServer = mcpServerLookup.get(mcpServerId);
+                        return (
+                          <span key={`direct-mcp-${mcpServerId}`} className="tag-pill">
+                            {mcpServer?.name || "Unknown MCP server"}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              <div className="role-detail-card role-detail-card-muted">
+                <div className="role-detail-card-header">
                   <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="6" rx="2" /><rect x="2" y="15" width="20" height="6" rx="2" /><path d="M12 9v6" /></svg>
                   <h3>Effective MCP Servers</h3>
                 </div>
                 {(() => {
-                  const effectiveIds = resolveEffectiveRoleMcpServerIds(
+                  const directMcpServers = normalizeUniqueStringList(agent.mcpServerIds || []).map((mcpServerId: any) => {
+                    const mcpServer = mcpServerLookup.get(mcpServerId);
+                    return {
+                      id: mcpServerId,
+                      name: mcpServer?.name || "Unknown MCP server",
+                    };
+                  });
+                  const inheritedMcpServers = resolveEffectiveRoleMcpServerIds(
                     normalizeUniqueStringList(agent.roleIds || []),
                     roles,
                     roleMcpServerIdsByRoleId,
-                  );
-                  return effectiveIds.length === 0 ? (
-                    <div className="role-detail-empty">No MCP servers from roles</div>
+                  ).map((mcpServerId: any) => {
+                    const mcpServer = mcpServerLookup.get(mcpServerId);
+                    return {
+                      id: mcpServerId,
+                      name: mcpServer?.name || "Unknown MCP server",
+                    };
+                  });
+                  const effectiveMcpServers = unionAssignments(directMcpServers, inheritedMcpServers);
+                  return effectiveMcpServers.length === 0 ? (
+                    <div className="role-detail-empty">No effective MCP servers assigned</div>
                   ) : (
                     <div className="role-detail-pills">
-                      {effectiveIds.map((mcpServerId: any) => {
-                        const mcpServer = mcpServerLookup.get(mcpServerId);
+                      {effectiveMcpServers.map((mcpServer: any) => {
                         return (
-                          <span key={`eff-mcp-${mcpServerId}`} className="tag-pill">
-                            {mcpServer?.name || "Unknown MCP server"}
+                          <span key={`eff-mcp-${mcpServer.id}`} className="tag-pill">
+                            {mcpServer.name}
                           </span>
                         );
                       })}
@@ -709,6 +876,7 @@ export function AgentChatsPage({
             agents={agents || []}
             agentRunners={agentRunners || []}
             roles={roles || []}
+            skills={skills || []}
             mcpServers={mcpServers || []}
             roleMcpServerIdsByRoleId={roleMcpServerIdsByRoleId || {}}
             runnerCodexModelEntriesById={runnerCodexModelEntriesById || {}}

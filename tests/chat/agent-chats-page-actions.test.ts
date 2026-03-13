@@ -14,6 +14,8 @@ function renderAgentChatsPageMarkup(overrides: Record<string, unknown> = {}) {
         model: "gpt-5",
         modelReasoningLevel: "medium",
         roleIds: [],
+        skillIds: [],
+        mcpServerIds: [],
         defaultAdditionalModelInstructions: "",
       },
       agents: [],
@@ -90,4 +92,38 @@ test("AgentChatsPage shows create actions in active mode", () => {
 
   assert.match(markup, />\s*New chat\s*</);
   assert.match(markup, /aria-label="Chat settings"/);
+});
+
+test("AgentChatsPage renders direct and inherited agent assignment sections separately", () => {
+  const markup = renderAgentChatsPageMarkup({
+    agent: {
+      id: "agent-1",
+      name: "Build Agent",
+      model: "gpt-5",
+      modelReasoningLevel: "medium",
+      roleIds: ["role-1"],
+      skillIds: ["skill-1"],
+      mcpServerIds: ["mcp-1"],
+      defaultAdditionalModelInstructions: "",
+    },
+    roles: [
+      {
+        id: "role-1",
+        name: "Ops",
+        effectiveSkills: [{ id: "skill-2", name: "Systematic Debugging" }],
+      },
+    ],
+    mcpServers: [
+      { id: "mcp-1", name: "Filesystem MCP" },
+      { id: "mcp-2", name: "Context7" },
+    ],
+    roleMcpServerIdsByRoleId: {
+      "role-1": ["mcp-2"],
+    },
+  });
+
+  assert.match(markup, />Direct Skills</);
+  assert.match(markup, />Direct MCP Servers</);
+  assert.match(markup, />Effective Skills</);
+  assert.match(markup, />Effective MCP Servers</);
 });

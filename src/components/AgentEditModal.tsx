@@ -24,6 +24,7 @@ import type {
   AgentRunner,
   McpServer,
   Role,
+  Skill,
   RunnerCodexModelEntriesById,
   StringArrayById,
 } from "../types/domain.ts";
@@ -117,6 +118,7 @@ interface AgentEditModalProps {
   agents: Agent[];
   agentRunners: AgentRunner[];
   roles: Role[];
+  skills: Skill[];
   mcpServers: McpServer[];
   roleMcpServerIdsByRoleId: StringArrayById;
   runnerCodexModelEntriesById: RunnerCodexModelEntriesById;
@@ -134,6 +136,7 @@ interface AgentEditModalProps {
 const EMPTY_AGENT_DRAFT: AgentDraft = {
   agentRunnerId: "",
   roleIds: [],
+  skillIds: [],
   mcpServerIds: [],
   name: "",
   agentSdk: DEFAULT_AGENT_SDK,
@@ -146,6 +149,7 @@ export function AgentEditModal({
   agents,
   agentRunners,
   roles,
+  skills,
   mcpServers,
   roleMcpServerIdsByRoleId,
   runnerCodexModelEntriesById,
@@ -177,6 +181,12 @@ export function AgentEditModal({
       return map;
     }, new Map<string, McpServer>());
   }, [mcpServers]);
+  const skillLookup = useMemo(() => {
+    return skills.reduce((map, skill) => {
+      map.set(skill.id, skill);
+      return map;
+    }, new Map<string, Skill>());
+  }, [skills]);
 
   function getAgentDraft(agentId: string): AgentDraft {
     return {
@@ -189,8 +199,20 @@ export function AgentEditModal({
   const editingRoleIds = editingDraft
     ? normalizeUniqueStringList(editingDraft.roleIds)
     : [];
+  const editingSkillIds = editingDraft
+    ? normalizeUniqueStringList(editingDraft.skillIds)
+    : [];
+  const editingMcpServerIds = editingDraft
+    ? normalizeUniqueStringList(editingDraft.mcpServerIds)
+    : [];
   const editingAvailableRoles = editingDraft
     ? roles.filter((role) => !editingRoleIds.includes(role.id))
+    : [];
+  const editingAvailableSkills = editingDraft
+    ? skills.filter((skill) => !editingSkillIds.includes(skill.id))
+    : [];
+  const editingAvailableMcpServers = editingDraft
+    ? mcpServers.filter((mcpServer) => !editingMcpServerIds.includes(mcpServer.id))
     : [];
 
   const roleChildrenByParentId = useMemo(() => {
@@ -543,7 +565,7 @@ export function AgentEditModal({
               className="relationship-field"
               htmlFor={`edit-agent-effective-skills-${editingAgent.id}`}
             >
-              Effective skills (from roles)
+              Inherited skills (from roles)
             </label>
             <div
               id={`edit-agent-effective-skills-${editingAgent.id}`}
@@ -565,9 +587,80 @@ export function AgentEditModal({
 
             <label
               className="relationship-field"
+              htmlFor={`edit-agent-direct-skills-${editingAgent.id}`}
+            >
+              Direct skills
+            </label>
+            <div
+              id={`edit-agent-direct-skills-${editingAgent.id}`}
+              className="inline-selection-list"
+            >
+              {editingSkillIds.length === 0 ? (
+                <span className="empty-hint">No direct skills assigned.</span>
+              ) : (
+                editingSkillIds.map((skillId) => {
+                  const skill = skillLookup.get(skillId);
+                  const skillLabel = skill?.name || "Unknown skill";
+                  return (
+                    <button
+                      key={`edit-agent-remove-direct-skill-${editingAgent.id}-${skillId}`}
+                      type="button"
+                      className="tag-remove-btn"
+                      onClick={() =>
+                        onAgentDraftChange(
+                          editingAgent.id,
+                          "skillIds",
+                          editingSkillIds.filter((candidateId) => candidateId !== skillId),
+                        )
+                      }
+                      disabled={isEditingDisabled}
+                      title={`Remove ${skillLabel}`}
+                    >
+                      {skillLabel} ×
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            <label className="relationship-field" htmlFor={`edit-agent-direct-skill-add-${editingAgent.id}`}>
+              Add direct skill
+            </label>
+            <select
+              id={`edit-agent-direct-skill-add-${editingAgent.id}`}
+              value=""
+              onChange={(event: ChangeEvent<HTMLSelectElement>) => {
+                const nextSkillId = String(event.target.value || "").trim();
+                if (!nextSkillId) {
+                  return;
+                }
+                onAgentDraftChange(editingAgent.id, "skillIds", [
+                  ...editingSkillIds,
+                  nextSkillId,
+                ]);
+              }}
+              disabled={isEditingDisabled || editingAvailableSkills.length === 0}
+            >
+              <option value="">
+                {editingAvailableSkills.length === 0
+                  ? "All skills already assigned"
+                  : "Select skill to assign"}
+              </option>
+              {editingAvailableSkills.map((skill) => (
+                <option
+                  key={`edit-agent-direct-skill-option-${editingAgent.id}-${skill.id}`}
+                  value={skill.id}
+                >
+                  {skill.name}
+                </option>
+              ))}
+            </select>
+
+            <label
+              className="relationship-field"
               htmlFor={`edit-agent-effective-mcp-${editingAgent.id}`}
             >
-              Effective MCP servers (from roles)
+              Inherited MCP servers (from roles)
             </label>
             <div
               id={`edit-agent-effective-mcp-${editingAgent.id}`}
@@ -587,6 +680,77 @@ export function AgentEditModal({
                 })
               )}
             </div>
+
+            <label
+              className="relationship-field"
+              htmlFor={`edit-agent-direct-mcp-${editingAgent.id}`}
+            >
+              Direct MCP servers
+            </label>
+            <div
+              id={`edit-agent-direct-mcp-${editingAgent.id}`}
+              className="inline-selection-list"
+            >
+              {editingMcpServerIds.length === 0 ? (
+                <span className="empty-hint">No direct MCP servers assigned.</span>
+              ) : (
+                editingMcpServerIds.map((mcpServerId) => {
+                  const mcpServer = mcpServerLookup.get(mcpServerId);
+                  const mcpServerLabel = mcpServer?.name || "Unknown MCP server";
+                  return (
+                    <button
+                      key={`edit-agent-remove-direct-mcp-${editingAgent.id}-${mcpServerId}`}
+                      type="button"
+                      className="tag-remove-btn"
+                      onClick={() =>
+                        onAgentDraftChange(
+                          editingAgent.id,
+                          "mcpServerIds",
+                          editingMcpServerIds.filter((candidateId) => candidateId !== mcpServerId),
+                        )
+                      }
+                      disabled={isEditingDisabled}
+                      title={`Remove ${mcpServerLabel}`}
+                    >
+                      {mcpServerLabel} ×
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            <label className="relationship-field" htmlFor={`edit-agent-direct-mcp-add-${editingAgent.id}`}>
+              Add direct MCP server
+            </label>
+            <select
+              id={`edit-agent-direct-mcp-add-${editingAgent.id}`}
+              value=""
+              onChange={(event: ChangeEvent<HTMLSelectElement>) => {
+                const nextMcpServerId = String(event.target.value || "").trim();
+                if (!nextMcpServerId) {
+                  return;
+                }
+                onAgentDraftChange(editingAgent.id, "mcpServerIds", [
+                  ...editingMcpServerIds,
+                  nextMcpServerId,
+                ]);
+              }}
+              disabled={isEditingDisabled || editingAvailableMcpServers.length === 0}
+            >
+              <option value="">
+                {editingAvailableMcpServers.length === 0
+                  ? "All MCP servers already assigned"
+                  : "Select MCP server to assign"}
+              </option>
+              {editingAvailableMcpServers.map((mcpServer) => (
+                <option
+                  key={`edit-agent-direct-mcp-option-${editingAgent.id}-${mcpServer.id}`}
+                  value={mcpServer.id}
+                >
+                  {mcpServer.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="task-card-actions modal-actions">

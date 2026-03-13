@@ -159,6 +159,7 @@ export async function createAgentRecord({
   runnerCodexModelEntriesById,
   agentRoleIds,
   agentSkillIds,
+  agentMcpServerIds,
   agentName,
   agentRunnerId,
   agentSdk,
@@ -166,7 +167,6 @@ export async function createAgentRecord({
   agentModelReasoningLevel,
   allowEmptyReasoningWhenUnavailable = false,
   agentDefaultAdditionalModelInstructions,
-  resolveEffectiveMcpServerIds,
   executeCreateAgent,
 }: {
   selectedCompanyId: string;
@@ -175,6 +175,7 @@ export async function createAgentRecord({
   runnerCodexModelEntriesById: RunnerCodexModelEntriesById;
   agentRoleIds: string[];
   agentSkillIds: string[];
+  agentMcpServerIds: string[];
   agentName: string;
   agentRunnerId: string;
   agentSdk: string;
@@ -182,7 +183,6 @@ export async function createAgentRecord({
   agentModelReasoningLevel: string;
   allowEmptyReasoningWhenUnavailable?: boolean;
   agentDefaultAdditionalModelInstructions: string;
-  resolveEffectiveMcpServerIds: () => string[];
   executeCreateAgent: (variables: Record<string, unknown>) => Promise<any>;
 }) {
   const normalizedCompanyId = String(selectedCompanyId || "").trim();
@@ -268,7 +268,7 @@ export async function createAgentRecord({
     agentRunnerId: normalizedRunnerId || null,
     roleIds: agentRoleIds,
     skillIds: agentSkillIds,
-    mcpServerIds: resolveEffectiveMcpServerIds(),
+    mcpServerIds: agentMcpServerIds,
     defaultAdditionalModelInstructions: normalizeOptionalInstructions(agentDefaultAdditionalModelInstructions),
     name: normalizedAgentName,
     agentSdk: normalizedSdk,
