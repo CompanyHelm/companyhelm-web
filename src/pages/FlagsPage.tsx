@@ -7,6 +7,7 @@ const PHASE_OPTIONS: { value: string; label: string }[] = [
   { value: "runner", label: "runner" },
   { value: "configuring", label: "configuring" },
   { value: "agent", label: "agent" },
+  { value: "github", label: "github" },
   { value: "done", label: "done" },
 ];
 

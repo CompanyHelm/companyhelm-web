@@ -44,6 +44,7 @@ export interface OnboardingPageProps {
   onCreateAgent: (event: FormEvent<HTMLFormElement>) => Promise<any>;
   createdAgent: CreatedAgentSummary | null;
   isCreatingPostCreateChat: boolean;
+  githubAppInstallUrl: string;
   onChatNow: () => void;
   onSkipPostCreate: () => void;
   onAdvanceToAgentPhase: () => void;
@@ -57,6 +58,7 @@ const PHASES = [
   { key: "runner", label: "Create agent runner" },
   { key: "configuring", label: "Configuring runner" },
   { key: "agent", label: "Create first agent" },
+  { key: "github", label: "Install GitHub App" },
 ] as const;
 
 export function OnboardingPage({
@@ -86,6 +88,7 @@ export function OnboardingPage({
   onCreateAgent,
   createdAgent,
   isCreatingPostCreateChat,
+  githubAppInstallUrl,
   onChatNow,
   onSkipPostCreate,
   onAdvanceToAgentPhase,
@@ -116,6 +119,7 @@ export function OnboardingPage({
   const showRunnerSection = currentPhase === "runner";
   const showConfiguringSection = currentPhase === "configuring";
   const showAgentSection = currentPhase === "agent";
+  const showGithubSection = currentPhase === "github";
 
   const localStartCommand = useMemo(() => {
     const secret = provisionedSecret || "<RUNNER_SECRET>";
@@ -548,6 +552,39 @@ export function OnboardingPage({
                 {agentError ? <p className="error-banner">{agentError}</p> : null}
               </form>
             )}
+          </section>
+        ) : null}
+
+        {showGithubSection ? (
+          <section className="panel runner-onboarding-panel">
+            <div className="runner-onboarding-header">
+              <div>
+                <p className="eyebrow">Setup</p>
+                <h1>Install GitHub App</h1>
+                <p className="subcopy">
+                  Install the CompanyHelm GitHub App so your agents can work on repositories in this company. You will return to the Repos page after installation and onboarding will finish there.
+                </p>
+              </div>
+            </div>
+
+            <div className="task-card-actions">
+              {githubAppInstallUrl ? (
+                <a className="button-link" href={githubAppInstallUrl}>
+                  Install GitHub App
+                </a>
+              ) : (
+                <button type="button" disabled>
+                  Install GitHub App
+                </button>
+              )}
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={onSkipPostCreate}
+              >
+                Skip for now
+              </button>
+            </div>
           </section>
         ) : null}
       </div>
