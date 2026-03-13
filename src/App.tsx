@@ -6125,55 +6125,51 @@ function App() {
     }
   }
 
-  async function handleDeleteCompany() {
-    if (!selectedCompany) {
+  async function handleDeleteCompany(targetCompany: any) {
+    const resolvedCompanyId = String(targetCompany?.id || "").trim();
+    const resolvedCompanyName = String(targetCompany?.name || "").trim();
+    if (!resolvedCompanyId || !resolvedCompanyName) {
       setCompanyError("Select a company before deleting.");
-      return;
-    }
-
-    const confirmed = await requestConfirmation({
-      title: "Delete company",
-      message:
-        `Delete company "${selectedCompany.name}"? This will also delete all tasks, skills, secrets, MCP servers, agents, and agent runners in that company.`,
-      confirmLabel: "Delete company",
-    });
-    if (!confirmed) {
-      return;
+      return false;
     }
 
     try {
       setIsDeletingCompany(true);
       setCompanyError("");
       const data = await executeGraphQL(DELETE_COMPANY_MUTATION, {
-        id: selectedCompany.id,
+        id: resolvedCompanyId,
       });
       const result = data.deleteCompany;
       if (!result.ok) {
         throw new Error(result.error || "Company deletion failed.");
       }
 
-      setTasks([]);
-      setTaskPageTasks([]);
-      setTaskOptions([]);
-      setTaskAssignablePrincipals([]);
-      setRelationshipDrafts({});
-      setSkills([]);
-      setSkillDrafts({});
-      setRoles([]);
-      setSkillGroups([]);
-      setHasLoadedSkillGroups(false);
-      setGitSkillPackages([]);
-      setSecrets([]);
-      setSecretDrafts({});
-      setHasLoadedSecrets(false);
-      setMcpServers([]);
-      setMcpServerDrafts({});
-      setAgents([]);
-      setAgentDrafts({});
-      setAgentRunners([]);
+      if (resolvedCompanyId === selectedCompany?.id) {
+        setTasks([]);
+        setTaskPageTasks([]);
+        setTaskOptions([]);
+        setTaskAssignablePrincipals([]);
+        setRelationshipDrafts({});
+        setSkills([]);
+        setSkillDrafts({});
+        setRoles([]);
+        setSkillGroups([]);
+        setHasLoadedSkillGroups(false);
+        setGitSkillPackages([]);
+        setSecrets([]);
+        setSecretDrafts({});
+        setHasLoadedSecrets(false);
+        setMcpServers([]);
+        setMcpServerDrafts({});
+        setAgents([]);
+        setAgentDrafts({});
+        setAgentRunners([]);
+      }
       await loadCompanies();
+      return true;
     } catch (deleteError: any) {
       setCompanyError(deleteError.message);
+      return false;
     } finally {
       setIsDeletingCompany(false);
     }
@@ -10389,6 +10385,7 @@ function App() {
 
         {activePage === "settings" ? (
           <SettingsPage
+            companies={companies}
             hasCompanies={hasCompanies}
             selectedCompany={selectedCompany}
             companyError={companyError}
