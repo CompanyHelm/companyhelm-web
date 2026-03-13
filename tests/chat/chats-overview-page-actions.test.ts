@@ -31,6 +31,7 @@ function renderChatsOverviewPageMarkup(overrides: Record<string, unknown> = {}) 
       isLoadingChatIndex: false,
       chatIndexError: "",
       isCreatingChatSession: false,
+      archivingChatSessionKey: "",
       deletingChatSessionKey: "",
       chatListStatusFilter: "active",
       onRefreshChatLists: () => {},
@@ -130,4 +131,39 @@ test("ChatsOverviewPage archived list renders archived status after the chat tit
   });
 
   assert.match(markup, /Archived thread[\s\S]*chat-thread-status chat-thread-status-archived">archived</);
+});
+
+test("ChatsOverviewPage active list renders archiving status from the session", () => {
+  const markup = renderChatsOverviewPageMarkup({
+    chatSessionsByAgent: {
+      "agent-1": [
+        {
+          id: "thread-1",
+          title: "Archiving thread",
+          status: "archiving",
+          updatedAt: "2026-03-08T00:00:00.000Z",
+        },
+      ],
+    },
+  });
+
+  assert.match(markup, /Archiving thread[\s\S]*chat-thread-status chat-thread-status-deleting">archiving</);
+});
+
+test("ChatsOverviewPage active list renders archiving status from the local in-flight key", () => {
+  const markup = renderChatsOverviewPageMarkup({
+    archivingChatSessionKey: "agent-1:thread-1",
+    chatSessionsByAgent: {
+      "agent-1": [
+        {
+          id: "thread-1",
+          title: "Archiving thread",
+          status: "ready",
+          updatedAt: "2026-03-08T00:00:00.000Z",
+        },
+      ],
+    },
+  });
+
+  assert.match(markup, /Archiving thread[\s\S]*chat-thread-status chat-thread-status-deleting">archiving</);
 });
