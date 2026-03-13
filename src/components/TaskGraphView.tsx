@@ -19,6 +19,7 @@ import {
 import ELK from "elkjs/lib/elk.bundled.js";
 
 import type { TaskItem } from "../types/domain.ts";
+import { TaskGraphLayoutEngine } from "../utils/task-graph-layout.ts";
 
 type ElkInstance = {
   layout: (graph: unknown) => Promise<unknown>;
@@ -43,6 +44,7 @@ const HORIZONTAL_GAP = 60;
 const BLOCK_VERTICAL_GAP = 46;
 const BLOCK_EDGE_ROUTE_BASE_OFFSET = 30;
 const BLOCK_EDGE_ROUTE_LANE_GAP = 24;
+const ELK_LAYOUT_TIMEOUT_MS = 1500;
 
 type TaskGraphNodeData = {
   label: string;
@@ -544,6 +546,12 @@ async function computeElkLayout(nodes: TaskGraphNode[], edges: TaskGraphEdge[]) 
   }));
 }
 
+const graphLayoutEngine = new TaskGraphLayoutEngine<TaskGraphNode, TaskGraphEdge>({
+  timeoutMs: ELK_LAYOUT_TIMEOUT_MS,
+  computeLayout: computeElkLayout,
+  computeFallbackLayout: computeFallbackLayout,
+});
+
 interface TaskGraphViewProps {
   tasks: TaskItem[];
   onTaskClick: (taskId: string) => void;
@@ -596,12 +604,15 @@ export function TaskGraphView({ tasks, onTaskClick, onAddDependency }: TaskGraph
       setIsLayoutReady(true);
     };
 
-    void computeElkLayout(rawNodes, rawEdges)
-      .then((layoutNodes) => {
+    void graphLayoutEngine.layout(rawNodes, rawEdges)
+      .then(({ nodes: layoutNodes, didUseFallback, error }) => {
+        if (didUseFallback && error) {
+          console.error("Task graph layout failed. Falling back to a basic layout.", error);
+        }
         applyLayoutNodes(layoutNodes);
       })
       .catch((error) => {
-        console.error("Task graph layout failed. Falling back to a basic layout.", error);
+        console.error("Task graph layout fallback failed.", error);
         applyLayoutNodes(computeFallbackLayout(rawNodes, rawEdges));
       });
 
