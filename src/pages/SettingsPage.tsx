@@ -116,6 +116,7 @@ interface SettingsPageProps {
   onExportSectionsChange: (nextSections: SettingsExportSectionId[]) => void;
   onApplyExportPreset: (presetSections: SettingsExportSectionId[]) => void;
   onExportCompanyData: () => void;
+  initialExportModalOpen?: boolean;
 }
 
 export function SettingsPage({
@@ -134,8 +135,10 @@ export function SettingsPage({
   onExportSectionsChange,
   onApplyExportPreset,
   onExportCompanyData,
+  initialExportModalOpen = false,
 }: SettingsPageProps) {
   const [isCreateCompanyModalOpen, setIsCreateCompanyModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(initialExportModalOpen);
   const selectedExportSectionSet = useMemo(
     () => new Set(selectedExportSections),
     [selectedExportSections],
@@ -210,56 +213,76 @@ export function SettingsPage({
       </CreationModal>
       {hasCompanies ? (
         <>
+          <CreationModal
+            modalId="export-company-data"
+            title="Export company data"
+            description="Select the sections to export. The API always applies final sanitization, so secrets and internal-only ids stay out of the file."
+            isOpen={isExportModalOpen}
+            onClose={() => setIsExportModalOpen(false)}
+          >
+            <div className="page-stack">
+              <div className="hero-actions">
+                <button
+                  type="button"
+                  onClick={() => onApplyExportPreset(SETTINGS_EXPORT_PRESETS.sharable)}
+                  disabled={isExportingCompanyData}
+                >
+                  Sharable
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onApplyExportPreset(SETTINGS_EXPORT_PRESETS.fullDump)}
+                  disabled={isExportingCompanyData}
+                >
+                  Full dump
+                </button>
+              </div>
+              <div className="page-stack">
+                {SETTINGS_EXPORT_SECTIONS.map((section) => (
+                  <label key={section.id} className="chat-settings-field" htmlFor={`export-section-${section.id}`}>
+                    <span>
+                      <strong>{section.label}</strong>
+                      <span className="subcopy">{section.description}</span>
+                    </span>
+                    <input
+                      id={`export-section-${section.id}`}
+                      name={`export-section-${section.id}`}
+                      type="checkbox"
+                      checked={selectedExportSectionSet.has(section.id)}
+                      onChange={() => handleExportSectionToggle(section.id)}
+                      disabled={isExportingCompanyData}
+                    />
+                  </label>
+                ))}
+              </div>
+              {exportError ? <p className="error-banner">{exportError}</p> : null}
+              <div className="hero-actions">
+                <button
+                  type="button"
+                  onClick={onExportCompanyData}
+                  disabled={!selectedCompany || isExportingCompanyData}
+                >
+                  {isExportingCompanyData ? "Exporting..." : "Export YAML"}
+                </button>
+              </div>
+            </div>
+          </CreationModal>
+
           <section className="panel">
             <header className="panel-header">
               <h2>Export company data</h2>
             </header>
             <p className="subcopy">
-              Select the sections to export. The API always applies final sanitization,
-              so secrets and internal-only ids stay out of the file.
+              Open the export modal to choose which sections to include. The API still
+              applies final sanitization so secrets and internal-only ids stay out of the file.
             </p>
             <div className="hero-actions">
               <button
                 type="button"
-                onClick={() => onApplyExportPreset(SETTINGS_EXPORT_PRESETS.sharable)}
+                onClick={() => setIsExportModalOpen(true)}
                 disabled={isExportingCompanyData}
               >
-                Sharable
-              </button>
-              <button
-                type="button"
-                onClick={() => onApplyExportPreset(SETTINGS_EXPORT_PRESETS.fullDump)}
-                disabled={isExportingCompanyData}
-              >
-                Full dump
-              </button>
-            </div>
-            <div className="page-stack">
-              {SETTINGS_EXPORT_SECTIONS.map((section) => (
-                <label key={section.id} className="chat-settings-field" htmlFor={`export-section-${section.id}`}>
-                  <span>
-                    <strong>{section.label}</strong>
-                    <span className="subcopy">{section.description}</span>
-                  </span>
-                  <input
-                    id={`export-section-${section.id}`}
-                    name={`export-section-${section.id}`}
-                    type="checkbox"
-                    checked={selectedExportSectionSet.has(section.id)}
-                    onChange={() => handleExportSectionToggle(section.id)}
-                    disabled={isExportingCompanyData}
-                  />
-                </label>
-              ))}
-            </div>
-            {exportError ? <p className="error-banner">{exportError}</p> : null}
-            <div className="hero-actions">
-              <button
-                type="button"
-                onClick={onExportCompanyData}
-                disabled={!selectedCompany || isExportingCompanyData}
-              >
-                {isExportingCompanyData ? "Exporting..." : "Export YAML"}
+                Export data
               </button>
             </div>
           </section>
