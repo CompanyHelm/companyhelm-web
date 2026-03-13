@@ -79,6 +79,94 @@ export function findAgentIdForChatThread({
   return "";
 }
 
+export function resolveExplicitChatsRoute({
+  requestedAgentId = "",
+  requestedThreadId = "",
+  availableAgents = [],
+  sessionsByAgent = {},
+}: {
+  requestedAgentId?: unknown;
+  requestedThreadId?: unknown;
+  availableAgents?: unknown;
+  sessionsByAgent?: unknown;
+} = {}) {
+  const resolvedRequestedAgentId = normalizeId(requestedAgentId);
+  const resolvedRequestedThreadId = normalizeId(requestedThreadId);
+  const resolvedSessionsByAgent = (
+    sessionsByAgent && typeof sessionsByAgent === "object" ? sessionsByAgent : {}
+  ) as SessionsByAgent;
+  const sortedAgents = sortAgentsForChatNavigation(availableAgents);
+  const hasRequestedAgent = Boolean(
+    resolvedRequestedAgentId
+    && sortedAgents.some((agent) => normalizeId(agent?.id) === resolvedRequestedAgentId),
+  );
+
+  if (resolvedRequestedAgentId && !hasRequestedAgent) {
+    return {
+      kind: "not_found",
+      message: "Agent not found.",
+      agentId: resolvedRequestedAgentId,
+      threadId: resolvedRequestedThreadId,
+      path: getChatsPath({
+        agentId: resolvedRequestedAgentId,
+        threadId: resolvedRequestedThreadId,
+      }),
+    };
+  }
+
+  const agentIdFromThread = findAgentIdForChatThread({
+    threadId: resolvedRequestedThreadId,
+    sessionsByAgent: resolvedSessionsByAgent,
+  });
+
+  if (resolvedRequestedThreadId) {
+    if (!agentIdFromThread) {
+      return {
+        kind: "not_found",
+        message: "Chat not found.",
+        agentId: resolvedRequestedAgentId,
+        threadId: resolvedRequestedThreadId,
+        path: getChatsPath({
+          agentId: resolvedRequestedAgentId,
+          threadId: resolvedRequestedThreadId,
+        }),
+      };
+    }
+
+    if (resolvedRequestedAgentId && agentIdFromThread !== resolvedRequestedAgentId) {
+      return {
+        kind: "not_found",
+        message: "Chat does not belong to the selected agent.",
+        agentId: resolvedRequestedAgentId,
+        threadId: resolvedRequestedThreadId,
+        path: getChatsPath({
+          agentId: resolvedRequestedAgentId,
+          threadId: resolvedRequestedThreadId,
+        }),
+      };
+    }
+
+    return {
+      kind: "exact",
+      message: "",
+      agentId: agentIdFromThread,
+      threadId: resolvedRequestedThreadId,
+      path: getChatsPath({
+        agentId: agentIdFromThread,
+        threadId: resolvedRequestedThreadId,
+      }),
+    };
+  }
+
+  return {
+    kind: "exact",
+    message: "",
+    agentId: resolvedRequestedAgentId,
+    threadId: "",
+    path: getChatsPath({ agentId: resolvedRequestedAgentId }),
+  };
+}
+
 export function resolveLoadedChatsRoute({
   requestedAgentId = "",
   requestedThreadId = "",

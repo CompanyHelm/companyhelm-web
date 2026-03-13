@@ -339,6 +339,7 @@ export function AgentChatPage({
   queuedChatMessages,
   isLoadingChat,
   chatError,
+  routeNotFoundMessage = "",
   chatDraftMessage,
   chatListStatusFilter = "active",
   isSendingChatMessage,
@@ -366,7 +367,9 @@ export function AgentChatPage({
   onCreateChatForAgent,
   onOpenChatFromList,
 }: any) {
-  const canChat = Boolean(agent && session);
+  const normalizedRouteNotFoundMessage = String(routeNotFoundMessage || "").trim();
+  const hasRouteNotFoundMessage = Boolean(normalizedRouteNotFoundMessage);
+  const canChat = Boolean(agent && session) && !hasRouteNotFoundMessage;
   const selectedAgentId = String(agent?.id || "").trim();
   const selectedSessionId = String(session?.id || "").trim();
   const normalizedChatListStatusFilter = normalizeChatListStatusFilter(chatListStatusFilter);
@@ -461,9 +464,19 @@ export function AgentChatPage({
   const isShowingPartialTranscript = visibleMessageCount < totalMessageCount;
   const hasTranscriptContent = orderedTurns.length > 0 || queuedMessages.length > 0;
   const showTranscriptLoadingState =
-    canChat && isLoadingChat && !hasTranscriptContent && !isSessionDeleting && !isSessionReadOnly;
+    canChat
+    && !hasRouteNotFoundMessage
+    && isLoadingChat
+    && !hasTranscriptContent
+    && !isSessionDeleting
+    && !isSessionReadOnly;
   const showTranscriptEmptyState =
-    canChat && !isLoadingChat && !hasTranscriptContent && !isSessionDeleting && !isSessionReadOnly;
+    canChat
+    && !hasRouteNotFoundMessage
+    && !isLoadingChat
+    && !hasTranscriptContent
+    && !isSessionDeleting
+    && !isSessionReadOnly;
 
   const isMobileViewport = useMemo(() => matchesMediaQuery(MOBILE_MEDIA_QUERY), []);
   const pageActionVisibility = useMemo(
@@ -1120,8 +1133,11 @@ export function AgentChatPage({
         {isSessionPending ? (
           <p className="empty-hint">Thread is pending. Messages sent now will queue until it is ready.</p>
         ) : null}
-        {!agent ? <p className="empty-hint">Agent not found.</p> : null}
-        {agent && !session && hasKnownChatsForAgent ? <p className="empty-hint">Chat not found.</p> : null}
+        {hasRouteNotFoundMessage ? <p className="empty-hint">{normalizedRouteNotFoundMessage}</p> : null}
+        {!hasRouteNotFoundMessage && !agent ? <p className="empty-hint">Agent not found.</p> : null}
+        {!hasRouteNotFoundMessage && agent && !session && hasKnownChatsForAgent ? (
+          <p className="empty-hint">Chat not found.</p>
+        ) : null}
         {showTranscriptLoadingState ? (
           <div className="chat-transcript-state chat-transcript-state-loading" role="status" aria-live="polite">
             <span className="chat-turn-spinner chat-transcript-state-spinner" aria-hidden="true" />
