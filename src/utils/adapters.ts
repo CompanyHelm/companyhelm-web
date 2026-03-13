@@ -188,7 +188,7 @@ export function toLegacyRunnerPayload(agentRunner: LooseRecord | null | undefine
   ) || null;
 
   const nextMetadata: LooseRecord = {
-    name: runnerName || resolveLegacyId(currentMetadata.name) || runnerId,
+    name: runnerName || resolveLegacyId(currentMetadata.name) || "",
     createdAt: resolveLegacyId(runnerRecord.createdAt, currentMetadata.createdAt) || nowIso,
     updatedAt: resolveLegacyId(runnerRecord.updatedAt, currentMetadata.updatedAt) || nowIso,
     lastSeenAt,
@@ -321,7 +321,7 @@ export function toLegacyThreadPayload(thread: LooseRecord | null | undefined, {
       : undefined;
   const normalizedExplicitTitle = typeof explicitTitleValue === "string" ? explicitTitleValue.trim() : "";
   const fallbackTitle = explicitTitleValue === undefined ? resolveLegacyId(currentMetadata.title) : "";
-  const resolvedTitle = normalizedExplicitTitle || fallbackTitle || `Thread ${threadId.slice(0, 8)}`;
+  const resolvedTitle = normalizedExplicitTitle || fallbackTitle;
   const overrideProvidesAdditionalModelInstructions = Boolean(
     metadataOverride && Object.prototype.hasOwnProperty.call(metadataOverride, "additionalModelInstructions"),
   );

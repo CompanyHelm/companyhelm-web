@@ -794,7 +794,7 @@ export function AgentChatPage({
                     <div className="chat-sidebar-agent-header">
                       <div className="chat-sidebar-agent-main">
                         <p className="chat-sidebar-agent-name">
-                          <strong>{sidebarAgent?.name || `Agent ${sidebarAgentId.slice(0, 8)}`}</strong>
+                          <strong>{String(sidebarAgent?.name || "").trim() || "Unnamed agent"}</strong>
                         </p>
                         <p className="chat-sidebar-agent-meta">
                           {sidebarAgent?.agentSdk || "n/a"} · {String(sidebarAgent?.model || sidebarAgent?.defaultModelId || "").trim() || "n/a"}
@@ -911,7 +911,7 @@ export function AgentChatPage({
                       <div className="chat-sidebar-agent-header">
                         <div className="chat-sidebar-agent-main">
                           <p className="chat-sidebar-agent-name">
-                            <strong>{sidebarAgent?.name || `Agent ${sidebarAgentId.slice(0, 8)}`}</strong>
+                            <strong>{String(sidebarAgent?.name || "").trim() || "Unnamed agent"}</strong>
                           </p>
                           <p className="chat-sidebar-agent-meta">
                             {sidebarAgent?.agentSdk || "n/a"} · {String(sidebarAgent?.model || sidebarAgent?.defaultModelId || "").trim() || "n/a"}
@@ -1021,7 +1021,7 @@ export function AgentChatPage({
                       <div className="chat-sidebar-agent-header">
                         <div className="chat-sidebar-agent-main">
                           <p className="chat-sidebar-agent-name">
-                            <strong>{sidebarAgent?.name || `Agent ${sidebarAgentId.slice(0, 8)}`}</strong>
+                            <strong>{String(sidebarAgent?.name || "").trim() || "Unnamed agent"}</strong>
                           </p>
                           <p className="chat-sidebar-agent-meta">
                             {sidebarAgent?.agentSdk || "n/a"} · {sidebarModelLabel}
@@ -1182,7 +1182,7 @@ export function AgentChatPage({
                   elements.push(
                     <li key={`sep-${turn.id}`} className="chat-turn-separator">
                       <div className="chat-turn-separator-row">
-                        <code className="runner-id">{String(turn.id || "").slice(0, 8)}</code>
+                        <span className="chat-message-kind">Turn</span>
                         <span className={`chat-turn-status chat-turn-status-${turnStatus}`}>{turnStatus}</span>
                         {turnStatus === "running" ? (
                           <span
@@ -1340,8 +1340,6 @@ export function AgentChatPage({
                         <span className={`chat-turn-status ${isSteerMode ? "chat-turn-status-running" : "chat-turn-status-idle"}`}>
                           {isSteerMode ? "steer" : "queue"}
                         </span>
-                        <code className="runner-id">{queuedMessageId.slice(0, 8)}</code>
-                        {queuedMessageSdkTurnId ? <code className="runner-id">{queuedMessageSdkTurnId.slice(0, 8)}</code> : null}
                       </div>
                       <button
                         type="button"
@@ -1480,10 +1478,6 @@ export function AgentChatPage({
             )}
           </div>
           <div className="chat-settings-info">
-            <p className="chat-settings-info-row">
-              <span className="chat-settings-info-label">Thread ID</span>
-              <code className="runner-id">{session?.id || "n/a"}</code>
-            </p>
             <p className="chat-settings-info-row">
               <span className="chat-settings-info-label">Model</span>
               <span>{session?.currentModelName || session?.currentModelId || "n/a"}</span>

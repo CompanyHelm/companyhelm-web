@@ -117,7 +117,7 @@ export function buildTaskDependencyLanes(tasks: unknown): TaskDependencyLane[] {
     const level = levelByTaskId.get(taskId) || 0;
     const laneTask: LaneTask = {
       id: taskId,
-      name: String(task?.name || "").trim() || `Task ${taskId}`,
+      name: String(task?.name || "").trim() || "Untitled task",
       status: String(task?.status || "draft").trim() || "draft",
       dependencyTaskIds: dependencyTaskIdsByTaskId.get(taskId) || [],
       dependentTaskIds: dependentTaskIdsByTaskId.get(taskId) || [],

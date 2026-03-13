@@ -169,7 +169,7 @@ export function TaskEditModal({
   }
 
   function handleDelete() {
-    onDeleteTask(taskId, taskName);
+    onDeleteTask(taskId, taskName || "Untitled task");
   }
 
   return (
@@ -235,7 +235,6 @@ export function TaskEditModal({
             >
               Open thread chat
             </button>
-            <code className="task-thread-id">{taskThreadId}</code>
           </div>
         ) : (
           <p className="chat-card-meta">Thread not present.</p>
@@ -294,12 +293,12 @@ export function TaskEditModal({
               const childTask = tasks.find((candidateTask) => candidateTask.id === childId);
               return (
                 <span key={childId} className="task-relation-pill">
-                  <span>{childTask?.name || childId}</span>
+                  <span>{childTask?.name || "Untitled task"}</span>
                   <button
                     type="button"
                     className="task-relation-pill-remove"
                     onClick={() => removeChild(childId)}
-                    aria-label={`Remove child ${childTask?.name || childId}`}
+                    aria-label={`Remove child ${childTask?.name || "Untitled task"}`}
                   >×</button>
                 </span>
               );
@@ -324,12 +323,12 @@ export function TaskEditModal({
               const depTask = tasks.find((candidateTask) => candidateTask.id === depId);
               return (
                 <span key={depId} className="task-relation-pill">
-                  <span>{depTask?.name || depId}</span>
+                  <span>{depTask?.name || "Untitled task"}</span>
                   <button
                     type="button"
                     className="task-relation-pill-remove"
                     onClick={() => removeDependency(depId)}
-                    aria-label={`Remove dependency ${depTask?.name || depId}`}
+                    aria-label={`Remove dependency ${depTask?.name || "Untitled task"}`}
                   >×</button>
                 </span>
               );
@@ -354,7 +353,7 @@ export function TaskEditModal({
               <li key={`task-comment-${comment.id}`} className="task-comment-item">
                 <p>{comment.comment}</p>
                 <span className="chat-card-meta">
-                  {comment.authorPrincipal?.displayName || comment.authorPrincipalId || "Unknown principal"} · {" "}
+                  {String(comment.authorPrincipal?.displayName || "").trim() || "Unknown principal"} · {" "}
                   {comment.authorPrincipal?.kind === "agent" ? "Agent" : "Human"} · {" "}
                   {comment.createdAt ? new Date(comment.createdAt).toLocaleString() : ""}
                 </span>

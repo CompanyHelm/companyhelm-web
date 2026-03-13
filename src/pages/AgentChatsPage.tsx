@@ -176,7 +176,7 @@ export function AgentChatsPage({
     const assignedRoleIds = normalizeUniqueStringList(agent.roleIds || []);
     const assignedRoleLabels = assignedRoleIds.map((roleId: any) => {
       const role = roleLookup.get(roleId);
-      return role ? role.name : roleId;
+      return role?.name || "Unknown role";
     });
     const assignedRoleSummary = assignedRoleLabels.length > 0 ? assignedRoleLabels.join(", ") : "none";
     const effectiveMcpServerIds = resolveEffectiveRoleMcpServerIds(
@@ -186,7 +186,7 @@ export function AgentChatsPage({
     );
     const effectiveMcpServerLabels = effectiveMcpServerIds.map((mcpServerId: any) => {
       const mcpServer = mcpServerLookup.get(mcpServerId);
-      return mcpServer ? mcpServer.name : mcpServerId;
+      return mcpServer?.name || "Unknown MCP server";
     });
     const effectiveMcpServerSummary =
       effectiveMcpServerLabels.length > 0 ? effectiveMcpServerLabels.join(", ") : "none";
@@ -325,7 +325,7 @@ export function AgentChatsPage({
                       const role = roleLookup.get(roleId);
                       return (
                         <span key={`agent-role-${roleId}`} className="tag-pill">
-                          {role ? role.name : roleId}
+                          {role?.name || "Unknown role"}
                         </span>
                       );
                     })}
@@ -353,7 +353,7 @@ export function AgentChatsPage({
                         const mcpServer = mcpServerLookup.get(mcpServerId);
                         return (
                           <span key={`eff-mcp-${mcpServerId}`} className="tag-pill">
-                            {mcpServer ? mcpServer.name : mcpServerId}
+                            {mcpServer?.name || "Unknown MCP server"}
                           </span>
                         );
                       })}

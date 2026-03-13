@@ -89,7 +89,7 @@ export function ReposPage({
               return (
                 <li key={`github-installation-${installation.installationId}`} className="chat-card">
                   <div className="chat-card-content">
-                    <strong>{installation.accountLogin || `Installation ${installation.installationId}`}</strong>
+                    <strong>{installation.accountLogin || "GitHub installation"}</strong>
                     <span className="chat-card-meta">
                       ID: {installation.installationId} &middot; Linked {formatTimestamp(installation.createdAt)}
                     </span>
@@ -162,7 +162,7 @@ export function ReposPage({
                   className="chat-card"
                 >
                   <div className="chat-card-content">
-                    <strong>{installation.accountLogin || `Installation ${installation.installationId}`}</strong>
+                    <strong>{installation.accountLogin || "GitHub installation"}</strong>
                     <span className="chat-card-meta">{installationRepositories.length} repos</span>
                   </div>
                   {installationRepositories.length === 0 ? (

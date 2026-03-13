@@ -74,7 +74,7 @@ function toThreadTaskSummary(task: ThreadTaskLike): ThreadTaskSummary | null {
   const updatedAt = normalizeString(task?.updatedAt) || null;
   return {
     id: taskId || taskName,
-    name: taskName || `Task ${taskId.slice(0, 8)}`,
+    name: taskName || "Untitled task",
     status: normalizeThreadTaskStatus(task?.status),
     createdAt,
     updatedAt,

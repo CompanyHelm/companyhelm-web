@@ -127,3 +127,12 @@ test("AgentCreateModal shows runner names and disables runners that are not read
   assert.match(markup, /<option value="runner-2" disabled="">Runner Two<\/option>/);
   assert.doesNotMatch(markup, /runner-1 \(connected\)/);
 });
+
+test("AgentCreateModal uses a neutral runner label instead of showing the runner id", () => {
+  const markup = renderAgentCreateModalMarkup({
+    agentRunners: [createRunner({ id: "runner-secret-1234", name: "" })],
+  });
+
+  assert.match(markup, /<option value="runner-secret-1234">Unnamed runner<\/option>/);
+  assert.doesNotMatch(markup, />runner-secret-1234</);
+});

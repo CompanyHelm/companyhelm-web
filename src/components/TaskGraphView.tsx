@@ -111,7 +111,7 @@ function buildGraphElements(tasks: TaskItem[]) {
     id: String(task.id || "").trim(),
     type: "task",
     data: {
-      label: task.name || `Task ${task.id}`,
+      label: task.name || "Untitled task",
       status: task.status || "draft",
       commentCount: Array.isArray(task.comments) ? task.comments.length : 0,
       onClick: () => undefined,

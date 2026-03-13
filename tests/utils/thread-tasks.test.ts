@@ -45,3 +45,15 @@ test("toThreadTaskStatusLabel formats status values for chat UI", () => {
   assert.equal(toThreadTaskStatusLabel("in_progress"), "in progress");
   assert.equal(toThreadTaskStatusLabel("pending"), "pending");
 });
+
+test("normalizeThreadTaskList uses a neutral fallback when task names are missing", () => {
+  const tasks = normalizeThreadTaskList([
+    {
+      id: "task-without-name",
+      status: "pending",
+      updatedAt: "2026-03-01T12:00:00.000Z",
+    },
+  ]);
+
+  assert.equal(tasks[0]?.name, "Untitled task");
+});

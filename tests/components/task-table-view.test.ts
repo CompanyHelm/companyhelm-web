@@ -98,3 +98,44 @@ test("TaskTableView falls back to default columns when stored visibility is inva
   assert.match(markup, />Blocked by</);
   assert.match(markup, />Comments</);
 });
+
+test("TaskTableView uses a neutral fallback when task names are missing", () => {
+  const originalWindow = testGlobal.window;
+
+  try {
+    testGlobal.window = {
+      localStorage: createMockStorage(new Map()),
+    } as Window & typeof globalThis;
+
+    const markup = renderToStaticMarkup(
+      React.createElement(TaskTableView, {
+        tasks: [
+          {
+            id: "task-secret-1",
+            name: "",
+            status: "pending",
+            description: "Make the table configurable",
+            dependencyTaskIds: [],
+            comments: [],
+            createdAt: "2026-03-08T10:00:00.000Z",
+          },
+        ],
+        agents: [],
+        onTaskClick: () => {},
+        onDeleteTask: () => {},
+        onBatchDeleteTasks: async () => true,
+        onBatchExecuteTasks: async () => true,
+      }),
+    );
+
+    assert.match(markup, /Untitled task/);
+    assert.doesNotMatch(markup, /Task task-secret-1/);
+    assert.doesNotMatch(markup, /Select task task-secret-1/);
+  } finally {
+    if (typeof originalWindow === "undefined") {
+      Reflect.deleteProperty(testGlobal, "window");
+    } else {
+      testGlobal.window = originalWindow;
+    }
+  }
+});
