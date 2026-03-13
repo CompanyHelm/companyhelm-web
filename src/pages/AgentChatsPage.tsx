@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Page } from "../components/Page.tsx";
 import { CreationModal } from "../components/CreationModal.tsx";
 import { AgentEditModal } from "../components/AgentEditModal.tsx";
@@ -6,6 +6,7 @@ import { ChatListStatusToggle } from "../components/ChatListStatusToggle.tsx";
 import { ChatSessionRunningBadge } from "../components/ChatSessionRunningBadge.tsx";
 import { ThreadTaskSummary } from "../components/ThreadTaskSummary.tsx";
 import { isChatSessionRunning } from "../utils/chat.ts";
+import { ArchivedChatSelection } from "../utils/archivedChatSelection.ts";
 import { formatRunnerLabel, formatTimestamp } from "../utils/formatting.ts";
 import { normalizeUniqueStringList } from "../utils/normalization.ts";
 import { useSetPageActions } from "../components/PageActionsContext.tsx";
@@ -100,6 +101,7 @@ export function AgentChatsPage({
   onOpenChat,
   onArchiveChat,
   onDeleteChat,
+  onBatchDeleteChats,
   onBackToAgents,
   onSetChatDraftMessage,
   agentRunners,
@@ -114,6 +116,7 @@ export function AgentChatsPage({
   onAgentDraftChange,
   onSaveAgent,
   onEnsureAgentEditorData,
+  isBatchDeletingChats = false,
 }: any) {
   const resolvedCreateChatDisabledReason = String(createChatDisabledReason || "").trim();
   const normalizedChatListStatusFilter = normalizeChatListStatusFilter(chatListStatusFilter);
@@ -121,6 +124,7 @@ export function AgentChatsPage({
   const isCreateChatDisabled = !agent || isCreatingChatSession || Boolean(resolvedCreateChatDisabledReason);
   const [isCreateSettingsOpen, setIsCreateSettingsOpen] = useState<any>(false);
   const [isEditAgentModalOpen, setIsEditAgentModalOpen] = useState<any>(false);
+  const [selectedArchivedChatKeys, setSelectedArchivedChatKeys] = useState<any>(new Set());
   const runnerLookup = useMemo(() => {
     return (Array.isArray(agentRunners) ? agentRunners : []).reduce((map: any, runner: any) => {
       const runnerId = String(runner?.id || "").trim();
@@ -203,6 +207,39 @@ export function AgentChatsPage({
       instructions,
     };
   }, [agent, mcpServerLookup, roleLookup, roleMcpServerIdsByRoleId, roles, runnerLookup]);
+  const visibleArchivedChats = useMemo(() => {
+    if (!agent || normalizedChatListStatusFilter !== "archived") {
+      return [];
+    }
+    return (Array.isArray(chatSessions) ? chatSessions : [])
+      .filter((session: any) => String(session?.status || "").trim().toLowerCase() === "archived")
+      .map((session: any) => ({
+        agentId: agent.id,
+        sessionId: String(session?.id || "").trim(),
+        title: String(session?.title || "").trim(),
+      }))
+      .filter((session: any) => session.sessionId);
+  }, [agent, chatSessions, normalizedChatListStatusFilter]);
+  const visibleArchivedChatKeys = useMemo(
+    () => visibleArchivedChats.map((session: any) => ArchivedChatSelection.getKey(session.agentId, session.sessionId)),
+    [visibleArchivedChats],
+  );
+  const archivedSelectionSummary = useMemo(
+    () => ArchivedChatSelection.getSummary(selectedArchivedChatKeys, visibleArchivedChatKeys),
+    [selectedArchivedChatKeys, visibleArchivedChatKeys],
+  );
+
+  useEffect(() => {
+    if (normalizedChatListStatusFilter !== "archived") {
+      setSelectedArchivedChatKeys(new Set());
+      return;
+    }
+    const visibleKeySet = new Set(visibleArchivedChatKeys);
+    setSelectedArchivedChatKeys((current: Set<string>) => {
+      const next = new Set(Array.from(current).filter((key) => visibleKeySet.has(key)));
+      return next.size === current.size ? current : next;
+    });
+  }, [normalizedChatListStatusFilter, visibleArchivedChatKeys.join("|")]);
 
   async function handleNewChat() {
     const createdSessionId = await onCreateChatSession({
@@ -220,6 +257,20 @@ export function AgentChatsPage({
       setIsEditAgentModalOpen(false);
     }
     return didSave;
+  }
+
+  async function handleBatchDeleteArchivedChats() {
+    if (!onBatchDeleteChats || archivedSelectionSummary.selectedCount === 0 || isBatchDeletingChats) {
+      return;
+    }
+    const selectedChats = visibleArchivedChats.filter((session: any) =>
+      selectedArchivedChatKeys.has(ArchivedChatSelection.getKey(session.agentId, session.sessionId)),
+    );
+    const result = await onBatchDeleteChats(selectedChats);
+    const deletedKeys = Array.isArray(result?.deletedKeys) ? result.deletedKeys : [];
+    if (deletedKeys.length > 0) {
+      setSelectedArchivedChatKeys((current: Set<string>) => ArchivedChatSelection.clearKeys(current, deletedKeys));
+    }
   }
 
   const pageActions = useMemo(() => (
@@ -430,6 +481,42 @@ export function AgentChatsPage({
                     </button>
                   ) : null}
                 </div>
+                {normalizedChatListStatusFilter === "archived" ? (
+                  <div className="archived-chat-selection-toolbar">
+                    <label className="archived-chat-selection-toggle">
+                      <input
+                        type="checkbox"
+                        aria-label="Select all archived chats"
+                        checked={archivedSelectionSummary.allVisibleSelected}
+                        onChange={(event: any) =>
+                          setSelectedArchivedChatKeys((current: Set<string>) =>
+                            ArchivedChatSelection.setAll(current, visibleArchivedChatKeys, event.target.checked),
+                          )
+                        }
+                        disabled={visibleArchivedChatKeys.length === 0 || isBatchDeletingChats}
+                      />
+                      <span>{`${archivedSelectionSummary.selectedCount} selected`}</span>
+                    </label>
+                    <div className="archived-chat-selection-actions">
+                      <button
+                        type="button"
+                        className="secondary-btn"
+                        onClick={() => setSelectedArchivedChatKeys(new Set())}
+                        disabled={archivedSelectionSummary.selectedCount === 0 || isBatchDeletingChats}
+                      >
+                        Deselect all
+                      </button>
+                      <button
+                        type="button"
+                        className="danger-btn"
+                        onClick={handleBatchDeleteArchivedChats}
+                        disabled={archivedSelectionSummary.selectedCount === 0 || isBatchDeletingChats}
+                      >
+                        Delete selected
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
 
                 {isLoadingChatSessions ? <p className="empty-hint" style={{ marginTop: "0.5rem" }}>Loading chats...</p> : null}
                 {!isLoadingChatSessions && chatSessions.length === 0 ? (
@@ -448,6 +535,7 @@ export function AgentChatsPage({
                       const isPendingSession = sessionStatus === "pending";
                       const threadErrorMessage = String(session?.errorMessage || "").trim();
                       const chatSessionKey = `${agent.id}:${session.id}`;
+                      const archivedSelectionKey = ArchivedChatSelection.getKey(agent.id, session.id);
                       const isArchivingChat = archivingChatSessionKey === chatSessionKey || isArchiving;
                       const isDeletingChat = deletingChatSessionKey === chatSessionKey || isDeletingSession;
                       const showDeleteAction = normalizedChatListStatusFilter === "archived" || isArchived;
@@ -473,6 +561,29 @@ export function AgentChatsPage({
                             }
                           }}
                         >
+                          {normalizedChatListStatusFilter === "archived" && isArchived ? (
+                            <div
+                              className="archived-chat-row-checkbox"
+                              onClick={(event: any) => event.stopPropagation()}
+                              onKeyDown={(event: any) => event.stopPropagation()}
+                            >
+                              <input
+                                type="checkbox"
+                                aria-label={`Select archived chat ${session.title || "Untitled chat"}`}
+                                checked={selectedArchivedChatKeys.has(archivedSelectionKey)}
+                                onChange={(event: any) =>
+                                  setSelectedArchivedChatKeys((current: Set<string>) =>
+                                    ArchivedChatSelection.toggle(
+                                      current,
+                                      archivedSelectionKey,
+                                      event.target.checked,
+                                    ),
+                                  )
+                                }
+                                disabled={isDeletingChat || isBatchDeletingChats}
+                              />
+                            </div>
+                          ) : null}
                           <div className="agent-detail-chat-item-main">
                             <p className="agent-detail-chat-item-title">
                               {isRunning ? <ChatSessionRunningBadge /> : null} {session.title || "Untitled chat"}

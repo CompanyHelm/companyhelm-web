@@ -71,6 +71,18 @@ test("AgentChatsPage hides create actions in archived mode", () => {
   assert.doesNotMatch(markup, /aria-label="Chat settings"/);
 });
 
+test("AgentChatsPage archived mode renders batch selection controls", () => {
+  const markup = renderAgentChatsPageMarkup({
+    chatListStatusFilter: "archived",
+    onBatchDeleteChats: async () => ({ deletedKeys: [], failedKeys: [] }),
+  });
+
+  assert.match(markup, /aria-label="Select all archived chats"/);
+  assert.match(markup, /aria-label="Select archived chat Thread 1"/);
+  assert.match(markup, />\s*Deselect all\s*</);
+  assert.match(markup, />\s*Delete selected\s*</);
+});
+
 test("AgentChatsPage shows create actions in active mode", () => {
   const markup = renderAgentChatsPageMarkup({
     chatListStatusFilter: "active",

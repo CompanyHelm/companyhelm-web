@@ -51,6 +51,52 @@ test("ChatsOverviewPage hides new chat cards in archived mode", () => {
   assert.doesNotMatch(markup, />\s*New chat\s*</);
 });
 
+test("ChatsOverviewPage archived mode renders cross-agent batch selection controls", () => {
+  const markup = renderChatsOverviewPageMarkup({
+    chatListStatusFilter: "archived",
+    agents: [
+      {
+        id: "agent-1",
+        name: "Build Agent",
+        agentSdk: "codex",
+        model: "gpt-5",
+      },
+      {
+        id: "agent-2",
+        name: "Review Agent",
+        agentSdk: "codex",
+        model: "gpt-5",
+      },
+    ],
+    chatSessionsByAgent: {
+      "agent-1": [
+        {
+          id: "thread-1",
+          title: "Archived thread",
+          status: "archived",
+          archivedAt: "2026-03-08T00:00:00.000Z",
+          updatedAt: "2026-03-08T00:00:00.000Z",
+        },
+      ],
+      "agent-2": [
+        {
+          id: "thread-2",
+          title: "Second archived thread",
+          status: "archived",
+          archivedAt: "2026-03-08T00:00:00.000Z",
+          updatedAt: "2026-03-08T00:00:00.000Z",
+        },
+      ],
+    },
+    onBatchDeleteChats: async () => ({ deletedKeys: [], failedKeys: [] }),
+  });
+
+  assert.match(markup, /aria-label="Select all archived chats"/);
+  assert.match(markup, /aria-label="Select archived chat Archived thread"/);
+  assert.match(markup, /aria-label="Select archived chat Second archived thread"/);
+  assert.match(markup, />\s*Delete selected\s*</);
+});
+
 test("ChatsOverviewPage shows new chat cards in active mode", () => {
   const markup = renderChatsOverviewPageMarkup({
     chatListStatusFilter: "active",

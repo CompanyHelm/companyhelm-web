@@ -23,6 +23,7 @@ import {
 } from "./utils/constants.ts";
 
 import { matchesMediaQuery } from "./utils/media.ts";
+import { ArchivedChatSelection } from "./utils/archivedChatSelection.ts";
 
 import {
   LIST_COMPANIES_QUERY,
@@ -3133,6 +3134,7 @@ function App() {
   const [chatDraftMessage, setChatDraftMessage] = useState<any>("");
   const [archivingChatSessionKey, setArchivingChatSessionKey] = useState<any>("");
   const [deletingChatSessionKey, setDeletingChatSessionKey] = useState<any>("");
+  const [isBatchDeletingChats, setIsBatchDeletingChats] = useState<any>(false);
   const [chatError, setChatError] = useState<any>("");
   const [chatIndexError, setChatIndexError] = useState<any>("");
   const [chatCreateAvailabilityModalAgentId, setChatCreateAvailabilityModalAgentId] = useState<any>("");
@@ -9049,6 +9051,7 @@ function App() {
     agentId = null,
     sessionId = null,
     title = null,
+    skipConfirmation = false,
   }: any = {}) {
     const targetAgentId = String(agentId || chatAgentId || "").trim();
     const targetSessionId = String(sessionId || "").trim();
@@ -9080,13 +9083,15 @@ function App() {
     const confirmationMessage = isArchivedSession
       ? `Delete archived chat ${confirmationLabel} permanently? This removes the preserved transcript history.`
       : `Delete chat ${confirmationLabel}?`;
-    const confirmed = await requestConfirmation({
-      title: isArchivedSession ? "Delete archived chat" : "Delete chat",
-      message: confirmationMessage,
-      confirmLabel: isArchivedSession ? "Delete permanently" : "Delete chat",
-    });
-    if (!confirmed) {
-      return false;
+    if (!skipConfirmation) {
+      const confirmed = await requestConfirmation({
+        title: isArchivedSession ? "Delete archived chat" : "Delete chat",
+        message: confirmationMessage,
+        confirmLabel: isArchivedSession ? "Delete permanently" : "Delete chat",
+      });
+      if (!confirmed) {
+        return false;
+      }
     }
 
     const targetChatSessionKey = `${targetAgentId}:${targetSessionId}`;
@@ -9206,6 +9211,58 @@ function App() {
       return false;
     } finally {
       setDeletingChatSessionKey("");
+    }
+  }
+
+  async function handleBatchDeleteChats(entries: any[] = []) {
+    const normalizedEntries = (Array.isArray(entries) ? entries : [])
+      .map((entry: any) => ({
+        agentId: String(entry?.agentId || "").trim(),
+        sessionId: String(entry?.sessionId || "").trim(),
+        title: String(entry?.title || "").trim(),
+      }))
+      .filter((entry: any) => entry.agentId && entry.sessionId);
+    if (!selectedCompanyId) {
+      const errorMessage = "Select a company before deleting chats.";
+      setChatError(errorMessage);
+      setChatIndexError(errorMessage);
+      return { deletedKeys: [], failedKeys: [] };
+    }
+    if (normalizedEntries.length === 0) {
+      return { deletedKeys: [], failedKeys: [] };
+    }
+
+    const confirmed = await requestConfirmation({
+      title: "Delete archived chats",
+      message: `Delete ${normalizedEntries.length} archived chats permanently? This removes the preserved transcript history.`,
+      confirmLabel: "Delete selected",
+      tone: "danger",
+    });
+    if (!confirmed) {
+      return { deletedKeys: [], failedKeys: [] };
+    }
+
+    try {
+      setIsBatchDeletingChats(true);
+      setChatError("");
+      setChatIndexError("");
+      const result = await ArchivedChatSelection.runBatchDelete(normalizedEntries, async (entry: any) =>
+        handleDeleteChatSession({
+          ...entry,
+          skipConfirmation: true,
+        }),
+      );
+      if (result.failedKeys.length > 0) {
+        const summaryMessage = ArchivedChatSelection.getBatchDeleteSummaryMessage(
+          result.deletedKeys.length,
+          result.failedKeys.length,
+        );
+        setChatError(summaryMessage);
+        setChatIndexError(summaryMessage);
+      }
+      return result;
+    } finally {
+      setIsBatchDeletingChats(false);
     }
   }
 
@@ -10195,6 +10252,8 @@ function App() {
             onBackToChats={() => {}}
             onArchiveChat={handleArchiveChatSession}
             onDeleteChat={handleDeleteChatSession}
+            onBatchDeleteChats={handleBatchDeleteChats}
+            isBatchDeletingChats={isBatchDeletingChats}
             onSaveChatSessionTitle={handleUpdateChatSessionTitle}
             onSendChatMessage={handleSendChatMessage}
             onInterruptChatTurn={handleInterruptChatTurn}
@@ -10238,6 +10297,8 @@ function App() {
               onSetChatDraftMessage={setChatDraftMessage}
               onArchiveChat={handleArchiveChatSession}
               onDeleteChat={handleDeleteChatSession}
+              onBatchDeleteChats={handleBatchDeleteChats}
+              isBatchDeletingChats={isBatchDeletingChats}
               onBackToAgents={() => {
                 navigateTo("agents");
               }}

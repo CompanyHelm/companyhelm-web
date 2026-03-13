@@ -1,7 +1,8 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Page } from "../components/Page.tsx";
 import { ChatSessionRunningBadge } from "../components/ChatSessionRunningBadge.tsx";
 import { ThreadTaskSummary } from "../components/ThreadTaskSummary.tsx";
+import { ArchivedChatSelection } from "../utils/archivedChatSelection.ts";
 import { isChatSessionRunning, compareTurnsByTimestamp } from "../utils/chat.ts";
 import { formatTimestamp } from "../utils/formatting.ts";
 
@@ -20,15 +21,76 @@ export function ChatsOverviewPage({
   getCreateChatDisabledReason,
   onOpenChat,
   onDeleteChat,
+  onBatchDeleteChats,
+  isBatchDeletingChats = false,
 }: any) {
   const normalizedChatListStatusFilter =
     String(chatListStatusFilter || "").trim().toLowerCase() === "archived" ? "archived" : "active";
   const canShowCreateChatActions = normalizedChatListStatusFilter !== "archived";
+  const [selectedArchivedChatKeys, setSelectedArchivedChatKeys] = useState<any>(new Set());
   const sortedAgents = useMemo(() => {
     return [...(Array.isArray(agents) ? agents : [])].sort((leftAgent: any, rightAgent: any) =>
       String(leftAgent?.name || "").localeCompare(String(rightAgent?.name || "")),
     );
   }, [agents]);
+  const visibleArchivedChats = useMemo(() => {
+    if (normalizedChatListStatusFilter !== "archived") {
+      return [];
+    }
+    const archivedChats: any[] = [];
+    for (const agent of sortedAgents) {
+      const agentChats = Array.isArray(chatSessionsByAgent?.[agent.id]) ? chatSessionsByAgent[agent.id] : [];
+      for (const session of agentChats) {
+        if (String(session?.status || "").trim().toLowerCase() !== "archived") {
+          continue;
+        }
+        const sessionId = String(session?.id || "").trim();
+        if (!sessionId) {
+          continue;
+        }
+        archivedChats.push({
+          agentId: agent.id,
+          sessionId,
+          title: String(session?.title || "").trim(),
+        });
+      }
+    }
+    return archivedChats;
+  }, [chatSessionsByAgent, normalizedChatListStatusFilter, sortedAgents]);
+  const visibleArchivedChatKeys = useMemo(
+    () => visibleArchivedChats.map((session: any) => ArchivedChatSelection.getKey(session.agentId, session.sessionId)),
+    [visibleArchivedChats],
+  );
+  const archivedSelectionSummary = useMemo(
+    () => ArchivedChatSelection.getSummary(selectedArchivedChatKeys, visibleArchivedChatKeys),
+    [selectedArchivedChatKeys, visibleArchivedChatKeys],
+  );
+
+  useEffect(() => {
+    if (normalizedChatListStatusFilter !== "archived") {
+      setSelectedArchivedChatKeys(new Set());
+      return;
+    }
+    const visibleKeySet = new Set(visibleArchivedChatKeys);
+    setSelectedArchivedChatKeys((current: Set<string>) => {
+      const next = new Set(Array.from(current).filter((key) => visibleKeySet.has(key)));
+      return next.size === current.size ? current : next;
+    });
+  }, [normalizedChatListStatusFilter, visibleArchivedChatKeys.join("|")]);
+
+  async function handleBatchDeleteArchivedChats() {
+    if (!onBatchDeleteChats || archivedSelectionSummary.selectedCount === 0 || isBatchDeletingChats) {
+      return;
+    }
+    const selectedChats = visibleArchivedChats.filter((session: any) =>
+      selectedArchivedChatKeys.has(ArchivedChatSelection.getKey(session.agentId, session.sessionId)),
+    );
+    const result = await onBatchDeleteChats(selectedChats);
+    const deletedKeys = Array.isArray(result?.deletedKeys) ? result.deletedKeys : [];
+    if (deletedKeys.length > 0) {
+      setSelectedArchivedChatKeys((current: Set<string>) => ArchivedChatSelection.clearKeys(current, deletedKeys));
+    }
+  }
 
   return (
     <Page><div className="page-stack">
@@ -37,6 +99,42 @@ export function ChatsOverviewPage({
         {isLoadingChatIndex ? <p className="empty-hint">Loading chats...</p> : null}
         {!isLoadingChatIndex && sortedAgents.length === 0 ? (
           <p className="empty-hint">No agents available yet.</p>
+        ) : null}
+        {normalizedChatListStatusFilter === "archived" ? (
+          <div className="archived-chat-selection-toolbar">
+            <label className="archived-chat-selection-toggle">
+              <input
+                type="checkbox"
+                aria-label="Select all archived chats"
+                checked={archivedSelectionSummary.allVisibleSelected}
+                onChange={(event: any) =>
+                  setSelectedArchivedChatKeys((current: Set<string>) =>
+                    ArchivedChatSelection.setAll(current, visibleArchivedChatKeys, event.target.checked),
+                  )
+                }
+                disabled={visibleArchivedChatKeys.length === 0 || isBatchDeletingChats}
+              />
+              <span>{`${archivedSelectionSummary.selectedCount} selected`}</span>
+            </label>
+            <div className="archived-chat-selection-actions">
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={() => setSelectedArchivedChatKeys(new Set())}
+                disabled={archivedSelectionSummary.selectedCount === 0 || isBatchDeletingChats}
+              >
+                Deselect all
+              </button>
+              <button
+                type="button"
+                className="danger-btn"
+                onClick={handleBatchDeleteArchivedChats}
+                disabled={archivedSelectionSummary.selectedCount === 0 || isBatchDeletingChats}
+              >
+                Delete selected
+              </button>
+            </div>
+          </div>
         ) : null}
         {sortedAgents.length > 0 ? (
           <ul className="chat-card-list">
@@ -93,6 +191,7 @@ export function ChatsOverviewPage({
                       const isDeletingSession = sessionStatus === "deleting";
                       const isPendingSession = sessionStatus === "pending";
                       const isArchivedSession = sessionStatus === "archived";
+                      const archivedSelectionKey = ArchivedChatSelection.getKey(agent.id, chatSession.id);
                       const threadErrorMessage = String(chatSession?.errorMessage || "").trim();
                       const chatSessionKey = `${agent.id}:${chatSession.id}`;
                       const isDeletingChat = deletingChatSessionKey === chatSessionKey || isDeletingSession;
@@ -133,6 +232,29 @@ export function ChatsOverviewPage({
                               }
                             }}
                           >
+                            {normalizedChatListStatusFilter === "archived" && isArchivedSession ? (
+                              <div
+                                className="archived-chat-row-checkbox"
+                                onClick={(event: any) => event.stopPropagation()}
+                                onKeyDown={(event: any) => event.stopPropagation()}
+                              >
+                                <input
+                                  type="checkbox"
+                                  aria-label={`Select archived chat ${chatSession.title || "Untitled chat"}`}
+                                  checked={selectedArchivedChatKeys.has(archivedSelectionKey)}
+                                  onChange={(event: any) =>
+                                    setSelectedArchivedChatKeys((current: Set<string>) =>
+                                      ArchivedChatSelection.toggle(
+                                        current,
+                                        archivedSelectionKey,
+                                        event.target.checked,
+                                      ),
+                                    )
+                                  }
+                                  disabled={isDeletingChat || isBatchDeletingChats}
+                                />
+                              </div>
+                            ) : null}
                             <div className="chat-card-main">
                               <div className="chat-card-title-row">
                                 <p className="chat-card-title">
