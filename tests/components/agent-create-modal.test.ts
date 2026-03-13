@@ -100,3 +100,30 @@ test("AgentCreateModal renders the shared post-create actions after agent creati
   assert.match(markup, />Skip for now</);
   assert.doesNotMatch(markup, /id="agent-name"/);
 });
+
+test("AgentCreateModal shows runner names and disables runners that are not ready", () => {
+  const markup = renderAgentCreateModalMarkup({
+    agentRunnerId: "",
+    agentRunners: [
+      createRunner(),
+      createRunner({
+        id: "runner-2",
+        name: "Runner Two",
+        isConnected: false,
+        availableAgentSdks: [
+          {
+            id: "sdk-2",
+            name: "codex",
+            status: "unconfigured",
+            isAvailable: true,
+            availableModels: [],
+          },
+        ],
+      }),
+    ],
+  });
+
+  assert.match(markup, /<option value="runner-1">Runner One<\/option>/);
+  assert.match(markup, /<option value="runner-2" disabled="">Runner Two<\/option>/);
+  assert.doesNotMatch(markup, /runner-1 \(connected\)/);
+});

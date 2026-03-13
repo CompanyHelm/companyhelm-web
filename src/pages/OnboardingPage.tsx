@@ -3,7 +3,7 @@ import { AgentCreatedActions } from "../components/AgentCreatedActions.tsx";
 import { CodexAuthPanel } from "../components/CodexAuthPanel.tsx";
 import { Page } from "../components/Page.tsx";
 import { buildRunnerStartCommand } from "../utils/shell.ts";
-import { isRunnerReadyAndConnected } from "../utils/formatting.ts";
+import { formatRunnerLabel, isRunnerReadyAndConnected } from "../utils/formatting.ts";
 import { getAgentCreationFormStatus, type CreatedAgentSummary } from "../utils/agent-creation.ts";
 import {
   getRunnerCodexModelEntriesForRunner,
@@ -464,7 +464,7 @@ export function OnboardingPage({
                       value={runner.id}
                       disabled={!isRunnerReadyAndConnected(runner)}
                     >
-                      {runner.name || runner.id.slice(0, 8)} ({isRunnerReadyAndConnected(runner) ? "connected" : "offline"})
+                      {formatRunnerLabel(runner)} ({isRunnerReadyAndConnected(runner) ? "connected" : "offline"})
                     </option>
                   ))}
                 </select>

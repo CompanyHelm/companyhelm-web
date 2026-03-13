@@ -91,6 +91,33 @@ test("OnboardingPage renders a distinct configuring screen without the runner cr
   assert.doesNotMatch(markup, /id="onboarding-runner-name"/);
 });
 
+test("OnboardingPage shows runner names and disables runners that are not ready", () => {
+  const markup = renderOnboardingPageMarkup({
+    agentRunners: [
+      {
+        id: "runner-1",
+        name: "Runner One",
+        isConnected: true,
+        availableAgentSdks: [
+          { id: "sdk-1", name: "codex", status: "ready", isAvailable: true, availableModels: [] },
+        ],
+      },
+      {
+        id: "runner-2",
+        name: "Runner Two",
+        isConnected: false,
+        availableAgentSdks: [
+          { id: "sdk-2", name: "codex", status: "unconfigured", isAvailable: true, availableModels: [] },
+        ],
+      },
+    ],
+  });
+
+  assert.match(markup, /<option value="runner-1">Runner One \(connected\)<\/option>/);
+  assert.match(markup, /<option value="runner-2" disabled="">Runner Two \(offline\)<\/option>/);
+  assert.doesNotMatch(markup, /runner-1"[^>]*>runner-1/);
+});
+
 test("FlagsPage exposes the configuring onboarding phase option and not chat", () => {
   const markup = renderToStaticMarkup(
     React.createElement(FlagsPage, {

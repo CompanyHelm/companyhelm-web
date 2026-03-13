@@ -33,7 +33,7 @@ export function formatRunnerLabel(runner: any) {
   if (!runner) {
     return "Unassigned";
   }
-  return `${runner.id.slice(0, 8)} (${normalizeRunnerConnectionState(runner.isConnected)})`;
+  return String(runner.name || "").trim();
 }
 
 export function toSortableTimestamp(value: any) {
