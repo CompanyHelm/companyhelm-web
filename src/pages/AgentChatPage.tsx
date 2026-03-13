@@ -28,8 +28,7 @@ const CHAT_COMPOSER_MAX_LINES = 50;
 const CHAT_SIDEBAR_MIN_WIDTH_PX = 176;
 const CHAT_SIDEBAR_MAX_WIDTH_PX = 480;
 const CHAT_SIDEBAR_DEFAULT_WIDTH_PX = 224;
-const CHAT_TRANSCRIPT_COLLAPSE_LINE_THRESHOLD = 8;
-const CHAT_TRANSCRIPT_APPROX_CHARS_PER_LINE = 72;
+const CHAT_TRANSCRIPT_COLLAPSE_CHAR_THRESHOLD = 1000;
 const CHAT_SIDEBAR_WIDTH_STORAGE_KEY = "agent-chat-sidebar-width-px";
 const CHAT_MESSAGE_META_TOGGLE_IGNORE_SELECTOR = "button, a, input, textarea, select, summary";
 export const CHAT_EMPTY_STATE_PROMPTS = [
@@ -124,13 +123,7 @@ function isLongTranscriptItemBodyText(rawText: any) {
   if (!normalizedText) {
     return false;
   }
-
-  const estimatedLineCount = normalizedText.split(/\r?\n/).reduce((totalLineCount: number, line: string) => {
-    const estimatedWrappedLineCount = Math.max(1, Math.ceil(line.length / CHAT_TRANSCRIPT_APPROX_CHARS_PER_LINE));
-    return totalLineCount + estimatedWrappedLineCount;
-  }, 0);
-
-  return estimatedLineCount > CHAT_TRANSCRIPT_COLLAPSE_LINE_THRESHOLD;
+  return normalizedText.length > CHAT_TRANSCRIPT_COLLAPSE_CHAR_THRESHOLD;
 }
 
 function getQueuedMessagePreview(rawText: any) {
