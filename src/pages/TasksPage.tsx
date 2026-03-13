@@ -6,6 +6,7 @@ import { TaskGraphView } from "../components/TaskGraphView.tsx";
 import { TaskTableView } from "../components/TaskTableView.tsx";
 import { TaskCreateModal } from "../components/TaskCreateModal.tsx";
 import { TaskEditModal } from "../components/TaskEditModal.tsx";
+import { TasksPageModalState } from "./TasksPageModalState.ts";
 import { buildTaskExecutionPlan } from "../utils/task-execution.ts";
 import {
   getDescendantTaskTree,
@@ -118,6 +119,7 @@ export function TasksPage({
   onBackToTasks,
 }: TasksPageProps) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState("");
   const [activeTab, setActiveTab] = useState<TaskDetailTab>("overview");
   const [isExecuteFallbackModalOpen, setIsExecuteFallbackModalOpen] = useState(false);
@@ -148,7 +150,16 @@ export function TasksPage({
     const normalizedTaskId = String(activeTaskId || "").trim();
     return normalizedTaskId ? visibleTaskById.get(normalizedTaskId) || null : null;
   }, [activeTaskId, visibleTaskById]);
-  const editingTask = editingTaskId ? visibleTaskById.get(editingTaskId) || null : null;
+  const editingTask = useMemo(
+    () =>
+      TasksPageModalState.resolveEditTask({
+        isOpen: isEditModalOpen,
+        activeTask,
+        requestedTaskId: editingTaskId,
+        visibleTaskById,
+      }),
+    [activeTask, editingTaskId, isEditModalOpen, visibleTaskById],
+  );
 
   const directChildTasks = useMemo(
     () => (activeTask ? getDirectChildTasks(taskOptions, activeTask.id) : []),
@@ -228,6 +239,8 @@ export function TasksPage({
     setActiveTab("overview");
     setIsExecuteFallbackModalOpen(false);
     setOverviewCommentDraft("");
+    setIsEditModalOpen(false);
+    setEditingTaskId("");
   }, [activeTaskId]);
 
   useEffect(() => {
@@ -239,14 +252,28 @@ export function TasksPage({
     });
   }, [availableFallbackAgents]);
 
-  const openCreateModal = useCallback((defaultParentTaskId = "") => {
-    onParentTaskIdChange(defaultParentTaskId);
+  const openCreateModal = useCallback((action: "create-task" | "create-subtask") => {
+    onParentTaskIdChange(
+      TasksPageModalState.getCreateParentTaskId({
+        action,
+        activeTask,
+      }),
+    );
     setIsCreateModalOpen(true);
-  }, [onParentTaskIdChange]);
+  }, [activeTask, onParentTaskIdChange]);
 
   const closeEditTaskModal = useCallback(() => {
+    setIsEditModalOpen(false);
     setEditingTaskId("");
   }, []);
+
+  const openActiveTaskEditModal = useCallback(() => {
+    if (!activeTask) {
+      return;
+    }
+    setEditingTaskId(String(activeTask.id || "").trim());
+    setIsEditModalOpen(true);
+  }, [activeTask]);
 
   const handleDeleteTask = useCallback((taskId: string, taskName?: string) => {
     onDeleteTask(taskId, taskName || "Untitled task");
@@ -344,7 +371,7 @@ export function TasksPage({
             className="chat-minimal-header-icon-btn"
             aria-label="Create task"
             title="Create task"
-            onClick={() => openCreateModal("")}
+            onClick={() => openCreateModal("create-task")}
           >
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               <line x1="12" y1="5" x2="12" y2="19" />
@@ -376,7 +403,7 @@ export function TasksPage({
             className="chat-minimal-header-icon-btn"
             aria-label="Create subtask"
             title="Create subtask"
-            onClick={() => openCreateModal(String(activeTask.id || "").trim())}
+            onClick={() => openCreateModal("create-subtask")}
           >
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               <line x1="12" y1="5" x2="12" y2="19" />
@@ -395,7 +422,7 @@ export function TasksPage({
           className="chat-minimal-header-icon-btn"
           aria-label="Create task"
           title="Create task"
-          onClick={() => openCreateModal("")}
+          onClick={() => openCreateModal("create-task")}
         >
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <line x1="12" y1="5" x2="12" y2="19" />
@@ -439,7 +466,7 @@ export function TasksPage({
                 <button
                   type="button"
                   className="secondary-btn empty-create-btn"
-                  onClick={() => openCreateModal("")}
+                  onClick={() => openCreateModal("create-task")}
                 >
                   + Create task
                 </button>
@@ -582,9 +609,16 @@ export function TasksPage({
                         <button
                           type="button"
                           className="secondary-btn"
-                          onClick={() => setEditingTaskId(activeTask.id)}
+                          onClick={openActiveTaskEditModal}
                         >
                           Edit relationships
+                        </button>
+                        <button
+                          type="button"
+                          className="secondary-btn"
+                          onClick={() => openCreateModal("create-subtask")}
+                        >
+                          Create subtask
                         </button>
                         {String(activeTask.threadId || "").trim() ? (
                           <button
