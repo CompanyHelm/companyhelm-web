@@ -39,7 +39,7 @@ export function ReposPage({
         type="button"
         className="secondary-btn"
         onClick={() => window.location.assign(githubAppInstallUrl)}
-        disabled={!selectedCompanyId || isLoadingGithubAppConfig}
+        disabled={!selectedCompanyId || isLoadingGithubAppConfig || !githubAppInstallUrl}
       >
         {isLoadingGithubAppConfig ? "Loading..." : "Install GitHub App"}
       </button>
