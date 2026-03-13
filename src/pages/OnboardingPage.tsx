@@ -175,6 +175,7 @@ export function OnboardingPage({
       agentSdk,
       agentModel,
       agentModelReasoningLevel,
+      allowEmptyReasoningWhenUnavailable: true,
     });
   }, [
     agentModel,
@@ -523,8 +524,8 @@ export function OnboardingPage({
                   id="onboarding-agent-reasoning"
                   value={agentModelReasoningLevel}
                   onChange={(event: ChangeEvent<HTMLSelectElement>) => onAgentModelReasoningLevelChange(event.target.value)}
-                  required
-                  disabled={isCreatingAgent || !agentRunnerId || !agentModel}
+                  required={createRunnerReasoningLevels.length > 0}
+                  disabled={isCreatingAgent || !agentRunnerId || !agentModel || createRunnerReasoningLevels.length === 0}
                 >
                   {!agentRunnerId ? (
                     <option value="">Select a runner first</option>
