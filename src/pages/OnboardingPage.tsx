@@ -121,8 +121,6 @@ export function OnboardingPage({
     const secret = provisionedSecret || "<RUNNER_SECRET>";
     return buildRunnerStartCommand({
       runnerSecret: secret,
-      useHostDockerRuntime: true,
-      useDedicatedAuth: true,
       daemon: true,
     });
   }, [provisionedSecret]);
@@ -131,7 +129,6 @@ export function OnboardingPage({
     const secret = provisionedSecret || "<RUNNER_SECRET>";
     return buildRunnerStartCommand({
       runnerSecret: secret,
-      useDedicatedAuth: true,
       daemon: true,
     });
   }, [provisionedSecret]);

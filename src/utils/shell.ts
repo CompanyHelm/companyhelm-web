@@ -8,15 +8,11 @@ export function quoteShellArg(value: any) {
 
 interface BuildRunnerStartCommandOptions {
   runnerSecret: string;
-  useHostDockerRuntime?: boolean;
-  useDedicatedAuth?: boolean;
   daemon?: boolean;
 }
 
 export function buildRunnerStartCommand({
   runnerSecret,
-  useHostDockerRuntime = false,
-  useDedicatedAuth = false,
   daemon = false,
 }: BuildRunnerStartCommandOptions) {
   const parts = [
@@ -24,14 +20,6 @@ export function buildRunnerStartCommand({
     "@companyhelm/runner",
     "start",
   ];
-
-  if (useHostDockerRuntime) {
-    parts.push("--use-host-docker-runtime");
-  }
-
-  if (useDedicatedAuth) {
-    parts.push("--use-dedicated-auth");
-  }
 
   parts.push("--secret", quoteShellArg(runnerSecret));
 
