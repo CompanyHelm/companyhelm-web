@@ -54,7 +54,34 @@ test("ChatsOverviewPage hides new chat cards in archived mode", () => {
 test("ChatsOverviewPage shows new chat cards in active mode", () => {
   const markup = renderChatsOverviewPageMarkup({
     chatListStatusFilter: "active",
+    chatSessionsByAgent: {
+      "agent-1": [
+        {
+          id: "thread-1",
+          title: "Pending thread",
+          status: "pending",
+          updatedAt: "2026-03-08T00:00:00.000Z",
+        },
+        {
+          id: "thread-2",
+          title: "Errored thread",
+          status: "error",
+          errorMessage: "boom",
+          updatedAt: "2026-03-08T00:00:00.000Z",
+        },
+      ],
+    },
   });
 
   assert.match(markup, />\s*New chat\s*</);
+  assert.match(markup, /Pending thread[\s\S]*chat-thread-status chat-thread-status-pending">pending</);
+  assert.match(markup, /Errored thread[\s\S]*chat-thread-status chat-thread-status-error">error</);
+});
+
+test("ChatsOverviewPage archived list renders archived status after the chat title", () => {
+  const markup = renderChatsOverviewPageMarkup({
+    chatListStatusFilter: "archived",
+  });
+
+  assert.match(markup, /Archived thread[\s\S]*chat-thread-status chat-thread-status-archived">archived</);
 });

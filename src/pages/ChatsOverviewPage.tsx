@@ -87,19 +87,31 @@ export function ChatsOverviewPage({
                       </li>
                     ) : null}
                     {sortedChats.map((chatSession: any) => {
-                        const isRunning = isChatSessionRunning(chatSession, chatSessionRunningById);
-                        const sessionStatus = String(chatSession?.status || "").trim().toLowerCase();
-                        const isError = sessionStatus === "error";
-                        const isDeletingSession = sessionStatus === "deleting";
-                        const isPendingSession = sessionStatus === "pending";
-                        const threadErrorMessage = String(chatSession?.errorMessage || "").trim();
-                        const chatSessionKey = `${agent.id}:${chatSession.id}`;
-                        const isDeletingChat = deletingChatSessionKey === chatSessionKey || isDeletingSession;
-                        const sessionModelLabel =
-                          String(chatSession?.currentModelName || chatSession?.currentModelId || "").trim() || "n/a";
-                        const reasoningLabel = String(chatSession?.currentReasoningLevel || "").trim() || "n/a";
-                        return (
-                          <li
+                      const isRunning = isChatSessionRunning(chatSession, chatSessionRunningById);
+                      const sessionStatus = String(chatSession?.status || "").trim().toLowerCase();
+                      const isError = sessionStatus === "error";
+                      const isDeletingSession = sessionStatus === "deleting";
+                      const isPendingSession = sessionStatus === "pending";
+                      const isArchivedSession = sessionStatus === "archived";
+                      const threadErrorMessage = String(chatSession?.errorMessage || "").trim();
+                      const chatSessionKey = `${agent.id}:${chatSession.id}`;
+                      const isDeletingChat = deletingChatSessionKey === chatSessionKey || isDeletingSession;
+                      const sessionModelLabel =
+                        String(chatSession?.currentModelName || chatSession?.currentModelId || "").trim() || "n/a";
+                      const reasoningLabel = String(chatSession?.currentReasoningLevel || "").trim() || "n/a";
+                      const statusBadge = isRunning ? (
+                        <ChatSessionRunningBadge />
+                      ) : isPendingSession ? (
+                        <span className="chat-thread-status chat-thread-status-pending">pending</span>
+                      ) : isDeletingSession ? (
+                        <span className="chat-thread-status chat-thread-status-deleting">deleting</span>
+                      ) : isArchivedSession ? (
+                        <span className="chat-thread-status chat-thread-status-archived">archived</span>
+                      ) : isError ? (
+                        <span className="chat-thread-status chat-thread-status-error">error</span>
+                      ) : null;
+                      return (
+                        <li
                             key={`chat-session-${agent.id}-${chatSession.id}`}
                             className="chat-card"
                             onClick={() =>
@@ -121,20 +133,13 @@ export function ChatsOverviewPage({
                               }
                             }}
                           >
-                            <div className="chat-card-status">
-                              {isRunning ? <ChatSessionRunningBadge /> : null}
-                              {!isRunning && isPendingSession ? (
-                                <span className="chat-thread-status chat-thread-status-pending">pending</span>
-                              ) : null}
-                              {!isRunning && isDeletingSession ? (
-                                <span className="chat-thread-status chat-thread-status-deleting">deleting</span>
-                              ) : null}
-                              {!isRunning && isError ? <span className="chat-thread-status chat-thread-status-error">error</span> : null}
-                            </div>
                             <div className="chat-card-main">
-                              <p className="chat-card-title">
-                                <strong>{chatSession.title || "Untitled chat"}</strong>
-                              </p>
+                              <div className="chat-card-title-row">
+                                <p className="chat-card-title">
+                                  <strong>{chatSession.title || "Untitled chat"}</strong>
+                                </p>
+                                {statusBadge ? <div className="chat-card-status">{statusBadge}</div> : null}
+                              </div>
                               <p className="chat-card-meta">
                                 {formatTimestamp(chatSession.updatedAt)} · {sessionModelLabel} · {reasoningLabel}
                               </p>

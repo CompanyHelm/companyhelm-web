@@ -218,6 +218,20 @@ function SidebarChatSessionItem({
     });
   }
 
+  const statusBadge = isRunningSession ? (
+    <ChatSessionRunningBadge />
+  ) : showPendingStatus && isPendingSession ? (
+    <span className="chat-thread-status chat-thread-status-pending">pending</span>
+  ) : isDeletingSession ? (
+    <span className="chat-thread-status chat-thread-status-deleting">deleting</span>
+  ) : isArchivingSession ? (
+    <span className="chat-thread-status chat-thread-status-deleting">archiving</span>
+  ) : isArchivedSession ? (
+    <span className="chat-thread-status chat-thread-status-archived">archived</span>
+  ) : isErrorSession ? (
+    <span className="chat-thread-status chat-thread-status-error">error</span>
+  ) : null;
+
   return (
     <li
       className={`chat-card${isSelected ? " chat-card-active" : ""}`}
@@ -230,28 +244,13 @@ function SidebarChatSessionItem({
         }
       }}
     >
-      <div className="chat-card-status">
-        {isRunningSession ? <ChatSessionRunningBadge /> : null}
-        {!isRunningSession && showPendingStatus && isPendingSession ? (
-          <span className="chat-thread-status chat-thread-status-pending">pending</span>
-        ) : null}
-        {!isRunningSession && isDeletingSession ? (
-          <span className="chat-thread-status chat-thread-status-deleting">deleting</span>
-        ) : null}
-        {!isRunningSession && isArchivingSession ? (
-          <span className="chat-thread-status chat-thread-status-deleting">archiving</span>
-        ) : null}
-        {!isRunningSession && isArchivedSession ? (
-          <span className="chat-thread-status chat-thread-status-archived">archived</span>
-        ) : null}
-        {!isRunningSession && isErrorSession ? (
-          <span className="chat-thread-status chat-thread-status-error">error</span>
-        ) : null}
-      </div>
       <div className="chat-card-main">
-        <p className="chat-card-title chat-sidebar-chat-title">
-          <strong>{session?.title || "Untitled chat"}</strong>
-        </p>
+        <div className="chat-card-title-row">
+          <p className="chat-card-title chat-sidebar-chat-title">
+            <strong>{session?.title || "Untitled chat"}</strong>
+          </p>
+          {statusBadge ? <div className="chat-card-status">{statusBadge}</div> : null}
+        </div>
         {isArchivedSession || isArchivingSession ? (
           <p className="chat-card-meta">
             {isArchivingSession ? "Releasing runtime resources" : `Archived ${formatTimestamp(session?.archivedAt)}`}
