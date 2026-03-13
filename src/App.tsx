@@ -283,6 +283,10 @@ import {
   resolveAgentModelSelectionChange,
   resolveAgentRunnerSelectionChange,
 } from "./utils/agent-creation.ts";
+import {
+  buildImmediateChatsPath,
+  resolveLoadedChatsRoute,
+} from "./utils/chat-route-navigation.ts";
 
 const RelayTasksRoute = lazy(() =>
   import("./tasks/relay/TasksRoute.tsx").then((module) => ({ default: module.TasksRoute })),
@@ -356,6 +360,23 @@ export function shouldSuppressChatsRouteMissingAgentWarning({
   }
   return !availableAgents.some((agent: any) => String(agent?.id || "").trim() === resolvedRouteAgentId);
 }
+
+export function shouldKeepThreadOnlyChatsRoutePending({
+  activePage,
+  routeAgentId,
+  routeThreadId,
+  chatAgentId,
+  isLoadingChatIndex,
+}: any) {
+  return (
+    activePage === "chats"
+    && Boolean(String(routeThreadId || "").trim())
+    && !String(routeAgentId || "").trim()
+    && !String(chatAgentId || "").trim()
+    && Boolean(isLoadingChatIndex)
+  );
+}
+
 const CHAT_LIST_STATUS_FILTER_ACTIVE = "active";
 const CHAT_LIST_STATUS_FILTER_ARCHIVED = "archived";
 
@@ -3152,7 +3173,6 @@ function App() {
   const [isSideMenuCollapsed, setIsSideMenuCollapsed] = useState<any>(() =>
     matchesMediaQuery(SIDEBAR_COLLAPSE_MEDIA_QUERY),
   );
-  const isNavigatingToChatsRef = useRef<any>(false);
   const activeConfirmationResolverRef = useRef<any>(null);
   const turnLifecycleSignatureBySessionIdRef = useRef<any>(new Map<any, any>());
   const runCreateChatSessionSingleFlight = useMemo(() => createSingleFlightByKey(), []);
@@ -5561,6 +5581,15 @@ function App() {
         if (nextAgentId && nextAgentId !== chatAgentId) {
           setChatAgentId(nextAgentId);
         }
+        if (activePage === "chats" && !String(chatsRoute.agentId || "").trim() && nextAgentId) {
+          setBrowserPath(
+            buildImmediateChatsPath({
+              agentId: nextAgentId,
+              threadId: resolvedChatSessionId,
+            }),
+            { replace: true },
+          );
+        }
 
         const statusMatchesCurrentFilter = companyApiThreadStatusFilter
           ? String(nextThread.status || "").trim().toLowerCase() === companyApiThreadStatusFilter
@@ -5597,7 +5626,9 @@ function App() {
           return upsertSession(currentSessions);
         });
       } catch {
-        // The transcript loader and existing empty/not-found states handle missing threads.
+        if (activePage === "chats" && !String(chatsRoute.agentId || "").trim()) {
+          setBrowserPath("/agents", { replace: true });
+        }
       }
     })();
 
@@ -5609,6 +5640,7 @@ function App() {
     agentsRoute.view,
     chatAgentId,
     chatSessions,
+    chatsRoute.agentId,
     companyApiThreadStatusFilter,
     resolvedChatSessionId,
     selectedChatSession,
@@ -5663,11 +5695,43 @@ function App() {
   }, [activePage, agentsRoute.view, loadChatSessionIndexByAgent, selectedCompanyId]);
 
   useEffect(() => {
-    if (activePage !== "chats") {
+    if (activePage !== "chats" || isLoadingChatIndex) {
       return;
     }
-    void navigateToChatsConversation({ replace: true });
-  }, [activePage, chatsRoute.agentId, chatsRoute.threadId]);
+    if (!selectedCompanyId) {
+      setBrowserPath("/settings", { replace: true });
+      return;
+    }
+    if (String(chatsRoute.threadId || "").trim() && !String(chatsRoute.agentId || "").trim()) {
+      return;
+    }
+
+    const shouldForceChatsList = matchesMediaQuery(SIDEBAR_COLLAPSE_MEDIA_QUERY);
+    const nextRoute = resolveLoadedChatsRoute({
+      requestedAgentId: chatsRoute.agentId,
+      requestedThreadId: chatsRoute.threadId,
+      availableAgents: agents,
+      sessionsByAgent: chatSessionsByAgent,
+      openFirstThread: !shouldForceChatsList,
+      forceList: shouldForceChatsList,
+    });
+    const currentChatsPath = buildImmediateChatsPath({
+      agentId: chatsRoute.agentId,
+      threadId: chatsRoute.threadId,
+    });
+    if (nextRoute.path === currentChatsPath) {
+      return;
+    }
+    setBrowserPath(nextRoute.path, { replace: true });
+  }, [
+    activePage,
+    agents,
+    chatSessionsByAgent,
+    chatsRoute.agentId,
+    chatsRoute.threadId,
+    isLoadingChatIndex,
+    selectedCompanyId,
+  ]);
 
   useEffect(() => {
     if (!selectedCompanyId) {
@@ -5678,18 +5742,29 @@ function App() {
     }
 
     const routeAgentId = activePage === "chats" ? String(chatsRoute.agentId || "").trim() : "";
+    const routeThreadId = activePage === "chats" ? String(chatsRoute.threadId || "").trim() : "";
+    const keepThreadOnlyRoutePending = shouldKeepThreadOnlyChatsRoutePending({
+      activePage,
+      routeAgentId,
+      routeThreadId,
+      chatAgentId,
+      isLoadingChatIndex,
+    });
     setChatAgentId((currentAgentId: any) => {
       if (routeAgentId) {
         if (agents.length === 0 || agents.some((agent: any) => agent.id === routeAgentId)) {
           return routeAgentId;
         }
       }
+      if (activePage === "chats" && routeThreadId && !routeAgentId) {
+        return keepThreadOnlyRoutePending ? "" : "";
+      }
       if (currentAgentId && agents.some((agent: any) => agent.id === currentAgentId)) {
         return currentAgentId;
       }
       return agents[0]?.id || "";
     });
-  }, [activePage, agents, chatsRoute.agentId, selectedCompanyId]);
+  }, [activePage, agents, chatAgentId, chatsRoute.agentId, chatsRoute.threadId, isLoadingChatIndex, selectedCompanyId]);
 
   useEffect(() => {
     if (!chatAgentId) {
@@ -9446,121 +9521,26 @@ function App() {
     }
   }, []);
 
-  async function navigateToChatsConversation({
+  function navigateToChatsConversation({
     replace = false,
-    openFirstThread = !matchesMediaQuery(SIDEBAR_COLLAPSE_MEDIA_QUERY),
-    forceList = false,
+    agentId = "",
+    threadId = "",
   }: any = {}) {
-    if (isNavigatingToChatsRef.current) {
-      return;
-    }
-    isNavigatingToChatsRef.current = true;
-
-    try {
-      if (!selectedCompanyId) {
-        setBrowserPath("/settings", { replace });
-        return;
-      }
-
-      const requestedAgentId = String(chatsRoute.agentId || "").trim();
-      const requestedThreadId = forceList ? "" : String(chatsRoute.threadId || "").trim();
-      if (requestedAgentId && requestedThreadId) {
-        setChatAgentId(requestedAgentId);
-        setChatSessionId(requestedThreadId);
-        setChatTurns([]);
-        setQueuedChatMessages([]);
-        setIsLoadingChat(true);
-        setChatError("");
-        setBrowserPath(
-          getChatsPath({ agentId: requestedAgentId, threadId: requestedThreadId }),
-          { replace },
-        );
-        return;
-      }
-
-      let availableAgents = Array.isArray(agents) ? agents : [];
-      let sessionsByAgentSnapshot = chatSessionsByAgent;
-      if (availableAgents.length === 0) {
-        const bootstrapPayload = await loadChatsBootstrapData({ silently: true });
-        availableAgents = Array.isArray(bootstrapPayload.agents) ? bootstrapPayload.agents : [];
-        sessionsByAgentSnapshot = bootstrapPayload.sessionsByAgent || {};
-      }
-
-      let targetAgentId = requestedAgentId;
-      if (!targetAgentId) {
-        const firstAgent = sortAgentsForChatNavigation(availableAgents)[0] || null;
-        targetAgentId = String(firstAgent?.id || "").trim();
-      }
-      if (!targetAgentId) {
-        setBrowserPath("/agents", { replace });
-        return;
-      }
-
-      const hasLoadedSessionsForAgent = Array.isArray(sessionsByAgentSnapshot[targetAgentId]);
-      if (!hasLoadedSessionsForAgent) {
-        const bootstrapPayload = await loadChatsBootstrapData({ silently: true });
-        if (availableAgents.length === 0) {
-          availableAgents = Array.isArray(bootstrapPayload.agents) ? bootstrapPayload.agents : [];
-        }
-        sessionsByAgentSnapshot = bootstrapPayload.sessionsByAgent || {};
-      }
-
-      const sessionsForAgent = sortChatSessionsForChatNavigation(
-        Array.isArray(sessionsByAgentSnapshot[targetAgentId]) ? sessionsByAgentSnapshot[targetAgentId] : [],
-      );
-      if (requestedThreadId) {
-        const hasRequestedSession = sessionsForAgent.some(
-          (session: any) => String(session?.id || "").trim() === requestedThreadId,
-        );
-        if (hasRequestedSession) {
-          setChatAgentId(targetAgentId);
-          setChatSessionId(requestedThreadId);
-          setChatTurns([]);
-          setQueuedChatMessages([]);
-          setIsLoadingChat(true);
-          setChatError("");
-          setBrowserPath(
-            getChatsPath({ agentId: targetAgentId, threadId: requestedThreadId }),
-            { replace },
-          );
-          return;
-        }
-      }
-
-      if (!openFirstThread) {
-        setChatAgentId(targetAgentId);
-        setChatSessionId("");
-        setChatTurns([]);
-        setQueuedChatMessages([]);
-        setIsLoadingChat(false);
-        setChatError("");
-        setBrowserPath(getChatsPath({ agentId: targetAgentId }), { replace });
-        return;
-      }
-
-      const firstSessionId = String(sessionsForAgent[0]?.id || "").trim();
-
-      if (firstSessionId) {
-        setChatAgentId(targetAgentId);
-        setChatSessionId(firstSessionId);
-        setChatTurns([]);
-        setQueuedChatMessages([]);
-        setIsLoadingChat(true);
-        setChatError("");
-        setBrowserPath(getChatsPath({ agentId: targetAgentId, threadId: firstSessionId }), { replace });
-        return;
-      }
-
-      setChatAgentId(targetAgentId);
-      setChatSessionId("");
-      setChatTurns([]);
-      setQueuedChatMessages([]);
-      setIsLoadingChat(false);
-      setChatError("");
-      setBrowserPath(getChatsPath({ agentId: targetAgentId }), { replace });
-    } finally {
-      isNavigatingToChatsRef.current = false;
-    }
+    const resolvedAgentId = String(agentId || "").trim();
+    const resolvedThreadId = String(threadId || "").trim();
+    setChatAgentId(resolvedAgentId);
+    setChatSessionId(resolvedThreadId);
+    setChatTurns([]);
+    setQueuedChatMessages([]);
+    setIsLoadingChat(Boolean(resolvedThreadId));
+    setChatError("");
+    setBrowserPath(
+      buildImmediateChatsPath({
+        agentId: resolvedAgentId,
+        threadId: resolvedThreadId,
+      }),
+      { replace },
+    );
   }
 
   function handleOpenAdminTable(tableName: string) {
@@ -9589,15 +9569,12 @@ function App() {
 
   function navigateTo(pageId: any) {
     if (String(pageId || "").trim().toLowerCase() === "chats") {
-      const shouldForceChatsList = matchesMediaQuery(SIDEBAR_COLLAPSE_MEDIA_QUERY);
+      setChatAgentId("");
       setChatSessionId("");
       setChatTurns([]);
       setQueuedChatMessages([]);
       setIsLoadingChat(false);
-      void navigateToChatsConversation({
-        openFirstThread: !shouldForceChatsList,
-        forceList: shouldForceChatsList,
-      });
+      navigateToChatsConversation();
       return;
     }
     setBrowserPath(getPathForPage(pageId));
@@ -9708,43 +9685,19 @@ function App() {
     [taskLookup],
   );
 
-  const handleOpenTaskThread = useCallback(async (threadId: string) => {
+  const handleOpenTaskThread = useCallback((threadId: string) => {
     const resolvedThreadId = String(threadId || "").trim();
     if (!resolvedThreadId) {
       return;
     }
-
-    const findAgentIdForThread = (sessionsByAgentSnapshot: any) => {
-      const agentEntries = Object.entries(sessionsByAgentSnapshot || {});
-      for (const [agentId, sessions] of agentEntries) {
-        const hasThread = Array.isArray(sessions)
-          && sessions.some((session: any) => String(session?.id || "").trim() === resolvedThreadId);
-        if (hasThread) {
-          return String(agentId || "").trim();
-        }
-      }
-      return "";
-    };
-
-    let targetAgentId = findAgentIdForThread(chatSessionsByAgent);
-
-    if (!targetAgentId && selectedCompanyId) {
-      const bootstrapPayload = await loadChatsBootstrapData({ silently: true });
-      targetAgentId = findAgentIdForThread(bootstrapPayload.sessionsByAgent || {});
-    }
-
-    if (!targetAgentId && selectedCompanyId) {
-      const thread = await loadCompanyApiThread({ threadId: resolvedThreadId });
-      targetAgentId = resolveLegacyId(thread?.agentId);
-    }
-
-    setBrowserPath(
-      getChatsPath({
-        agentId: targetAgentId,
-        threadId: resolvedThreadId,
-      }),
-    );
-  }, [chatSessionsByAgent, loadChatsBootstrapData, selectedCompanyId]);
+    setChatAgentId("");
+    setChatSessionId(resolvedThreadId);
+    setChatTurns([]);
+    setQueuedChatMessages([]);
+    setIsLoadingChat(true);
+    setChatError("");
+    setBrowserPath(buildImmediateChatsPath({ threadId: resolvedThreadId }));
+  }, []);
 
   const activePrimaryNavItemId =
     activePage === "agents" && agentsRoute.view === "chat" ? "chats" : activePage;
