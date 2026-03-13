@@ -3862,13 +3862,6 @@ export const COMPANY_API_UPDATE_AGENT_MUTATION = `
       company {
         id
       }
-      runner {
-        id
-        name
-        isConnected
-        lastHealthCheckAt
-        lastSeenAt
-      }
     }
   }
 `;
