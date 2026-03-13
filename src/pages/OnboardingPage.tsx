@@ -1,10 +1,9 @@
 import { useState, useMemo, type ChangeEvent, type FormEvent } from "react";
-import { AgentCreatedActions } from "../components/AgentCreatedActions.tsx";
 import { CodexAuthPanel } from "../components/CodexAuthPanel.tsx";
 import { Page } from "../components/Page.tsx";
 import { buildRunnerStartCommand } from "../utils/shell.ts";
 import { formatRunnerLabel, isRunnerReadyAndConnected } from "../utils/formatting.ts";
-import { getAgentCreationFormStatus, type CreatedAgentSummary } from "../utils/agent-creation.ts";
+import { getAgentCreationFormStatus } from "../utils/agent-creation.ts";
 import {
   getRunnerCodexModelEntriesForRunner,
   getRunnerModelNames,
@@ -42,10 +41,7 @@ export interface OnboardingPageProps {
   onAgentModelChange: (model: string) => void;
   onAgentModelReasoningLevelChange: (level: string) => void;
   onCreateAgent: (event: FormEvent<HTMLFormElement>) => Promise<any>;
-  createdAgent: CreatedAgentSummary | null;
-  isCreatingPostCreateChat: boolean;
   githubAppInstallUrl: string;
-  onChatNow: () => void;
   onSkipPostCreate: () => void;
   onAdvanceToAgentPhase: () => void;
   codexAuthEvent: RunnerSdkCodexAuthEvent | null;
@@ -86,10 +82,7 @@ export function OnboardingPage({
   onAgentModelChange,
   onAgentModelReasoningLevelChange,
   onCreateAgent,
-  createdAgent,
-  isCreatingPostCreateChat,
   githubAppInstallUrl,
-  onChatNow,
   onSkipPostCreate,
   onAdvanceToAgentPhase,
   codexAuthEvent,
@@ -413,82 +406,70 @@ export function OnboardingPage({
             <div className="runner-onboarding-header">
               <div>
                 <p className="eyebrow">Setup</p>
-                <h1>{createdAgent ? "Your first agent is ready" : "Create your first agent"}</h1>
+                <h1>Create your first agent</h1>
                 <p className="subcopy">
-                  {createdAgent
-                    ? "Start a conversation now or leave this agent ready for later."
-                    : "An agent is an AI-powered worker that runs tasks inside your runner. You can add MCP servers, skills, and additional instructions later from the Agent page."}
+                  An agent is an AI-powered worker that runs tasks inside your runner. You can add MCP servers, skills, and additional instructions later from the Agent page.
                 </p>
               </div>
-              {!createdAgent ? (
-                <button
-                  type="button"
-                  className="runner-onboarding-skip-btn"
-                  onClick={onSkip}
-                >
-                  Skip for now
-                </button>
-              ) : null}
+              <button
+                type="button"
+                className="runner-onboarding-skip-btn"
+                onClick={onSkip}
+              >
+                Skip for now
+              </button>
             </div>
 
-            {createdAgent ? (
-              <AgentCreatedActions
-                agentName={createdAgent.name}
-                isCreatingChat={isCreatingPostCreateChat}
-                onChatNow={onChatNow}
-                onSkipForNow={onSkipPostCreate}
+            <form className="onboarding-agent-form" onSubmit={onCreateAgent}>
+              <label htmlFor="onboarding-agent-name">Agent name</label>
+              <input
+                id="onboarding-agent-name"
+                value={agentName}
+                onChange={(event: ChangeEvent<HTMLInputElement>) => onAgentNameChange(event.target.value)}
+                placeholder="e.g. CEO Agent"
+                disabled={isCreatingAgent}
+                autoFocus
+                required
               />
-            ) : (
-              <form className="onboarding-agent-form" onSubmit={onCreateAgent}>
-                <label htmlFor="onboarding-agent-name">Agent name</label>
-                <input
-                  id="onboarding-agent-name"
-                  value={agentName}
-                  onChange={(event: ChangeEvent<HTMLInputElement>) => onAgentNameChange(event.target.value)}
-                  placeholder="e.g. CEO Agent"
-                  disabled={isCreatingAgent}
-                  autoFocus
-                  required
-                />
 
-                <label htmlFor="onboarding-agent-runner">Runner</label>
-                <select
-                  id="onboarding-agent-runner"
-                  value={agentRunnerId}
-                  onChange={(event: ChangeEvent<HTMLSelectElement>) => onAgentRunnerChange(event.target.value)}
-                  required
-                  disabled={isCreatingAgent}
-                >
-                  <option value="">Select a runner</option>
-                  {agentRunners.map((runner) => (
-                    <option
-                      key={runner.id}
-                      value={runner.id}
-                      disabled={!isRunnerReadyAndConnected(runner)}
-                    >
-                      {formatRunnerLabel(runner)} ({isRunnerReadyAndConnected(runner) ? "connected" : "offline"})
-                    </option>
-                  ))}
-                </select>
+              <label htmlFor="onboarding-agent-runner">Runner</label>
+              <select
+                id="onboarding-agent-runner"
+                value={agentRunnerId}
+                onChange={(event: ChangeEvent<HTMLSelectElement>) => onAgentRunnerChange(event.target.value)}
+                required
+                disabled={isCreatingAgent}
+              >
+                <option value="">Select a runner</option>
+                {agentRunners.map((runner) => (
+                  <option
+                    key={runner.id}
+                    value={runner.id}
+                    disabled={!isRunnerReadyAndConnected(runner)}
+                  >
+                    {formatRunnerLabel(runner)} ({isRunnerReadyAndConnected(runner) ? "connected" : "offline"})
+                  </option>
+                ))}
+              </select>
 
-                <label htmlFor="onboarding-agent-sdk">Agent SDK</label>
-                <select
-                  id="onboarding-agent-sdk"
-                  value={agentSdk}
-                  onChange={(event: ChangeEvent<HTMLSelectElement>) => onAgentSdkChange(event.target.value)}
-                  required
-                  disabled={isCreatingAgent}
-                >
-                  {AVAILABLE_AGENT_SDKS.map((sdkName) => (
-                    <option
-                      key={sdkName}
-                      value={sdkName}
-                      disabled={Boolean(agentRunnerId) && createRunnerSdkAvailabilityByName.get(sdkName) !== "available"}
-                    >
-                      {sdkName}
-                    </option>
-                  ))}
-                </select>
+              <label htmlFor="onboarding-agent-sdk">Agent SDK</label>
+              <select
+                id="onboarding-agent-sdk"
+                value={agentSdk}
+                onChange={(event: ChangeEvent<HTMLSelectElement>) => onAgentSdkChange(event.target.value)}
+                required
+                disabled={isCreatingAgent}
+              >
+                {AVAILABLE_AGENT_SDKS.map((sdkName) => (
+                  <option
+                    key={sdkName}
+                    value={sdkName}
+                    disabled={Boolean(agentRunnerId) && createRunnerSdkAvailabilityByName.get(sdkName) !== "available"}
+                  >
+                    {sdkName}
+                  </option>
+                ))}
+              </select>
 
                 <label htmlFor="onboarding-agent-model">Default model</label>
                 <select
@@ -549,9 +530,8 @@ export function OnboardingPage({
                 <button type="submit" disabled={isCreatingAgent || !createFormStatus.canSubmit}>
                   {isCreatingAgent ? "Creating..." : "Create agent"}
                 </button>
-                {agentError ? <p className="error-banner">{agentError}</p> : null}
-              </form>
-            )}
+              {agentError ? <p className="error-banner">{agentError}</p> : null}
+            </form>
           </section>
         ) : null}
 

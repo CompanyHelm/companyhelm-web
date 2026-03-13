@@ -3864,6 +3864,7 @@ function App() {
       || onboardingPhase === "runner"
       || onboardingPhase === "configuring"
       || onboardingPhase === "agent"
+      || onboardingPhase === "github"
     ));
   const activeAdminTableSummary = useMemo(
     () => adminTables.find((table: any) => String(table?.name || "").trim().toLowerCase() === resolvedAdminTableName) || null,
@@ -6205,6 +6206,9 @@ function App() {
         }
 
         if (!isCancelled) {
+          if (onboardingPhase === "github") {
+            handleSkipOnboarding();
+          }
           setGithubInstallationNotice(`Linked GitHub installation ${installationId}.`);
           await loadGithubInstallations();
         }
@@ -6227,6 +6231,7 @@ function App() {
     };
   }, [
     companies,
+    onboardingPhase,
     isLoadingCompanies,
     loadGithubInstallations,
     pendingGithubInstallCallback,
@@ -9853,7 +9858,8 @@ function App() {
     && Boolean(selectedCompanyId)
     && activePage !== "settings"
     && activePage !== "profile"
-    && activePage !== "flags";
+    && activePage !== "flags"
+    && !(activePage === "repos" && onboardingPhase === "github");
   const mobilePageTitle = String(breadcrumbItems[breadcrumbItems.length - 1]?.label || "").trim();
 
   return (
@@ -10013,7 +10019,7 @@ function App() {
               onAgentModelChange={handleCreateAgentModelChange}
               onAgentModelReasoningLevelChange={handleCreateAgentReasoningLevelChange}
               onCreateAgent={handleCreateOnboardingAgent}
-              onCreateChatForAgent={handleCreateChatForAgent}
+              githubAppInstallUrl={githubAppInstallUrl}
               onAdvanceToAgentPhase={() => {
                 if (onboardingRunnerId) {
                   handleCreateAgentRunnerChange(onboardingRunnerId);
