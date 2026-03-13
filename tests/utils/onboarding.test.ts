@@ -2,11 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   deriveEffectiveOnboardingPhase,
-  getPostAgentCreationOnboardingRedirectPath,
   reconcileOnboardingPhase,
 } from "../../src/utils/onboarding.ts";
 
-test("reconcileOnboardingPhase clears a stale agent phase when the company already has agents", () => {
+test("reconcileOnboardingPhase advances a stale agent phase to github when the company already has an agent", () => {
   assert.equal(
     reconcileOnboardingPhase({
       phase: "agent",
@@ -14,7 +13,7 @@ test("reconcileOnboardingPhase clears a stale agent phase when the company alrea
       readyRunnerCount: 1,
       agentCount: 2,
     }),
-    null,
+    "github",
   );
 });
 
@@ -98,6 +97,14 @@ test("deriveEffectiveOnboardingPhase clears onboarding when a ready runner and a
   );
 });
 
-test("getPostAgentCreationOnboardingRedirectPath returns the chats page for a new onboarding agent", () => {
-  assert.equal(getPostAgentCreationOnboardingRedirectPath("agent-123"), "/chats?agentId=agent-123");
+test("reconcileOnboardingPhase keeps github active until completion logic clears it", () => {
+  assert.equal(
+    reconcileOnboardingPhase({
+      phase: "github",
+      runnerCount: 1,
+      readyRunnerCount: 1,
+      agentCount: 1,
+    }),
+    "github",
+  );
 });

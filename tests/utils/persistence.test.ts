@@ -129,6 +129,31 @@ test("getPersistedOnboarding normalizes unsupported persisted phases to null", (
   }
 });
 
+test("getPersistedOnboarding preserves the github phase", () => {
+  const originalWindow = testGlobal.window;
+  const storageMap = new Map<string, string>([
+    [ONBOARDING_STORAGE_KEY, JSON.stringify({ phase: "github", runnerSecret: "secret-1", runnerId: "runner-1" })],
+  ]);
+
+  try {
+    testGlobal.window = {
+      localStorage: createMockStorage(storageMap),
+    } as Window & typeof globalThis;
+
+    assert.deepEqual(getPersistedOnboarding(), {
+      phase: "github",
+      runnerSecret: "secret-1",
+      runnerId: "runner-1",
+    });
+  } finally {
+    if (typeof originalWindow === "undefined") {
+      Reflect.deleteProperty(testGlobal, "window");
+    } else {
+      testGlobal.window = originalWindow;
+    }
+  }
+});
+
 test("persistTaskTableColumnIds stores normalized unique ids", () => {
   const originalWindow = testGlobal.window;
   const storageMap = new Map<string, string>();
