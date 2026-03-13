@@ -3733,6 +3733,7 @@ function App() {
   const isAgentConversationView =
     activePage === "agents" && agentsRoute.view === "chat" && Boolean(resolvedChatSessionId);
   const isChatConversationRoute = isChatsConversationView || isAgentConversationView;
+  const shouldHideChatsOverviewBreadcrumbs = activePage === "chats" && !chatAgentId && !resolvedChatSessionId;
   const shouldSuppressChatsRouteWarning = useMemo(
     () =>
       shouldSuppressChatsRouteMissingAgentWarning({
@@ -9876,11 +9877,13 @@ function App() {
             />
           ) : (
             <>
-              <Breadcrumbs
-                items={breadcrumbItems}
-                onNavigate={setBrowserPath}
-                hideTitleRowOnMobile={activePage !== "dashboard"}
-              />
+              {!shouldHideChatsOverviewBreadcrumbs ? (
+                <Breadcrumbs
+                  items={breadcrumbItems}
+                  onNavigate={setBrowserPath}
+                  hideTitleRowOnMobile={activePage !== "dashboard"}
+                />
+              ) : null}
 
               {!isLoadingCompanies && !selectedCompanyId && activePage !== "settings" && activePage !== "profile" && activePage !== "flags" ? (
                 <CompanyRequiredPanel hasCompanies={hasCompanies} />
