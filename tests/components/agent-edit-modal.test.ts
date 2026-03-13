@@ -38,6 +38,7 @@ function renderAgentEditModalMarkup(overrides: Record<string, unknown> = {}) {
           name: "CEO Agent",
           agentRunnerId: "runner-1",
           roleIds: [],
+          skillIds: [],
           mcpServerIds: [],
           agentSdk: "codex",
           model: "gpt-5",
@@ -47,6 +48,7 @@ function renderAgentEditModalMarkup(overrides: Record<string, unknown> = {}) {
       ],
       agentRunners: [createRunner(), createRunner({ id: "runner-2", name: "Runner Two" })],
       roles: [],
+      skills: [],
       mcpServers: [],
       roleMcpServerIdsByRoleId: {},
       runnerCodexModelEntriesById: new Map([
@@ -56,6 +58,7 @@ function renderAgentEditModalMarkup(overrides: Record<string, unknown> = {}) {
         "agent-1": {
           agentRunnerId: "runner-1",
           roleIds: [],
+          skillIds: [],
           mcpServerIds: [],
           name: "CEO Agent",
           agentSdk: "codex",
@@ -101,4 +104,49 @@ test("AgentEditModal renders runner names in the runner selector", () => {
   assert.match(markup, /<option value="runner-1" selected="">Runner One<\/option>/);
   assert.match(markup, /<option value="runner-2" disabled="">Runner Two<\/option>/);
   assert.doesNotMatch(markup, /runner-1 \(connected\)/);
+});
+
+test("AgentEditModal renders direct skill and direct MCP controls separately from inherited summaries", () => {
+  const markup = renderAgentEditModalMarkup({
+    skills: [
+      { id: "skill-1", name: "Brainstorming" },
+      { id: "skill-2", name: "Systematic Debugging" },
+    ],
+    mcpServers: [
+      { id: "mcp-1", name: "Filesystem MCP" },
+      { id: "mcp-2", name: "Context7" },
+    ],
+    agents: [
+      {
+        id: "agent-1",
+        name: "CEO Agent",
+        agentRunnerId: "runner-1",
+        roleIds: [],
+        skillIds: ["skill-1"],
+        mcpServerIds: ["mcp-1"],
+        agentSdk: "codex",
+        model: "gpt-5",
+        modelReasoningLevel: "high",
+        defaultAdditionalModelInstructions: "",
+      },
+    ],
+    agentDrafts: {
+      "agent-1": {
+        agentRunnerId: "runner-1",
+        roleIds: [],
+        skillIds: ["skill-1"],
+        mcpServerIds: ["mcp-1"],
+        name: "CEO Agent",
+        agentSdk: "codex",
+        model: "gpt-5",
+        modelReasoningLevel: "high",
+        defaultAdditionalModelInstructions: "",
+      },
+    },
+  });
+
+  assert.match(markup, />Direct skills</);
+  assert.match(markup, />Inherited skills \(from roles\)</);
+  assert.match(markup, />Direct MCP servers</);
+  assert.match(markup, />Inherited MCP servers \(from roles\)</);
 });

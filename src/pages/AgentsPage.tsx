@@ -78,6 +78,31 @@ function resolveEffectiveRoleMcpServerIds(expandedRoleIds: string[], roleMcpServ
   return effectiveMcpServerIds;
 }
 
+function resolveEffectiveRoleSkills(expandedRoleIds: string[], roleLookup: Map<string, Role>) {
+  const effectiveSkills: Array<{ id: string; name: string }> = [];
+  const seenSkillIds = new Set<string>();
+
+  for (const roleId of expandedRoleIds) {
+    const role = roleLookup.get(roleId);
+    const roleEffectiveSkills = Array.isArray(role?.effectiveSkills)
+      ? role.effectiveSkills
+      : [];
+    for (const skill of roleEffectiveSkills) {
+      const skillId = String(skill?.id || "").trim();
+      if (!skillId || seenSkillIds.has(skillId)) {
+        continue;
+      }
+      seenSkillIds.add(skillId);
+      effectiveSkills.push({
+        id: skillId,
+        name: String(skill?.name || "").trim() || "Unknown skill",
+      });
+    }
+  }
+
+  return effectiveSkills;
+}
+
 type AgentDraftField = keyof AgentDraft;
 
 interface AgentsPageProps {
@@ -99,6 +124,8 @@ interface AgentsPageProps {
   hasLoadedAgentRunners: boolean;
   agentRunnerId: string;
   agentRoleIds: string[];
+  agentSkillIds: string[];
+  agentMcpServerIds: string[];
   agentName: string;
   agentSdk: string;
   agentModel: string;
@@ -108,6 +135,8 @@ interface AgentsPageProps {
   agentCountLabel: string;
   onAgentRunnerChange: (runnerId: string) => void;
   onAgentRoleIdsChange: (roleIds: string[]) => void;
+  onAgentSkillIdsChange: (skillIds: string[]) => void;
+  onAgentMcpServerIdsChange: (mcpServerIds: string[]) => void;
   onAgentNameChange: (name: string) => void;
   onAgentSdkChange: (sdk: string) => void;
   onAgentModelChange: (model: string) => void;
@@ -143,6 +172,8 @@ export function AgentsPage({
   hasLoadedAgentRunners,
   agentRunnerId,
   agentRoleIds,
+  agentSkillIds,
+  agentMcpServerIds,
   agentName,
   agentSdk,
   agentModel,
@@ -152,6 +183,8 @@ export function AgentsPage({
   agentCountLabel,
   onAgentRunnerChange,
   onAgentRoleIdsChange,
+  onAgentSkillIdsChange,
+  onAgentMcpServerIdsChange,
   onAgentNameChange,
   onAgentSdkChange,
   onAgentModelChange,
@@ -223,9 +256,21 @@ export function AgentsPage({
     () => normalizeUniqueStringList(agentRoleIds),
     [agentRoleIds],
   );
+  const createAssignedSkillIds = useMemo(
+    () => normalizeUniqueStringList(agentSkillIds),
+    [agentSkillIds],
+  );
+  const createAssignedMcpServerIds = useMemo(
+    () => normalizeUniqueStringList(agentMcpServerIds),
+    [agentMcpServerIds],
+  );
   const createExpandedRoleIds = useMemo(
     () => collectRoleAndSubroleIds(createAssignedRoleIds, roleChildrenByParentId),
     [createAssignedRoleIds, roleChildrenByParentId],
+  );
+  const createEffectiveSkills = useMemo(
+    () => resolveEffectiveRoleSkills(createExpandedRoleIds, roleLookup),
+    [createExpandedRoleIds, roleLookup],
   );
   const createEffectiveMcpServerIds = useMemo(
     () => resolveEffectiveRoleMcpServerIds(createExpandedRoleIds, roleMcpServerIdsByRoleId),
@@ -235,6 +280,16 @@ export function AgentsPage({
     () =>
       roles.filter((role) => !createAssignedRoleIds.includes(role.id)),
     [createAssignedRoleIds, roles],
+  );
+  const createAvailableSkills = useMemo(
+    () =>
+      skills.filter((skill) => !createAssignedSkillIds.includes(skill.id)),
+    [createAssignedSkillIds, skills],
+  );
+  const createAvailableMcpServers = useMemo(
+    () =>
+      mcpServers.filter((mcpServer) => !createAssignedMcpServerIds.includes(mcpServer.id)),
+    [createAssignedMcpServerIds, mcpServers],
   );
   const createFormStatus = useMemo(() => {
     return getAgentCreationFormStatus({
@@ -261,6 +316,10 @@ export function AgentsPage({
       return mcpServer?.name || "Unknown MCP server";
     }),
     [createEffectiveMcpServerIds, mcpServerLookup],
+  );
+  const createEffectiveSkillLabels = useMemo(
+    () => createEffectiveSkills.map((skill) => skill.name),
+    [createEffectiveSkills],
   );
   const hasReadyConnectedRunner = agentRunners.some((runner) => isRunnerReadyAndConnected(runner));
   const isCreateBlockedByRunners = hasLoadedAgentRunners && !hasReadyConnectedRunner;
@@ -421,14 +480,33 @@ export function AgentsPage({
               const assignedRoleSummary =
                 assignedRoleLabels.length > 0 ? assignedRoleLabels.join(", ") : "none";
               const expandedRoleIds = collectRoleAndSubroleIds(assignedRoleIds, roleChildrenByParentId);
+              const inheritedSkills = resolveEffectiveRoleSkills(expandedRoleIds, roleLookup);
+              const directSkillIds = normalizeUniqueStringList(agent.skillIds || []);
+              const directSkillLabels = directSkillIds.map((skillId) => {
+                const skill = skills.find((candidate) => candidate.id === skillId);
+                return skill?.name || "Unknown skill";
+              });
+              const effectiveSkillLabels = normalizeUniqueStringList([
+                ...directSkillLabels,
+                ...inheritedSkills.map((skill) => skill.name),
+              ]);
               const effectiveMcpServerIds = resolveEffectiveRoleMcpServerIds(
                 expandedRoleIds,
                 roleMcpServerIdsByRoleId,
               );
-              const assignedMcpServerLabels = effectiveMcpServerIds.map((mcpServerId) => {
-                const mcpServer = mcpServerLookup.get(mcpServerId);
-                return mcpServer?.name || "Unknown MCP server";
-              });
+              const directMcpServerIds = normalizeUniqueStringList(agent.mcpServerIds || []);
+              const assignedMcpServerLabels = normalizeUniqueStringList([
+                ...directMcpServerIds.map((mcpServerId) => {
+                  const mcpServer = mcpServerLookup.get(mcpServerId);
+                  return mcpServer?.name || "Unknown MCP server";
+                }),
+                ...effectiveMcpServerIds.map((mcpServerId) => {
+                  const mcpServer = mcpServerLookup.get(mcpServerId);
+                  return mcpServer?.name || "Unknown MCP server";
+                }),
+              ]);
+              const assignedSkillSummary =
+                effectiveSkillLabels.length > 0 ? effectiveSkillLabels.join(", ") : "none";
               const assignedMcpServerSummary =
                 assignedMcpServerLabels.length > 0 ? assignedMcpServerLabels.join(", ") : "none";
               const isSavingOrDeleting =
@@ -458,6 +536,7 @@ export function AgentsPage({
                       {agent.agentSdk} · {modelLabel} · {assignedRunnerLabel}
                     </p>
                     <p className="chat-card-meta">Roles: {assignedRoleSummary}</p>
+                    <p className="chat-card-meta">Skills: {assignedSkillSummary}</p>
                     <p className="chat-card-meta">MCP servers: {assignedMcpServerSummary}</p>
                   </div>
                   <div className="chat-card-actions">
@@ -510,9 +589,16 @@ export function AgentsPage({
         formStatus={createFormStatus}
         agentRunners={agentRunners}
         createAssignedRoleIds={createAssignedRoleIds}
+        createAssignedSkillIds={createAssignedSkillIds}
+        createAssignedMcpServerIds={createAssignedMcpServerIds}
         createAvailableRoles={createAvailableRoles}
+        createAvailableSkills={createAvailableSkills}
+        createAvailableMcpServers={createAvailableMcpServers}
+        createEffectiveSkillLabels={createEffectiveSkillLabels}
         createEffectiveMcpServerLabels={createEffectiveMcpServerLabels}
         roleLabelById={new Map(roles.map((role) => [role.id, role.name]))}
+        skillLabelById={new Map(skills.map((skill) => [skill.id, skill.name]))}
+        mcpServerLabelById={new Map(mcpServers.map((mcpServer) => [mcpServer.id, mcpServer.name]))}
         agentRunnerId={agentRunnerId}
         agentName={agentName}
         agentSdk={agentSdk}
@@ -530,6 +616,8 @@ export function AgentsPage({
         onCreateAgent={handleCreateAgentSubmit}
         onAgentRunnerChange={onAgentRunnerChange}
         onAgentRoleIdsChange={onAgentRoleIdsChange}
+        onAgentSkillIdsChange={onAgentSkillIdsChange}
+        onAgentMcpServerIdsChange={onAgentMcpServerIdsChange}
         onAgentNameChange={onAgentNameChange}
         onAgentSdkChange={onAgentSdkChange}
         onAgentModelChange={onAgentModelChange}
@@ -543,6 +631,7 @@ export function AgentsPage({
         agents={agents}
         agentRunners={agentRunners}
         roles={roles}
+        skills={skills}
         mcpServers={mcpServers}
         roleMcpServerIdsByRoleId={roleMcpServerIdsByRoleId}
         runnerCodexModelEntriesById={runnerCodexModelEntriesById}

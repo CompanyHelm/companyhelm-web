@@ -39,9 +39,16 @@ function renderAgentCreateModalMarkup(overrides: Record<string, unknown> = {}) {
       },
       agentRunners: [createRunner()],
       createAssignedRoleIds: [],
+      createAssignedSkillIds: [],
+      createAvailableSkills: [],
+      createAssignedMcpServerIds: [],
+      createAvailableMcpServers: [],
       createAvailableRoles: [],
+      createEffectiveSkillLabels: [],
       createEffectiveMcpServerLabels: [],
       roleLabelById: new Map(),
+      skillLabelById: new Map(),
+      mcpServerLabelById: new Map(),
       agentRunnerId: "runner-1",
       agentName: "CEO Agent",
       agentSdk: "codex",
@@ -67,6 +74,8 @@ function renderAgentCreateModalMarkup(overrides: Record<string, unknown> = {}) {
       onCreateAgent: async () => false,
       onAgentRunnerChange: () => {},
       onAgentRoleIdsChange: () => {},
+      onAgentSkillIdsChange: () => {},
+      onAgentMcpServerIdsChange: () => {},
       onAgentNameChange: () => {},
       onAgentSdkChange: () => {},
       onAgentModelChange: () => {},
@@ -135,4 +144,22 @@ test("AgentCreateModal uses a neutral runner label instead of showing the runner
 
   assert.match(markup, /<option value="runner-secret-1234">Unnamed runner<\/option>/);
   assert.doesNotMatch(markup, />runner-secret-1234</);
+});
+
+test("AgentCreateModal renders direct skill and MCP assignment controls separately from inherited summaries", () => {
+  const markup = renderAgentCreateModalMarkup({
+    createAssignedSkillIds: ["skill-1"],
+    createAvailableSkills: [{ id: "skill-2", name: "Systematic Debugging" }],
+    createAssignedMcpServerIds: ["mcp-1"],
+    createAvailableMcpServers: [{ id: "mcp-2", name: "Context7" }],
+    createEffectiveSkillLabels: ["Brainstorming"],
+    createEffectiveMcpServerLabels: ["GitHub MCP"],
+    skillLabelById: new Map([["skill-1", "Brainstorming"]]),
+    mcpServerLabelById: new Map([["mcp-1", "Filesystem MCP"]]),
+  });
+
+  assert.match(markup, />Direct skills</);
+  assert.match(markup, />Inherited skills \(from roles\)</);
+  assert.match(markup, />Direct MCP servers</);
+  assert.match(markup, />Inherited MCP servers \(from roles\)</);
 });

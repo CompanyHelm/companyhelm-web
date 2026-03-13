@@ -51,6 +51,7 @@ type Agent {
   mcpServerIds: [ID!]!
   name: String!
   roleIds: [ID!]!
+  skillIds: [ID!]!
   roles: [Role!]!
   runner: AgentRunner!
   status: AgentStatus!
@@ -397,7 +398,7 @@ type Mutation {
   archiveThread(threadId: ID!): Thread!
   batchDeleteTasks(ids: [ID!]!): BatchDeleteTasksPayload!
   batchExecuteTasks(agentId: ID!, taskIds: [ID!]!): BatchTaskMutationPayload!
-  createAgent(agentRunnerId: ID!, agentRunnerSdkId: ID!, defaultAdditionalModelInstructions: String, defaultModelId: ID!, defaultReasoningLevel: String, mcpServerIds: [ID!], name: String!, roleIds: [ID!]): Agent!
+  createAgent(agentRunnerId: ID!, agentRunnerSdkId: ID!, defaultAdditionalModelInstructions: String, defaultModelId: ID!, defaultReasoningLevel: String, mcpServerIds: [ID!], name: String!, roleIds: [ID!], skillIds: [ID!]): Agent!
   createAgentRunner(name: String!): AgentRunnerSecretPayload!
   createCompany(name: String!): Company!
   createGitSkillPackage(gitReference: String!, gitRepositoryUrl: String!): CreateGitSkillPackagePayload!
@@ -443,7 +444,7 @@ type Mutation {
   startMcpServerOAuth(mcpServerId: ID!, oauthClientId: String, oauthClientSecret: String, requestedScopes: [String!]): McpOAuthStartPayload!
   startRunnerSdkAuth(apiKey: String, authType: CodexAuthType!, runnerId: ID!, sdkId: ID!): AgentRunnerSdk!
   steerQueuedUserMessage(queuedMessageId: ID!): QueuedUserMessage!
-  updateAgent(agentId: ID!, agentRunnerId: ID!, agentRunnerSdkId: ID!, defaultAdditionalModelInstructions: String, defaultModelId: ID!, defaultReasoningLevel: String, mcpServerIds: [ID!], name: String!, roleIds: [ID!]): Agent!
+  updateAgent(agentId: ID!, agentRunnerId: ID!, agentRunnerSdkId: ID!, defaultAdditionalModelInstructions: String, defaultModelId: ID!, defaultReasoningLevel: String, mcpServerIds: [ID!], name: String!, roleIds: [ID!], skillIds: [ID!]): Agent!
   updateMcpServer(args: [String!], authType: String, bearerTokenSecretId: ID, command: String, customHeaders: [McpHeaderInput!], enabled: Boolean, envVars: [McpEnvVarInput!], id: ID!, name: String!, transportType: String, url: String): McpServerMutationPayload!
   updateRole(id: ID!, name: String!, parentRoleId: ID): RoleMutationPayload!
   updateSecret(description: String!, id: ID!, name: String!, value: String): SecretMutationPayload!

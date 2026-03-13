@@ -138,6 +138,7 @@ export interface Agent extends NamedEntity {
   status?: string;
   agentRunnerId?: string;
   roleIds?: string[];
+  skillIds?: string[];
   roles?: RoleRef[];
   mcpServerIds?: string[];
   installedSkills?: SkillRef[];
@@ -194,6 +195,7 @@ export interface TaskRelationshipDraft {
 export interface AgentDraft {
   agentRunnerId: string;
   roleIds: string[];
+  skillIds: string[];
   mcpServerIds: string[];
   name: string;
   agentSdk: string;

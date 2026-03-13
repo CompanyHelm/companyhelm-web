@@ -309,6 +309,8 @@ test("createAgentRecord can allow onboarding submission when the selected model 
       ],
     ]),
     agentRoleIds: [],
+    agentSkillIds: ["skill-1", "skill-2"],
+    agentMcpServerIds: [],
     agentName: "CEO Agent",
     agentRunnerId: "runner-1",
     agentSdk: "codex",
@@ -316,7 +318,6 @@ test("createAgentRecord can allow onboarding submission when the selected model 
     agentModelReasoningLevel: "",
     allowEmptyReasoningWhenUnavailable: true,
     agentDefaultAdditionalModelInstructions: "",
-    resolveEffectiveMcpServerIds: () => [],
     executeCreateAgent: async (variables) => {
       submittedVariables = variables;
       return {
@@ -329,6 +330,7 @@ test("createAgentRecord can allow onboarding submission when the selected model 
   });
 
   assert.equal(result.createdAgentId, "agent-1");
+  assert.deepEqual(submittedVariables?.skillIds, ["skill-1", "skill-2"]);
   assert.equal(submittedVariables?.modelReasoningLevel, "");
   assert.equal(submittedVariables?.defaultReasoningLevel, "");
 });

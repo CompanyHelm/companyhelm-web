@@ -25,9 +25,16 @@ interface AgentCreateModalProps {
   formStatus: Pick<AgentCreationFormStatus, "canSubmit">;
   agentRunners: AgentRunner[];
   createAssignedRoleIds: string[];
+  createAssignedSkillIds: string[];
+  createAssignedMcpServerIds: string[];
   createAvailableRoles: Array<{ id: string; name: string }>;
+  createAvailableSkills: Array<{ id: string; name: string }>;
+  createAvailableMcpServers: Array<{ id: string; name: string }>;
+  createEffectiveSkillLabels: string[];
   createEffectiveMcpServerLabels: string[];
   roleLabelById: Map<string, string>;
+  skillLabelById: Map<string, string>;
+  mcpServerLabelById: Map<string, string>;
   agentRunnerId: string;
   agentName: string;
   agentSdk: string;
@@ -45,6 +52,8 @@ interface AgentCreateModalProps {
   onCreateAgent: (event: FormEvent<HTMLFormElement>) => Promise<boolean> | boolean;
   onAgentRunnerChange: (runnerId: string) => void;
   onAgentRoleIdsChange: (roleIds: string[]) => void;
+  onAgentSkillIdsChange: (skillIds: string[]) => void;
+  onAgentMcpServerIdsChange: (mcpServerIds: string[]) => void;
   onAgentNameChange: (name: string) => void;
   onAgentSdkChange: (sdk: string) => void;
   onAgentModelChange: (model: string) => void;
@@ -60,9 +69,16 @@ export function AgentCreateModal({
   formStatus,
   agentRunners,
   createAssignedRoleIds,
+  createAssignedSkillIds,
+  createAssignedMcpServerIds,
   createAvailableRoles,
+  createAvailableSkills,
+  createAvailableMcpServers,
+  createEffectiveSkillLabels,
   createEffectiveMcpServerLabels,
   roleLabelById,
+  skillLabelById,
+  mcpServerLabelById,
   agentRunnerId,
   agentName,
   agentSdk,
@@ -80,6 +96,8 @@ export function AgentCreateModal({
   onCreateAgent,
   onAgentRunnerChange,
   onAgentRoleIdsChange,
+  onAgentSkillIdsChange,
+  onAgentMcpServerIdsChange,
   onAgentNameChange,
   onAgentSdkChange,
   onAgentModelChange,
@@ -193,6 +211,128 @@ export function AgentCreateModal({
             ) : (
               createEffectiveMcpServerLabels.map((mcpServerLabel) => (
                 <span key={`create-agent-effective-mcp-${mcpServerLabel}`} className="tag-pill">
+                  {mcpServerLabel}
+                </span>
+              ))
+            )}
+          </div>
+
+          <label htmlFor="create-agent-direct-skills-assigned">Direct skills</label>
+          <div id="create-agent-direct-skills-assigned" className="inline-selection-list">
+            {createAssignedSkillIds.length === 0 ? (
+              <span className="empty-hint">No direct skills assigned.</span>
+            ) : (
+              createAssignedSkillIds.map((skillId) => (
+                <button
+                  key={`create-agent-remove-direct-skill-${skillId}`}
+                  type="button"
+                  className="tag-remove-btn"
+                  onClick={() =>
+                    onAgentSkillIdsChange(
+                      createAssignedSkillIds.filter((candidateId) => candidateId !== skillId),
+                    )
+                  }
+                  title={`Remove ${skillLabelById.get(skillId) || "Unknown skill"}`}
+                >
+                  {skillLabelById.get(skillId) || "Unknown skill"} ×
+                </button>
+              ))
+            )}
+          </div>
+
+          <label htmlFor="create-agent-direct-skill-add">Add direct skill</label>
+          <select
+            id="create-agent-direct-skill-add"
+            value=""
+            onChange={(event: ChangeEvent<HTMLSelectElement>) => {
+              const nextSkillId = String(event.target.value || "").trim();
+              if (!nextSkillId) {
+                return;
+              }
+              onAgentSkillIdsChange([...createAssignedSkillIds, nextSkillId]);
+            }}
+            disabled={createAvailableSkills.length === 0}
+          >
+            <option value="">
+              {createAvailableSkills.length === 0
+                ? "All skills already assigned"
+                : "Select skill to assign"}
+            </option>
+            {createAvailableSkills.map((skill) => (
+              <option key={`create-agent-direct-skill-${skill.id}`} value={skill.id}>
+                {skill.name}
+              </option>
+            ))}
+          </select>
+
+          <label htmlFor="create-agent-effective-skills">Inherited skills (from roles)</label>
+          <div id="create-agent-effective-skills" className="inline-selection-list">
+            {createEffectiveSkillLabels.length === 0 ? (
+              <span className="empty-hint">No skills inherited from assigned roles.</span>
+            ) : (
+              createEffectiveSkillLabels.map((skillLabel) => (
+                <span key={`create-agent-effective-skill-${skillLabel}`} className="tag-pill">
+                  {skillLabel}
+                </span>
+              ))
+            )}
+          </div>
+
+          <label htmlFor="create-agent-direct-mcp-assigned">Direct MCP servers</label>
+          <div id="create-agent-direct-mcp-assigned" className="inline-selection-list">
+            {createAssignedMcpServerIds.length === 0 ? (
+              <span className="empty-hint">No direct MCP servers assigned.</span>
+            ) : (
+              createAssignedMcpServerIds.map((mcpServerId) => (
+                <button
+                  key={`create-agent-remove-direct-mcp-${mcpServerId}`}
+                  type="button"
+                  className="tag-remove-btn"
+                  onClick={() =>
+                    onAgentMcpServerIdsChange(
+                      createAssignedMcpServerIds.filter((candidateId) => candidateId !== mcpServerId),
+                    )
+                  }
+                  title={`Remove ${mcpServerLabelById.get(mcpServerId) || "Unknown MCP server"}`}
+                >
+                  {mcpServerLabelById.get(mcpServerId) || "Unknown MCP server"} ×
+                </button>
+              ))
+            )}
+          </div>
+
+          <label htmlFor="create-agent-direct-mcp-add">Add direct MCP server</label>
+          <select
+            id="create-agent-direct-mcp-add"
+            value=""
+            onChange={(event: ChangeEvent<HTMLSelectElement>) => {
+              const nextMcpServerId = String(event.target.value || "").trim();
+              if (!nextMcpServerId) {
+                return;
+              }
+              onAgentMcpServerIdsChange([...createAssignedMcpServerIds, nextMcpServerId]);
+            }}
+            disabled={createAvailableMcpServers.length === 0}
+          >
+            <option value="">
+              {createAvailableMcpServers.length === 0
+                ? "All MCP servers already assigned"
+                : "Select MCP server to assign"}
+            </option>
+            {createAvailableMcpServers.map((mcpServer) => (
+              <option key={`create-agent-direct-mcp-${mcpServer.id}`} value={mcpServer.id}>
+                {mcpServer.name}
+              </option>
+            ))}
+          </select>
+
+          <label htmlFor="create-agent-direct-effective-mcp">Inherited MCP servers (from roles)</label>
+          <div id="create-agent-direct-effective-mcp" className="inline-selection-list">
+            {createEffectiveMcpServerLabels.length === 0 ? (
+              <span className="empty-hint">No MCP servers inherited from assigned roles.</span>
+            ) : (
+              createEffectiveMcpServerLabels.map((mcpServerLabel) => (
+                <span key={`create-agent-direct-effective-mcp-${mcpServerLabel}`} className="tag-pill">
                   {mcpServerLabel}
                 </span>
               ))
