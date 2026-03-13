@@ -784,6 +784,7 @@ function toAgentPayload(agent: any) {
     status: resolveLegacyId(agent?.status) || "pending",
     agentRunnerId: resolveLegacyId(agent?.runner?.id, agent?.agentRunnerId),
     roleIds: normalizeUniqueStringList(agent?.roleIds || []),
+    skillIds: normalizeUniqueStringList(agent?.skillIds || []),
     roles: Array.isArray(agent?.roles)
       ? agent.roles
           .map((role: any) => ({
@@ -1691,6 +1692,7 @@ async function executeGraphQL(query: any, variables: any = {}) {
     const defaultReasoningLevel =
       resolveLegacyId(variables?.defaultReasoningLevel, variables?.modelReasoningLevel) || null;
     const roleIds = normalizeUniqueStringList(variables?.roleIds || []);
+    const skillIds = normalizeUniqueStringList(variables?.skillIds || []);
     const mcpServerIds = normalizeUniqueStringList(variables?.mcpServerIds || []);
     const defaultAdditionalModelInstructions = normalizeOptionalInstructions(
       variables?.defaultAdditionalModelInstructions,
@@ -1706,6 +1708,7 @@ async function executeGraphQL(query: any, variables: any = {}) {
       agentRunnerSdkId,
       defaultModelId,
       roleIds,
+      skillIds,
       mcpServerIds,
       defaultReasoningLevel,
       defaultAdditionalModelInstructions,
@@ -1728,6 +1731,7 @@ async function executeGraphQL(query: any, variables: any = {}) {
     const defaultReasoningLevel =
       resolveLegacyId(variables?.defaultReasoningLevel, variables?.modelReasoningLevel) || null;
     const roleIds = normalizeUniqueStringList(variables?.roleIds || []);
+    const skillIds = normalizeUniqueStringList(variables?.skillIds || []);
     const mcpServerIds = normalizeUniqueStringList(variables?.mcpServerIds || []);
     const defaultAdditionalModelInstructions = normalizeOptionalInstructions(
       variables?.defaultAdditionalModelInstructions,
@@ -1743,6 +1747,7 @@ async function executeGraphQL(query: any, variables: any = {}) {
       agentRunnerSdkId,
       defaultModelId,
       roleIds,
+      skillIds,
       mcpServerIds,
       defaultReasoningLevel,
       defaultAdditionalModelInstructions,

@@ -158,6 +158,7 @@ export async function createAgentRecord({
   agentRunnerLookup,
   runnerCodexModelEntriesById,
   agentRoleIds,
+  agentSkillIds,
   agentName,
   agentRunnerId,
   agentSdk,
@@ -173,6 +174,7 @@ export async function createAgentRecord({
   agentRunnerLookup: Map<string, AgentRunner>;
   runnerCodexModelEntriesById: RunnerCodexModelEntriesById;
   agentRoleIds: string[];
+  agentSkillIds: string[];
   agentName: string;
   agentRunnerId: string;
   agentSdk: string;
@@ -265,6 +267,7 @@ export async function createAgentRecord({
     companyId: normalizedCompanyId,
     agentRunnerId: normalizedRunnerId || null,
     roleIds: agentRoleIds,
+    skillIds: agentSkillIds,
     mcpServerIds: resolveEffectiveMcpServerIds(),
     defaultAdditionalModelInstructions: normalizeOptionalInstructions(agentDefaultAdditionalModelInstructions),
     name: normalizedAgentName,

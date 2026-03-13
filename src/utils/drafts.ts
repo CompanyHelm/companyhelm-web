@@ -77,6 +77,7 @@ export function createAgentDrafts(agents: unknown): Record<string, LooseRecord> 
     drafts[agentId] = {
       agentRunnerId: String(agent.agentRunnerId || "").trim(),
       roleIds: Array.isArray(agent.roleIds) ? [...agent.roleIds] : [],
+      skillIds: Array.isArray(agent.skillIds) ? [...agent.skillIds] : [],
       mcpServerIds: Array.isArray(agent.mcpServerIds) ? [...agent.mcpServerIds] : [],
       name: String(agent.name || "").trim(),
       agentSdk: String(agent.agentSdk || "").trim() || DEFAULT_AGENT_SDK,

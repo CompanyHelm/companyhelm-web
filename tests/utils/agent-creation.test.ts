@@ -309,6 +309,7 @@ test("createAgentRecord can allow onboarding submission when the selected model 
       ],
     ]),
     agentRoleIds: [],
+    agentSkillIds: ["skill-1", "skill-2"],
     agentName: "CEO Agent",
     agentRunnerId: "runner-1",
     agentSdk: "codex",
@@ -329,6 +330,7 @@ test("createAgentRecord can allow onboarding submission when the selected model 
   });
 
   assert.equal(result.createdAgentId, "agent-1");
+  assert.deepEqual(submittedVariables?.skillIds, ["skill-1", "skill-2"]);
   assert.equal(submittedVariables?.modelReasoningLevel, "");
   assert.equal(submittedVariables?.defaultReasoningLevel, "");
 });

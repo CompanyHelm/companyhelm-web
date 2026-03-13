@@ -3782,6 +3782,7 @@ export const COMPANY_API_CREATE_AGENT_MUTATION = `
     $agentRunnerSdkId: ID!
     $defaultModelId: ID!
     $roleIds: [ID!]
+    $skillIds: [ID!]
     $mcpServerIds: [ID!]
     $defaultReasoningLevel: String
     $defaultAdditionalModelInstructions: String
@@ -3792,6 +3793,7 @@ export const COMPANY_API_CREATE_AGENT_MUTATION = `
       agentRunnerSdkId: $agentRunnerSdkId
       defaultModelId: $defaultModelId
       roleIds: $roleIds
+      skillIds: $skillIds
       mcpServerIds: $mcpServerIds
       defaultReasoningLevel: $defaultReasoningLevel
       defaultAdditionalModelInstructions: $defaultAdditionalModelInstructions
@@ -3800,6 +3802,7 @@ export const COMPANY_API_CREATE_AGENT_MUTATION = `
       name
       status
       roleIds: roleIds
+      skillIds
       mcpServerIds
       roles: roles {
         id
@@ -3831,6 +3834,7 @@ export const COMPANY_API_UPDATE_AGENT_MUTATION = `
     $agentRunnerSdkId: ID!
     $defaultModelId: ID!
     $roleIds: [ID!]
+    $skillIds: [ID!]
     $mcpServerIds: [ID!]
     $defaultReasoningLevel: String
     $defaultAdditionalModelInstructions: String
@@ -3842,6 +3846,7 @@ export const COMPANY_API_UPDATE_AGENT_MUTATION = `
       agentRunnerSdkId: $agentRunnerSdkId
       defaultModelId: $defaultModelId
       roleIds: $roleIds
+      skillIds: $skillIds
       mcpServerIds: $mcpServerIds
       defaultReasoningLevel: $defaultReasoningLevel
       defaultAdditionalModelInstructions: $defaultAdditionalModelInstructions
@@ -3850,6 +3855,7 @@ export const COMPANY_API_UPDATE_AGENT_MUTATION = `
       name
       status
       roleIds: roleIds
+      skillIds
       mcpServerIds
       roles: roles {
         id
