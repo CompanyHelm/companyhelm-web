@@ -101,3 +101,11 @@ test("TasksPage overview tab shows an empty-state message when no comments exist
 
   assert.match(markup, /No comments yet\./);
 });
+
+test("TasksPage detail actions show a visible create subtask action", () => {
+  const markup = renderTasksPageMarkup();
+
+  assert.match(markup, />Create subtask</);
+  assert.match(markup, />Edit relationships</);
+  assert.match(markup, />Execute task</);
+});
