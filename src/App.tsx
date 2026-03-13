@@ -424,7 +424,7 @@ function resolveLegacyId(...values: any) {
   return "";
 }
 
-function getChatCreateBlockedReason(agent: any, agentRunnerLookup: any) {
+export function getChatCreateBlockedReason(agent: any, agentRunnerLookup: any) {
   const assignedRunnerId = resolveLegacyId(agent?.agentRunnerId);
   if (!assignedRunnerId) {
     // Some API payloads can still omit runner linkage fields.
@@ -439,7 +439,7 @@ function getChatCreateBlockedReason(agent: any, agentRunnerLookup: any) {
   }
 
   if (!isRunnerReadyAndConnected(assignedRunner)) {
-    return `Assigned runner ${assignedRunnerId} must be connected with a configured Codex SDK before creating chats.`;
+    return "Disconnected";
   }
 
   return "";
