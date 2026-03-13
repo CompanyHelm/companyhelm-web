@@ -14,6 +14,7 @@ export function ChatsOverviewPage({
   isLoadingChatIndex,
   chatIndexError,
   isCreatingChatSession,
+  archivingChatSessionKey = "",
   deletingChatSessionKey,
   chatListStatusFilter = "active",
   onRefreshChatLists,
@@ -188,12 +189,14 @@ export function ChatsOverviewPage({
                       const isRunning = isChatSessionRunning(chatSession, chatSessionRunningById);
                       const sessionStatus = String(chatSession?.status || "").trim().toLowerCase();
                       const isError = sessionStatus === "error";
+                      const isArchivingSession = sessionStatus === "archiving";
                       const isDeletingSession = sessionStatus === "deleting";
                       const isPendingSession = sessionStatus === "pending";
                       const isArchivedSession = sessionStatus === "archived";
                       const archivedSelectionKey = ArchivedChatSelection.getKey(agent.id, chatSession.id);
                       const threadErrorMessage = String(chatSession?.errorMessage || "").trim();
                       const chatSessionKey = `${agent.id}:${chatSession.id}`;
+                      const isArchivingChat = archivingChatSessionKey === chatSessionKey || isArchivingSession;
                       const isDeletingChat = deletingChatSessionKey === chatSessionKey || isDeletingSession;
                       const sessionModelLabel =
                         String(chatSession?.currentModelName || chatSession?.currentModelId || "").trim() || "n/a";
@@ -202,6 +205,8 @@ export function ChatsOverviewPage({
                         <ChatSessionRunningBadge />
                       ) : isPendingSession ? (
                         <span className="chat-thread-status chat-thread-status-pending">pending</span>
+                      ) : isArchivingChat ? (
+                        <span className="chat-thread-status chat-thread-status-deleting">archiving</span>
                       ) : isDeletingSession ? (
                         <span className="chat-thread-status chat-thread-status-deleting">deleting</span>
                       ) : isArchivedSession ? (
