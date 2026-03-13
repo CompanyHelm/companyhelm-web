@@ -116,3 +116,72 @@ test("resolveLoadedChatsRoute falls back to /agents when no agent can be resolve
     },
   );
 });
+
+test("resolveExplicitChatsRoute returns not_found for an explicit missing agent", async () => {
+  const moduleRecord = await loadChatRouteNavigationModule();
+  assert.equal(typeof moduleRecord.resolveExplicitChatsRoute, "function");
+
+  assert.deepEqual(
+    moduleRecord.resolveExplicitChatsRoute({
+      requestedAgentId: "agent-missing",
+      requestedThreadId: "",
+      availableAgents: [{ id: "agent-1" }],
+      sessionsByAgent: {
+        "agent-1": [{ id: "thread-1" }],
+      },
+    }),
+    {
+      kind: "not_found",
+      message: "Agent not found.",
+      agentId: "agent-missing",
+      threadId: "",
+      path: "/chats?agentId=agent-missing",
+    },
+  );
+});
+
+test("resolveExplicitChatsRoute returns not_found for an explicit missing thread", async () => {
+  const moduleRecord = await loadChatRouteNavigationModule();
+  assert.equal(typeof moduleRecord.resolveExplicitChatsRoute, "function");
+
+  assert.deepEqual(
+    moduleRecord.resolveExplicitChatsRoute({
+      requestedAgentId: "agent-1",
+      requestedThreadId: "thread-missing",
+      availableAgents: [{ id: "agent-1" }],
+      sessionsByAgent: {
+        "agent-1": [{ id: "thread-1" }],
+      },
+    }),
+    {
+      kind: "not_found",
+      message: "Chat not found.",
+      agentId: "agent-1",
+      threadId: "thread-missing",
+      path: "/chats?agentId=agent-1&threadId=thread-missing",
+    },
+  );
+});
+
+test("resolveExplicitChatsRoute preserves an exact thread-only route when the thread is loaded", async () => {
+  const moduleRecord = await loadChatRouteNavigationModule();
+  assert.equal(typeof moduleRecord.resolveExplicitChatsRoute, "function");
+
+  assert.deepEqual(
+    moduleRecord.resolveExplicitChatsRoute({
+      requestedAgentId: "",
+      requestedThreadId: "thread-2",
+      availableAgents: [{ id: "agent-2" }],
+      sessionsByAgent: {
+        "agent-2": [{ id: "thread-2" }],
+      },
+    }),
+    {
+      kind: "exact",
+      message: "",
+      agentId: "agent-2",
+      threadId: "thread-2",
+      path: "/chats?agentId=agent-2&threadId=thread-2",
+    },
+  );
+});
