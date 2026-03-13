@@ -169,6 +169,105 @@ test("OnboardingPage enables create agent when the selected model has no reasoni
   assert.match(markup, /<button type="submit">Create agent<\/button>/);
 });
 
+test("OnboardingPage enables create agent when all fields are set with reasoning levels", () => {
+  const markup = renderOnboardingPageMarkup({
+    agentName: "CEO Agent",
+    agentRunnerId: "runner-1",
+    agentSdk: "codex",
+    agentModel: "gpt-5",
+    agentModelReasoningLevel: "high",
+    agentRunners: [
+      {
+        id: "runner-1",
+        name: "Runner One",
+        isConnected: true,
+        availableAgentSdks: [
+          {
+            id: "sdk-1",
+            name: "codex",
+            status: "ready",
+            isAvailable: true,
+            availableModels: [
+              {
+                id: "model-1",
+                name: "gpt-5",
+                isAvailable: true,
+                reasoningLevels: ["high", "medium"],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    runnerCodexModelEntriesById: new Map([
+      [
+        "runner-1",
+        [
+          {
+            id: "model-1",
+            sdkId: "sdk-1",
+            name: "gpt-5",
+            reasoning: ["high", "medium"],
+            isAvailable: true,
+          },
+        ],
+      ],
+    ]),
+  });
+
+  assert.match(markup, /<select id="onboarding-agent-reasoning"[^>]*required=""/);
+  assert.match(markup, /<button type="submit">Create agent<\/button>/);
+});
+
+test("OnboardingPage disables create agent when reasoning level is not selected but model has reasoning levels", () => {
+  const markup = renderOnboardingPageMarkup({
+    agentName: "CEO Agent",
+    agentRunnerId: "runner-1",
+    agentSdk: "codex",
+    agentModel: "gpt-5",
+    agentModelReasoningLevel: "",
+    agentRunners: [
+      {
+        id: "runner-1",
+        name: "Runner One",
+        isConnected: true,
+        availableAgentSdks: [
+          {
+            id: "sdk-1",
+            name: "codex",
+            status: "ready",
+            isAvailable: true,
+            availableModels: [
+              {
+                id: "model-1",
+                name: "gpt-5",
+                isAvailable: true,
+                reasoningLevels: ["high", "medium"],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    runnerCodexModelEntriesById: new Map([
+      [
+        "runner-1",
+        [
+          {
+            id: "model-1",
+            sdkId: "sdk-1",
+            name: "gpt-5",
+            reasoning: ["high", "medium"],
+            isAvailable: true,
+          },
+        ],
+      ],
+    ]),
+  });
+
+  assert.match(markup, /<button type="submit" disabled="">Create agent<\/button>/);
+});
+
 test("FlagsPage exposes the configuring onboarding phase option and not chat", () => {
   const markup = renderToStaticMarkup(
     React.createElement(FlagsPage, {

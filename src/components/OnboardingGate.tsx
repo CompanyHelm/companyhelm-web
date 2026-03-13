@@ -103,6 +103,28 @@ export function OnboardingGate({
     return String(agentRunners[0]?.id || "").trim();
   }, [agentRunners, normalizedRunnerId]);
 
+  // When the phase resolves to "agent" and we know which runner was created
+  // during onboarding, auto-select it in the agent creation form so the user
+  // doesn't have to manually pick the runner they just finished configuring.
+  // This covers the auto-reconciliation path (configuring → agent) which
+  // bypasses the onAdvanceToAgentPhase callback that normally pre-fills the form.
+  useEffect(() => {
+    if (
+      resolvedPhase === "agent"
+      && !createdAgent
+      && resolvedOnboardingRunnerId
+      && !String(onboardingPageProps.agentRunnerId || "").trim()
+    ) {
+      onboardingPageProps.onAgentRunnerChange(resolvedOnboardingRunnerId);
+    }
+  }, [
+    resolvedPhase,
+    createdAgent,
+    resolvedOnboardingRunnerId,
+    onboardingPageProps.agentRunnerId,
+    onboardingPageProps.onAgentRunnerChange,
+  ]);
+
   useEffect(() => {
     if (!normalizedCompanyId || skipOnboarding || !hasLoadedAgentRunners) {
       return;
@@ -126,6 +148,9 @@ export function OnboardingGate({
         runnerId: "",
         runnerSecret: "",
       });
+      // Signal the parent to stop rendering the onboarding gate so the
+      // main app content becomes visible (same reason as completeOnboarding).
+      onboardingPageProps.onSkip();
       return;
     }
 
@@ -167,6 +192,11 @@ export function OnboardingGate({
       runnerId: "",
       runnerSecret: "",
     });
+    // Tell the parent that onboarding is finished so it stops rendering the
+    // onboarding gate and shows the main app content instead.  Without this
+    // the `showOnboarding` flag stays true, OnboardingGate returns null, and
+    // the user sees an empty page.
+    onboardingPageProps.onSkip();
   }
 
   async function handleCreateAgent(event: Parameters<OnboardingPageProps["onCreateAgent"]>[0]) {
