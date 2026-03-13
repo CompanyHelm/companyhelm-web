@@ -3,7 +3,6 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } fro
 
 import {
   DEFAULT_RUNNER_GRPC_TARGET,
-  DEFAULT_GITHUB_APP_INSTALL_URL,
   AVAILABLE_AGENT_SDKS,
   DEFAULT_AGENT_SDK,
   SKILL_TYPE_TEXT,
@@ -2998,7 +2997,7 @@ function App() {
   const [exportCompanyDataError, setExportCompanyDataError] = useState<any>("");
   const [githubAppConfig, setGithubAppConfig] = useState<any>({
     appClientId: "",
-    appLink: DEFAULT_GITHUB_APP_INSTALL_URL,
+    appLink: "",
   });
   const [isLoadingGithubAppConfig, setIsLoadingGithubAppConfig] = useState<any>(false);
   const [githubAppConfigError, setGithubAppConfigError] = useState<any>("");
@@ -3923,12 +3922,12 @@ function App() {
       const nextConfig = data?.githubAppConfig || {};
       setGithubAppConfig({
         appClientId: resolveLegacyId(nextConfig.appClientId),
-        appLink: resolveLegacyId(nextConfig.appLink) || DEFAULT_GITHUB_APP_INSTALL_URL,
+        appLink: resolveLegacyId(nextConfig.appLink),
       });
     } catch (loadError: any) {
       setGithubAppConfig((current: any) => ({
         appClientId: current.appClientId,
-        appLink: current.appLink || DEFAULT_GITHUB_APP_INSTALL_URL,
+        appLink: current.appLink || "",
       }));
       setGithubAppConfigError(loadError.message);
     } finally {

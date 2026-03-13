@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  buildGithubAppInstallUrl,
   clearGithubInstallCallbackFromLocation,
   getAdminRouteFromPathname,
   getTasksRouteFromPathname,
@@ -112,4 +113,18 @@ test("clearGithubInstallCallbackFromLocation replaces the callback URL with /rep
       testGlobal.PopStateEvent = originalPopStateEvent;
     }
   }
+});
+
+test("buildGithubAppInstallUrl returns an empty string when no app link is configured", () => {
+  assert.equal(buildGithubAppInstallUrl({ appLink: "", companyId: "company-1" }), "");
+});
+
+test("buildGithubAppInstallUrl appends installations/new and state to the configured app link", () => {
+  assert.equal(
+    buildGithubAppInstallUrl({
+      appLink: "https://github.com/apps/example-local",
+      companyId: "company-1",
+    }),
+    "https://github.com/apps/example-local/installations/new?state=company-1",
+  );
 });

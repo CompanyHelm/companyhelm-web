@@ -1,9 +1,4 @@
-import {
-  DEFAULT_GITHUB_APP_INSTALL_URL,
-  GITHUB_INSTALL_CALLBACK_PATH,
-  PAGE_IDS,
-  NAV_ITEMS,
-} from "./constants.ts";
+import { GITHUB_INSTALL_CALLBACK_PATH, PAGE_IDS, NAV_ITEMS } from "./constants.ts";
 
 interface ChatsRouteLocationInput {
   pathname?: string;
@@ -84,8 +79,11 @@ export function clearGithubInstallCallbackFromLocation(): void {
 }
 
 export function buildGithubAppInstallUrl({ appLink, companyId }: GithubInstallUrlInput): string {
-  const resolvedAppLink = String(appLink || "").trim() || DEFAULT_GITHUB_APP_INSTALL_URL;
+  const resolvedAppLink = String(appLink || "").trim();
   const resolvedCompanyId = String(companyId || "").trim();
+  if (!resolvedAppLink) {
+    return "";
+  }
 
   try {
     const parsed = new URL(resolvedAppLink);

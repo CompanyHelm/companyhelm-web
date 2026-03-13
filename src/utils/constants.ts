@@ -20,7 +20,6 @@ export const FLAGS_STORAGE_KEY = "companyhelm.flags";
 export const ONBOARDING_STORAGE_KEY = "companyhelm.onboarding";
 export const DEFAULT_RUNNER_GRPC_TARGET =
   String(normalizedRuntimeConfig.api?.runnerGrpcTarget || "").trim() || "localhost:50051";
-export const DEFAULT_GITHUB_APP_INSTALL_URL = "https://github.com/apps/companyhelm";
 export const GITHUB_INSTALL_CALLBACK_PATH = "/github/install";
 export const AVAILABLE_AGENT_SDKS = ["codex"];
 export const DEFAULT_AGENT_SDK = AVAILABLE_AGENT_SDKS[0];
