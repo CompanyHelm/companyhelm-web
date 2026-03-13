@@ -72,8 +72,8 @@ function renderAgentChatPageMarkup(overrides: Record<string, unknown> = {}) {
 }
 
 test("AgentChatPage renders a show all toggle only for long transcript items", () => {
-  const longTranscriptText = "L".repeat(1001);
-  const shortTranscriptText = "S".repeat(1000);
+  const longTranscriptText = Array.from({ length: 31 }, () => "L").join("\n");
+  const shortTranscriptText = Array.from({ length: 30 }, () => "S").join("\n");
   const markup = renderAgentChatPageMarkup({
     chatTurns: [
       {
@@ -103,12 +103,12 @@ test("AgentChatPage renders a show all toggle only for long transcript items", (
   assert.match(markup, /Show all/);
   assert.equal((markup.match(/Show all/g) || []).length, 1);
   assert.equal((markup.match(/chat-message-content-clamped/g) || []).length, 1);
-  assert.match(markup, /S{1000}/);
+  assert.match(markup, /S\nS\nS/);
   assert.doesNotMatch(markup, /Show less/);
 });
 
 test("AgentChatPage renders the transcript toggle for long command items too", () => {
-  const longCommandText = "C".repeat(1001);
+  const longCommandText = "C".repeat(2233);
   const markup = renderAgentChatPageMarkup({
     chatTurns: [
       {

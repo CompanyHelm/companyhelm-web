@@ -1,10 +1,10 @@
-# Chat Transcript Character Threshold Implementation Plan
+# Chat Transcript Wrapped Line Threshold Implementation Plan
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace the agent chat transcript collapse heuristic with a shared `1000`-character threshold.
+**Goal:** Restore the wrapped-line transcript collapse heuristic and raise the collapse threshold from `8` to `30` wrapped lines.
 
-**Architecture:** Keep transcript item rendering in `AgentChatPage` unchanged except for the long-message detector. The detector should operate on the already-resolved transcript body text so markdown, command, and placeholder items continue to share one path. Tests should assert the threshold directly so future changes do not silently reintroduce line-based behavior.
+**Architecture:** Keep transcript item rendering in `AgentChatPage` unchanged except for the long-message detector. The detector should revert to the original wrapped-line estimate using `72` characters per line, with only the collapse threshold changing to `30`. Tests should assert the wrapped-line behavior directly so future changes do not silently reintroduce the temporary character-count rule.
 
 **Tech Stack:** React, TypeScript/TSX, Node test runner, React server rendering
 
@@ -21,18 +21,18 @@
 
 Add coverage that:
 
-- renders one transcript item with more than `1000` characters and expects one `Show all` toggle
-- renders one transcript item with `1000` characters or fewer and expects no toggle
-- keeps command execution coverage under the same threshold rule
+- renders one transcript item with `31` short newline-separated lines and expects one `Show all` toggle
+- renders one transcript item with `30` short newline-separated lines and expects no toggle
+- keeps command execution coverage under the same wrapped-line threshold rule
 
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `npm test -- --test tests/chat/agent-chat-transcript-show-all.test.ts`
-Expected: FAIL because the current implementation still uses estimated wrapped lines.
+Expected: FAIL because the current implementation still uses a `1000`-character threshold.
 
 - [ ] **Step 3: Write minimal implementation**
 
-Replace the line-estimation helper in `src/pages/AgentChatPage.tsx` with a single helper that returns `true` when the normalized transcript body exceeds `1000` characters.
+Restore the wrapped-line helper from the old transcript toggle implementation and set the collapse threshold constant to `30`.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -43,7 +43,7 @@ Expected: PASS
 
 ```bash
 git add tests/chat/agent-chat-transcript-show-all.test.ts src/pages/AgentChatPage.tsx docs/superpowers/specs/2026-03-13-chat-transcript-character-threshold-design.md docs/superpowers/plans/2026-03-13-chat-transcript-character-threshold.md
-git commit -m "feat: use character threshold for chat transcript collapse"
+git commit -m "fix: restore wrapped-line transcript collapse threshold"
 ```
 
 ### Task 2: Verify repo-level impact
