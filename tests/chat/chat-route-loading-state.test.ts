@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { shouldSuppressChatsRouteMissingAgentWarning } from "../../src/App.tsx";
+import * as AppModule from "../../src/App.tsx";
+
+const { shouldSuppressChatsRouteMissingAgentWarning } = AppModule as Record<string, any>;
 
 test("shouldSuppressChatsRouteMissingAgentWarning returns true while chats bootstrap is still resolving the route agent", () => {
   assert.equal(
@@ -36,6 +38,54 @@ test("shouldSuppressChatsRouteMissingAgentWarning returns false when the route a
       chatAgentId: "agent-1",
       isLoadingChatIndex: true,
       agents: [{ id: "agent-1", name: "Build Agent" }],
+    }),
+    false,
+  );
+});
+
+test("shouldKeepThreadOnlyChatsRoutePending returns true while a thread-only chats route is still resolving", () => {
+  const { shouldKeepThreadOnlyChatsRoutePending } = AppModule as Record<string, any>;
+
+  assert.equal(typeof shouldKeepThreadOnlyChatsRoutePending, "function");
+  assert.equal(
+    shouldKeepThreadOnlyChatsRoutePending({
+      activePage: "chats",
+      routeAgentId: "",
+      routeThreadId: "thread-1",
+      chatAgentId: "",
+      isLoadingChatIndex: true,
+    }),
+    true,
+  );
+});
+
+test("shouldKeepThreadOnlyChatsRoutePending returns false after loading completes without an agent match", () => {
+  const { shouldKeepThreadOnlyChatsRoutePending } = AppModule as Record<string, any>;
+
+  assert.equal(typeof shouldKeepThreadOnlyChatsRoutePending, "function");
+  assert.equal(
+    shouldKeepThreadOnlyChatsRoutePending({
+      activePage: "chats",
+      routeAgentId: "",
+      routeThreadId: "thread-1",
+      chatAgentId: "",
+      isLoadingChatIndex: false,
+    }),
+    false,
+  );
+});
+
+test("shouldKeepThreadOnlyChatsRoutePending returns false when the route already includes an agent", () => {
+  const { shouldKeepThreadOnlyChatsRoutePending } = AppModule as Record<string, any>;
+
+  assert.equal(typeof shouldKeepThreadOnlyChatsRoutePending, "function");
+  assert.equal(
+    shouldKeepThreadOnlyChatsRoutePending({
+      activePage: "chats",
+      routeAgentId: "agent-1",
+      routeThreadId: "thread-1",
+      chatAgentId: "",
+      isLoadingChatIndex: true,
     }),
     false,
   );
