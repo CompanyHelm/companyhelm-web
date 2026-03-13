@@ -63,6 +63,22 @@ test("SettingsPage renders export controls and inline validation state", () => {
   });
 
   assert.match(markup, />Export company data</);
+  assert.match(markup, />Export data</);
+  assert.doesNotMatch(markup, />Sharable</);
+  assert.doesNotMatch(markup, />Full dump</);
+  assert.doesNotMatch(markup, /name="export-section-skills"/);
+  assert.doesNotMatch(markup, /name="export-section-threadData"/);
+});
+
+test("SettingsPage renders export controls inside the export modal", () => {
+  const markup = renderSettingsPageMarkup({
+    initialExportModalOpen: true,
+    selectedExportSections: [],
+    exportError: "Select at least one section to export.",
+  });
+
+  assert.match(markup, /role="dialog"/);
+  assert.match(markup, />Export company data</);
   assert.match(markup, />Sharable</);
   assert.match(markup, />Full dump</);
   assert.match(markup, /Select at least one section to export\./);
@@ -72,6 +88,7 @@ test("SettingsPage renders export controls and inline validation state", () => {
 
 test("SettingsPage disables export while a request is pending", () => {
   const markup = renderSettingsPageMarkup({
+    initialExportModalOpen: true,
     isExportingCompanyData: true,
   });
 
