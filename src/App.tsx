@@ -9937,23 +9937,11 @@ function App() {
 
         {selectedCompanyId && activePage === "skills" ? (
           <SkillsPage
-            selectedCompanyId={selectedCompanyId}
             skills={skills}
-            roles={roles}
-            mcpServers={mcpServers}
-            roleMcpServerIdsByRoleId={roleMcpServerIdsByRoleId}
             activeSkill={activeSkill}
             isLoadingSkills={isLoadingSkills}
-            isLoadingRoles={isLoadingRoles}
             skillError={skillError}
             onOpenSkill={(skillId: any) => setBrowserPath(`/skills/${skillId}`)}
-            onBackToSkills={() => setBrowserPath("/skills")}
-            onCreateRole={handleCreateRole}
-            onUpdateRole={handleUpdateRole}
-            onDeleteRole={handleDeleteRole}
-            onAddSkillToRole={handleAddSkillToRole}
-            onRemoveSkillFromRole={handleRemoveSkillFromRole}
-            onRoleMcpServerIdsChange={handleRoleMcpServerIdsChange}
             onOpenGitSkillPackage={(packageId: any) => setBrowserPath(`/gitSkillPackages/${packageId}`)}
           />
         ) : null}
