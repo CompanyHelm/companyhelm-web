@@ -4,6 +4,8 @@ import { CreationModal } from "../components/CreationModal.tsx";
 import { useSetPageActions } from "../components/PageActionsContext.tsx";
 import type { Company } from "../types/domain.ts";
 
+type SettingsTabId = "general" | "companies";
+
 export type SettingsExportSectionId =
   | "companyProfile"
   | "agents"
@@ -101,6 +103,7 @@ export function applySettingsExportPreset(
 }
 
 interface SettingsPageProps {
+  companies: Company[];
   hasCompanies: boolean;
   selectedCompany: Company | null;
   companyError: string;
@@ -112,14 +115,18 @@ interface SettingsPageProps {
   exportError: string;
   onNewCompanyNameChange: (name: string) => void;
   onCreateCompany: (event: FormEvent<HTMLFormElement>) => Promise<boolean> | boolean;
-  onDeleteCompany: () => void;
+  onDeleteCompany: (company: Company) => Promise<boolean> | boolean;
   onExportSectionsChange: (nextSections: SettingsExportSectionId[]) => void;
   onApplyExportPreset: (presetSections: SettingsExportSectionId[]) => void;
   onExportCompanyData: () => void;
+  initialActiveTab?: SettingsTabId;
+  initialDeleteCompanyId?: string;
+  initialDeleteConfirmationValue?: string;
   initialExportModalOpen?: boolean;
 }
 
 export function SettingsPage({
+  companies,
   hasCompanies,
   selectedCompany,
   companyError,
@@ -135,14 +142,25 @@ export function SettingsPage({
   onExportSectionsChange,
   onApplyExportPreset,
   onExportCompanyData,
+  initialActiveTab = "general",
+  initialDeleteCompanyId = "",
+  initialDeleteConfirmationValue = "",
   initialExportModalOpen = false,
 }: SettingsPageProps) {
+  const [activeTab, setActiveTab] = useState<SettingsTabId>(initialActiveTab);
   const [isCreateCompanyModalOpen, setIsCreateCompanyModalOpen] = useState(false);
+  const [deleteTargetCompanyId, setDeleteTargetCompanyId] = useState(initialDeleteCompanyId);
+  const [deleteConfirmationValue, setDeleteConfirmationValue] = useState(initialDeleteConfirmationValue);
   const [isExportModalOpen, setIsExportModalOpen] = useState(initialExportModalOpen);
   const selectedExportSectionSet = useMemo(
     () => new Set(selectedExportSections),
     [selectedExportSections],
   );
+  const deleteTargetCompany = useMemo(
+    () => companies.find((company) => company.id === deleteTargetCompanyId) ?? null,
+    [companies, deleteTargetCompanyId],
+  );
+  const isDeleteConfirmationMatched = deleteConfirmationValue === (deleteTargetCompany?.name ?? "");
 
   async function handleCreateCompanySubmit(event: FormEvent<HTMLFormElement>) {
     const didCreate = await onCreateCompany(event);
@@ -165,23 +183,28 @@ export function SettingsPage({
     );
   }
 
-  const pageActions = useMemo(() => (
-    <>
-      <button
-        type="button"
-        className="chat-minimal-header-icon-btn"
-        aria-label="Create company"
-        title="Create company"
-        onClick={() => setIsCreateCompanyModalOpen(true)}
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <line x1="12" y1="5" x2="12" y2="19" />
-          <line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-      </button>
-    </>
-  ), []);
-  useSetPageActions(pageActions);
+  async function handleDeleteCompanyConfirm() {
+    if (!deleteTargetCompany) {
+      return;
+    }
+    const didDelete = await onDeleteCompany(deleteTargetCompany);
+    if (didDelete) {
+      setDeleteTargetCompanyId("");
+      setDeleteConfirmationValue("");
+    }
+  }
+
+  function openDeleteCompanyModal(company: Company) {
+    setDeleteTargetCompanyId(company.id);
+    setDeleteConfirmationValue("");
+  }
+
+  function closeDeleteCompanyModal() {
+    setDeleteTargetCompanyId("");
+    setDeleteConfirmationValue("");
+  }
+
+  useSetPageActions(null);
 
   return (
     <Page><div className="page-stack">
@@ -211,7 +234,71 @@ export function SettingsPage({
           </button>
         </form>
       </CreationModal>
-      {hasCompanies ? (
+
+      <CreationModal
+        modalId="delete-company"
+        title={deleteTargetCompany ? `Delete company "${deleteTargetCompany.name}"?` : "Delete company"}
+        description="This permanently deletes the company and its tasks, skills, secrets, MCP servers, agents, and agent runners."
+        isOpen={Boolean(deleteTargetCompany)}
+        onClose={isDeletingCompany ? () => {} : closeDeleteCompanyModal}
+      >
+        <div className="page-stack">
+          <div className="chat-settings-field">
+            <label className="chat-settings-label" htmlFor="settings-delete-company-confirmation">
+              Type the company name to confirm deletion.
+            </label>
+            <input
+              className="chat-settings-input"
+              id="settings-delete-company-confirmation"
+              value={deleteConfirmationValue}
+              onChange={(event: ChangeEvent<HTMLInputElement>) => setDeleteConfirmationValue(event.target.value)}
+              placeholder={deleteTargetCompany?.name ?? ""}
+              disabled={isDeletingCompany}
+            />
+          </div>
+          <div className="modal-actions">
+            <button
+              type="button"
+              className="secondary-btn"
+              disabled={isDeletingCompany}
+              onClick={closeDeleteCompanyModal}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="danger-btn"
+              disabled={!isDeleteConfirmationMatched || isDeletingCompany}
+              onClick={handleDeleteCompanyConfirm}
+            >
+              {isDeletingCompany ? "Deleting..." : "Delete company"}
+            </button>
+          </div>
+        </div>
+      </CreationModal>
+
+      <div className="task-view-tabs" role="tablist" aria-label="Settings sections">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "general"}
+          className={`task-view-tab${activeTab === "general" ? " task-view-tab-active" : ""}`}
+          onClick={() => setActiveTab("general")}
+        >
+          General
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "companies"}
+          className={`task-view-tab${activeTab === "companies" ? " task-view-tab-active" : ""}`}
+          onClick={() => setActiveTab("companies")}
+        >
+          Companies
+        </button>
+      </div>
+
+      {activeTab === "general" && hasCompanies ? (
         <>
           <CreationModal
             modalId="export-company-data"
@@ -286,25 +373,67 @@ export function SettingsPage({
               </button>
             </div>
           </section>
+        </>
+      ) : null}
 
+      {activeTab === "companies" ? (
+        <section className="panel">
+          <header className="panel-header">
+            <h2>Companies</h2>
+          </header>
+          <p className="subcopy">
+            View the companies you can access, create a new one, or permanently delete an existing company.
+          </p>
+          <div className="hero-actions">
+            <button type="button" onClick={() => setIsCreateCompanyModalOpen(true)}>
+              Create company
+            </button>
+          </div>
+          {companies.length > 0 ? (
+            <div className="page-stack">
+              <ul className="chat-card-list">
+                {companies.map((company) => (
+                  <li
+                    key={company.id}
+                    className={`chat-card${selectedCompany?.id === company.id ? " chat-card-active" : ""}`}
+                  >
+                    <div className="chat-card-main">
+                      <div className="chat-card-title-row">
+                        <span className="chat-card-title">
+                          <strong>{company.name}</strong>
+                        </span>
+                      </div>
+                      {selectedCompany?.id === company.id ? (
+                        <span className="chat-card-meta">Active in sidebar</span>
+                      ) : null}
+                    </div>
+                    <button
+                      type="button"
+                      className="danger-btn"
+                      disabled={isDeletingCompany}
+                      onClick={() => openDeleteCompanyModal(company)}
+                    >
+                      Delete company
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <p className="empty-hint">You do not have access to any companies yet.</p>
+          )}
+        </section>
+      ) : null}
+
+      {activeTab === "general" && hasCompanies ? (
+        <>
           <section className="panel">
             <header className="panel-header">
-              <h2>Danger zone</h2>
+              <h2>Company access</h2>
             </header>
             <p className="subcopy">
-              Delete the currently selected company and all of its tasks, skills, MCP servers,
-              agents, and runners.
+              Use the Companies tab to create a company or permanently delete one you can access.
             </p>
-            <div className="hero-actions">
-              <button
-                type="button"
-                className="danger-btn"
-                onClick={onDeleteCompany}
-                disabled={!selectedCompany || isDeletingCompany}
-              >
-                {isDeletingCompany ? "Deleting..." : "Delete active company"}
-              </button>
-            </div>
           </section>
         </>
       ) : null}

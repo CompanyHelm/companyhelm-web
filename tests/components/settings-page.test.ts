@@ -12,6 +12,16 @@ import {
 function renderSettingsPageMarkup(overrides: Record<string, unknown> = {}) {
   return renderToStaticMarkup(
     React.createElement(SettingsPage, {
+      companies: [
+        {
+          id: "company-1",
+          name: "Acme Labs",
+        },
+        {
+          id: "company-2",
+          name: "Beta Works",
+        },
+      ],
       hasCompanies: true,
       selectedCompany: {
         id: "company-1",
@@ -62,12 +72,16 @@ test("SettingsPage renders export controls and inline validation state", () => {
     exportError: "Select at least one section to export.",
   });
 
+  assert.match(markup, />General</);
+  assert.match(markup, />Companies</);
+  assert.doesNotMatch(markup, /aria-label="Create company"/);
   assert.match(markup, />Export company data</);
   assert.match(markup, />Export data</);
   assert.doesNotMatch(markup, />Sharable</);
   assert.doesNotMatch(markup, />Full dump</);
   assert.doesNotMatch(markup, /name="export-section-skills"/);
   assert.doesNotMatch(markup, /name="export-section-threadData"/);
+  assert.doesNotMatch(markup, />Delete company</);
 });
 
 test("SettingsPage renders export controls inside the export modal", () => {
@@ -94,4 +108,36 @@ test("SettingsPage disables export while a request is pending", () => {
 
   assert.match(markup, /Exporting\.\.\./);
   assert.match(markup, /button[^>]+disabled[^>]*>Exporting\.\.\./);
+});
+
+test("SettingsPage renders company management inside the Companies tab", () => {
+  const markup = renderSettingsPageMarkup({
+    initialActiveTab: "companies",
+  });
+
+  assert.match(markup, />Create company</);
+  assert.match(markup, />Acme Labs</);
+  assert.match(markup, />Beta Works</);
+  assert.match(markup, />Delete company</);
+  assert.doesNotMatch(markup, />Export company data</);
+});
+
+test("SettingsPage requires typing the company name before delete can proceed", () => {
+  const unmatchedMarkup = renderSettingsPageMarkup({
+    initialActiveTab: "companies",
+    initialDeleteCompanyId: "company-2",
+  });
+
+  assert.match(unmatchedMarkup, /Delete company &quot;Beta Works&quot;\?/);
+  assert.match(unmatchedMarkup, /Type the company name to confirm deletion\./);
+  assert.match(unmatchedMarkup, /placeholder="Beta Works"/);
+  assert.match(unmatchedMarkup, /button[^>]+disabled[^>]*>Delete company</);
+
+  const matchedMarkup = renderSettingsPageMarkup({
+    initialActiveTab: "companies",
+    initialDeleteCompanyId: "company-2",
+    initialDeleteConfirmationValue: "Beta Works",
+  });
+
+  assert.doesNotMatch(matchedMarkup, /button[^>]+disabled[^>]*>Delete company</);
 });
