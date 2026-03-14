@@ -21,7 +21,7 @@ import type {
   TaskRelationshipDraftById,
 } from "../types/domain.ts";
 
-type TaskDetailTab = "overview" | "graph" | "table";
+type TaskDetailTab = "overview" | "runs" | "graph" | "table";
 
 interface TasksPageProps {
   tasks: TaskItem[];
@@ -199,6 +199,14 @@ export function TasksPage({
     [activeTask, tasks],
   );
   const activeTaskComments = Array.isArray(activeTask?.comments) ? activeTask.comments : [];
+  const activeTaskRuns = Array.isArray(activeTask?.runs) ? activeTask.runs : [];
+  const activeTaskLatestRun = activeTask?.latestRun || null;
+  const activeTaskOpenThreadId = String(
+    activeTask?.activeRun?.threadId
+    || activeTask?.latestRun?.threadId
+    || activeTask?.threadId
+    || "",
+  ).trim();
 
   const activeTaskDraft = useMemo(() => {
     if (!activeTask) {
@@ -542,6 +550,13 @@ export function TasksPage({
                   </button>
                   <button
                     type="button"
+                    className={`task-view-tab${activeTab === "runs" ? " task-view-tab-active" : ""}`}
+                    onClick={() => setActiveTab("runs")}
+                  >
+                    Runs
+                  </button>
+                  <button
+                    type="button"
                     className={`task-view-tab${activeTab === "graph" ? " task-view-tab-active" : ""}`}
                     onClick={() => setActiveTab("graph")}
                   >
@@ -790,11 +805,11 @@ export function TasksPage({
                         >
                           Create subtask
                         </button>
-                        {String(activeTask.threadId || "").trim() ? (
+                        {activeTaskOpenThreadId ? (
                           <button
                             type="button"
                             className="secondary-btn"
-                            onClick={() => void onOpenTaskThread(String(activeTask.threadId || "").trim())}
+                            onClick={() => void onOpenTaskThread(activeTaskOpenThreadId)}
                           >
                             Open thread
                           </button>
@@ -853,6 +868,79 @@ export function TasksPage({
                     </section>
                   </div>
                   </div>
+                ) : null}
+
+                {activeTab === "runs" ? (
+                  activeTaskRuns.length > 0 ? (
+                    <div className="task-overview-scroll">
+                      <div className="task-overview-grid task-overview-grid-2col">
+                        <section className="task-overview-card">
+                          <div className="task-overview-card-header">
+                            <h3>Execution</h3>
+                          </div>
+                          <div className="task-overview-field">
+                            <span className="task-overview-field-label">Attempts</span>
+                            <strong>{activeTask.attemptCount || activeTaskRuns.length}</strong>
+                          </div>
+                          <div className="task-overview-field">
+                            <span className="task-overview-field-label">Latest status</span>
+                            <span className={`task-status-pill task-status-pill-${String(activeTask.lastRunStatus || activeTaskLatestRun?.status || "draft").trim()}`}>
+                              {String(activeTask.lastRunStatus || activeTaskLatestRun?.status || "unknown").trim()}
+                            </span>
+                          </div>
+                          {activeTaskLatestRun?.failureMessage ? (
+                            <div className="task-overview-field">
+                              <span className="task-overview-field-label">Latest failure</span>
+                              <span>{activeTaskLatestRun.failureMessage}</span>
+                            </div>
+                          ) : null}
+                        </section>
+                        <section className="task-overview-card task-overview-card-wide">
+                          <div className="task-overview-card-header">
+                            <h3>Run history</h3>
+                          </div>
+                          <div className="task-runs-list">
+                            {activeTaskRuns.map((run) => {
+                              const runThreadId = String(run.threadId || "").trim();
+                              return (
+                                <article key={run.id} className="task-run-item">
+                                  <div className="task-run-item-header">
+                                    <div>
+                                      <strong>{run.status}</strong>
+                                      <p className="chat-card-meta">
+                                        {run.createdAt ? new Date(run.createdAt).toLocaleString() : "Unknown start"}
+                                      </p>
+                                    </div>
+                                    {runThreadId ? (
+                                      <button
+                                        type="button"
+                                        className="secondary-btn"
+                                        onClick={() => void onOpenTaskThread(runThreadId)}
+                                      >
+                                        Open thread
+                                      </button>
+                                    ) : null}
+                                  </div>
+                                  <div className="task-run-item-body">
+                                    <span className="chat-card-meta">Agent: {String(run.agentId || "Unknown").trim()}</span>
+                                    <span className="chat-card-meta">Started: {run.startedAt ? new Date(run.startedAt).toLocaleString() : "Not started"}</span>
+                                    <span className="chat-card-meta">Finished: {run.finishedAt ? new Date(run.finishedAt).toLocaleString() : "Not finished"}</span>
+                                    {run.failureMessage ? (
+                                      <p className="error-banner task-run-failure">{run.failureMessage}</p>
+                                    ) : null}
+                                  </div>
+                                </article>
+                              );
+                            })}
+                          </div>
+                        </section>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="task-empty-panel">
+                      <p className="empty-hint">No task runs yet.</p>
+                    </div>
+                  )
                 ) : null}
 
                 {activeTab === "graph" ? (

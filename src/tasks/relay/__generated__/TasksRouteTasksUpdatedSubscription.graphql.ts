@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dead1051acf47430345905e0e3c5d169>>
+ * @generated SignedSource<<7e4acfe27e5e262db3176b906fdd429f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -83,7 +83,14 @@ v6 = {
   "name": "id",
   "storageKey": null
 },
-v7 = [
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "agentId",
+  "storageKey": null
+},
+v8 = [
   (v6/*: any*/),
   {
     "alias": null,
@@ -99,13 +106,7 @@ v7 = [
     "name": "displayName",
     "storageKey": null
   },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "agentId",
-    "storageKey": null
-  },
+  (v7/*: any*/),
   {
     "alias": null,
     "args": null,
@@ -121,20 +122,77 @@ v7 = [
     "storageKey": null
   }
 ],
-v8 = {
+v9 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "status",
+  "storageKey": null
+},
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "createdAt",
   "storageKey": null
 },
-v9 = {
+v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "updatedAt",
   "storageKey": null
-};
+},
+v12 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "taskId",
+  "storageKey": null
+},
+v13 = [
+  (v6/*: any*/),
+  (v12/*: any*/),
+  (v9/*: any*/),
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "threadId",
+    "storageKey": null
+  },
+  (v7/*: any*/),
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "triggeredByActorId",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "failureMessage",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "startedAt",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "finishedAt",
+    "storageKey": null
+  },
+  (v10/*: any*/),
+  (v11/*: any*/)
+];
 return {
   "fragment": {
     "argumentDefinitions": [
@@ -255,14 +313,7 @@ return {
                 "kind": "LinkedField",
                 "name": "assigneeActor",
                 "plural": false,
-                "selections": (v7/*: any*/),
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "threadId",
+                "selections": (v8/*: any*/),
                 "storageKey": null
               },
               {
@@ -272,15 +323,53 @@ return {
                 "name": "parentTaskId",
                 "storageKey": null
               },
+              (v9/*: any*/),
+              (v10/*: any*/),
+              (v11/*: any*/),
               {
                 "alias": null,
                 "args": null,
                 "kind": "ScalarField",
-                "name": "status",
+                "name": "attemptCount",
                 "storageKey": null
               },
-              (v8/*: any*/),
-              (v9/*: any*/),
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "lastRunStatus",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "TaskRun",
+                "kind": "LinkedField",
+                "name": "latestRun",
+                "plural": false,
+                "selections": (v13/*: any*/),
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "TaskRun",
+                "kind": "LinkedField",
+                "name": "activeRun",
+                "plural": false,
+                "selections": (v13/*: any*/),
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "TaskRun",
+                "kind": "LinkedField",
+                "name": "runs",
+                "plural": true,
+                "selections": (v13/*: any*/),
+                "storageKey": null
+              },
               {
                 "alias": null,
                 "args": null,
@@ -297,13 +386,7 @@ return {
                 "plural": true,
                 "selections": [
                   (v6/*: any*/),
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "taskId",
-                    "storageKey": null
-                  },
+                  (v12/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -325,11 +408,11 @@ return {
                     "kind": "LinkedField",
                     "name": "authorActor",
                     "plural": false,
-                    "selections": (v7/*: any*/),
+                    "selections": (v8/*: any*/),
                     "storageKey": null
                   },
-                  (v8/*: any*/),
-                  (v9/*: any*/)
+                  (v10/*: any*/),
+                  (v11/*: any*/)
                 ],
                 "storageKey": null
               }
@@ -342,12 +425,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c41d76b771a3c7f0b0e2ce1ab912f6a0",
+    "cacheID": "dec12fdbb7b1725c0112b71db450b214",
     "id": null,
     "metadata": {},
     "name": "TasksRouteTasksUpdatedSubscription",
     "operationKind": "subscription",
-    "text": "subscription TasksRouteTasksUpdatedSubscription(\n  $topLevelOnly: Boolean\n  $rootTaskId: ID\n  $maxDepth: Int\n) {\n  tasksUpdated(topLevelOnly: $topLevelOnly, rootTaskId: $rootTaskId, maxDepth: $maxDepth) {\n    membershipChanged\n    deletedTaskIds\n    tasks {\n      ...TasksRoute_task\n      id\n    }\n  }\n}\n\nfragment TasksRoute_task on Task {\n  id\n  company {\n    id\n  }\n  name\n  description\n  acceptanceCriteria\n  assigneeActorId\n  assigneeActor {\n    id\n    kind\n    displayName\n    agentId\n    userId\n    email\n  }\n  threadId\n  parentTaskId\n  status\n  createdAt\n  updatedAt\n  dependencyTaskIds\n  comments {\n    id\n    taskId\n    comment\n    authorActorId\n    authorActor {\n      id\n      kind\n      displayName\n      agentId\n      userId\n      email\n    }\n    createdAt\n    updatedAt\n  }\n}\n"
+    "text": "subscription TasksRouteTasksUpdatedSubscription(\n  $topLevelOnly: Boolean\n  $rootTaskId: ID\n  $maxDepth: Int\n) {\n  tasksUpdated(topLevelOnly: $topLevelOnly, rootTaskId: $rootTaskId, maxDepth: $maxDepth) {\n    membershipChanged\n    deletedTaskIds\n    tasks {\n      ...TasksRoute_task\n      id\n    }\n  }\n}\n\nfragment TasksRoute_task on Task {\n  id\n  company {\n    id\n  }\n  name\n  description\n  acceptanceCriteria\n  assigneeActorId\n  assigneeActor {\n    id\n    kind\n    displayName\n    agentId\n    userId\n    email\n  }\n  parentTaskId\n  status\n  createdAt\n  updatedAt\n  attemptCount\n  lastRunStatus\n  latestRun {\n    id\n    taskId\n    status\n    threadId\n    agentId\n    triggeredByActorId\n    failureMessage\n    startedAt\n    finishedAt\n    createdAt\n    updatedAt\n  }\n  activeRun {\n    id\n    taskId\n    status\n    threadId\n    agentId\n    triggeredByActorId\n    failureMessage\n    startedAt\n    finishedAt\n    createdAt\n    updatedAt\n  }\n  runs {\n    id\n    taskId\n    status\n    threadId\n    agentId\n    triggeredByActorId\n    failureMessage\n    startedAt\n    finishedAt\n    createdAt\n    updatedAt\n  }\n  dependencyTaskIds\n  comments {\n    id\n    taskId\n    comment\n    authorActorId\n    authorActor {\n      id\n      kind\n      displayName\n      agentId\n      userId\n      email\n    }\n    createdAt\n    updatedAt\n  }\n}\n"
   }
 };
 })();

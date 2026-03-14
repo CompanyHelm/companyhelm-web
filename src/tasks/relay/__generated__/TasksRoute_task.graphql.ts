@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bca1c7e4f7198cca13822072134026c0>>
+ * @generated SignedSource<<6fb338fbae0710e4237da0248fbcfb68>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,10 +10,24 @@
 
 import { ReaderFragment } from 'relay-runtime';
 export type ActorKind = "agent" | "user" | "%future added value";
+export type TaskRunStatus = "cancelled" | "failed" | "queued" | "running" | "succeeded" | "%future added value";
 export type TaskStatus = "completed" | "draft" | "in_progress" | "pending" | "%future added value";
 import { FragmentRefs } from "relay-runtime";
 export type TasksRoute_task$data = ReadonlyArray<{
   readonly acceptanceCriteria: string | null | undefined;
+  readonly activeRun: {
+    readonly agentId: string | null | undefined;
+    readonly createdAt: string;
+    readonly failureMessage: string | null | undefined;
+    readonly finishedAt: string | null | undefined;
+    readonly id: string;
+    readonly startedAt: string | null | undefined;
+    readonly status: TaskRunStatus;
+    readonly taskId: string;
+    readonly threadId: string | null | undefined;
+    readonly triggeredByActorId: string | null | undefined;
+    readonly updatedAt: string;
+  } | null | undefined;
   readonly assigneeActor: {
     readonly agentId: string | null | undefined;
     readonly displayName: string;
@@ -23,6 +37,7 @@ export type TasksRoute_task$data = ReadonlyArray<{
     readonly userId: string | null | undefined;
   } | null | undefined;
   readonly assigneeActorId: string | null | undefined;
+  readonly attemptCount: number;
   readonly comments: ReadonlyArray<{
     readonly authorActor: {
       readonly agentId: string | null | undefined;
@@ -46,10 +61,36 @@ export type TasksRoute_task$data = ReadonlyArray<{
   readonly dependencyTaskIds: ReadonlyArray<string>;
   readonly description: string | null | undefined;
   readonly id: string;
+  readonly lastRunStatus: TaskRunStatus | null | undefined;
+  readonly latestRun: {
+    readonly agentId: string | null | undefined;
+    readonly createdAt: string;
+    readonly failureMessage: string | null | undefined;
+    readonly finishedAt: string | null | undefined;
+    readonly id: string;
+    readonly startedAt: string | null | undefined;
+    readonly status: TaskRunStatus;
+    readonly taskId: string;
+    readonly threadId: string | null | undefined;
+    readonly triggeredByActorId: string | null | undefined;
+    readonly updatedAt: string;
+  } | null | undefined;
   readonly name: string;
   readonly parentTaskId: string | null | undefined;
+  readonly runs: ReadonlyArray<{
+    readonly agentId: string | null | undefined;
+    readonly createdAt: string;
+    readonly failureMessage: string | null | undefined;
+    readonly finishedAt: string | null | undefined;
+    readonly id: string;
+    readonly startedAt: string | null | undefined;
+    readonly status: TaskRunStatus;
+    readonly taskId: string;
+    readonly threadId: string | null | undefined;
+    readonly triggeredByActorId: string | null | undefined;
+    readonly updatedAt: string;
+  }>;
   readonly status: TaskStatus;
-  readonly threadId: string | null | undefined;
   readonly updatedAt: string;
   readonly " $fragmentType": "TasksRoute_task";
 }>;
@@ -66,7 +107,14 @@ var v0 = {
   "name": "id",
   "storageKey": null
 },
-v1 = [
+v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "agentId",
+  "storageKey": null
+},
+v2 = [
   (v0/*: any*/),
   {
     "alias": null,
@@ -82,13 +130,7 @@ v1 = [
     "name": "displayName",
     "storageKey": null
   },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "agentId",
-    "storageKey": null
-  },
+  (v1/*: any*/),
   {
     "alias": null,
     "args": null,
@@ -104,20 +146,77 @@ v1 = [
     "storageKey": null
   }
 ],
-v2 = {
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "status",
+  "storageKey": null
+},
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "createdAt",
   "storageKey": null
 },
-v3 = {
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "updatedAt",
   "storageKey": null
-};
+},
+v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "taskId",
+  "storageKey": null
+},
+v7 = [
+  (v0/*: any*/),
+  (v6/*: any*/),
+  (v3/*: any*/),
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "threadId",
+    "storageKey": null
+  },
+  (v1/*: any*/),
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "triggeredByActorId",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "failureMessage",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "startedAt",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "finishedAt",
+    "storageKey": null
+  },
+  (v4/*: any*/),
+  (v5/*: any*/)
+];
 return {
   "argumentDefinitions": [],
   "kind": "Fragment",
@@ -174,14 +273,7 @@ return {
       "kind": "LinkedField",
       "name": "assigneeActor",
       "plural": false,
-      "selections": (v1/*: any*/),
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "threadId",
+      "selections": (v2/*: any*/),
       "storageKey": null
     },
     {
@@ -191,15 +283,53 @@ return {
       "name": "parentTaskId",
       "storageKey": null
     },
+    (v3/*: any*/),
+    (v4/*: any*/),
+    (v5/*: any*/),
     {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "status",
+      "name": "attemptCount",
       "storageKey": null
     },
-    (v2/*: any*/),
-    (v3/*: any*/),
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "lastRunStatus",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "TaskRun",
+      "kind": "LinkedField",
+      "name": "latestRun",
+      "plural": false,
+      "selections": (v7/*: any*/),
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "TaskRun",
+      "kind": "LinkedField",
+      "name": "activeRun",
+      "plural": false,
+      "selections": (v7/*: any*/),
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "TaskRun",
+      "kind": "LinkedField",
+      "name": "runs",
+      "plural": true,
+      "selections": (v7/*: any*/),
+      "storageKey": null
+    },
     {
       "alias": null,
       "args": null,
@@ -216,13 +346,7 @@ return {
       "plural": true,
       "selections": [
         (v0/*: any*/),
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "taskId",
-          "storageKey": null
-        },
+        (v6/*: any*/),
         {
           "alias": null,
           "args": null,
@@ -244,11 +368,11 @@ return {
           "kind": "LinkedField",
           "name": "authorActor",
           "plural": false,
-          "selections": (v1/*: any*/),
+          "selections": (v2/*: any*/),
           "storageKey": null
         },
-        (v2/*: any*/),
-        (v3/*: any*/)
+        (v4/*: any*/),
+        (v5/*: any*/)
       ],
       "storageKey": null
     }
@@ -258,6 +382,6 @@ return {
 };
 })();
 
-(node as any).hash = "3e79fd5e15daebf09136d28523664e06";
+(node as any).hash = "8616a208869afa40809f36d61891d3b1";
 
 export default node;

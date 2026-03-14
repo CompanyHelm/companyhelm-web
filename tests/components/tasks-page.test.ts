@@ -108,4 +108,5 @@ test("TasksPage detail actions show a visible create subtask action", () => {
   assert.match(markup, />Create subtask</);
   assert.match(markup, />Edit task dependencies</);
   assert.match(markup, />Execute task</);
+  assert.match(markup, />Runs</);
 });

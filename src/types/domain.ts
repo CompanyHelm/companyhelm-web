@@ -159,6 +159,20 @@ export interface TaskComment {
   updatedAt?: string;
 }
 
+export interface TaskRun {
+  id: string;
+  taskId: string;
+  status: string;
+  threadId?: string | null;
+  agentId?: string | null;
+  triggeredByActorId?: string | null;
+  failureMessage?: string | null;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
 export interface Actor {
   id: string;
   kind: "agent" | "user";
@@ -180,6 +194,11 @@ export interface TaskItem extends NamedEntity {
   status?: string;
   createdAt?: string;
   updatedAt?: string;
+  runs?: TaskRun[];
+  latestRun?: TaskRun | null;
+  activeRun?: TaskRun | null;
+  attemptCount?: number;
+  lastRunStatus?: string | null;
   dependencyTaskIds?: string[];
   comments?: TaskComment[];
 }
