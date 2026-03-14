@@ -6,6 +6,7 @@ import { ChatListStatusToggle } from "../components/ChatListStatusToggle.tsx";
 import { ChatSessionRunningBadge } from "../components/ChatSessionRunningBadge.tsx";
 import { ThreadTaskSummary } from "../components/ThreadTaskSummary.tsx";
 import { useSetPageActions } from "../components/PageActionsContext.tsx";
+import { ArchivedChatSelection } from "../utils/archivedChatSelection.ts";
 import { formatTimestamp } from "../utils/formatting.ts";
 import { matchesMediaQuery } from "../utils/media.ts";
 import {
@@ -165,6 +166,48 @@ function isArchivedThreadStatus(value: any) {
   return normalizedStatus === "archived" || normalizedStatus === "archiving";
 }
 
+function ArchivedChatSelectionToolbar({
+  archivedSelectionSummary,
+  visibleArchivedChatKeys,
+  isBatchDeletingChats,
+  onToggleAll,
+  onClear,
+  onDelete,
+}: any) {
+  return (
+    <div className="archived-chat-selection-toolbar">
+      <label className="archived-chat-selection-toggle">
+        <input
+          type="checkbox"
+          aria-label="Select all archived chats"
+          checked={archivedSelectionSummary.allVisibleSelected}
+          onChange={(event: any) => onToggleAll(event.target.checked)}
+          disabled={visibleArchivedChatKeys.length === 0 || isBatchDeletingChats}
+        />
+        <span>{`${archivedSelectionSummary.selectedCount} selected`}</span>
+      </label>
+      <div className="archived-chat-selection-actions">
+        <button
+          type="button"
+          className="secondary-btn"
+          onClick={onClear}
+          disabled={archivedSelectionSummary.selectedCount === 0 || isBatchDeletingChats}
+        >
+          Deselect all
+        </button>
+        <button
+          type="button"
+          className="danger-btn"
+          onClick={onDelete}
+          disabled={archivedSelectionSummary.selectedCount === 0 || isBatchDeletingChats}
+        >
+          Delete selected
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function SidebarChatSessionItem({
   agentId,
   session,
@@ -180,6 +223,10 @@ function SidebarChatSessionItem({
   taskSummaryModalId = "",
   showTaskSummary = true,
   showPendingStatus = true,
+  showArchivedSelection = false,
+  isArchivedSelected = false,
+  onArchivedSelectionChange,
+  isBatchDeletingChats = false,
 }: any) {
   const normalizedAgentId = String(agentId || "").trim();
   const normalizedSessionId = String(session?.id || "").trim();
@@ -244,6 +291,21 @@ function SidebarChatSessionItem({
         }
       }}
     >
+      {showArchivedSelection ? (
+        <div
+          className="archived-chat-row-checkbox"
+          onClick={(event: any) => event.stopPropagation()}
+          onKeyDown={(event: any) => event.stopPropagation()}
+        >
+          <input
+            type="checkbox"
+            aria-label={`Select archived chat ${session?.title || "Untitled chat"}`}
+            checked={isArchivedSelected}
+            onChange={(event: any) => onArchivedSelectionChange?.(event.target.checked)}
+            disabled={isDeletingChat || isBatchDeletingChats}
+          />
+        </div>
+      ) : null}
       <div className="chat-card-main">
         <div className="chat-card-title-row">
           <p className="chat-card-title chat-sidebar-chat-title">
@@ -358,6 +420,8 @@ export function AgentChatPage({
   onBackToChats,
   onArchiveChat,
   onDeleteChat,
+  onBatchDeleteChats,
+  isBatchDeletingChats = false,
   onSaveChatSessionTitle,
   onSendChatMessage,
   onInterruptChatTurn,
@@ -396,6 +460,45 @@ export function AgentChatPage({
     return Array.isArray(sessionsForAgent) ? sessionsForAgent : [];
   }, [chatSessionsByAgent, selectedAgentId]);
   const hasKnownChatsForAgent = selectedAgentSessions.length > 0;
+  const [selectedArchivedChatKeys, setSelectedArchivedChatKeys] = useState<any>(new Set());
+  const visibleArchivedChats = useMemo(() => {
+    if (normalizedChatListStatusFilter !== "archived") {
+      return [];
+    }
+    const archivedChats: any[] = [];
+    for (const sidebarAgent of sortedSidebarAgents) {
+      const sidebarAgentId = String(sidebarAgent?.id || "").trim();
+      if (!sidebarAgentId) {
+        continue;
+      }
+      const sidebarSessions = Array.isArray(chatSessionsByAgent?.[sidebarAgentId])
+        ? chatSessionsByAgent[sidebarAgentId]
+        : [];
+      for (const sidebarSession of sidebarSessions) {
+        if (String(sidebarSession?.status || "").trim().toLowerCase() !== "archived") {
+          continue;
+        }
+        const sidebarSessionId = String(sidebarSession?.id || "").trim();
+        if (!sidebarSessionId) {
+          continue;
+        }
+        archivedChats.push({
+          agentId: sidebarAgentId,
+          sessionId: sidebarSessionId,
+          title: String(sidebarSession?.title || "").trim(),
+        });
+      }
+    }
+    return archivedChats;
+  }, [chatSessionsByAgent, normalizedChatListStatusFilter, sortedSidebarAgents]);
+  const visibleArchivedChatKeys = useMemo(
+    () => visibleArchivedChats.map((chatEntry: any) => ArchivedChatSelection.getKey(chatEntry.agentId, chatEntry.sessionId)),
+    [visibleArchivedChats],
+  );
+  const archivedSelectionSummary = useMemo(
+    () => ArchivedChatSelection.getSummary(selectedArchivedChatKeys, visibleArchivedChatKeys),
+    [selectedArchivedChatKeys, visibleArchivedChatKeys],
+  );
   const canInteractWithSession = canChat && !isSessionDeleting && !isSessionReadOnly;
   const canSendMessages = canInteractWithSession && !normalizedSendDisabledReason;
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<any>(false);
@@ -489,6 +592,18 @@ export function AgentChatPage({
       setIsMobileChatListOpen(false);
     }
   }, [session?.id]);
+
+  useEffect(() => {
+    if (normalizedChatListStatusFilter !== "archived") {
+      setSelectedArchivedChatKeys(new Set());
+      return;
+    }
+    const visibleKeySet = new Set(visibleArchivedChatKeys);
+    setSelectedArchivedChatKeys((current: Set<string>) => {
+      const next = new Set(Array.from(current).filter((key) => visibleKeySet.has(key)));
+      return next.size === current.size ? current : next;
+    });
+  }, [normalizedChatListStatusFilter, visibleArchivedChatKeys.join("|")]);
 
   useEffect(() => {
     setVisibleMessageCount(CHAT_MESSAGE_BATCH_SIZE);
@@ -768,6 +883,40 @@ export function AgentChatPage({
     return onCreateChatForAgent?.(agentId);
   }, [onCreateChatForAgent]);
 
+  const handleBatchDeleteArchivedChats = useCallback(async () => {
+    if (!onBatchDeleteChats || archivedSelectionSummary.selectedCount === 0 || isBatchDeletingChats) {
+      return;
+    }
+    const selectedChats = visibleArchivedChats.filter((chatEntry: any) =>
+      selectedArchivedChatKeys.has(ArchivedChatSelection.getKey(chatEntry.agentId, chatEntry.sessionId)),
+    );
+    const result = await onBatchDeleteChats(selectedChats);
+    const deletedKeys = Array.isArray(result?.deletedKeys) ? result.deletedKeys : [];
+    if (deletedKeys.length > 0) {
+      setSelectedArchivedChatKeys((current: Set<string>) => ArchivedChatSelection.clearKeys(current, deletedKeys));
+    }
+  }, [
+    archivedSelectionSummary.selectedCount,
+    isBatchDeletingChats,
+    onBatchDeleteChats,
+    selectedArchivedChatKeys,
+    visibleArchivedChats,
+  ]);
+  const handleToggleAllArchivedChats = useCallback((shouldSelect: boolean) => {
+    setSelectedArchivedChatKeys((current: Set<string>) =>
+      ArchivedChatSelection.setAll(current, visibleArchivedChatKeys, shouldSelect),
+    );
+  }, [visibleArchivedChatKeys]);
+  const handleClearArchivedChatSelection = useCallback(() => {
+    setSelectedArchivedChatKeys(new Set());
+  }, []);
+  const toggleArchivedChatSelection = useCallback((agentId: string, sessionId: string, shouldSelect: boolean) => {
+    const selectionKey = ArchivedChatSelection.getKey(agentId, sessionId);
+    setSelectedArchivedChatKeys((current: Set<string>) =>
+      ArchivedChatSelection.toggle(current, selectionKey, shouldSelect),
+    );
+  }, []);
+
   return (
     <div className={`page-stack chat-page-stack${showChatSidebar ? " chat-page-stack-with-sidebar" : ""}`}>
       {showMobileNoSession ? (
@@ -779,6 +928,16 @@ export function AgentChatPage({
               onChange={onChatListStatusFilterChange}
             />
           </div>
+          {normalizedChatListStatusFilter === "archived" ? (
+            <ArchivedChatSelectionToolbar
+              archivedSelectionSummary={archivedSelectionSummary}
+              visibleArchivedChatKeys={visibleArchivedChatKeys}
+              isBatchDeletingChats={isBatchDeletingChats}
+              onToggleAll={handleToggleAllArchivedChats}
+              onClear={handleClearArchivedChatSelection}
+              onDelete={handleBatchDeleteArchivedChats}
+            />
+          ) : null}
           {isLoadingChatIndex ? <p className="empty-hint">Loading chats...</p> : null}
           {!isLoadingChatIndex && sortedSidebarAgents.length === 0 ? (
             <p className="empty-hint">No agents available yet.</p>
@@ -855,6 +1014,13 @@ export function AgentChatPage({
                               onDelete={onDeleteChat}
                               taskSummaryModalId={`mobile-sidebar-${sidebarAgentId}-${sidebarSessionId}`}
                               showPendingStatus={false}
+                              showArchivedSelection={normalizedChatListStatusFilter === "archived"}
+                              isArchivedSelected={selectedArchivedChatKeys.has(
+                                ArchivedChatSelection.getKey(sidebarAgentId, sidebarSessionId),
+                              )}
+                              onArchivedSelectionChange={(shouldSelect: boolean) =>
+                                toggleArchivedChatSelection(sidebarAgentId, sidebarSessionId, shouldSelect)}
+                              isBatchDeletingChats={isBatchDeletingChats}
                             />
                           );
                         })}
@@ -896,6 +1062,16 @@ export function AgentChatPage({
                 </button>
               </div>
             </div>
+            {normalizedChatListStatusFilter === "archived" ? (
+              <ArchivedChatSelectionToolbar
+                archivedSelectionSummary={archivedSelectionSummary}
+                visibleArchivedChatKeys={visibleArchivedChatKeys}
+                isBatchDeletingChats={isBatchDeletingChats}
+                onToggleAll={handleToggleAllArchivedChats}
+                onClear={handleClearArchivedChatSelection}
+                onDelete={handleBatchDeleteArchivedChats}
+              />
+            ) : null}
             {isLoadingChatIndex ? <p className="empty-hint">Loading chats...</p> : null}
             {!isLoadingChatIndex && sortedSidebarAgents.length === 0 ? (
               <p className="empty-hint">No agents available yet.</p>
@@ -972,6 +1148,13 @@ export function AgentChatPage({
                                 onDelete={onDeleteChat}
                                 showTaskSummary={false}
                                 showPendingStatus={false}
+                                showArchivedSelection={normalizedChatListStatusFilter === "archived"}
+                                isArchivedSelected={selectedArchivedChatKeys.has(
+                                  ArchivedChatSelection.getKey(sidebarAgentId, sidebarSessionId),
+                                )}
+                                onArchivedSelectionChange={(shouldSelect: boolean) =>
+                                  toggleArchivedChatSelection(sidebarAgentId, sidebarSessionId, shouldSelect)}
+                                isBatchDeletingChats={isBatchDeletingChats}
                               />
                             );
                           })}
@@ -1000,6 +1183,16 @@ export function AgentChatPage({
                 onChange={onChatListStatusFilterChange}
               />
             </div>
+            {normalizedChatListStatusFilter === "archived" ? (
+              <ArchivedChatSelectionToolbar
+                archivedSelectionSummary={archivedSelectionSummary}
+                visibleArchivedChatKeys={visibleArchivedChatKeys}
+                isBatchDeletingChats={isBatchDeletingChats}
+                onToggleAll={handleToggleAllArchivedChats}
+                onClear={handleClearArchivedChatSelection}
+                onDelete={handleBatchDeleteArchivedChats}
+              />
+            ) : null}
             {isLoadingChatIndex ? <p className="empty-hint">Loading chats...</p> : null}
             {!isLoadingChatIndex && sortedSidebarAgents.length === 0 ? (
               <p className="empty-hint">No agents available yet.</p>
@@ -1084,6 +1277,13 @@ export function AgentChatPage({
                                 onArchive={onArchiveChat}
                                 onDelete={onDeleteChat}
                                 taskSummaryModalId={`chat-sidebar-${sidebarAgentId}-${sidebarSessionId}`}
+                                showArchivedSelection={normalizedChatListStatusFilter === "archived"}
+                                isArchivedSelected={selectedArchivedChatKeys.has(
+                                  ArchivedChatSelection.getKey(sidebarAgentId, sidebarSessionId),
+                                )}
+                                onArchivedSelectionChange={(shouldSelect: boolean) =>
+                                  toggleArchivedChatSelection(sidebarAgentId, sidebarSessionId, shouldSelect)}
+                                isBatchDeletingChats={isBatchDeletingChats}
                               />
                             );
                           })}
