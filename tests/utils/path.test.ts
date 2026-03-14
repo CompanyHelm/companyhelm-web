@@ -4,6 +4,7 @@ import {
   buildGithubAppInstallUrl,
   clearGithubInstallCallbackFromLocation,
   getAdminRouteFromPathname,
+  getPageFromPathname,
   getTasksRouteFromPathname,
   resolveAdminTableNameForRoute,
 } from "../../src/utils/path.ts";
@@ -53,6 +54,10 @@ test("getTasksRouteFromPathname returns detail view for /tasks/:taskId", () => {
 
 test("getTasksRouteFromPathname ignores non-task paths", () => {
   assert.deepEqual(getTasksRouteFromPathname("/skills/skill-1"), { view: "list", taskId: "" });
+});
+
+test("getPageFromPathname resolves the Org page from /org", () => {
+  assert.equal(getPageFromPathname("/org"), "org");
 });
 
 test("getAdminRouteFromPathname returns table view for /admin/tables/:tableName", () => {
