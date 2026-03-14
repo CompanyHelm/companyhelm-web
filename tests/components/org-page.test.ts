@@ -28,14 +28,14 @@ function renderOrgPageMarkup() {
 test("OrgPage renders table and graph tabs with the hierarchy table by default", () => {
   const markup = renderOrgPageMarkup();
 
-  assert.match(markup, />Organization</);
+  assert.match(markup, /aria-label="Organization views"/);
   assert.match(markup, />Table</);
   assert.match(markup, />Graph</);
   assert.match(markup, /Jane Doe/);
   assert.match(markup, /Build Agent/);
   assert.match(markup, />Human</);
   assert.match(markup, />AI</);
-  assert.match(markup, /Root/);
+  assert.match(markup, /N\/A/);
 });
 
 test("OrgPage renders an empty-state hint when there are no actors", () => {

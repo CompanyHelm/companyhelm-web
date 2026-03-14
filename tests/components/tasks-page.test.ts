@@ -112,7 +112,7 @@ test("TasksPage detail actions show a visible create subtask action", () => {
   assert.doesNotMatch(markup, /<section class="task-overview-card">.*?<h3>Actions<\/h3>.*?>Open thread</s);
 });
 
-test("TasksPage run history shows the agent name instead of the agent id", () => {
+test("TasksPage keeps run history hidden until the Runs tab is selected", () => {
   const markup = renderTasksPageMarkup(
     {
       runs: [
@@ -142,6 +142,7 @@ test("TasksPage run history shows the agent name instead of the agent id", () =>
     ],
   );
 
-  assert.match(markup, /Agent: AI eng/);
+  assert.match(markup, />Runs</);
+  assert.doesNotMatch(markup, /Agent: AI eng/);
   assert.doesNotMatch(markup, /Agent: agent-1/);
 });
