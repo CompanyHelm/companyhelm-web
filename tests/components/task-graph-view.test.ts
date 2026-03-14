@@ -33,6 +33,6 @@ test("TaskGraphView refits the viewport after async layout applies nodes", () =>
   );
   assert.match(
     taskGraphViewSource,
-    /onInit=\{\(instance\) => \{\s+reactFlowInstanceRef\.current = instance;\s+\}\}/,
+    /onInit=\{\(instance\) => \{\s+reactFlowInstanceRef\.current = instance;\s+void instance\.fitView\(\{ padding: 0\.2 \}\);\s+\}\}/,
   );
 });

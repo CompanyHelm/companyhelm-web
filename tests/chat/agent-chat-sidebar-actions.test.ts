@@ -175,6 +175,69 @@ test("AgentChatPage mobile sidebar renders permanent delete actions in archived 
   }
 });
 
+test("AgentChatPage archived sidebar renders cross-agent batch selection controls", () => {
+  const originalWindow = testGlobal.window;
+  const localStorageMap = new Map<string, string>();
+
+  try {
+    testGlobal.window = {
+      localStorage: createMockStorage(localStorageMap),
+      matchMedia: () => ({ matches: false }),
+    } as unknown as Window & typeof globalThis;
+
+    const markup = renderAgentChatPageMarkup({
+      chatListStatusFilter: "archived",
+      session: {
+        id: "thread-1",
+        title: "Thread 1",
+        status: "archived",
+      },
+      agents: [
+        {
+          id: "agent-1",
+          name: "Build Agent",
+          agentSdk: "codex",
+          model: "gpt-5",
+        },
+        {
+          id: "agent-2",
+          name: "Review Agent",
+          agentSdk: "codex",
+          model: "gpt-5",
+        },
+      ],
+      chatSessionsByAgent: {
+        "agent-1": [
+          {
+            id: "thread-1",
+            title: "Thread 1",
+            status: "archived",
+          },
+        ],
+        "agent-2": [
+          {
+            id: "thread-2",
+            title: "Thread 2",
+            status: "archived",
+          },
+        ],
+      },
+      onBatchDeleteChats: async () => ({ deletedKeys: [], failedKeys: [] }),
+    });
+
+    assert.match(markup, /aria-label="Select all archived chats"/);
+    assert.match(markup, /aria-label="Select archived chat Thread 1"/);
+    assert.match(markup, /aria-label="Select archived chat Thread 2"/);
+    assert.match(markup, />\s*Delete selected\s*</);
+  } finally {
+    if (typeof originalWindow === "undefined") {
+      Reflect.deleteProperty(testGlobal, "window");
+    } else {
+      testGlobal.window = originalWindow;
+    }
+  }
+});
+
 test("AgentChatPage sidebar uses neutral fallbacks for unnamed agents and chats", () => {
   const originalWindow = testGlobal.window;
   const localStorageMap = new Map<string, string>();
