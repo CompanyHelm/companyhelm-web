@@ -1,14 +1,11 @@
 import type { Actor, ReporteeRelation } from "../types/domain.ts";
+import { ActorKindBadge } from "./ActorKindBadge.tsx";
 import { buildOrgHierarchyRows } from "../utils/org-hierarchy.ts";
 
 interface OrgTableViewProps {
   actors: Actor[];
   reportees: ReporteeRelation[];
   onOpenActor?: (actorId: string) => void;
-}
-
-function getActorKindLabel(kind: Actor["kind"]) {
-  return kind === "user" ? "Human" : "AI";
 }
 
 export function OrgTableView({ actors, reportees, onOpenActor }: OrgTableViewProps) {
@@ -61,11 +58,9 @@ export function OrgTableView({ actors, reportees, onOpenActor }: OrgTableViewPro
                 </div>
               </td>
               <td>
-                <span className={`org-kind-pill org-kind-pill-${row.actor.kind}`}>
-                  {getActorKindLabel(row.actor.kind)}
-                </span>
+                <ActorKindBadge kind={row.actor.kind} />
               </td>
-              <td>{row.managerActorId ? (actorById.get(row.managerActorId)?.displayName || row.managerActorId) : "Root"}</td>
+              <td>{row.managerActorId ? (actorById.get(row.managerActorId)?.displayName || row.managerActorId) : "N/A"}</td>
               <td>{row.reportCount}</td>
             </tr>
           ))}

@@ -302,6 +302,45 @@ export const SET_ACTOR_DESCRIPTION_MUTATION = `
   }
 `;
 
+export const SET_ACTOR_MANAGER_MUTATION = `
+  mutation SetActorManager(
+    $reporteeActorId: ID!
+    $managerActorId: ID
+  ) {
+    setActorManager(
+      reporteeActorId: $reporteeActorId
+      managerActorId: $managerActorId
+    ) {
+      ok
+      error
+      reportee {
+        id
+        companyId
+        managerActorId
+        reporteeActorId
+        managerActor {
+          id
+          kind
+          displayName
+          agentId
+          userId
+          email
+        }
+        reporteeActor {
+          id
+          kind
+          displayName
+          agentId
+          userId
+          email
+        }
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`;
+
 export const LIST_AGENT_RUNNERS_QUERY = `
   query ListAgentRunners {
     agentRunners {

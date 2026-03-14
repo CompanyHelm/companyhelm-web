@@ -3544,7 +3544,11 @@ button:disabled {
 /* ── Org page ───────────────────────────────────── */
 
 .org-page-panel {
-  display: grid;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  height: calc(100vh - 8rem);
+  min-height: 0;
   gap: 0.85rem;
 }
 
@@ -3609,29 +3613,85 @@ button:disabled {
   font-weight: 700;
 }
 
+.actor-kind-badge,
 .org-kind-pill {
   display: inline-flex;
   align-items: center;
+  gap: 0.45rem;
   border-radius: 999px;
-  padding: 0.18rem 0.5rem;
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  padding: 0.28rem 0.72rem 0.28rem 0.34rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.48);
 }
 
+.actor-kind-badge-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.45rem;
+  height: 1.45rem;
+  border-radius: 999px;
+  backdrop-filter: blur(6px);
+}
+
+.actor-kind-badge-icon svg {
+  width: 0.9rem;
+  height: 0.9rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.actor-kind-badge-user,
 .org-kind-pill-user {
-  background: rgba(184, 90, 31, 0.12);
   color: #8a4317;
+  border-color: rgba(184, 90, 31, 0.18);
+  background:
+    linear-gradient(135deg, rgba(255, 247, 237, 0.96), rgba(255, 237, 213, 0.92));
 }
 
+.actor-kind-badge-user .actor-kind-badge-icon,
+.org-kind-pill-user .actor-kind-badge-icon {
+  color: #a14b17;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(184, 90, 31, 0.12);
+}
+
+.actor-kind-badge-agent,
 .org-kind-pill-agent {
-  background: rgba(15, 118, 110, 0.12);
   color: #0f766e;
+  border-color: rgba(15, 118, 110, 0.18);
+  background:
+    linear-gradient(135deg, rgba(236, 253, 245, 0.98), rgba(204, 251, 241, 0.92));
+}
+
+.actor-kind-badge-agent .actor-kind-badge-icon,
+.org-kind-pill-agent .actor-kind-badge-icon {
+  color: #0d5f58;
+  background: rgba(255, 255, 255, 0.74);
+  box-shadow: inset 0 0 0 1px rgba(15, 118, 110, 0.12);
+}
+
+.actor-kind-badge-hero {
+  align-self: flex-start;
+  font-size: 0.84rem;
+  padding-right: 0.82rem;
+}
+
+.actor-kind-badge-hero .actor-kind-badge-icon {
+  width: 1.6rem;
+  height: 1.6rem;
 }
 
 .org-graph-surface {
   position: relative;
-  min-height: 38rem;
+  flex: 1;
+  min-height: max(38rem, calc(100vh - 15rem));
   border: 1px solid var(--panel-border);
   border-radius: 18px;
   overflow: hidden;
@@ -3641,8 +3701,67 @@ button:disabled {
     rgba(255, 255, 255, 0.82);
 }
 
+.org-graph-node {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 0.95rem 1rem;
+  border-radius: 18px;
+  border: 1px solid rgba(26, 32, 38, 0.08);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(250, 250, 248, 0.94));
+  box-shadow: 0 16px 34px rgba(17, 24, 39, 0.08);
+  min-height: 100%;
+}
+
+.org-graph-node-name {
+  font-size: 0.95rem;
+  line-height: 1.2;
+}
+
+.org-graph-node-badge {
+  align-self: flex-start;
+}
+
+.org-graph-handle {
+  width: 0.7rem;
+  height: 0.7rem;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .actor-page-panel {
   gap: 1.25rem;
+}
+
+.actor-reportees-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.actor-reportee-manager-card {
+  gap: 0.75rem;
+}
+
+.actor-reportee-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.actor-reportee-label {
+  font-weight: 600;
+}
+
+.actor-reportee-controls {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.actor-reportee-select {
+  min-width: 0;
 }
 
 .actor-overview-grid {
@@ -3716,6 +3835,11 @@ button:disabled {
 
   .actor-meta-list {
     grid-template-columns: 1fr;
+  }
+
+  .actor-reportee-controls {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 

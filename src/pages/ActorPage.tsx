@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { ActorKindBadge } from "../components/ActorKindBadge.tsx";
 import { Page } from "../components/Page.tsx";
 import { useSetPageActions } from "../components/PageActionsContext.tsx";
 import type { Actor, ReporteeRelation } from "../types/domain.ts";
@@ -13,13 +14,21 @@ interface ActorPageProps {
   actors: Actor[];
   reportees: ReporteeRelation[];
   isSaving: boolean;
+  isAddingReportee?: boolean;
   error: string;
   onSaveDescription: (description: string) => void | Promise<void>;
+  onAddReportee?: (reporteeActorId: string) => Promise<boolean> | boolean;
   onOpenActor?: (actorId: string) => void;
 }
 
-function getActorKindLabel(kind: Actor["kind"]) {
-  return kind === "user" ? "Human" : "AI";
+function compareActors(left: Actor, right: Actor) {
+  const leftName = String(left?.displayName || "").trim();
+  const rightName = String(right?.displayName || "").trim();
+  const byName = leftName.localeCompare(rightName);
+  if (byName !== 0) {
+    return byName;
+  }
+  return String(left?.id || "").localeCompare(String(right?.id || ""));
 }
 
 export function ActorPage({
@@ -27,16 +36,23 @@ export function ActorPage({
   actors,
   reportees,
   isSaving,
+  isAddingReportee = false,
   error,
   onSaveDescription,
+  onAddReportee,
   onOpenActor,
 }: ActorPageProps) {
   const [activeTab, setActiveTab] = useState<ActorTab>("overview");
   const [draftDescription, setDraftDescription] = useState(() => String(actor?.description || ""));
+  const [selectedReporteeActorId, setSelectedReporteeActorId] = useState("");
 
   useEffect(() => {
     setDraftDescription(String(actor?.description || ""));
   }, [actor?.description, actor?.id]);
+
+  useEffect(() => {
+    setSelectedReporteeActorId("");
+  }, [actor?.id]);
 
   useSetPageActions(null);
 
@@ -49,6 +65,63 @@ export function ActorPage({
     () => new Map((Array.isArray(actors) ? actors : []).map((entry) => [String(entry.id || "").trim(), entry] as const)),
     [actors],
   );
+  const managerActorIdByReporteeId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const relation of Array.isArray(reportees) ? reportees : []) {
+      const reporteeActorId = String(relation?.reporteeActorId || "").trim();
+      const managerActorId = String(relation?.managerActorId || "").trim();
+      if (!reporteeActorId || !managerActorId || reporteeActorId === managerActorId) {
+        continue;
+      }
+      map.set(reporteeActorId, managerActorId);
+    }
+    return map;
+  }, [reportees]);
+  const descendantActorIds = useMemo(
+    () => new Set(descendantRows.map((row) => String(row.actor.id || "").trim()).filter(Boolean)),
+    [descendantRows],
+  );
+  const ancestorActorIds = useMemo(() => {
+    const resolvedActorId = String(actor?.id || "").trim();
+    const ids = new Set<string>();
+    const visited = new Set<string>();
+    let currentActorId = resolvedActorId;
+
+    while (currentActorId && !visited.has(currentActorId)) {
+      visited.add(currentActorId);
+      const managerActorId = managerActorIdByReporteeId.get(currentActorId);
+      if (!managerActorId) {
+        break;
+      }
+      ids.add(managerActorId);
+      currentActorId = managerActorId;
+    }
+
+    return ids;
+  }, [actor?.id, managerActorIdByReporteeId]);
+  const availableReporteeActors = useMemo(() => {
+    const resolvedActorId = String(actor?.id || "").trim();
+    return (Array.isArray(actors) ? actors : [])
+      .filter((entry) => {
+        const candidateId = String(entry?.id || "").trim();
+        return Boolean(candidateId)
+          && candidateId !== resolvedActorId
+          && !descendantActorIds.has(candidateId)
+          && !ancestorActorIds.has(candidateId);
+      })
+      .sort(compareActors);
+  }, [actor?.id, actors, ancestorActorIds, descendantActorIds]);
+
+  const handleAddReportee = async () => {
+    const resolvedReporteeActorId = String(selectedReporteeActorId || "").trim();
+    if (!resolvedReporteeActorId || !onAddReportee) {
+      return;
+    }
+    const didAddReportee = await onAddReportee(resolvedReporteeActorId);
+    if (didAddReportee) {
+      setSelectedReporteeActorId("");
+    }
+  };
 
   if (!actor) {
     return (
@@ -56,7 +129,7 @@ export function ActorPage({
         <section className="page-panel org-page-panel">
           <header className="org-page-header">
             <div>
-              <p className="eyebrow">Org</p>
+              <p className="eyebrow">Organization</p>
               <h1>Actor Not Found</h1>
               <p className="subcopy">The requested actor is not available in this company.</p>
             </div>
@@ -71,11 +144,11 @@ export function ActorPage({
       <section className="page-panel org-page-panel actor-page-panel">
         <header className="org-page-header actor-page-header">
           <div>
-            <p className="eyebrow">Org</p>
+            <p className="eyebrow">Organization</p>
             <h1>{actor.displayName}</h1>
             <p className="subcopy">Persona and reporting structure for this actor.</p>
           </div>
-          <div className="count-chip">{getActorKindLabel(actor.kind)}</div>
+          <ActorKindBadge kind={actor.kind} className="actor-kind-badge-hero" />
         </header>
 
         <div className="task-view-tabs org-view-tabs" role="tablist" aria-label="Actor views">
@@ -98,71 +171,105 @@ export function ActorPage({
         {error ? <p className="error-banner">{error}</p> : null}
 
         {activeTab === "reportees" ? (
-          descendantRows.length === 0 ? (
-            <div className="task-empty-panel">
-              <p className="empty-hint">No reportees for this actor yet.</p>
-            </div>
-          ) : (
-            <div className="org-table-shell">
-              <table className="org-table">
-                <thead>
-                  <tr>
-                    <th>Actor</th>
-                    <th>Type</th>
-                    <th>Manager</th>
-                    <th>Reports</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {descendantRows.map((row) => (
-                    <tr key={row.actor.id}>
-                      <td>
-                        <div
-                          className="org-actor-cell"
-                          style={{ paddingLeft: `${row.depth * 1.1 + 0.85}rem` }}
-                        >
-                          <span className="org-tree-marker" aria-hidden="true">↳</span>
-                          {onOpenActor ? (
-                            <button
-                              type="button"
-                              className="org-actor-link"
-                              onClick={() => onOpenActor(row.actor.id)}
-                            >
-                              {row.actor.displayName}
-                            </button>
-                          ) : (
-                            <span>{row.actor.displayName}</span>
-                          )}
-                        </div>
-                      </td>
-                      <td>
-                        <span className={`org-kind-pill org-kind-pill-${row.actor.kind}`}>
-                          {getActorKindLabel(row.actor.kind)}
-                        </span>
-                      </td>
-                      <td>{row.managerActorId ? (actorById.get(row.managerActorId)?.displayName || row.managerActorId) : "Root"}</td>
-                      <td>{row.reportCount}</td>
+          <div className="actor-reportees-stack">
+            <section className="actor-overview-card actor-reportee-manager-card">
+              <div>
+                <p className="eyebrow">Reportees</p>
+                <p className="subcopy">Assign another actor to report to {actor.displayName}.</p>
+              </div>
+              <div className="actor-reportee-toolbar">
+                <label className="actor-reportee-label" htmlFor="actor-reportee-select">
+                  Add reportee
+                </label>
+                <div className="actor-reportee-controls">
+                  <select
+                    id="actor-reportee-select"
+                    className="role-detail-add-select actor-reportee-select"
+                    value={selectedReporteeActorId}
+                    onChange={(event) => setSelectedReporteeActorId(event.target.value)}
+                    disabled={isAddingReportee || availableReporteeActors.length === 0}
+                  >
+                    <option value="">
+                      {availableReporteeActors.length === 0 ? "No eligible actors available" : "Select an actor"}
+                    </option>
+                    {availableReporteeActors.map((entry) => (
+                      <option key={`reportee-option-${entry.id}`} value={entry.id}>
+                        {entry.displayName}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="primary-button"
+                    disabled={isAddingReportee || !selectedReporteeActorId}
+                    onClick={() => void handleAddReportee()}
+                  >
+                    {isAddingReportee ? "Adding..." : "Add Reportee"}
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            {descendantRows.length === 0 ? (
+              <div className="task-empty-panel">
+                <p className="empty-hint">No reportees for this actor yet.</p>
+              </div>
+            ) : (
+              <div className="org-table-shell">
+                <table className="org-table">
+                  <thead>
+                    <tr>
+                      <th>Actor</th>
+                      <th>Type</th>
+                      <th>Manager</th>
+                      <th>Reports</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )
+                  </thead>
+                  <tbody>
+                    {descendantRows.map((row) => (
+                      <tr key={row.actor.id}>
+                        <td>
+                          <div
+                            className="org-actor-cell"
+                            style={{ paddingLeft: `${row.depth * 1.1 + 0.85}rem` }}
+                          >
+                            <span className="org-tree-marker" aria-hidden="true">↳</span>
+                            {onOpenActor ? (
+                              <button
+                                type="button"
+                                className="org-actor-link"
+                                onClick={() => onOpenActor(row.actor.id)}
+                              >
+                                {row.actor.displayName}
+                              </button>
+                            ) : (
+                              <span>{row.actor.displayName}</span>
+                            )}
+                          </div>
+                        </td>
+                        <td>
+                          <ActorKindBadge kind={row.actor.kind} />
+                        </td>
+                        <td>{row.managerActorId ? (actorById.get(row.managerActorId)?.displayName || row.managerActorId) : "N/A"}</td>
+                        <td>{row.reportCount}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         ) : (
           <div className="actor-overview-grid">
             <section className="actor-overview-card">
               <div className="actor-meta-list">
                 <div>
                   <span className="actor-meta-label">Type</span>
-                  <strong>{getActorKindLabel(actor.kind)}</strong>
-                </div>
-                <div>
-                  <span className="actor-meta-label">Actor ID</span>
-                  <strong>{actor.id}</strong>
+                  <ActorKindBadge kind={actor.kind} />
                 </div>
               </div>
               <label className="actor-description-label" htmlFor="actor-description">
-                Persona overview
+                Description
               </label>
               <textarea
                 id="actor-description"
@@ -178,7 +285,7 @@ export function ActorPage({
                   disabled={isSaving}
                   onClick={() => void onSaveDescription(draftDescription)}
                 >
-                  {isSaving ? "Saving..." : "Save Overview"}
+                  {isSaving ? "Saving..." : "Save Description"}
                 </button>
               </div>
             </section>

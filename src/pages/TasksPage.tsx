@@ -138,6 +138,16 @@ export function TasksPage({
       return map;
     }, new Map<string, TaskItem>());
   }, [tasks]);
+  const agentNameById = useMemo(() => {
+    return agents.reduce((map, agent) => {
+      const agentId = String(agent.id || "").trim();
+      if (!agentId) {
+        return map;
+      }
+      map.set(agentId, String(agent.name || "").trim() || "Unnamed agent");
+      return map;
+    }, new Map<string, string>());
+  }, [agents]);
 
   const taskLookup = useMemo(() => {
     const map = new Map<string, TaskItem>();
@@ -201,13 +211,6 @@ export function TasksPage({
   const activeTaskComments = Array.isArray(activeTask?.comments) ? activeTask.comments : [];
   const activeTaskRuns = Array.isArray(activeTask?.runs) ? activeTask.runs : [];
   const activeTaskLatestRun = activeTask?.latestRun || null;
-  const activeTaskOpenThreadId = String(
-    activeTask?.activeRun?.threadId
-    || activeTask?.latestRun?.threadId
-    || activeTask?.threadId
-    || "",
-  ).trim();
-
   const activeTaskDraft = useMemo(() => {
     if (!activeTask) {
       return null;
@@ -805,15 +808,6 @@ export function TasksPage({
                         >
                           Create subtask
                         </button>
-                        {activeTaskOpenThreadId ? (
-                          <button
-                            type="button"
-                            className="secondary-btn"
-                            onClick={() => void onOpenTaskThread(activeTaskOpenThreadId)}
-                          >
-                            Open thread
-                          </button>
-                        ) : null}
                       </div>
 
                       {activeTaskExecutionPlan.missingTaskIds.length > 0 && availableFallbackAgents.length === 0 ? (
@@ -902,6 +896,7 @@ export function TasksPage({
                           <div className="task-runs-list">
                             {activeTaskRuns.map((run) => {
                               const runThreadId = String(run.threadId || "").trim();
+                              const runAgentName = agentNameById.get(String(run.agentId || "").trim()) || "Unknown agent";
                               return (
                                 <article key={run.id} className="task-run-item">
                                   <div className="task-run-item-header">
@@ -922,7 +917,7 @@ export function TasksPage({
                                     ) : null}
                                   </div>
                                   <div className="task-run-item-body">
-                                    <span className="chat-card-meta">Agent: {String(run.agentId || "Unknown").trim()}</span>
+                                    <span className="chat-card-meta">Agent: {runAgentName}</span>
                                     <span className="chat-card-meta">Started: {run.startedAt ? new Date(run.startedAt).toLocaleString() : "Not started"}</span>
                                     <span className="chat-card-meta">Finished: {run.finishedAt ? new Date(run.finishedAt).toLocaleString() : "Not finished"}</span>
                                     {run.failureMessage ? (

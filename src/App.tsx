@@ -204,6 +204,7 @@ import {
   COMPANY_API_INTERRUPT_TURN_MUTATION,
   LIST_ORG_QUERY,
   SET_ACTOR_DESCRIPTION_MUTATION,
+  SET_ACTOR_MANAGER_MUTATION,
   START_RUNNER_SDK_AUTH_MUTATION,
 } from "./utils/graphql.ts";
 
@@ -2509,6 +2510,22 @@ async function executeGraphQL(query: any, variables: any = {}) {
     };
   }
 
+  if (query === SET_ACTOR_MANAGER_MUTATION) {
+    const data = await executeRawGraphQL(SET_ACTOR_MANAGER_MUTATION, {
+      companyId: resolveLegacyId(variables?.companyId),
+      reporteeActorId: resolveLegacyId(variables?.reporteeActorId),
+      managerActorId: resolveLegacyId(variables?.managerActorId) || null,
+    });
+    const payload = data?.setActorManager;
+    return {
+      setActorManager: {
+        ok: Boolean(payload?.ok),
+        error: payload?.error ? String(payload.error) : null,
+        reportee: payload?.reportee ? toReporteePayload(payload.reportee) : null,
+      },
+    };
+  }
+
   if (query === LIST_MCP_SERVERS_QUERY) {
     const data = await executeRawGraphQL(COMPANY_API_LIST_MCP_SERVERS_QUERY, {
       companyId: resolveLegacyId(variables?.companyId),
@@ -3159,6 +3176,7 @@ function App() {
   const [isLoadingTaskPageTasks, setIsLoadingTaskPageTasks] = useState<any>(false);
   const [isLoadingOrg, setIsLoadingOrg] = useState<any>(false);
   const [isSavingActorDescription, setIsSavingActorDescription] = useState<any>(false);
+  const [isSavingActorManager, setIsSavingActorManager] = useState<any>(false);
   const [isLoadingSkills, setIsLoadingSkills] = useState<any>(false);
   const [isLoadingRoles, setIsLoadingRoles] = useState<any>(false);
   const [isLoadingSkillGroups, setIsLoadingSkillGroups] = useState<any>(false);
@@ -3801,6 +3819,21 @@ function App() {
       ];
     }
 
+    if (activePage === "org") {
+      if (actorsRoute.view === "detail" && actorsRoute.actorId) {
+        const matchingActor = orgActors.find((actor: any) => String(actor?.id || "").trim() === String(actorsRoute.actorId || "").trim());
+        return [
+          { label: "Organization", href: "/actors" },
+          {
+            label: String(matchingActor?.displayName || "").trim() || "Unknown actor",
+            href: `/actors/${actorsRoute.actorId}`,
+          },
+        ];
+      }
+
+      return [{ label: "Organization", href: "/actors" }];
+    }
+
     if (
       activePage === "gitskillpackages"
       && gitSkillPackagesRoute.view === "detail"
@@ -3853,6 +3886,8 @@ function App() {
     adminTables,
     agents,
     agentRunners,
+    actorsRoute.actorId,
+    actorsRoute.view,
     agentsRoute.agentId,
     agentsRoute.sessionId,
     agentsRoute.view,
@@ -3876,6 +3911,7 @@ function App() {
     rolesRoute.roleId,
     rolesRoute.view,
     roles,
+    orgActors,
   ]);
 
   const isChatsConversationView = activePage === "chats" && Boolean(chatAgentId) && Boolean(resolvedChatSessionId);
@@ -4242,6 +4278,40 @@ function App() {
       setIsSavingActorDescription(false);
     }
   }, []);
+
+  const handleAddActorReportee = useCallback(async (managerActorId: string, reporteeActorId: string) => {
+    const normalizedManagerActorId = String(managerActorId || "").trim();
+    const normalizedReporteeActorId = String(reporteeActorId || "").trim();
+    if (!selectedCompanyId) {
+      setOrgError("Company id is required.");
+      return false;
+    }
+    if (!normalizedManagerActorId || !normalizedReporteeActorId) {
+      setOrgError("Select an actor to add as a reportee.");
+      return false;
+    }
+
+    try {
+      setOrgError("");
+      setIsSavingActorManager(true);
+      const data = await executeGraphQL(SET_ACTOR_MANAGER_MUTATION, {
+        companyId: selectedCompanyId,
+        managerActorId: normalizedManagerActorId,
+        reporteeActorId: normalizedReporteeActorId,
+      });
+      const payload = data?.setActorManager;
+      if (!payload?.ok) {
+        throw new Error(String(payload?.error || "Failed to add reportee."));
+      }
+      await loadOrg();
+      return true;
+    } catch (saveError: any) {
+      setOrgError(saveError.message);
+      return false;
+    } finally {
+      setIsSavingActorManager(false);
+    }
+  }, [loadOrg, selectedCompanyId]);
 
   const refreshVisibleTaskData = useCallback(async () => {
     if (shouldLoadTaskPageData) {
@@ -10248,8 +10318,10 @@ function App() {
               actors={orgActors}
               reportees={orgReportees}
               isSaving={isSavingActorDescription}
+              isAddingReportee={isSavingActorManager}
               error={orgError}
               onSaveDescription={(description: string) => handleSaveActorDescription(actorsRoute.actorId, description)}
+              onAddReportee={(reporteeActorId: string) => handleAddActorReportee(actorsRoute.actorId, reporteeActorId)}
               onOpenActor={(actorId: string) => setBrowserPath(`/actors/${actorId}`)}
             />
           ) : (
