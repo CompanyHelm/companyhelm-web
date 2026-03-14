@@ -153,13 +153,13 @@ export interface TaskComment {
   taskId?: string;
   companyId?: string;
   comment: string;
-  authorPrincipalId?: string | null;
-  authorPrincipal?: Principal | null;
+  authorActorId?: string | null;
+  authorActor?: Actor | null;
   createdAt?: string;
   updatedAt?: string;
 }
 
-export interface Principal {
+export interface Actor {
   id: string;
   kind: "agent" | "user";
   displayName: string;
@@ -172,8 +172,8 @@ export interface TaskItem extends NamedEntity {
   companyId?: string;
   description?: string;
   acceptanceCriteria?: string;
-  assigneePrincipalId?: string | null;
-  assigneePrincipal?: Principal | null;
+  assigneeActorId?: string | null;
+  assigneeActor?: Actor | null;
   assigneeAgentId?: string | null;
   threadId?: string | null;
   parentTaskId?: string | null;
@@ -188,7 +188,7 @@ export interface TaskRelationshipDraft {
   dependencyTaskIds: string[];
   parentTaskId: string;
   childTaskIds: string[];
-  assigneePrincipalId: string;
+  assigneeActorId: string;
   status: string;
 }
 

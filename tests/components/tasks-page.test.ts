@@ -17,8 +17,8 @@ function renderTasksPageMarkup(taskOverrides: Partial<TaskItem> = {}) {
         id: "comment-1",
         comment: "Graph is blank in the browser.",
         createdAt: "2026-03-08T09:30:00.000Z",
-        authorPrincipal: {
-          id: "principal-user-1",
+        authorActor: {
+          id: "actor-user-1",
           kind: "user",
           displayName: "Jane Doe",
         },
@@ -40,9 +40,9 @@ function renderTasksPageMarkup(taskOverrides: Partial<TaskItem> = {}) {
       tasks: [rootTask, childTask],
       taskOptions: [rootTask, childTask],
       agents: [],
-      principals: [
+      actors: [
         {
-          id: "principal-user-1",
+          id: "actor-user-1",
           kind: "user",
           displayName: "Jane Doe",
         },
@@ -55,14 +55,14 @@ function renderTasksPageMarkup(taskOverrides: Partial<TaskItem> = {}) {
       deletingTaskId: null,
       name: "",
       description: "",
-      assigneePrincipalId: "",
+      assigneeActorId: "",
       status: "draft",
       parentTaskId: "",
       dependencyTaskIds: [],
       relationshipDrafts: {},
       onNameChange: () => {},
       onDescriptionChange: () => {},
-      onAssigneePrincipalIdChange: () => {},
+      onAssigneeActorIdChange: () => {},
       onStatusChange: () => {},
       onParentTaskIdChange: () => {},
       onDependencyTaskIdsChange: () => {},

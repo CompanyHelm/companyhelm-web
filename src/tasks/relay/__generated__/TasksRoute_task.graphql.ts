@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6f9fb06f2854466c362e63316e5c2c0e>>
+ * @generated SignedSource<<bca1c7e4f7198cca13822072134026c0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,30 +9,30 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type PrincipalKind = "agent" | "user" | "%future added value";
+export type ActorKind = "agent" | "user" | "%future added value";
 export type TaskStatus = "completed" | "draft" | "in_progress" | "pending" | "%future added value";
 import { FragmentRefs } from "relay-runtime";
 export type TasksRoute_task$data = ReadonlyArray<{
   readonly acceptanceCriteria: string | null | undefined;
-  readonly assigneePrincipal: {
+  readonly assigneeActor: {
     readonly agentId: string | null | undefined;
     readonly displayName: string;
     readonly email: string | null | undefined;
     readonly id: string;
-    readonly kind: PrincipalKind;
+    readonly kind: ActorKind;
     readonly userId: string | null | undefined;
   } | null | undefined;
-  readonly assigneePrincipalId: string | null | undefined;
+  readonly assigneeActorId: string | null | undefined;
   readonly comments: ReadonlyArray<{
-    readonly authorPrincipal: {
+    readonly authorActor: {
       readonly agentId: string | null | undefined;
       readonly displayName: string;
       readonly email: string | null | undefined;
       readonly id: string;
-      readonly kind: PrincipalKind;
+      readonly kind: ActorKind;
       readonly userId: string | null | undefined;
     } | null | undefined;
-    readonly authorPrincipalId: string;
+    readonly authorActorId: string;
     readonly comment: string;
     readonly createdAt: string;
     readonly id: string;
@@ -164,15 +164,15 @@ return {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "assigneePrincipalId",
+      "name": "assigneeActorId",
       "storageKey": null
     },
     {
       "alias": null,
       "args": null,
-      "concreteType": "Principal",
+      "concreteType": "Actor",
       "kind": "LinkedField",
-      "name": "assigneePrincipal",
+      "name": "assigneeActor",
       "plural": false,
       "selections": (v1/*: any*/),
       "storageKey": null
@@ -234,15 +234,15 @@ return {
           "alias": null,
           "args": null,
           "kind": "ScalarField",
-          "name": "authorPrincipalId",
+          "name": "authorActorId",
           "storageKey": null
         },
         {
           "alias": null,
           "args": null,
-          "concreteType": "Principal",
+          "concreteType": "Actor",
           "kind": "LinkedField",
-          "name": "authorPrincipal",
+          "name": "authorActor",
           "plural": false,
           "selections": (v1/*: any*/),
           "storageKey": null
@@ -258,6 +258,6 @@ return {
 };
 })();
 
-(node as any).hash = "35292ae2d6d88ab8e56b15cf76b25684";
+(node as any).hash = "3e79fd5e15daebf09136d28523664e06";
 
 export default node;

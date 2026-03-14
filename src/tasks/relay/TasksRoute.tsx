@@ -30,8 +30,8 @@ const tasksRouteTaskFragment = graphql`
     name
     description
     acceptanceCriteria
-    assigneePrincipalId
-    assigneePrincipal {
+    assigneeActorId
+    assigneeActor {
       id
       kind
       displayName
@@ -49,8 +49,8 @@ const tasksRouteTaskFragment = graphql`
       id
       taskId
       comment
-      authorPrincipalId
-      authorPrincipal {
+      authorActorId
+      authorActor {
         id
         kind
         displayName
@@ -69,7 +69,7 @@ const tasksRouteQuery = graphql`
     tasks(topLevelOnly: $topLevelOnly, rootTaskId: $rootTaskId, maxDepth: $maxDepth) {
       ...TasksRoute_task
     }
-    taskAssignablePrincipals {
+    taskAssignableActors {
       id
       kind
       displayName
@@ -109,7 +109,7 @@ const createTaskMutation = graphql`
     $name: String!
     $description: String
     $status: TaskStatus
-    $assigneePrincipalId: ID
+    $assigneeActorId: ID
     $parentTaskId: ID
     $dependencyTaskIds: [ID!]
   ) {
@@ -117,7 +117,7 @@ const createTaskMutation = graphql`
       name: $name
       description: $description
       status: $status
-      assigneePrincipalId: $assigneePrincipalId
+      assigneeActorId: $assigneeActorId
       parentTaskId: $parentTaskId
       dependencyTaskIds: $dependencyTaskIds
     ) {
@@ -130,9 +130,9 @@ const createTaskMutation = graphql`
   }
 `;
 
-const setTaskAssigneePrincipalMutation = graphql`
-  mutation TasksRouteSetTaskAssigneePrincipalMutation($taskId: ID!, $assigneePrincipalId: ID) {
-    setTaskAssigneePrincipal(taskId: $taskId, assigneePrincipalId: $assigneePrincipalId) {
+const setTaskAssigneeActorMutation = graphql`
+  mutation TasksRouteSetTaskAssigneeActorMutation($taskId: ID!, $assigneeActorId: ID) {
+    setTaskAssigneeActor(taskId: $taskId, assigneeActorId: $assigneeActorId) {
       ok
       error
       task {
@@ -342,7 +342,7 @@ export function TasksRoute({
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [taskAssigneePrincipalId, setTaskAssigneePrincipalId] = useState("");
+  const [taskAssigneeActorId, setTaskAssigneeActorId] = useState("");
   const [taskStatus, setTaskStatus] = useState("draft");
   const [parentTaskId, setParentTaskId] = useState("");
   const [dependencyTaskIds, setDependencyTaskIds] = useState<string[]>([]);
@@ -422,7 +422,7 @@ export function TasksRoute({
   const resetCreateTaskForm = useCallback(() => {
     setName("");
     setDescription("");
-    setTaskAssigneePrincipalId("");
+    setTaskAssigneeActorId("");
     setTaskStatus("draft");
     setParentTaskId("");
     setDependencyTaskIds([]);
@@ -449,7 +449,7 @@ export function TasksRoute({
           name: name.trim(),
           description: description.trim() || null,
           status: String(taskStatus || "").trim() || "draft",
-          assigneePrincipalId: String(taskAssigneePrincipalId || "").trim() || null,
+          assigneeActorId: String(taskAssigneeActorId || "").trim() || null,
           parentTaskId: String(parentTaskId || "").trim() || null,
           dependencyTaskIds: normalizeUniqueStringList(dependencyTaskIds),
         },
@@ -475,7 +475,7 @@ export function TasksRoute({
     parentTaskId,
     refetchTasks,
     resetCreateTaskForm,
-    taskAssigneePrincipalId,
+    taskAssigneeActorId,
     taskStatus,
   ]);
 
@@ -500,7 +500,7 @@ export function TasksRoute({
           name: name.trim(),
           description: description.trim() || null,
           status: String(taskStatus || "").trim() || "draft",
-          assigneePrincipalId: String(taskAssigneePrincipalId || "").trim() || null,
+          assigneeActorId: String(taskAssigneeActorId || "").trim() || null,
           parentTaskId: String(parentTaskId || "").trim() || null,
           dependencyTaskIds: normalizeUniqueStringList(dependencyTaskIds),
         },
@@ -543,7 +543,7 @@ export function TasksRoute({
     parentTaskId,
     refetchTasks,
     resetCreateTaskForm,
-    taskAssigneePrincipalId,
+    taskAssigneeActorId,
     taskStatus,
   ]);
 
@@ -712,7 +712,7 @@ export function TasksRoute({
       dependencyTaskIds: [],
       parentTaskId: String(currentTask.parentTaskId || "").trim(),
       childTaskIds: [],
-      assigneePrincipalId: String(currentTask.assigneePrincipalId || "").trim(),
+      assigneeActorId: String(currentTask.assigneeActorId || "").trim(),
       status: String(currentTask.status || "").trim() || "draft",
     };
 
@@ -745,20 +745,20 @@ export function TasksRoute({
       const childTaskIdsToAssign = draftChildTaskIds
         .filter((childTaskId) => !currentChildTaskIds.includes(childTaskId));
 
-      const currentAssigneePrincipalId = String(currentTask.assigneePrincipalId || "").trim();
-      const nextAssigneePrincipalId = String(draft.assigneePrincipalId || "").trim();
+      const currentAssigneeActorId = String(currentTask.assigneeActorId || "").trim();
+      const nextAssigneeActorId = String(draft.assigneeActorId || "").trim();
       const currentStatus = String(currentTask.status || "").trim() || "draft";
       const nextStatus = String(draft.status || "").trim() || "draft";
 
-      if (currentAssigneePrincipalId !== nextAssigneePrincipalId) {
+      if (currentAssigneeActorId !== nextAssigneeActorId) {
         const response = await commitRouteMutation({
-          mutation: setTaskAssigneePrincipalMutation,
+          mutation: setTaskAssigneeActorMutation,
           variables: {
             taskId,
-            assigneePrincipalId: nextAssigneePrincipalId || null,
+            assigneeActorId: nextAssigneeActorId || null,
           },
         });
-        const result = response?.setTaskAssigneePrincipal;
+        const result = response?.setTaskAssigneeActor;
         if (!result?.ok) {
           throw new Error(result?.error || "Task assignee update failed.");
         }
@@ -960,7 +960,7 @@ export function TasksRoute({
 
   const handleDraftChange = useCallback((
     taskId: string,
-    field: "dependencyTaskIds" | "parentTaskId" | "childTaskIds" | "assigneePrincipalId" | "status",
+    field: "dependencyTaskIds" | "parentTaskId" | "childTaskIds" | "assigneeActorId" | "status",
     value: string | string[],
   ) => {
     setRelationshipDrafts((currentDrafts) => {
@@ -969,7 +969,7 @@ export function TasksRoute({
           dependencyTaskIds: [],
           parentTaskId: "",
           childTaskIds: [],
-          assigneePrincipalId: "",
+          assigneeActorId: "",
           status: "draft",
         }),
       };
@@ -977,8 +977,8 @@ export function TasksRoute({
         nextDraft[field] = normalizeUniqueStringList(Array.isArray(value) ? value : []);
       } else if (field === "status") {
         nextDraft.status = String(value || "").trim() || "draft";
-      } else if (field === "assigneePrincipalId") {
-        nextDraft.assigneePrincipalId = String(value || "").trim();
+      } else if (field === "assigneeActorId") {
+        nextDraft.assigneeActorId = String(value || "").trim();
       } else {
         nextDraft.parentTaskId = String(value || "").trim();
       }
@@ -1043,7 +1043,7 @@ export function TasksRoute({
       tasks={viewModel.tasks}
       taskOptions={viewModel.taskOptions}
       agents={viewModel.agents}
-      principals={viewModel.principals}
+      actors={viewModel.actors}
       isLoadingTasks={false}
       taskError={taskError}
       isSubmittingTask={isSubmittingTask}
@@ -1052,14 +1052,14 @@ export function TasksRoute({
       deletingTaskId={deletingTaskId}
       name={name}
       description={description}
-      assigneePrincipalId={taskAssigneePrincipalId}
+      assigneeActorId={taskAssigneeActorId}
       status={taskStatus}
       parentTaskId={parentTaskId}
       dependencyTaskIds={dependencyTaskIds}
       relationshipDrafts={relationshipDrafts}
       onNameChange={setName}
       onDescriptionChange={setDescription}
-      onAssigneePrincipalIdChange={setTaskAssigneePrincipalId}
+      onAssigneeActorIdChange={setTaskAssigneeActorId}
       onStatusChange={setTaskStatus}
       onParentTaskIdChange={setParentTaskId}
       onDependencyTaskIdsChange={setDependencyTaskIds}

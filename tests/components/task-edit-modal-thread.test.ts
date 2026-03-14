@@ -24,9 +24,9 @@ function renderTaskEditModalMarkup(taskOverrides: Record<string, unknown> = {}, 
           name: "Agent One",
         },
       ],
-      principals: [
+      actors: [
         {
-          id: "principal-user-1",
+          id: "actor-user-1",
           kind: "user",
           displayName: "Jane Doe",
         },
@@ -35,7 +35,7 @@ function renderTaskEditModalMarkup(taskOverrides: Record<string, unknown> = {}, 
         dependencyTaskIds: [],
         parentTaskId: "",
         childTaskIds: [],
-        assigneePrincipalId: "",
+        assigneeActorId: "",
         status: "draft",
       },
       savingTaskId: null,
@@ -73,15 +73,15 @@ test("TaskEditModal shows assignee and status controls", () => {
   assert.match(markup, /Execute task/);
 });
 
-test("TaskEditModal shows comment creator principal and type badge", () => {
+test("TaskEditModal shows comment creator actor and type badge", () => {
   const markup = renderTaskEditModalMarkup({
     comments: [
       {
         id: "comment-1",
         comment: "Needs review",
         createdAt: "2026-03-05T08:00:00.000Z",
-        authorPrincipal: {
-          id: "principal-user-1",
+        authorActor: {
+          id: "actor-user-1",
           kind: "user",
           displayName: "Jane Doe",
         },
@@ -100,9 +100,9 @@ test("TaskEditModal uses a neutral fallback when a comment author name is missin
         id: "comment-1",
         comment: "Needs review",
         createdAt: "2026-03-05T08:00:00.000Z",
-        authorPrincipalId: "principal-user-1",
-        authorPrincipal: {
-          id: "principal-user-1",
+        authorActorId: "actor-user-1",
+        authorActor: {
+          id: "actor-user-1",
           kind: "user",
           displayName: "",
         },
@@ -110,6 +110,6 @@ test("TaskEditModal uses a neutral fallback when a comment author name is missin
     ],
   });
 
-  assert.match(markup, /Unknown principal/);
-  assert.doesNotMatch(markup, /<span class="chat-card-meta">principal-user-1/);
+  assert.match(markup, /Unknown actor/);
+  assert.doesNotMatch(markup, /<span class="chat-card-meta">actor-user-1/);
 });

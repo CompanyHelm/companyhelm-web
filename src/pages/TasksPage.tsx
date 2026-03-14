@@ -16,7 +16,7 @@ import {
 } from "../utils/task-hierarchy.ts";
 import type {
   Agent,
-  Principal,
+  Actor,
   TaskItem,
   TaskRelationshipDraftById,
 } from "../types/domain.ts";
@@ -27,7 +27,7 @@ interface TasksPageProps {
   tasks: TaskItem[];
   taskOptions: TaskItem[];
   agents: Agent[];
-  principals: Principal[];
+  actors: Actor[];
   isLoadingTasks: boolean;
   taskError: string;
   isSubmittingTask: boolean;
@@ -36,14 +36,14 @@ interface TasksPageProps {
   deletingTaskId: string | null;
   name: string;
   description: string;
-  assigneePrincipalId: string;
+  assigneeActorId: string;
   status: string;
   parentTaskId: string;
   dependencyTaskIds: string[];
   relationshipDrafts: TaskRelationshipDraftById;
   onNameChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
-  onAssigneePrincipalIdChange: (value: string) => void;
+  onAssigneeActorIdChange: (value: string) => void;
   onStatusChange: (value: string) => void;
   onParentTaskIdChange: (value: string) => void;
   onDependencyTaskIdsChange: (value: string[]) => void;
@@ -80,7 +80,7 @@ export function TasksPage({
   tasks,
   taskOptions,
   agents,
-  principals,
+  actors,
   isLoadingTasks,
   taskError,
   isSubmittingTask,
@@ -89,14 +89,14 @@ export function TasksPage({
   deletingTaskId,
   name,
   description,
-  assigneePrincipalId,
+  assigneeActorId,
   status,
   parentTaskId,
   dependencyTaskIds,
   relationshipDrafts,
   onNameChange,
   onDescriptionChange,
-  onAssigneePrincipalIdChange,
+  onAssigneeActorIdChange,
   onStatusChange,
   onParentTaskIdChange,
   onDependencyTaskIdsChange,
@@ -208,7 +208,7 @@ export function TasksPage({
       dependencyTaskIds: Array.isArray(activeTask.dependencyTaskIds) ? activeTask.dependencyTaskIds : [],
       parentTaskId: String(activeTask.parentTaskId || "").trim(),
       childTaskIds: directChildTasks.map((task) => String(task.id || "").trim()),
-      assigneePrincipalId: String(activeTask.assigneePrincipalId || "").trim(),
+      assigneeActorId: String(activeTask.assigneeActorId || "").trim(),
       status: String(activeTask.status || "").trim() || "draft",
     };
   }, [activeTask, directChildTasks, relationshipDrafts]);
@@ -671,14 +671,14 @@ export function TasksPage({
                       <label htmlFor="overview-task-assignee">Assignee</label>
                       <select
                         id="overview-task-assignee"
-                        value={String(activeTaskDraft?.assigneePrincipalId || "")}
+                        value={String(activeTaskDraft?.assigneeActorId || "")}
                         onChange={(event) =>
-                          onDraftChange(activeTask.id, "assigneePrincipalId", event.target.value)}
+                          onDraftChange(activeTask.id, "assigneeActorId", event.target.value)}
                       >
                         <option value="">Unassigned</option>
-                        {principals.map((principal) => (
-                          <option key={`overview-assignee-${principal.id}`} value={principal.id}>
-                            {principal.displayName} ({principal.kind === "agent" ? "Agent" : "Human"})
+                        {actors.map((actor) => (
+                          <option key={`overview-assignee-${actor.id}`} value={actor.id}>
+                            {actor.displayName} ({actor.kind === "agent" ? "Agent" : "Human"})
                           </option>
                         ))}
                       </select>
@@ -820,8 +820,8 @@ export function TasksPage({
                             <li key={`overview-task-comment-${comment.id}`} className="task-comment-item">
                               <p>{comment.comment}</p>
                               <span className="chat-card-meta">
-                                {String(comment.authorPrincipal?.displayName || "").trim() || "Unknown principal"} · {" "}
-                                {comment.authorPrincipal?.kind === "agent" ? "Agent" : "Human"} · {" "}
+                                {String(comment.authorActor?.displayName || "").trim() || "Unknown actor"} · {" "}
+                                {comment.authorActor?.kind === "agent" ? "Agent" : "Human"} · {" "}
                                 {comment.createdAt ? new Date(comment.createdAt).toLocaleString() : ""}
                               </span>
                             </li>
@@ -889,17 +889,17 @@ export function TasksPage({
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         tasks={taskOptions}
-        principals={principals}
+        actors={actors}
         name={name}
         description={description}
-        assigneePrincipalId={assigneePrincipalId}
+        assigneeActorId={assigneeActorId}
         status={status}
         parentTaskId={parentTaskId}
         dependencyTaskIds={dependencyTaskIds}
         isSubmittingTask={isSubmittingTask}
         onNameChange={onNameChange}
         onDescriptionChange={onDescriptionChange}
-        onAssigneePrincipalIdChange={onAssigneePrincipalIdChange}
+        onAssigneeActorIdChange={onAssigneeActorIdChange}
         onStatusChange={onStatusChange}
         onParentTaskIdChange={onParentTaskIdChange}
         onDependencyTaskIdsChange={onDependencyTaskIdsChange}
@@ -912,7 +912,7 @@ export function TasksPage({
         task={editingTask}
         tasks={taskOptions}
         agents={agents}
-        principals={principals}
+        actors={actors}
         relationshipDraft={editingTaskId ? relationshipDrafts[editingTaskId] : undefined}
         savingTaskId={savingTaskId}
         commentingTaskId={commentingTaskId}

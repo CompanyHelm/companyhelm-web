@@ -1072,8 +1072,8 @@ function toApprovalPayload(approval: any) {
     threadId: resolveLegacyId(approval?.threadId),
     reason: String(approval?.reason || "").trim(),
     rejectionReason: String(approval?.rejectionReason || "").trim() || null,
-    createdByPrincipalId: resolveLegacyId(approval?.createdByPrincipalId) || null,
-    resolvedByPrincipalId: resolveLegacyId(approval?.resolvedByPrincipalId) || null,
+    createdByActorId: resolveLegacyId(approval?.createdByActorId) || null,
+    resolvedByActorId: resolveLegacyId(approval?.resolvedByActorId) || null,
     resolvedAt: resolveLegacyId(approval?.resolvedAt) || null,
     createdAt: resolveLegacyId(approval?.createdAt),
     updatedAt: resolveLegacyId(approval?.updatedAt),
@@ -1122,47 +1122,47 @@ function toSecretAccessLogPayload(secretAccessLog: any) {
 }
 
 function toTaskCommentPayload(taskComment: any) {
-  const authorPrincipal = toPrincipalPayload(taskComment?.authorPrincipal);
+  const authorActor = toActorPayload(taskComment?.authorActor);
   return {
     id: resolveLegacyId(taskComment?.id),
     taskId: resolveLegacyId(taskComment?.taskId),
     companyId: resolveLegacyId(taskComment?.company?.id, taskComment?.companyId),
     comment: String(taskComment?.comment || ""),
-    authorPrincipalId: resolveLegacyId(taskComment?.authorPrincipalId) || null,
-    authorPrincipal,
+    authorActorId: resolveLegacyId(taskComment?.authorActorId) || null,
+    authorActor,
     createdAt: resolveLegacyId(taskComment?.createdAt),
     updatedAt: resolveLegacyId(taskComment?.updatedAt),
   };
 }
 
-function toPrincipalPayload(principal: any) {
-  const principalId = resolveLegacyId(principal?.id);
-  if (!principalId) {
+function toActorPayload(actor: any) {
+  const actorId = resolveLegacyId(actor?.id);
+  if (!actorId) {
     return null;
   }
-  const normalizedKind = String(principal?.kind || "").trim().toLowerCase();
+  const normalizedKind = String(actor?.kind || "").trim().toLowerCase();
   const kind = normalizedKind === "agent" ? "agent" : "user";
   return {
-    id: principalId,
+    id: actorId,
     kind,
-    displayName: String(principal?.displayName || "").trim() || principalId,
-    agentId: resolveLegacyId(principal?.agentId) || null,
-    userId: resolveLegacyId(principal?.userId) || null,
-    email: resolveLegacyId(principal?.email) || null,
+    displayName: String(actor?.displayName || "").trim() || actorId,
+    agentId: resolveLegacyId(actor?.agentId) || null,
+    userId: resolveLegacyId(actor?.userId) || null,
+    email: resolveLegacyId(actor?.email) || null,
   };
 }
 
 function toTaskPayload(task: any) {
-  const assigneePrincipal = toPrincipalPayload(task?.assigneePrincipal);
-  const assigneeAgentId = resolveLegacyId(task?.agentId, assigneePrincipal?.agentId) || null;
+  const assigneeActor = toActorPayload(task?.assigneeActor);
+  const assigneeAgentId = resolveLegacyId(task?.agentId, assigneeActor?.agentId) || null;
   return {
     id: resolveLegacyId(task?.id),
     companyId: resolveLegacyId(task?.company?.id, task?.companyId),
     name: resolveLegacyId(task?.name),
     description: String(task?.description || ""),
     acceptanceCriteria: String(task?.acceptanceCriteria || ""),
-    assigneePrincipalId: resolveLegacyId(task?.assigneePrincipalId) || null,
-    assigneePrincipal,
+    assigneeActorId: resolveLegacyId(task?.assigneeActorId) || null,
+    assigneeActor,
     assigneeAgentId,
     threadId: resolveLegacyId(task?.threadId) || null,
     parentTaskId: resolveLegacyId(task?.parentTaskId) || null,
@@ -2424,10 +2424,10 @@ async function executeGraphQL(query: any, variables: any = {}) {
       companyId: resolveLegacyId(variables?.companyId),
     });
     return {
-      taskAssignablePrincipals: Array.isArray(data?.taskAssignablePrincipals)
-        ? data.taskAssignablePrincipals
-            .map((principal: any) => toPrincipalPayload(principal))
-            .filter((principal: any) => principal?.id)
+      taskAssignableActors: Array.isArray(data?.taskAssignableActors)
+        ? data.taskAssignableActors
+            .map((actor: any) => toActorPayload(actor))
+            .filter((actor: any) => actor?.id)
         : [],
     };
   }
@@ -2561,7 +2561,7 @@ async function executeGraphQL(query: any, variables: any = {}) {
       description: String(variables?.description || "").trim() || null,
       acceptanceCriteria: String(variables?.acceptanceCriteria || "").trim() || null,
       status: resolveLegacyId(variables?.status) || null,
-      assigneePrincipalId: resolveLegacyId(variables?.assigneePrincipalId) || null,
+      assigneeActorId: resolveLegacyId(variables?.assigneeActorId) || null,
       parentTaskId: resolveLegacyId(variables?.parentTaskId) || null,
       dependencyTaskIds: normalizeUniqueStringList(variables?.dependencyTaskIds || []),
     });
@@ -2595,11 +2595,11 @@ async function executeGraphQL(query: any, variables: any = {}) {
     const data = await executeRawGraphQL(COMPANY_API_SET_TASK_ASSIGNEE_PRINCIPAL_MUTATION, {
       companyId: resolveLegacyId(variables?.companyId),
       taskId: resolveLegacyId(variables?.taskId),
-      assigneePrincipalId: resolveLegacyId(variables?.assigneePrincipalId) || null,
+      assigneeActorId: resolveLegacyId(variables?.assigneeActorId) || null,
     });
-    const payload = data?.setTaskAssigneePrincipal;
+    const payload = data?.setTaskAssigneeActor;
     return {
-      setTaskAssigneePrincipal: {
+      setTaskAssigneeActor: {
         ok: Boolean(payload?.ok),
         error: payload?.error ? String(payload.error) : null,
         task: payload?.task ? toTaskPayload(payload.task) : null,
@@ -3074,7 +3074,7 @@ function App() {
   const [hasLoadedSecrets, setHasLoadedSecrets] = useState<any>(false);
   const [hasLoadedMcpServers, setHasLoadedMcpServers] = useState<any>(false);
   const [agents, setAgents] = useState<any>([]);
-  const [taskAssignablePrincipals, setTaskAssignablePrincipals] = useState<any>([]);
+  const [taskAssignableActors, setTaskAssignableActors] = useState<any>([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState<any>(false);
   const [isLoadingTaskPageTasks, setIsLoadingTaskPageTasks] = useState<any>(false);
   const [isLoadingSkills, setIsLoadingSkills] = useState<any>(false);
@@ -3136,7 +3136,7 @@ function App() {
   const [retryingAgentSkillInstallKey, setRetryingAgentSkillInstallKey] = useState<any>("");
   const [name, setName] = useState<any>("");
   const [description, setDescription] = useState<any>("");
-  const [taskAssigneePrincipalId, setTaskAssigneePrincipalId] = useState<any>("");
+  const [taskAssigneeActorId, setTaskAssigneeActorId] = useState<any>("");
   const [taskStatus, setTaskStatus] = useState<any>("draft");
   const [parentTaskId, setParentTaskId] = useState<any>("");
   const [dependencyTaskIds, setDependencyTaskIds] = useState<any>([]);
@@ -3828,7 +3828,7 @@ function App() {
   const useRelayTasksRoute = activePage === "tasks";
   const shouldLoadAllTaskData = activePage === "dashboard" || activePage === "profile";
   const shouldLoadTaskPageData = activePage === "tasks" && !useRelayTasksRoute;
-  const shouldLoadTaskAssignablePrincipalData = activePage === "tasks" && !useRelayTasksRoute;
+  const shouldLoadTaskAssignableActorData = activePage === "tasks" && !useRelayTasksRoute;
   const shouldLoadSkillData =
     activePage === "skills"
     || activePage === "roles"
@@ -4090,9 +4090,9 @@ function App() {
     }
   }, [loadTaskOptions, selectedCompanyId, taskPageDepth, tasksRoute.taskId, tasksRoute.view]);
 
-  const loadTaskAssignablePrincipals = useCallback(async () => {
+  const loadTaskAssignableActors = useCallback(async () => {
     if (!selectedCompanyId) {
-      setTaskAssignablePrincipals([]);
+      setTaskAssignableActors([]);
       return;
     }
 
@@ -4100,10 +4100,10 @@ function App() {
       const data = await executeGraphQL(LIST_TASK_ASSIGNABLE_PRINCIPALS_QUERY, {
         companyId: selectedCompanyId,
       });
-      const nextPrincipals = Array.isArray(data?.taskAssignablePrincipals)
-        ? data.taskAssignablePrincipals
+      const nextActors = Array.isArray(data?.taskAssignableActors)
+        ? data.taskAssignableActors
         : [];
-      setTaskAssignablePrincipals(nextPrincipals);
+      setTaskAssignableActors(nextActors);
     } catch (loadError: any) {
       setTaskError(loadError.message);
     }
@@ -5430,7 +5430,7 @@ function App() {
 
   useEffect(() => {
     if (!selectedCompanyId) {
-      setTaskAssignablePrincipals([]);
+      setTaskAssignableActors([]);
       return;
     }
     if (!shouldLoadAllTaskData) {
@@ -5458,14 +5458,14 @@ function App() {
 
   useEffect(() => {
     if (!selectedCompanyId) {
-      setTaskAssignablePrincipals([]);
+      setTaskAssignableActors([]);
       return;
     }
-    if (!shouldLoadTaskAssignablePrincipalData) {
+    if (!shouldLoadTaskAssignableActorData) {
       return;
     }
-    loadTaskAssignablePrincipals();
-  }, [loadTaskAssignablePrincipals, selectedCompanyId, shouldLoadTaskAssignablePrincipalData]);
+    loadTaskAssignableActors();
+  }, [loadTaskAssignableActors, selectedCompanyId, shouldLoadTaskAssignableActorData]);
 
   useEffect(() => {
     if (!selectedCompanyId || !shouldLoadSkillData) {
@@ -6311,7 +6311,7 @@ function App() {
         setTasks([]);
         setTaskPageTasks([]);
         setTaskOptions([]);
-        setTaskAssignablePrincipals([]);
+        setTaskAssignableActors([]);
         setRelationshipDrafts({});
         setSkills([]);
         setSkillDrafts({});
@@ -6494,7 +6494,7 @@ function App() {
         name: name.trim(),
         description: description.trim() || null,
         status: String(taskStatus || "").trim() || "draft",
-        assigneePrincipalId: String(taskAssigneePrincipalId || "").trim() || null,
+        assigneeActorId: String(taskAssigneeActorId || "").trim() || null,
         parentTaskId: String(parentTaskId || "").trim() || null,
         dependencyTaskIds: normalizeUniqueStringList(dependencyTaskIds),
       });
@@ -6506,7 +6506,7 @@ function App() {
 
       setName("");
       setDescription("");
-      setTaskAssigneePrincipalId("");
+      setTaskAssigneeActorId("");
       setTaskStatus("draft");
       setParentTaskId("");
       setDependencyTaskIds([]);
@@ -6544,7 +6544,7 @@ function App() {
         name: name.trim(),
         description: description.trim() || null,
         status: String(taskStatus || "").trim() || "draft",
-        assigneePrincipalId: String(taskAssigneePrincipalId || "").trim() || null,
+        assigneeActorId: String(taskAssigneeActorId || "").trim() || null,
         parentTaskId: String(parentTaskId || "").trim() || null,
         dependencyTaskIds: normalizeUniqueStringList(dependencyTaskIds),
       });
@@ -6570,7 +6570,7 @@ function App() {
 
       setName("");
       setDescription("");
-      setTaskAssigneePrincipalId("");
+      setTaskAssigneeActorId("");
       setTaskStatus("draft");
       setParentTaskId("");
       setDependencyTaskIds([]);
@@ -6758,7 +6758,7 @@ function App() {
       dependencyTaskIds: [],
       parentTaskId: String(currentTask.parentTaskId || "").trim(),
       childTaskIds: [],
-      assigneePrincipalId: String(currentTask.assigneePrincipalId || "").trim(),
+      assigneeActorId: String(currentTask.assigneeActorId || "").trim(),
       status: String(currentTask.status || "").trim() || "draft",
     };
 
@@ -6792,18 +6792,18 @@ function App() {
         .filter((childTaskId: any) => !draftChildTaskIdSet.has(childTaskId));
       const childTaskIdsToAssign = draftChildTaskIds
         .filter((childTaskId: any) => !currentChildTaskIds.includes(childTaskId));
-      const currentAssigneePrincipalId = String(currentTask.assigneePrincipalId || "").trim();
-      const nextAssigneePrincipalId = String(draft.assigneePrincipalId || "").trim();
+      const currentAssigneeActorId = String(currentTask.assigneeActorId || "").trim();
+      const nextAssigneeActorId = String(draft.assigneeActorId || "").trim();
       const currentStatus = String(currentTask.status || "").trim() || "draft";
       const nextStatus = String(draft.status || "").trim() || "draft";
 
-      if (currentAssigneePrincipalId !== nextAssigneePrincipalId) {
+      if (currentAssigneeActorId !== nextAssigneeActorId) {
         const assigneeData = await executeGraphQL(SET_TASK_ASSIGNEE_PRINCIPAL_MUTATION, {
           companyId: selectedCompanyId,
           taskId,
-          assigneePrincipalId: nextAssigneePrincipalId || null,
+          assigneeActorId: nextAssigneeActorId || null,
         });
-        const assigneeResult = assigneeData.setTaskAssigneePrincipal;
+        const assigneeResult = assigneeData.setTaskAssigneeActor;
         if (!assigneeResult.ok) {
           throw new Error(assigneeResult.error || "Task assignee update failed.");
         }
@@ -9508,7 +9508,7 @@ function App() {
         dependencyTaskIds: [],
         parentTaskId: "",
         childTaskIds: [],
-        assigneePrincipalId: "",
+        assigneeActorId: "",
         status: "draft",
       };
       const nextDraft = {
@@ -9528,8 +9528,8 @@ function App() {
         nextDraft.childTaskIds = normalizeUniqueStringList(value || [])
           .filter((childTaskId: any) => childTaskId !== String(taskId || "").trim());
       }
-      if (field === "assigneePrincipalId") {
-        nextDraft.assigneePrincipalId = String(value || "").trim();
+      if (field === "assigneeActorId") {
+        nextDraft.assigneeActorId = String(value || "").trim();
       }
       if (field === "status") {
         nextDraft.status = String(value || "").trim() || "draft";

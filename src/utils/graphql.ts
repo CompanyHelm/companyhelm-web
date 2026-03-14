@@ -142,7 +142,7 @@ export const LIST_TASKS_QUERY = `
       name
       description
       acceptanceCriteria
-      assigneePrincipalId
+      assigneeActorId
       threadId
       parentTaskId
       status
@@ -153,8 +153,8 @@ export const LIST_TASKS_QUERY = `
         id
         taskId
         comment
-        authorPrincipalId
-        authorPrincipal {
+        authorActorId
+        authorActor {
           id
           kind
           displayName
@@ -179,7 +179,7 @@ export const LIST_TASK_PAGE_TASKS_QUERY = `
       name
       description
       acceptanceCriteria
-      assigneePrincipalId
+      assigneeActorId
       threadId
       parentTaskId
       status
@@ -190,8 +190,8 @@ export const LIST_TASK_PAGE_TASKS_QUERY = `
         id
         taskId
         comment
-        authorPrincipalId
-        authorPrincipal {
+        authorActorId
+        authorActor {
           id
           kind
           displayName
@@ -217,8 +217,8 @@ export const LIST_TASK_OPTIONS_QUERY = `
 `;
 
 export const LIST_TASK_ASSIGNABLE_PRINCIPALS_QUERY = `
-  query ListTaskAssignablePrincipals {
-    taskAssignablePrincipals {
+  query ListTaskAssignableActors {
+    taskAssignableActors {
       id
       kind
       displayName
@@ -903,8 +903,8 @@ export const LIST_APPROVALS_QUERY = `
       threadId
       reason
       rejectionReason
-      createdByPrincipalId
-      resolvedByPrincipalId
+      createdByActorId
+      resolvedByActorId
       resolvedAt
       createdAt
       updatedAt
@@ -1015,7 +1015,7 @@ export const CREATE_TASK_MUTATION = `
     $description: String
     $acceptanceCriteria: String
     $status: TaskStatus
-    $assigneePrincipalId: ID
+    $assigneeActorId: ID
     $parentTaskId: ID
     $dependencyTaskIds: [ID!]
   ) {
@@ -1024,7 +1024,7 @@ export const CREATE_TASK_MUTATION = `
       description: $description
       acceptanceCriteria: $acceptanceCriteria
       status: $status
-      assigneePrincipalId: $assigneePrincipalId
+      assigneeActorId: $assigneeActorId
       parentTaskId: $parentTaskId
       dependencyTaskIds: $dependencyTaskIds
     ) {
@@ -1038,7 +1038,7 @@ export const CREATE_TASK_MUTATION = `
         name
         description
         acceptanceCriteria
-        assigneePrincipalId
+        assigneeActorId
         threadId
         parentTaskId
         status
@@ -1049,8 +1049,8 @@ export const CREATE_TASK_MUTATION = `
           id
           taskId
           comment
-          authorPrincipalId
-          authorPrincipal {
+          authorActorId
+          authorActor {
             id
             kind
             displayName
@@ -1082,7 +1082,7 @@ export const ADD_TASK_DEPENDENCY_MUTATION = `
         name
         description
         acceptanceCriteria
-        assigneePrincipalId
+        assigneeActorId
         threadId
         parentTaskId
         status
@@ -1093,8 +1093,8 @@ export const ADD_TASK_DEPENDENCY_MUTATION = `
           id
           taskId
           comment
-          authorPrincipalId
-          authorPrincipal {
+          authorActorId
+          authorActor {
             id
             kind
             displayName
@@ -1126,7 +1126,7 @@ export const REMOVE_TASK_DEPENDENCY_MUTATION = `
         name
         description
         acceptanceCriteria
-        assigneePrincipalId
+        assigneeActorId
         threadId
         parentTaskId
         status
@@ -1137,8 +1137,8 @@ export const REMOVE_TASK_DEPENDENCY_MUTATION = `
           id
           taskId
           comment
-          authorPrincipalId
-          authorPrincipal {
+          authorActorId
+          authorActor {
             id
             kind
             displayName
@@ -1170,7 +1170,7 @@ export const SET_TASK_PARENT_MUTATION = `
         name
         description
         acceptanceCriteria
-        assigneePrincipalId
+        assigneeActorId
         threadId
         parentTaskId
         status
@@ -1181,8 +1181,8 @@ export const SET_TASK_PARENT_MUTATION = `
           id
           taskId
           comment
-          authorPrincipalId
-          authorPrincipal {
+          authorActorId
+          authorActor {
             id
             kind
             displayName
@@ -1199,16 +1199,16 @@ export const SET_TASK_PARENT_MUTATION = `
 `;
 
 export const SET_TASK_ASSIGNEE_PRINCIPAL_MUTATION = `
-  mutation SetTaskAssigneePrincipal($taskId: ID!, $assigneePrincipalId: ID) {
-    setTaskAssigneePrincipal(
+  mutation SetTaskAssigneeActor($taskId: ID!, $assigneeActorId: ID) {
+    setTaskAssigneeActor(
       taskId: $taskId
-      assigneePrincipalId: $assigneePrincipalId
+      assigneeActorId: $assigneeActorId
     ) {
       ok
       error
       task {
         id
-        assigneePrincipalId
+        assigneeActorId
         status
       }
     }
@@ -1225,7 +1225,7 @@ export const SET_TASK_STATUS_MUTATION = `
       error
       task {
         id
-        assigneePrincipalId
+        assigneeActorId
         status
       }
     }
@@ -1265,7 +1265,7 @@ export const BATCH_EXECUTE_TASKS_MUTATION = `
         name
         description
         acceptanceCriteria
-        assigneePrincipalId
+        assigneeActorId
         threadId
         parentTaskId
         status
@@ -1276,8 +1276,8 @@ export const BATCH_EXECUTE_TASKS_MUTATION = `
           id
           taskId
           comment
-          authorPrincipalId
-          authorPrincipal {
+          authorActorId
+          authorActor {
             id
             kind
             displayName
@@ -1302,8 +1302,8 @@ export const CREATE_TASK_COMMENT_MUTATION = `
         id
         taskId
         comment
-        authorPrincipalId
-        authorPrincipal {
+        authorActorId
+        authorActor {
           id
           kind
           displayName
@@ -2243,7 +2243,7 @@ export const COMPANY_API_LIST_TASKS_QUERY = `
       name
       description
       acceptanceCriteria
-      assigneePrincipalId
+      assigneeActorId
       threadId
       parentTaskId
       status
@@ -2254,8 +2254,8 @@ export const COMPANY_API_LIST_TASKS_QUERY = `
         id
         taskId
         comment
-        authorPrincipalId
-        authorPrincipal {
+        authorActorId
+        authorActor {
           id
           kind
           displayName
@@ -2284,8 +2284,8 @@ export const COMPANY_API_LIST_TASK_OPTIONS_QUERY = `
 `;
 
 export const COMPANY_API_LIST_TASK_ASSIGNABLE_PRINCIPALS_QUERY = `
-  query CompanyApiListTaskAssignablePrincipals {
-    taskAssignablePrincipals {
+  query CompanyApiListTaskAssignableActors {
+    taskAssignableActors {
       id
       kind
       displayName
@@ -2302,7 +2302,7 @@ export const COMPANY_API_CREATE_TASK_MUTATION = `
     $description: String
     $acceptanceCriteria: String
     $status: TaskStatus
-    $assigneePrincipalId: ID
+    $assigneeActorId: ID
     $parentTaskId: ID
     $dependencyTaskIds: [ID!]
   ) {
@@ -2311,7 +2311,7 @@ export const COMPANY_API_CREATE_TASK_MUTATION = `
       description: $description
       acceptanceCriteria: $acceptanceCriteria
       status: $status
-      assigneePrincipalId: $assigneePrincipalId
+      assigneeActorId: $assigneeActorId
       parentTaskId: $parentTaskId
       dependencyTaskIds: $dependencyTaskIds
     ) {
@@ -2322,7 +2322,7 @@ export const COMPANY_API_CREATE_TASK_MUTATION = `
         name
         description
         acceptanceCriteria
-        assigneePrincipalId
+        assigneeActorId
         threadId
         parentTaskId
         status
@@ -2333,8 +2333,8 @@ export const COMPANY_API_CREATE_TASK_MUTATION = `
           id
           taskId
           comment
-          authorPrincipalId
-          authorPrincipal {
+          authorActorId
+          authorActor {
             id
             kind
             displayName
@@ -2402,7 +2402,7 @@ export const COMPANY_API_SET_TASK_PARENT_MUTATION = `
         name
         description
         acceptanceCriteria
-        assigneePrincipalId
+        assigneeActorId
         threadId
         parentTaskId
         status
@@ -2413,8 +2413,8 @@ export const COMPANY_API_SET_TASK_PARENT_MUTATION = `
           id
           taskId
           comment
-          authorPrincipalId
-          authorPrincipal {
+          authorActorId
+          authorActor {
             id
             kind
             displayName
@@ -2434,19 +2434,19 @@ export const COMPANY_API_SET_TASK_PARENT_MUTATION = `
 `;
 
 export const COMPANY_API_SET_TASK_ASSIGNEE_PRINCIPAL_MUTATION = `
-  mutation CompanyApiSetTaskAssigneePrincipal(
+  mutation CompanyApiSetTaskAssigneeActor(
     $taskId: ID!
-    $assigneePrincipalId: ID
+    $assigneeActorId: ID
   ) {
-    setTaskAssigneePrincipal(
+    setTaskAssigneeActor(
       taskId: $taskId
-      assigneePrincipalId: $assigneePrincipalId
+      assigneeActorId: $assigneeActorId
     ) {
       ok
       error
       task {
         id
-        assigneePrincipalId
+        assigneeActorId
         status
       }
     }
@@ -2463,7 +2463,7 @@ export const COMPANY_API_SET_TASK_STATUS_MUTATION = `
       error
       task {
         id
-        assigneePrincipalId
+        assigneeActorId
         status
       }
     }
@@ -2500,7 +2500,7 @@ export const COMPANY_API_BATCH_EXECUTE_TASKS_MUTATION = `
         name
         description
         acceptanceCriteria
-        assigneePrincipalId
+        assigneeActorId
         threadId
         parentTaskId
         status
@@ -2511,8 +2511,8 @@ export const COMPANY_API_BATCH_EXECUTE_TASKS_MUTATION = `
           id
           taskId
           comment
-          authorPrincipalId
-          authorPrincipal {
+          authorActorId
+          authorActor {
             id
             kind
             displayName
@@ -2540,8 +2540,8 @@ export const COMPANY_API_CREATE_TASK_COMMENT_MUTATION = `
         id
         taskId
         comment
-        authorPrincipalId
-        authorPrincipal {
+        authorActorId
+        authorActor {
           id
           kind
           displayName
@@ -3034,8 +3034,8 @@ export const COMPANY_API_LIST_APPROVALS_QUERY = `
       threadId
       reason
       rejectionReason
-      createdByPrincipalId
-      resolvedByPrincipalId
+      createdByActorId
+      resolvedByActorId
       resolvedAt
       createdAt
       updatedAt
