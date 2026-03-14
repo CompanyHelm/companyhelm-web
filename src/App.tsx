@@ -491,6 +491,17 @@ export function getChatCreateBlockedReason(agent: any, agentRunnerLookup: any) {
   return "";
 }
 
+export async function reloadGithubDataAfterInstallationChange({
+  activePage,
+  loadGithubInstallations,
+  loadGithubRepositories,
+}: any) {
+  await loadGithubInstallations();
+  if (String(activePage || "").trim().toLowerCase() === "repos") {
+    await loadGithubRepositories();
+  }
+}
+
 function getChatCreateAvailabilityIssue(agent: any, agentRunnerLookup: any) {
   const assignedRunnerId = resolveLegacyId(agent?.agentRunnerId);
   if (!assignedRunnerId) {
@@ -6214,7 +6225,11 @@ function App() {
             handleSkipOnboarding();
           }
           setGithubInstallationNotice(`Linked GitHub installation ${installationId}.`);
-          await loadGithubInstallations();
+          await reloadGithubDataAfterInstallationChange({
+            activePage,
+            loadGithubInstallations,
+            loadGithubRepositories,
+          });
         }
       } catch (linkError: any) {
         if (!isCancelled) {
@@ -6234,7 +6249,9 @@ function App() {
       isCancelled = true;
     };
   }, [
+    activePage,
     companies,
+    loadGithubRepositories,
     onboardingPhase,
     isLoadingCompanies,
     loadGithubInstallations,
@@ -6410,10 +6427,11 @@ function App() {
         throw new Error(result.error || "Failed to delete GitHub installation.");
       }
       setGithubInstallationNotice(`Deleted GitHub installation ${resolvedInstallationId}.`);
-      await loadGithubInstallations();
-      if (activePage === "repos") {
-        await loadGithubRepositories();
-      }
+      await reloadGithubDataAfterInstallationChange({
+        activePage,
+        loadGithubInstallations,
+        loadGithubRepositories,
+      });
     } catch (deleteError: any) {
       setGithubInstallationError(deleteError.message);
     } finally {
