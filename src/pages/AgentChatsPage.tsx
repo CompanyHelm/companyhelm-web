@@ -119,6 +119,24 @@ function normalizeChatListStatusFilter(value: any) {
   return String(value || "").trim().toLowerCase() === "archived" ? "archived" : "active";
 }
 
+function createEmptyHeartbeatDraft() {
+  return {
+    name: "",
+    prompt: "",
+    intervalSeconds: "3600",
+    enabled: true,
+  };
+}
+
+function createHeartbeatDraftFromHeartbeat(heartbeat: any) {
+  return {
+    name: String(heartbeat?.name || "").trim(),
+    prompt: String(heartbeat?.prompt || "").trim(),
+    intervalSeconds: String(heartbeat?.intervalSeconds || ""),
+    enabled: heartbeat?.enabled !== false,
+  };
+}
+
 export function AgentChatsPage({
   selectedCompanyId,
   agent,
@@ -129,6 +147,7 @@ export function AgentChatsPage({
   isCreatingChatSession,
   archivingChatSessionKey,
   deletingChatSessionKey,
+  agentError,
   chatError,
   chatListStatusFilter = "active",
   createChatDisabledReason,
@@ -156,16 +175,26 @@ export function AgentChatsPage({
   initializingAgentId,
   onAgentDraftChange,
   onSaveAgent,
+  onCreateHeartbeat,
+  onUpdateHeartbeat,
+  onDeleteHeartbeat,
   onEnsureAgentEditorData,
   isBatchDeletingChats = false,
 }: any) {
   const resolvedCreateChatDisabledReason = String(createChatDisabledReason || "").trim();
+  const resolvedAgentError = String(agentError || "").trim();
   const normalizedChatListStatusFilter = normalizeChatListStatusFilter(chatListStatusFilter);
   const canShowCreateChatActions = normalizedChatListStatusFilter !== "archived";
   const isCreateChatDisabled = !agent || isCreatingChatSession || Boolean(resolvedCreateChatDisabledReason);
   const [isCreateSettingsOpen, setIsCreateSettingsOpen] = useState<any>(false);
   const [isEditAgentModalOpen, setIsEditAgentModalOpen] = useState<any>(false);
+  const [isHeartbeatComposerOpen, setIsHeartbeatComposerOpen] = useState<any>(false);
   const [selectedArchivedChatKeys, setSelectedArchivedChatKeys] = useState<any>(new Set());
+  const [heartbeatDraftsById, setHeartbeatDraftsById] = useState<any>({});
+  const [newHeartbeatDraft, setNewHeartbeatDraft] = useState<any>(createEmptyHeartbeatDraft);
+  const [savingHeartbeatId, setSavingHeartbeatId] = useState<any>("");
+  const [deletingHeartbeatId, setDeletingHeartbeatId] = useState<any>("");
+  const [heartbeatError, setHeartbeatError] = useState<any>("");
   const runnerLookup = useMemo(() => {
     return (Array.isArray(agentRunners) ? agentRunners : []).reduce((map: any, runner: any) => {
       const runnerId = String(runner?.id || "").trim();
@@ -315,6 +344,20 @@ export function AgentChatsPage({
     });
   }, [normalizedChatListStatusFilter, visibleArchivedChatKeys.join("|")]);
 
+  useEffect(() => {
+    const heartbeatRows = Array.isArray(agent?.heartbeats) ? agent.heartbeats : [];
+    setHeartbeatDraftsById(
+      heartbeatRows.reduce((drafts: Record<string, unknown>, heartbeat: any) => {
+        const heartbeatId = String(heartbeat?.id || "").trim();
+        if (!heartbeatId) {
+          return drafts;
+        }
+        drafts[heartbeatId] = createHeartbeatDraftFromHeartbeat(heartbeat);
+        return drafts;
+      }, {}),
+    );
+  }, [agent?.id, JSON.stringify(agent?.heartbeats || [])]);
+
   async function handleNewChat() {
     const createdSessionId = await onCreateChatSession({
       title: chatSessionTitleDraft || null,
@@ -344,6 +387,67 @@ export function AgentChatsPage({
     const deletedKeys = Array.isArray(result?.deletedKeys) ? result.deletedKeys : [];
     if (deletedKeys.length > 0) {
       setSelectedArchivedChatKeys((current: Set<string>) => ArchivedChatSelection.clearKeys(current, deletedKeys));
+    }
+  }
+
+  function handleHeartbeatDraftChange(heartbeatId: string, field: string, value: any) {
+    setHeartbeatDraftsById((currentDrafts: Record<string, any>) => ({
+      ...currentDrafts,
+      [heartbeatId]: {
+        ...(currentDrafts[heartbeatId] || createEmptyHeartbeatDraft()),
+        [field]: value,
+      },
+    }));
+  }
+
+  async function handleSaveHeartbeat(heartbeatId: string) {
+    if (!agent || !onUpdateHeartbeat) {
+      return false;
+    }
+    const draft = heartbeatDraftsById[heartbeatId] || createEmptyHeartbeatDraft();
+    setHeartbeatError("");
+    setSavingHeartbeatId(heartbeatId);
+    try {
+      return await onUpdateHeartbeat(agent.id, heartbeatId, {
+        ...draft,
+        intervalSeconds: Number(draft.intervalSeconds),
+      });
+    } finally {
+      setSavingHeartbeatId("");
+    }
+  }
+
+  async function handleCreateHeartbeat() {
+    if (!agent || !onCreateHeartbeat) {
+      return false;
+    }
+    setHeartbeatError("");
+    setSavingHeartbeatId("new");
+    try {
+      const didCreate = await onCreateHeartbeat(agent.id, {
+        ...newHeartbeatDraft,
+        intervalSeconds: Number(newHeartbeatDraft.intervalSeconds),
+      });
+      if (didCreate) {
+        setNewHeartbeatDraft(createEmptyHeartbeatDraft());
+        setIsHeartbeatComposerOpen(false);
+      }
+      return didCreate;
+    } finally {
+      setSavingHeartbeatId("");
+    }
+  }
+
+  async function handleDeleteHeartbeat(heartbeatId: string) {
+    if (!agent || !onDeleteHeartbeat) {
+      return false;
+    }
+    setHeartbeatError("");
+    setDeletingHeartbeatId(heartbeatId);
+    try {
+      return await onDeleteHeartbeat(agent.id, heartbeatId);
+    } finally {
+      setDeletingHeartbeatId("");
     }
   }
 
@@ -599,6 +703,173 @@ export function AgentChatsPage({
                   <pre className="agent-detail-instructions-pre">{agentSummary.instructions}</pre>
                 ) : (
                   <div className="role-detail-empty">No default instructions</div>
+                )}
+              </div>
+
+              <div className="role-detail-card role-detail-card-muted">
+                <div className="role-detail-card-header">
+                  <svg viewBox="0 0 24 24"><path d="M12 8v4l3 3" /><circle cx="12" cy="12" r="9" /></svg>
+                  <h3>Heartbeat schedules</h3>
+                  <span className="role-detail-card-count">{Array.isArray(agent.heartbeats) ? agent.heartbeats.length : 0}</span>
+                </div>
+                {heartbeatError || resolvedAgentError ? (
+                  <p className="error-banner" style={{ marginBottom: "0.75rem" }}>
+                    {heartbeatError || resolvedAgentError}
+                  </p>
+                ) : null}
+                {Array.isArray(agent.heartbeats) && agent.heartbeats.length > 0 ? (
+                  <div style={{ display: "grid", gap: "0.9rem" }}>
+                    {agent.heartbeats.map((heartbeat: any) => {
+                      const heartbeatId = String(heartbeat?.id || "").trim();
+                      const draft = heartbeatDraftsById[heartbeatId] || createHeartbeatDraftFromHeartbeat(heartbeat);
+                      return (
+                        <div
+                          key={heartbeatId}
+                          style={{
+                            border: "1px solid rgba(148, 163, 184, 0.18)",
+                            borderRadius: "1rem",
+                            padding: "0.95rem",
+                            display: "grid",
+                            gap: "0.75rem",
+                          }}
+                        >
+                          <div style={{ display: "grid", gap: "0.45rem" }}>
+                            <label htmlFor={`heartbeat-name-${heartbeatId}`}>Name</label>
+                            <input
+                              id={`heartbeat-name-${heartbeatId}`}
+                              type="text"
+                              value={draft.name}
+                              onChange={(event: any) => handleHeartbeatDraftChange(heartbeatId, "name", event.target.value)}
+                            />
+                          </div>
+                          <div style={{ display: "grid", gap: "0.45rem" }}>
+                            <label htmlFor={`heartbeat-prompt-${heartbeatId}`}>Prompt</label>
+                            <textarea
+                              id={`heartbeat-prompt-${heartbeatId}`}
+                              rows={4}
+                              value={draft.prompt}
+                              onChange={(event: any) => handleHeartbeatDraftChange(heartbeatId, "prompt", event.target.value)}
+                            />
+                          </div>
+                          <div style={{ display: "grid", gap: "0.45rem", gridTemplateColumns: "minmax(0, 11rem) minmax(0, 1fr)", alignItems: "end" }}>
+                            <div style={{ display: "grid", gap: "0.45rem" }}>
+                              <label htmlFor={`heartbeat-interval-${heartbeatId}`}>Interval (sec)</label>
+                              <input
+                                id={`heartbeat-interval-${heartbeatId}`}
+                                type="number"
+                                min="1"
+                                value={draft.intervalSeconds}
+                                onChange={(event: any) => handleHeartbeatDraftChange(heartbeatId, "intervalSeconds", event.target.value)}
+                              />
+                            </div>
+                            <label style={{ display: "inline-flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.35rem" }}>
+                              <input
+                                type="checkbox"
+                                checked={draft.enabled !== false}
+                                onChange={(event: any) => handleHeartbeatDraftChange(heartbeatId, "enabled", event.target.checked)}
+                              />
+                              <span>Enabled</span>
+                            </label>
+                          </div>
+                          <div className="task-overview-field"><span className="task-overview-field-label">Next scheduled</span><span>{formatTimestamp(heartbeat?.nextHeartbeatAt) || "Not scheduled"}</span></div>
+                          <div className="task-overview-field"><span className="task-overview-field-label">Last sent</span><span>{formatTimestamp(heartbeat?.lastSentAt) || "Never"}</span></div>
+                          <div className="task-overview-field"><span className="task-overview-field-label">Thread</span><span>{String(heartbeat?.threadId || "").trim() || "No linked thread yet"}</span></div>
+                          <div className="task-form-actions">
+                            <button
+                              type="button"
+                              className="secondary-btn"
+                              onClick={() => void handleSaveHeartbeat(heartbeatId)}
+                              disabled={savingHeartbeatId === heartbeatId || savingAgentId === agent.id}
+                            >
+                              Save heartbeat
+                            </button>
+                            <button
+                              type="button"
+                              className="danger-btn"
+                              onClick={() => void handleDeleteHeartbeat(heartbeatId)}
+                              disabled={deletingHeartbeatId === heartbeatId || savingAgentId === agent.id}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="role-detail-empty">No heartbeat schedules configured</div>
+                )}
+                {isHeartbeatComposerOpen ? (
+                  <div style={{ marginTop: "0.9rem", borderTop: "1px solid rgba(148, 163, 184, 0.16)", paddingTop: "0.9rem", display: "grid", gap: "0.75rem" }}>
+                    <div style={{ display: "grid", gap: "0.45rem" }}>
+                      <label htmlFor="new-heartbeat-name">Name</label>
+                      <input
+                        id="new-heartbeat-name"
+                        type="text"
+                        value={newHeartbeatDraft.name}
+                        onChange={(event: any) => setNewHeartbeatDraft((current: any) => ({ ...current, name: event.target.value }))}
+                      />
+                    </div>
+                    <div style={{ display: "grid", gap: "0.45rem" }}>
+                      <label htmlFor="new-heartbeat-prompt">Prompt</label>
+                      <textarea
+                        id="new-heartbeat-prompt"
+                        rows={4}
+                        value={newHeartbeatDraft.prompt}
+                        onChange={(event: any) => setNewHeartbeatDraft((current: any) => ({ ...current, prompt: event.target.value }))}
+                      />
+                    </div>
+                    <div style={{ display: "grid", gap: "0.45rem", gridTemplateColumns: "minmax(0, 11rem) minmax(0, 1fr)", alignItems: "end" }}>
+                      <div style={{ display: "grid", gap: "0.45rem" }}>
+                        <label htmlFor="new-heartbeat-interval">Interval (sec)</label>
+                        <input
+                          id="new-heartbeat-interval"
+                          type="number"
+                          min="1"
+                          value={newHeartbeatDraft.intervalSeconds}
+                          onChange={(event: any) => setNewHeartbeatDraft((current: any) => ({ ...current, intervalSeconds: event.target.value }))}
+                        />
+                      </div>
+                      <label style={{ display: "inline-flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.35rem" }}>
+                        <input
+                          type="checkbox"
+                          checked={newHeartbeatDraft.enabled !== false}
+                          onChange={(event: any) => setNewHeartbeatDraft((current: any) => ({ ...current, enabled: event.target.checked }))}
+                        />
+                        <span>Enabled</span>
+                      </label>
+                    </div>
+                    <div className="task-form-actions">
+                      <button
+                        type="button"
+                        className="secondary-btn"
+                        onClick={() => void handleCreateHeartbeat()}
+                        disabled={savingHeartbeatId === "new" || savingAgentId === agent.id}
+                      >
+                        Create heartbeat
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary-btn"
+                        onClick={() => {
+                          setIsHeartbeatComposerOpen(false);
+                          setNewHeartbeatDraft(createEmptyHeartbeatDraft());
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="task-form-actions" style={{ marginTop: "0.9rem" }}>
+                    <button
+                      type="button"
+                      className="secondary-btn"
+                      onClick={() => setIsHeartbeatComposerOpen(true)}
+                    >
+                      Add heartbeat
+                    </button>
+                  </div>
                 )}
               </div>
             </div>

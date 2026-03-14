@@ -81,6 +81,26 @@ function normalizeOptionalInstructions(value: unknown): string | null {
   return normalizedValue || null;
 }
 
+function toLegacyAgentHeartbeatPayload(heartbeat: unknown) {
+  const heartbeatRecord = toRecord(heartbeat);
+  const threadRecord = toRecord(heartbeatRecord.thread);
+
+  return {
+    id: resolveLegacyId(heartbeatRecord.id),
+    name: String(heartbeatRecord.name || "").trim(),
+    prompt: String(heartbeatRecord.prompt || "").trim(),
+    enabled: heartbeatRecord.enabled !== false,
+    intervalSeconds: Number(heartbeatRecord.intervalSeconds || 0),
+    nextHeartbeatAt: typeof heartbeatRecord.nextHeartbeatAt === "string"
+      ? heartbeatRecord.nextHeartbeatAt
+      : null,
+    lastSentAt: typeof heartbeatRecord.lastSentAt === "string"
+      ? heartbeatRecord.lastSentAt
+      : null,
+    threadId: resolveLegacyId(heartbeatRecord.threadId, threadRecord.id) || null,
+  };
+}
+
 function normalizeRunnerAvailableAgentSdks(runner: RunnerLike): RunnerSdkEntry[] {
   const runnerSdks = Array.isArray(runner?.availableAgentSdks)
     ? runner.availableAgentSdks
@@ -277,6 +297,9 @@ export function toLegacyAgentPayload(agent: LooseRecord | null | undefined, {
     model: resolvedModel,
     modelReasoningLevel: resolvedReasoning,
     defaultAdditionalModelInstructions: resolvedDefaultAdditionalModelInstructions,
+    heartbeats: Array.isArray(agentRecord.heartbeats)
+      ? agentRecord.heartbeats.map((heartbeat) => toLegacyAgentHeartbeatPayload(heartbeat))
+      : [],
   };
 }
 
