@@ -450,6 +450,7 @@ type Mutation {
   removeSkillGroupFromRole(roleId: ID!, skillGroupId: ID!): RoleMutationPayload!
   removeTaskDependency(dependencyTaskId: ID!, taskId: ID!): TaskMutationPayload!
   retryQueuedUserMessage(queuedMessageId: ID!): QueuedUserMessage!
+  setActorManager(managerActorId: ID, reporteeActorId: ID!): ReporteeMutationPayload!
   setTaskAssigneeActor(assigneeActorId: ID, taskId: ID!): TaskMutationPayload!
   setTaskDescription(description: String, taskId: ID!): TaskMutationPayload!
   setTaskName(name: String!, taskId: ID!): TaskMutationPayload!
@@ -499,7 +500,9 @@ type Query {
   githubInstallations: [GithubInstallation!]!
   mcpServers: [McpServer!]!
   me: AuthUser!
+  orgActors: [Actor!]!
   queuedUserMessages(first: Int = 20, threadId: ID!): [QueuedUserMessage!]!
+  reportees: [ReporteeRelation!]!
   repositories(after: String, first: Int = 20, githubInstallationId: ID): RepositoryConnection!
   roles: [Role!]!
   secretAccessLogs(first: Int = 50, secretId: ID): [SecretAccessLog!]!
@@ -538,6 +541,24 @@ type RefreshGithubInstallationRepositoriesPayload {
   error: String
   ok: Boolean!
   repositories: [Repository!]!
+}
+
+type ReporteeMutationPayload {
+  error: String
+  ok: Boolean!
+  reportee: ReporteeRelation
+}
+
+type ReporteeRelation {
+  company: Company
+  companyId: ID!
+  createdAt: String!
+  id: ID!
+  managerActor: Actor
+  managerActorId: ID!
+  reporteeActor: Actor
+  reporteeActorId: ID!
+  updatedAt: String!
 }
 
 type Repository {

@@ -3511,6 +3511,106 @@ button:disabled {
   color: var(--ink-2);
 }
 
+/* ── Org page ───────────────────────────────────── */
+
+.org-page-panel {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.org-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.org-view-tabs {
+  justify-content: flex-start;
+}
+
+.org-table-shell {
+  overflow: auto;
+  border: 1px solid var(--panel-border);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.org-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.org-table th,
+.org-table td {
+  padding: 0.8rem 0.9rem;
+  border-bottom: 1px solid rgba(26, 32, 38, 0.08);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.org-table th {
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-2);
+  background: rgba(245, 244, 239, 0.72);
+}
+
+.org-actor-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.org-tree-marker {
+  color: var(--action);
+  font-weight: 700;
+}
+
+.org-kind-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.18rem 0.5rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.org-kind-pill-user {
+  background: rgba(184, 90, 31, 0.12);
+  color: #8a4317;
+}
+
+.org-kind-pill-agent {
+  background: rgba(15, 118, 110, 0.12);
+  color: #0f766e;
+}
+
+.org-graph-surface {
+  position: relative;
+  min-height: 38rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 18px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top left, rgba(15, 118, 110, 0.08), transparent 35%),
+    radial-gradient(circle at bottom right, rgba(184, 90, 31, 0.08), transparent 38%),
+    rgba(255, 255, 255, 0.82);
+}
+
+@media (max-width: 720px) {
+  .org-page-header {
+    flex-direction: column;
+  }
+
+  .org-graph-surface {
+    min-height: 28rem;
+  }
+}
+
 /* ── Task table ─────────────────────────────────── */
 
 .task-table-scroll {

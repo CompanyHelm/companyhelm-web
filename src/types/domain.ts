@@ -168,6 +168,17 @@ export interface Actor {
   email?: string | null;
 }
 
+export interface ReporteeRelation {
+  id: string;
+  companyId: string;
+  managerActorId: string;
+  reporteeActorId: string;
+  managerActor?: Actor | null;
+  reporteeActor?: Actor | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface TaskItem extends NamedEntity {
   companyId?: string;
   description?: string;

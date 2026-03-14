@@ -229,6 +229,43 @@ export const LIST_TASK_ASSIGNABLE_PRINCIPALS_QUERY = `
   }
 `;
 
+export const LIST_ORG_QUERY = `
+  query ListOrg {
+    orgActors {
+      id
+      kind
+      displayName
+      agentId
+      userId
+      email
+    }
+    reportees {
+      id
+      companyId
+      managerActorId
+      reporteeActorId
+      managerActor {
+        id
+        kind
+        displayName
+        agentId
+        userId
+        email
+      }
+      reporteeActor {
+        id
+        kind
+        displayName
+        agentId
+        userId
+        email
+      }
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
 export const LIST_AGENT_RUNNERS_QUERY = `
   query ListAgentRunners {
     agentRunners {

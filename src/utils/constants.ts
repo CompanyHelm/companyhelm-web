@@ -70,6 +70,7 @@ const ROUTABLE_NAV_SECTIONS: NavigationSection[] = [
     items: [
       { id: "dashboard", label: "Dashboard", href: "/dashboard", requiresCompany: true },
       { id: "tasks", label: "Tasks", href: "/tasks", requiresCompany: true },
+      { id: "org", label: "Org", href: "/org", requiresCompany: true },
       { id: "chats", label: "Chats", href: "/chats", requiresCompany: true },
     ],
   },

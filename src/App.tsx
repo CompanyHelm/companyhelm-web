@@ -202,6 +202,7 @@ import {
   COMPANY_API_RETRY_QUEUED_USER_MESSAGE_MUTATION,
   COMPANY_API_DELETE_QUEUED_USER_MESSAGE_MUTATION,
   COMPANY_API_INTERRUPT_TURN_MUTATION,
+  LIST_ORG_QUERY,
   START_RUNNER_SDK_AUTH_MUTATION,
 } from "./utils/graphql.ts";
 
@@ -335,6 +336,7 @@ import {
 } from "./pages/SettingsPage.tsx";
 import { ReposPage } from "./pages/ReposPage.tsx";
 import { ProfilePage } from "./pages/ProfilePage.tsx";
+import { OrgPage } from "./pages/OrgPage.tsx";
 
 // --- Module-level mutable state (shared by adapter functions and executeGraphQL) ---
 const companyApiThreadMetadataById = new Map<any, any>();
@@ -3075,8 +3077,11 @@ function App() {
   const [hasLoadedMcpServers, setHasLoadedMcpServers] = useState<any>(false);
   const [agents, setAgents] = useState<any>([]);
   const [taskAssignableActors, setTaskAssignableActors] = useState<any>([]);
+  const [orgActors, setOrgActors] = useState<any>([]);
+  const [orgReportees, setOrgReportees] = useState<any>([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState<any>(false);
   const [isLoadingTaskPageTasks, setIsLoadingTaskPageTasks] = useState<any>(false);
+  const [isLoadingOrg, setIsLoadingOrg] = useState<any>(false);
   const [isLoadingSkills, setIsLoadingSkills] = useState<any>(false);
   const [isLoadingRoles, setIsLoadingRoles] = useState<any>(false);
   const [isLoadingSkillGroups, setIsLoadingSkillGroups] = useState<any>(false);
@@ -3089,6 +3094,7 @@ function App() {
   const [isLoadingRunners, setIsLoadingRunners] = useState<any>(false);
   const [isLoadingAgents, setIsLoadingAgents] = useState<any>(false);
   const [taskError, setTaskError] = useState<any>("");
+  const [orgError, setOrgError] = useState<any>("");
   const [skillError, setSkillError] = useState<any>("");
   const [secretError, setSecretError] = useState<any>("");
   const [approvalError, setApprovalError] = useState<any>("");
@@ -3829,6 +3835,7 @@ function App() {
   const shouldLoadAllTaskData = activePage === "dashboard" || activePage === "profile";
   const shouldLoadTaskPageData = activePage === "tasks" && !useRelayTasksRoute;
   const shouldLoadTaskAssignableActorData = activePage === "tasks" && !useRelayTasksRoute;
+  const shouldLoadOrgData = activePage === "org";
   const shouldLoadSkillData =
     activePage === "skills"
     || activePage === "roles"
@@ -4106,6 +4113,28 @@ function App() {
       setTaskAssignableActors(nextActors);
     } catch (loadError: any) {
       setTaskError(loadError.message);
+    }
+  }, [selectedCompanyId]);
+
+  const loadOrg = useCallback(async () => {
+    if (!selectedCompanyId) {
+      setOrgActors([]);
+      setOrgReportees([]);
+      setOrgError("");
+      setIsLoadingOrg(false);
+      return;
+    }
+
+    try {
+      setOrgError("");
+      setIsLoadingOrg(true);
+      const data = await executeGraphQL(LIST_ORG_QUERY, { companyId: selectedCompanyId });
+      setOrgActors(Array.isArray(data?.orgActors) ? data.orgActors : []);
+      setOrgReportees(Array.isArray(data?.reportees) ? data.reportees : []);
+    } catch (loadError: any) {
+      setOrgError(loadError.message);
+    } finally {
+      setIsLoadingOrg(false);
     }
   }, [selectedCompanyId]);
 
@@ -5466,6 +5495,13 @@ function App() {
     }
     loadTaskAssignableActors();
   }, [loadTaskAssignableActors, selectedCompanyId, shouldLoadTaskAssignableActorData]);
+
+  useEffect(() => {
+    if (!selectedCompanyId || !shouldLoadOrgData) {
+      return;
+    }
+    loadOrg();
+  }, [loadOrg, selectedCompanyId, shouldLoadOrgData]);
 
   useEffect(() => {
     if (!selectedCompanyId || !shouldLoadSkillData) {
@@ -10097,6 +10133,15 @@ function App() {
               onRequestConfirmation={requestConfirmation}
             />
           </Suspense>
+        ) : null}
+
+        {selectedCompanyId && activePage === "org" ? (
+          <OrgPage
+            actors={orgActors}
+            reportees={orgReportees}
+            isLoading={isLoadingOrg}
+            error={orgError}
+          />
         ) : null}
 
         {selectedCompanyId && activePage === "skills" ? (
