@@ -701,19 +701,23 @@ type Subscription {
 
 type Task {
   acceptanceCriteria: String
+  activeRun: TaskRun
   agentId: ID
   assigneeActor: Actor
   assigneeActorId: ID
+  attemptCount: Int!
   comments: [TaskComment!]!
   company: Company!
   createdAt: String!
   dependencyTaskIds: [ID!]!
   description: String
   id: ID!
+  lastRunStatus: TaskRunStatus
+  latestRun: TaskRun
   name: String!
   parentTaskId: ID
+  runs: [TaskRun!]!
   status: TaskStatus!
-  threadId: ID
   updatedAt: String!
 }
 
@@ -743,6 +747,28 @@ type TaskOption {
   id: ID!
   name: String!
   parentTaskId: ID
+}
+
+type TaskRun {
+  agentId: ID
+  createdAt: String!
+  failureMessage: String
+  finishedAt: String
+  id: ID!
+  startedAt: String
+  status: TaskRunStatus!
+  taskId: ID!
+  threadId: ID
+  triggeredByActorId: ID
+  updatedAt: String!
+}
+
+enum TaskRunStatus {
+  cancelled
+  failed
+  queued
+  running
+  succeeded
 }
 
 enum TaskStatus {

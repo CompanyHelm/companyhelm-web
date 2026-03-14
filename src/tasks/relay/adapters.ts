@@ -4,6 +4,7 @@ import type {
   Actor,
   TaskComment,
   TaskItem,
+  TaskRun,
   TaskRelationshipDraftById,
 } from "../../types/domain.ts";
 
@@ -59,6 +60,29 @@ function toTaskComment(value: unknown): TaskComment | null {
   };
 }
 
+function toTaskRun(value: unknown): TaskRun | null {
+  const record = toRecord(value);
+  const id = String(record.id || "").trim();
+  const taskId = String(record.taskId || "").trim();
+  const status = String(record.status || "").trim();
+  if (!id || !taskId || !status) {
+    return null;
+  }
+  return {
+    id,
+    taskId,
+    status,
+    threadId: String(record.threadId || "").trim() || null,
+    agentId: String(record.agentId || "").trim() || null,
+    triggeredByActorId: String(record.triggeredByActorId || "").trim() || null,
+    failureMessage: String(record.failureMessage || "").trim() || null,
+    startedAt: String(record.startedAt || "").trim() || null,
+    finishedAt: String(record.finishedAt || "").trim() || null,
+    createdAt: String(record.createdAt || "").trim() || null,
+    updatedAt: String(record.updatedAt || "").trim() || null,
+  };
+}
+
 function toTaskItem(value: unknown): TaskItem | null {
   const record = toRecord(value);
   const id = String(record.id || "").trim();
@@ -67,6 +91,12 @@ function toTaskItem(value: unknown): TaskItem | null {
     return null;
   }
   const assigneeActor = toActor(record.assigneeActor);
+  const runs = Array.isArray(record.runs)
+    ? record.runs.map((entry) => toTaskRun(entry)).filter((entry): entry is TaskRun => Boolean(entry))
+    : [];
+  const latestRun = toTaskRun(record.latestRun);
+  const activeRun = toTaskRun(record.activeRun);
+  const effectiveThreadId = String(activeRun?.threadId || latestRun?.threadId || record.threadId || "").trim() || null;
   return {
     id,
     companyId: String(toRecord(record.company).id || "").trim() || undefined,
@@ -76,11 +106,16 @@ function toTaskItem(value: unknown): TaskItem | null {
     assigneeActorId: String(record.assigneeActorId || "").trim() || null,
     assigneeActor,
     assigneeAgentId: assigneeActor?.agentId || null,
-    threadId: String(record.threadId || "").trim() || null,
+    threadId: effectiveThreadId,
     parentTaskId: String(record.parentTaskId || "").trim() || null,
     status: String(record.status || "").trim() || "draft",
     createdAt: String(record.createdAt || "").trim() || null,
     updatedAt: String(record.updatedAt || "").trim() || null,
+    runs,
+    latestRun,
+    activeRun,
+    attemptCount: Number.isInteger(record.attemptCount) ? Number(record.attemptCount) : runs.length,
+    lastRunStatus: String(record.lastRunStatus || "").trim() || latestRun?.status || null,
     dependencyTaskIds: Array.isArray(record.dependencyTaskIds)
       ? record.dependencyTaskIds.map((entry) => String(entry || "").trim()).filter(Boolean)
       : [],

@@ -23,11 +23,41 @@ test("toTaskRouteViewModel adapts Relay task route data into legacy TasksPage pr
           userId: "user-1",
           email: "jane@example.com",
         },
-        threadId: "thread-1",
         parentTaskId: null,
         status: "in_progress",
         createdAt: "2026-03-12T10:00:00.000Z",
         updatedAt: "2026-03-12T11:00:00.000Z",
+        runs: [
+          {
+            id: "run-1",
+            taskId: "task-1",
+            status: "failed",
+            threadId: "thread-1",
+            agentId: "agent-1",
+            triggeredByActorId: "actor-user-1",
+            failureMessage: "Runner disconnected",
+            startedAt: "2026-03-12T10:10:00.000Z",
+            finishedAt: "2026-03-12T10:11:00.000Z",
+            createdAt: "2026-03-12T10:10:00.000Z",
+            updatedAt: "2026-03-12T10:11:00.000Z",
+          },
+        ],
+        latestRun: {
+          id: "run-1",
+          taskId: "task-1",
+          status: "failed",
+          threadId: "thread-1",
+          agentId: "agent-1",
+          triggeredByActorId: "actor-user-1",
+          failureMessage: "Runner disconnected",
+          startedAt: "2026-03-12T10:10:00.000Z",
+          finishedAt: "2026-03-12T10:11:00.000Z",
+          createdAt: "2026-03-12T10:10:00.000Z",
+          updatedAt: "2026-03-12T10:11:00.000Z",
+        },
+        activeRun: null,
+        attemptCount: 1,
+        lastRunStatus: "failed",
         dependencyTaskIds: [],
         comments: [
           {
@@ -85,6 +115,10 @@ test("toTaskRouteViewModel adapts Relay task route data into legacy TasksPage pr
 
   assert.equal(viewModel.tasks.length, 1);
   assert.equal(viewModel.tasks[0]?.id, "task-1");
+  assert.equal(viewModel.tasks[0]?.assigneeActor?.displayName, "Jane Doe");
+  assert.equal(viewModel.tasks[0]?.latestRun?.status, "failed");
+  assert.equal(viewModel.tasks[0]?.attemptCount, 1);
+  assert.equal(viewModel.tasks[0]?.threadId, "thread-1");
   assert.equal(viewModel.tasks[0]?.assigneeActor?.displayName, "Jane Doe");
   assert.equal(viewModel.taskOptions[1]?.parentTaskId, "task-1");
   assert.equal(viewModel.actors[0]?.email, "jane@example.com");

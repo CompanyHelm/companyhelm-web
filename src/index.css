@@ -3251,6 +3251,36 @@ button:disabled {
   border-color: rgba(15, 118, 110, 0.3);
 }
 
+.task-status-pill-queued {
+  color: #92400e;
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.task-status-pill-running {
+  color: #1d4ed8;
+  background: rgba(29, 78, 216, 0.13);
+  border-color: rgba(29, 78, 216, 0.3);
+}
+
+.task-status-pill-succeeded {
+  color: #0f766e;
+  background: rgba(15, 118, 110, 0.14);
+  border-color: rgba(15, 118, 110, 0.3);
+}
+
+.task-status-pill-failed {
+  color: #b91c1c;
+  background: rgba(220, 38, 38, 0.14);
+  border-color: rgba(220, 38, 38, 0.3);
+}
+
+.task-status-pill-cancelled {
+  color: #475569;
+  background: rgba(100, 116, 139, 0.14);
+  border-color: rgba(100, 116, 139, 0.3);
+}
+
 /* ── Task view tabs ─────────────────────────────── */
 
 .task-view-tabs {
@@ -4267,6 +4297,40 @@ button:disabled {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--ink-2);
+}
+
+.task-runs-list {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.task-run-item {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.9rem 1rem;
+  border-radius: 14px;
+  border: 1px solid var(--panel-border);
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.task-run-item-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.task-run-item-header p {
+  margin: 0.2rem 0 0;
+}
+
+.task-run-item-body {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.task-run-failure {
+  margin: 0.35rem 0 0;
 }
 
 @media (max-width: 980px) {

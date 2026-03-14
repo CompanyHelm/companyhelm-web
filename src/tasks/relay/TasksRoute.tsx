@@ -39,11 +39,51 @@ const tasksRouteTaskFragment = graphql`
       userId
       email
     }
-    threadId
     parentTaskId
     status
     createdAt
     updatedAt
+    attemptCount
+    lastRunStatus
+    latestRun {
+      id
+      taskId
+      status
+      threadId
+      agentId
+      triggeredByActorId
+      failureMessage
+      startedAt
+      finishedAt
+      createdAt
+      updatedAt
+    }
+    activeRun {
+      id
+      taskId
+      status
+      threadId
+      agentId
+      triggeredByActorId
+      failureMessage
+      startedAt
+      finishedAt
+      createdAt
+      updatedAt
+    }
+    runs {
+      id
+      taskId
+      status
+      threadId
+      agentId
+      triggeredByActorId
+      failureMessage
+      startedAt
+      finishedAt
+      createdAt
+      updatedAt
+    }
     dependencyTaskIds
     comments {
       id
