@@ -1160,6 +1160,23 @@ function toTaskRunPayload(taskRun: any) {
   };
 }
 
+function toReporteePayload(reportee: any) {
+  const reporteeId = resolveLegacyId(reportee?.id);
+  if (!reporteeId) {
+    return null;
+  }
+  return {
+    id: reporteeId,
+    companyId: resolveLegacyId(reportee?.companyId) || null,
+    managerActorId: resolveLegacyId(reportee?.managerActorId) || null,
+    reporteeActorId: resolveLegacyId(reportee?.reporteeActorId) || null,
+    managerActor: toActorPayload(reportee?.managerActor),
+    reporteeActor: toActorPayload(reportee?.reporteeActor),
+    createdAt: resolveLegacyId(reportee?.createdAt),
+    updatedAt: resolveLegacyId(reportee?.updatedAt),
+  };
+}
+
 function toActorPayload(actor: any) {
   const actorId = resolveLegacyId(actor?.id);
   if (!actorId) {
@@ -2470,6 +2487,24 @@ async function executeGraphQL(query: any, variables: any = {}) {
         ? data.taskAssignableActors
             .map((actor: any) => toActorPayload(actor))
             .filter((actor: any) => actor?.id)
+        : [],
+    };
+  }
+
+  if (query === LIST_ORG_QUERY) {
+    const data = await executeRawGraphQL(LIST_ORG_QUERY, {
+      companyId: resolveLegacyId(variables?.companyId),
+    });
+    return {
+      orgActors: Array.isArray(data?.orgActors)
+        ? data.orgActors
+            .map((actor: any) => toActorPayload(actor))
+            .filter((actor: any) => actor?.id)
+        : [],
+      reportees: Array.isArray(data?.reportees)
+        ? data.reportees
+            .map((reportee: any) => toReporteePayload(reportee))
+            .filter((reportee: any) => reportee?.id)
         : [],
     };
   }

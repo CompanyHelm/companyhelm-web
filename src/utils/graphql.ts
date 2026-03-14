@@ -247,7 +247,6 @@ export const LIST_ORG_QUERY = `
       id
       kind
       displayName
-      description
       agentId
       userId
       email
@@ -261,7 +260,6 @@ export const LIST_ORG_QUERY = `
         id
         kind
         displayName
-        description
         agentId
         userId
         email
@@ -270,7 +268,6 @@ export const LIST_ORG_QUERY = `
         id
         kind
         displayName
-        description
         agentId
         userId
         email
