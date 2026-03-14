@@ -191,6 +191,9 @@ import {
   COMPANY_API_CREATE_AGENT_MUTATION,
   COMPANY_API_UPDATE_AGENT_MUTATION,
   COMPANY_API_DELETE_AGENT_MUTATION,
+  COMPANY_API_CREATE_AGENT_HEARTBEAT_MUTATION,
+  COMPANY_API_UPDATE_AGENT_HEARTBEAT_MUTATION,
+  COMPANY_API_DELETE_AGENT_HEARTBEAT_MUTATION,
   COMPANY_API_LIST_THREADS_CONNECTION_QUERY,
   COMPANY_API_CREATE_THREAD_MUTATION,
   COMPANY_API_UPDATE_THREAD_TITLE_MUTATION,
@@ -8892,6 +8895,139 @@ function App() {
     }
   }
 
+  async function handleCreateAgentHeartbeat(agentId: any, draft: any) {
+    const resolvedAgentId = String(agentId || "").trim();
+    const normalizedName = String(draft?.name || "").trim();
+    const normalizedPrompt = String(draft?.prompt || "").trim();
+    const normalizedIntervalSeconds = Number(draft?.intervalSeconds);
+
+    if (!selectedCompanyId) {
+      setAgentError("Select a company before editing heartbeats.");
+      return false;
+    }
+    if (!resolvedAgentId) {
+      setAgentError("Agent id is required to create a heartbeat.");
+      return false;
+    }
+    if (!normalizedName) {
+      setAgentError("Heartbeat name is required.");
+      return false;
+    }
+    if (!normalizedPrompt) {
+      setAgentError("Heartbeat prompt is required.");
+      return false;
+    }
+    if (!Number.isInteger(normalizedIntervalSeconds) || normalizedIntervalSeconds <= 0) {
+      setAgentError("Heartbeat interval must be a positive number of seconds.");
+      return false;
+    }
+
+    try {
+      setSavingAgentId(resolvedAgentId);
+      setAgentError("");
+      const data = await executeRawGraphQL(COMPANY_API_CREATE_AGENT_HEARTBEAT_MUTATION, {
+        agentId: resolvedAgentId,
+        name: normalizedName,
+        prompt: normalizedPrompt,
+        intervalSeconds: normalizedIntervalSeconds,
+        enabled: draft?.enabled !== false,
+      });
+      if (!data?.createAgentHeartbeat?.id) {
+        throw new Error("Heartbeat creation failed.");
+      }
+      await loadAgents();
+      return true;
+    } catch (createError: any) {
+      setAgentError(createError.message);
+      return false;
+    } finally {
+      setSavingAgentId(null);
+    }
+  }
+
+  async function handleUpdateAgentHeartbeat(agentId: any, heartbeatId: any, draft: any) {
+    const resolvedAgentId = String(agentId || "").trim();
+    const resolvedHeartbeatId = String(heartbeatId || "").trim();
+    const normalizedName = String(draft?.name || "").trim();
+    const normalizedPrompt = String(draft?.prompt || "").trim();
+    const normalizedIntervalSeconds = Number(draft?.intervalSeconds);
+
+    if (!selectedCompanyId) {
+      setAgentError("Select a company before editing heartbeats.");
+      return false;
+    }
+    if (!resolvedAgentId || !resolvedHeartbeatId) {
+      setAgentError("Heartbeat id is required.");
+      return false;
+    }
+    if (!normalizedName) {
+      setAgentError("Heartbeat name is required.");
+      return false;
+    }
+    if (!normalizedPrompt) {
+      setAgentError("Heartbeat prompt is required.");
+      return false;
+    }
+    if (!Number.isInteger(normalizedIntervalSeconds) || normalizedIntervalSeconds <= 0) {
+      setAgentError("Heartbeat interval must be a positive number of seconds.");
+      return false;
+    }
+
+    try {
+      setSavingAgentId(resolvedAgentId);
+      setAgentError("");
+      const data = await executeRawGraphQL(COMPANY_API_UPDATE_AGENT_HEARTBEAT_MUTATION, {
+        heartbeatId: resolvedHeartbeatId,
+        name: normalizedName,
+        prompt: normalizedPrompt,
+        intervalSeconds: normalizedIntervalSeconds,
+        enabled: draft?.enabled !== false,
+      });
+      if (!data?.updateAgentHeartbeat?.id) {
+        throw new Error("Heartbeat update failed.");
+      }
+      await loadAgents();
+      return true;
+    } catch (updateError: any) {
+      setAgentError(updateError.message);
+      return false;
+    } finally {
+      setSavingAgentId(null);
+    }
+  }
+
+  async function handleDeleteAgentHeartbeat(agentId: any, heartbeatId: any) {
+    const resolvedAgentId = String(agentId || "").trim();
+    const resolvedHeartbeatId = String(heartbeatId || "").trim();
+
+    if (!selectedCompanyId) {
+      setAgentError("Select a company before editing heartbeats.");
+      return false;
+    }
+    if (!resolvedAgentId || !resolvedHeartbeatId) {
+      setAgentError("Heartbeat id is required.");
+      return false;
+    }
+
+    try {
+      setSavingAgentId(resolvedAgentId);
+      setAgentError("");
+      const data = await executeRawGraphQL(COMPANY_API_DELETE_AGENT_HEARTBEAT_MUTATION, {
+        heartbeatId: resolvedHeartbeatId,
+      });
+      if (!data?.deleteAgentHeartbeat?.ok) {
+        throw new Error(data?.deleteAgentHeartbeat?.error || "Heartbeat deletion failed.");
+      }
+      await loadAgents();
+      return true;
+    } catch (deleteError: any) {
+      setAgentError(deleteError.message);
+      return false;
+    } finally {
+      setSavingAgentId(null);
+    }
+  }
+
   async function handleInitializeAgent(agentId: any) {
     if (!selectedCompanyId) {
       setAgentError("Select a company before initializing agents.");
@@ -10682,6 +10818,7 @@ function App() {
               isCreatingChatSession={isCreatingChatSession}
               archivingChatSessionKey={archivingChatSessionKey}
               deletingChatSessionKey={deletingChatSessionKey}
+              agentError={agentError}
               chatError={chatError}
               chatListStatusFilter={chatListStatusFilter}
               createChatDisabledReason={getChatCreateBlockedReasonByAgentId(chatAgentId)}
@@ -10719,6 +10856,9 @@ function App() {
               initializingAgentId={initializingAgentId}
               onAgentDraftChange={handleAgentDraftChange}
               onSaveAgent={handleSaveAgent}
+              onCreateHeartbeat={handleCreateAgentHeartbeat}
+              onUpdateHeartbeat={handleUpdateAgentHeartbeat}
+              onDeleteHeartbeat={handleDeleteAgentHeartbeat}
               onEnsureAgentEditorData={ensureAgentEditorData}
             />
           ) : agentsRoute.view === "chat" ? (

@@ -468,6 +468,16 @@ export const LIST_AGENTS_QUERY = `
       name
       status
       defaultAdditionalModelInstructions
+      heartbeats {
+        id
+        name
+        prompt
+        enabled
+        intervalSeconds
+        nextHeartbeatAt
+        lastSentAt
+        threadId
+      }
       company {
         id
       }
@@ -487,6 +497,16 @@ export const LIST_AGENTS_WITH_RUNNERS_QUERY = `
       name
       status
       defaultAdditionalModelInstructions
+      heartbeats {
+        id
+        name
+        prompt
+        enabled
+        intervalSeconds
+        nextHeartbeatAt
+        lastSentAt
+        threadId
+      }
       company {
         id
       }
@@ -3372,6 +3392,16 @@ export const COMPANY_API_LIST_AGENTS_CONNECTION_QUERY = `
           }
           defaultReasoningLevel
           defaultAdditionalModelInstructions
+          heartbeats {
+            id
+            name
+            prompt
+            enabled
+            intervalSeconds
+            nextHeartbeatAt
+            lastSentAt
+            threadId
+          }
           agentRunnerSdk {
             id
             name
@@ -3443,6 +3473,16 @@ export const COMPANY_API_LIST_AGENTS_PAGE_QUERY = `
           }
           defaultReasoningLevel
           defaultAdditionalModelInstructions
+          heartbeats {
+            id
+            name
+            prompt
+            enabled
+            intervalSeconds
+            nextHeartbeatAt
+            lastSentAt
+            threadId
+          }
           agentRunnerSdk {
             id
             name
@@ -3564,6 +3604,16 @@ export const COMPANY_API_LIST_AGENTS_WITH_THREADS_CONNECTION_QUERY = `
           }
           defaultReasoningLevel
           defaultAdditionalModelInstructions
+          heartbeats {
+            id
+            name
+            prompt
+            enabled
+            intervalSeconds
+            nextHeartbeatAt
+            lastSentAt
+            threadId
+          }
           agentRunnerSdk {
             id
             name
@@ -3741,6 +3791,70 @@ export const COMPANY_API_UPDATE_AGENT_MUTATION = `
       company {
         id
       }
+    }
+  }
+`;
+
+export const COMPANY_API_CREATE_AGENT_HEARTBEAT_MUTATION = `
+  mutation CompanyApiCreateAgentHeartbeat(
+    $agentId: ID!
+    $name: String!
+    $prompt: String!
+    $intervalSeconds: Int!
+    $enabled: Boolean
+  ) {
+    createAgentHeartbeat(
+      agentId: $agentId
+      name: $name
+      prompt: $prompt
+      intervalSeconds: $intervalSeconds
+      enabled: $enabled
+    ) {
+      id
+      name
+      prompt
+      enabled
+      intervalSeconds
+      nextHeartbeatAt
+      lastSentAt
+      threadId
+    }
+  }
+`;
+
+export const COMPANY_API_UPDATE_AGENT_HEARTBEAT_MUTATION = `
+  mutation CompanyApiUpdateAgentHeartbeat(
+    $heartbeatId: ID!
+    $name: String
+    $prompt: String
+    $intervalSeconds: Int
+    $enabled: Boolean
+  ) {
+    updateAgentHeartbeat(
+      heartbeatId: $heartbeatId
+      name: $name
+      prompt: $prompt
+      intervalSeconds: $intervalSeconds
+      enabled: $enabled
+    ) {
+      id
+      name
+      prompt
+      enabled
+      intervalSeconds
+      nextHeartbeatAt
+      lastSentAt
+      threadId
+    }
+  }
+`;
+
+export const COMPANY_API_DELETE_AGENT_HEARTBEAT_MUTATION = `
+  mutation CompanyApiDeleteAgentHeartbeat($heartbeatId: ID!) {
+    deleteAgentHeartbeat(heartbeatId: $heartbeatId) {
+      ok
+      error
+      deletedHeartbeatId
     }
   }
 `;

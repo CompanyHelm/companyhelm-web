@@ -146,6 +146,18 @@ export interface Agent extends NamedEntity {
   model?: string;
   modelReasoningLevel?: string;
   defaultAdditionalModelInstructions?: string | null;
+  heartbeats?: AgentHeartbeat[];
+}
+
+export interface AgentHeartbeat {
+  id: string;
+  name: string;
+  prompt: string;
+  enabled: boolean;
+  intervalSeconds: number;
+  nextHeartbeatAt?: string | null;
+  lastSentAt?: string | null;
+  threadId?: string | null;
 }
 
 export interface TaskComment {

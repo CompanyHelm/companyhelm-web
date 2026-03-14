@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  toLegacyAgentPayload,
   toLegacyQueuedUserMessagePayload,
   toLegacyRunnerPayload,
   toLegacyThreadPayload,
@@ -131,4 +132,38 @@ test("toLegacyThreadPayload preserves missing titles instead of synthesizing thr
   });
 
   assert.equal(payload.title, "");
+});
+
+test("toLegacyAgentPayload preserves heartbeat schedule metadata", () => {
+  const payload = toLegacyAgentPayload({
+    id: "agent-1",
+    name: "Build Agent",
+    status: "ready",
+    heartbeats: [
+      {
+        id: "heartbeat-1",
+        name: "Morning check-in",
+        prompt: "Review open work and continue if needed.",
+        enabled: true,
+        intervalSeconds: 3600,
+        nextHeartbeatAt: "2026-03-14T10:00:00.000Z",
+        lastSentAt: "2026-03-14T09:00:00.000Z",
+        thread: { id: "thread-1" },
+      },
+    ],
+    company: { id: "company-1" },
+    runner: { id: "runner-1" },
+  });
+
+  assert.equal(payload.heartbeats?.length, 1);
+  assert.deepEqual(payload.heartbeats?.[0], {
+    id: "heartbeat-1",
+    name: "Morning check-in",
+    prompt: "Review open work and continue if needed.",
+    enabled: true,
+    intervalSeconds: 3600,
+    nextHeartbeatAt: "2026-03-14T10:00:00.000Z",
+    lastSentAt: "2026-03-14T09:00:00.000Z",
+    threadId: "thread-1",
+  });
 });

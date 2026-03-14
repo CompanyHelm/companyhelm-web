@@ -127,3 +127,44 @@ test("AgentChatsPage renders direct and inherited agent assignment sections sepa
   assert.match(markup, />Effective Skills</);
   assert.match(markup, />Effective MCP Servers</);
 });
+
+test("AgentChatsPage renders heartbeat controls and schedule state", () => {
+  const markup = renderAgentChatsPageMarkup({
+    agent: {
+      id: "agent-1",
+      name: "Build Agent",
+      model: "gpt-5",
+      modelReasoningLevel: "medium",
+      roleIds: [],
+      skillIds: [],
+      mcpServerIds: [],
+      defaultAdditionalModelInstructions: "",
+      heartbeats: [
+        {
+          id: "heartbeat-1",
+          name: "Morning check-in",
+          prompt: "Review open work and continue if needed.",
+          enabled: true,
+          intervalSeconds: 3600,
+          nextHeartbeatAt: "2026-03-14T10:00:00.000Z",
+          lastSentAt: "2026-03-14T09:00:00.000Z",
+          threadId: "thread-1",
+        },
+      ],
+    },
+  });
+
+  assert.match(markup, />Heartbeat schedules</);
+  assert.match(markup, /Morning check-in/);
+  assert.match(markup, /Review open work and continue if needed\./);
+  assert.match(markup, /thread-1/);
+  assert.match(markup, /Next scheduled/);
+  assert.match(markup, /Last sent/);
+});
+
+test("AgentChatsPage renders empty heartbeat state when none exist", () => {
+  const markup = renderAgentChatsPageMarkup();
+
+  assert.match(markup, />Heartbeat schedules</);
+  assert.match(markup, /No heartbeat schedules configured/);
+});
