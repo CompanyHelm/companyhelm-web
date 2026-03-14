@@ -506,7 +506,7 @@ export function TasksPage({
               />
             ) : (
               <div className="task-empty-panel">
-                <p className="empty-hint">Create a top-level task to start structuring work.</p>
+                <p className="empty-hint">Create your first task.</p>
                 <button
                   type="button"
                   className="secondary-btn empty-create-btn"

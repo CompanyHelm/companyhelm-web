@@ -3822,7 +3822,7 @@ function App() {
   const shouldSubscribeChatSessions =
     activePage === "agents" && (agentsRoute.view === "agent" || agentsRoute.view === "chats" || agentsRoute.view === "chat");
   const shouldSubscribeChatTurns = isChatConversationRoute;
-  const shouldLoadGithubPageData = activePage === "settings" || activePage === "repos";
+  const shouldLoadGithubPageData = activePage === "settings" || activePage === "repos" || onboardingPhase === "github" || onboardingPhase === "agent";
   const shouldLoadGithubRepositoryData = activePage === "repos";
   const shouldLoadCurrentUserData = activePage === "profile";
   const useRelayTasksRoute = activePage === "tasks";
