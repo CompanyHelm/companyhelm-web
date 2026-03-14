@@ -680,8 +680,10 @@ export function TaskGraphView({ tasks, onTaskClick, onAddDependency }: TaskGraph
         isValidConnection={isValidConnection}
         onInit={(instance) => {
           reactFlowInstanceRef.current = instance;
+          void instance.fitView({ padding: 0.2 });
         }}
         nodeTypes={nodeTypes}
+        fitView
         fitViewOptions={{ padding: 0.2 }}
         proOptions={{ hideAttribution: true }}
         minZoom={0.1}

@@ -126,6 +126,7 @@ export function TasksPage({
   const [executeFallbackAgentId, setExecuteFallbackAgentId] = useState("");
   const [isExecutingTask, setIsExecutingTask] = useState(false);
   const [overviewCommentDraft, setOverviewCommentDraft] = useState("");
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
 
   const visibleTaskById = useMemo(() => {
     return tasks.reduce((map, task) => {
@@ -241,6 +242,7 @@ export function TasksPage({
     setOverviewCommentDraft("");
     setIsEditModalOpen(false);
     setEditingTaskId("");
+    setIsDescriptionExpanded(false);
   }, [activeTaskId]);
 
   useEffect(() => {
@@ -547,7 +549,18 @@ export function TasksPage({
                       </div>
                       <div className="task-overview-field">
                         <span className="task-overview-field-label">Description</span>
-                        <span>{activeTask.description || "No description provided."}</span>
+                        <span className={!isDescriptionExpanded && (activeTask.description || "").length > 200 ? "task-overview-field-value-truncated" : ""}>
+                          {activeTask.description || "No description provided."}
+                        </span>
+                        {(activeTask.description || "").length > 200 ? (
+                          <button
+                            type="button"
+                            className="task-overview-show-more-btn"
+                            onClick={() => setIsDescriptionExpanded((v) => !v)}
+                          >
+                            {isDescriptionExpanded ? "Show less" : "Show more"}
+                          </button>
+                        ) : null}
                       </div>
 
                       <label htmlFor="overview-task-assignee">Assignee</label>

@@ -1,7 +1,10 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import ReactRelay from "react-relay";
+import { authProvider } from "../../auth/runtime.ts";
 import { TasksPage } from "../../pages/TasksPage.tsx";
 import type { TaskRelationshipDraftById } from "../../types/domain.ts";
+import { getActiveCompanyId } from "../../utils/company-context.ts";
+import { GRAPHQL_URL } from "../../utils/constants.ts";
 import { normalizeUniqueStringList } from "../../utils/normalization.ts";
 import { buildTaskExecutionPlan } from "../../utils/task-execution.ts";
 import {
@@ -65,11 +68,6 @@ const tasksRouteQuery = graphql`
   query TasksRouteQuery($topLevelOnly: Boolean, $rootTaskId: ID, $maxDepth: Int) {
     tasks(topLevelOnly: $topLevelOnly, rootTaskId: $rootTaskId, maxDepth: $maxDepth) {
       ...TasksRoute_task
-    }
-    taskOptions {
-      id
-      name
-      parentTaskId
     }
     taskAssignablePrincipals {
       id
@@ -271,6 +269,32 @@ function commitRelayMutation(environment: ReturnType<typeof useRelayEnvironment>
   });
 }
 
+const TASK_OPTIONS_QUERY = `query TaskOptionsQuery { taskOptions { id name parentTaskId } }`;
+
+type TaskOptionRecord = { id: string; name: string; parentTaskId: string | null };
+
+async function fetchTaskOptions(): Promise<TaskOptionRecord[]> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const authorization = authProvider.getAuthorizationHeaderValue();
+  if (authorization) {
+    headers.Authorization = authorization;
+  }
+  const activeCompanyId = getActiveCompanyId();
+  if (activeCompanyId) {
+    headers["x-company-id"] = activeCompanyId;
+  }
+  const response = await fetch(GRAPHQL_URL, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ query: TASK_OPTIONS_QUERY }),
+  });
+  if (!response.ok) {
+    return [];
+  }
+  const payload = await response.json();
+  return Array.isArray(payload?.data?.taskOptions) ? payload.data.taskOptions : [];
+}
+
 function getQueryVariables(params: { activeTaskId: string; visibleDepth: string }) {
   const normalizedActiveTaskId = String(params.activeTaskId || "").trim();
   const normalizedVisibleDepth = String(params.visibleDepth || "").trim().toLowerCase();
@@ -307,6 +331,18 @@ export function TasksRoute({
   const [dependencyTaskIds, setDependencyTaskIds] = useState<string[]>([]);
   const [relationshipDrafts, setRelationshipDrafts] = useState<TaskRelationshipDraftById>({});
   const [fetchKey, setFetchKey] = useState(0);
+  const [taskOptions, setTaskOptions] = useState<TaskOptionRecord[]>([]);
+  const taskOptionsFetchKeyRef = useRef(0);
+
+  useEffect(() => {
+    taskOptionsFetchKeyRef.current += 1;
+    const currentFetchKey = taskOptionsFetchKeyRef.current;
+    void fetchTaskOptions().then((options) => {
+      if (currentFetchKey === taskOptionsFetchKeyRef.current) {
+        setTaskOptions(options);
+      }
+    });
+  }, [fetchKey]);
 
   const queryVariables = useMemo(
     () => getQueryVariables({ activeTaskId, visibleDepth }),
@@ -322,8 +358,9 @@ export function TasksRoute({
       toTaskRouteViewModel({
         ...queryData,
         tasks: taskNodes,
+        taskOptions,
       }),
-    [queryData, taskNodes],
+    [queryData, taskNodes, taskOptions],
   );
 
   useEffect(() => {

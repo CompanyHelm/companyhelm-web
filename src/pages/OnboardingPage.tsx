@@ -94,6 +94,8 @@ export function OnboardingPage({
   onStartCodexDeviceAuth,
 }: OnboardingPageProps) {
   const [deployTarget, setDeployTarget] = useState<DeployTarget>(null);
+  const showSelfHostedRunnerUrlHint =
+    typeof window !== "undefined" && window.location.hostname !== "app.companyhelm.com";
 
   const onboardingRunner = useMemo(
     () => agentRunners.find((runner) => runner.id === onboardingRunnerId) || null,
@@ -339,6 +341,15 @@ export function OnboardingPage({
                     Run this command to start the runner in the background using your host Docker runtime:
                   </p>
                   <pre className="runner-command"><code>{localStartCommand}</code></pre>
+                  {showSelfHostedRunnerUrlHint ? (
+                    <p className="subcopy">
+                      This Company Helm instance is not running on Company Helm Cloud. Add explicit{" "}
+                      <code>--server-url</code> and <code>--agent-api-url</code> values that point to
+                      your deployment. If the runner is running on the same machine as Company Helm,
+                      use <code>--server-url http://localhost:50051</code> and{" "}
+                      <code>--agent-api-url http://localhost:50052</code>.
+                    </p>
+                  ) : null}
                 </div>
               </section>
             ) : null}
@@ -369,6 +380,15 @@ export function OnboardingPage({
                     Start the runner as a background daemon. You will trigger Codex device auth from the UI after it connects:
                   </p>
                   <pre className="runner-command"><code>{vmStartCommand}</code></pre>
+                  {showSelfHostedRunnerUrlHint ? (
+                    <p className="subcopy">
+                      This Company Helm instance is not running on Company Helm Cloud. Add explicit{" "}
+                      <code>--server-url</code> and <code>--agent-api-url</code> values that point to
+                      your deployment. If the runner is running on the same machine as Company Helm,
+                      use <code>--server-url http://localhost:50051</code> and{" "}
+                      <code>--agent-api-url http://localhost:50052</code>.
+                    </p>
+                  ) : null}
                 </div>
               </section>
             ) : null}
