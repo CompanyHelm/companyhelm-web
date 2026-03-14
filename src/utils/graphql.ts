@@ -132,39 +132,80 @@ export const REFRESH_GITHUB_INSTALLATION_REPOSITORIES_MUTATION = `
   }
 `;
 
+const TASK_RUN_FIELDS = `
+  id
+  taskId
+  status
+  threadId
+  agentId
+  triggeredByActorId
+  failureMessage
+  startedAt
+  finishedAt
+  createdAt
+  updatedAt
+`;
+
+const TASK_COMMENT_FIELDS = `
+  id
+  taskId
+  comment
+  authorActorId
+  authorActor {
+    id
+    kind
+    displayName
+    agentId
+    userId
+    email
+  }
+  createdAt
+  updatedAt
+`;
+
+const TASK_FIELDS = `
+  id
+  company {
+    id
+  }
+  name
+  description
+  acceptanceCriteria
+  assigneeActorId
+  assigneeActor {
+    id
+    kind
+    displayName
+    agentId
+    userId
+    email
+  }
+  agentId
+  parentTaskId
+  status
+  createdAt
+  updatedAt
+  dependencyTaskIds
+  comments {
+${TASK_COMMENT_FIELDS}
+  }
+  runs {
+${TASK_RUN_FIELDS}
+  }
+  latestRun {
+${TASK_RUN_FIELDS}
+  }
+  activeRun {
+${TASK_RUN_FIELDS}
+  }
+  attemptCount
+  lastRunStatus
+`;
+
 export const LIST_TASKS_QUERY = `
   query ListTasks {
     tasks {
-      id
-      company {
-        id
-      }
-      name
-      description
-      acceptanceCriteria
-      assigneeActorId
-      threadId
-      parentTaskId
-      status
-      createdAt
-      updatedAt
-      dependencyTaskIds
-      comments {
-        id
-        taskId
-        comment
-        authorActorId
-        authorActor {
-          id
-          kind
-          displayName
-          agentId
-          userId
-          email
-        }
-        createdAt
-        updatedAt
-      }
+${TASK_FIELDS}
     }
   }
 `;
@@ -172,36 +213,7 @@ export const LIST_TASKS_QUERY = `
 export const LIST_TASK_PAGE_TASKS_QUERY = `
   query ListTaskPageTasks($topLevelOnly: Boolean, $rootTaskId: ID, $maxDepth: Int) {
     tasks(topLevelOnly: $topLevelOnly, rootTaskId: $rootTaskId, maxDepth: $maxDepth) {
-      id
-      company {
-        id
-      }
-      name
-      description
-      acceptanceCriteria
-      assigneeActorId
-      threadId
-      parentTaskId
-      status
-      createdAt
-      updatedAt
-      dependencyTaskIds
-      comments {
-        id
-        taskId
-        comment
-        authorActorId
-        authorActor {
-          id
-          kind
-          displayName
-          agentId
-          userId
-          email
-        }
-        createdAt
-        updatedAt
-      }
+${TASK_FIELDS}
     }
   }
 `;
@@ -216,7 +228,7 @@ export const LIST_TASK_OPTIONS_QUERY = `
   }
 `;
 
-export const LIST_TASK_ASSIGNABLE_PRINCIPALS_QUERY = `
+export const LIST_TASK_ASSIGNABLE_ACTORS_QUERY = `
   query ListTaskAssignableActors {
     taskAssignableActors {
       id
@@ -1068,36 +1080,7 @@ export const CREATE_TASK_MUTATION = `
       ok
       error
       task {
-        id
-        company {
-          id
-        }
-        name
-        description
-        acceptanceCriteria
-        assigneeActorId
-        threadId
-        parentTaskId
-        status
-        createdAt
-        updatedAt
-        dependencyTaskIds
-        comments {
-          id
-          taskId
-          comment
-          authorActorId
-          authorActor {
-            id
-            kind
-            displayName
-            agentId
-            userId
-            email
-          }
-          createdAt
-          updatedAt
-        }
+${TASK_FIELDS}
       }
     }
   }
@@ -1112,36 +1095,7 @@ export const ADD_TASK_DEPENDENCY_MUTATION = `
       ok
       error
       task {
-        id
-        company {
-          id
-        }
-        name
-        description
-        acceptanceCriteria
-        assigneeActorId
-        threadId
-        parentTaskId
-        status
-        createdAt
-        updatedAt
-        dependencyTaskIds
-        comments {
-          id
-          taskId
-          comment
-          authorActorId
-          authorActor {
-            id
-            kind
-            displayName
-            agentId
-            userId
-            email
-          }
-          createdAt
-          updatedAt
-        }
+${TASK_FIELDS}
       }
     }
   }
@@ -1156,36 +1110,7 @@ export const REMOVE_TASK_DEPENDENCY_MUTATION = `
       ok
       error
       task {
-        id
-        company {
-          id
-        }
-        name
-        description
-        acceptanceCriteria
-        assigneeActorId
-        threadId
-        parentTaskId
-        status
-        createdAt
-        updatedAt
-        dependencyTaskIds
-        comments {
-          id
-          taskId
-          comment
-          authorActorId
-          authorActor {
-            id
-            kind
-            displayName
-            agentId
-            userId
-            email
-          }
-          createdAt
-          updatedAt
-        }
+${TASK_FIELDS}
       }
     }
   }
@@ -1200,42 +1125,13 @@ export const SET_TASK_PARENT_MUTATION = `
       ok
       error
       task {
-        id
-        company {
-          id
-        }
-        name
-        description
-        acceptanceCriteria
-        assigneeActorId
-        threadId
-        parentTaskId
-        status
-        createdAt
-        updatedAt
-        dependencyTaskIds
-        comments {
-          id
-          taskId
-          comment
-          authorActorId
-          authorActor {
-            id
-            kind
-            displayName
-            agentId
-            userId
-            email
-          }
-          createdAt
-          updatedAt
-        }
+${TASK_FIELDS}
       }
     }
   }
 `;
 
-export const SET_TASK_ASSIGNEE_PRINCIPAL_MUTATION = `
+export const SET_TASK_ASSIGNEE_ACTOR_MUTATION = `
   mutation SetTaskAssigneeActor($taskId: ID!, $assigneeActorId: ID) {
     setTaskAssigneeActor(
       taskId: $taskId
@@ -1295,36 +1191,7 @@ export const BATCH_EXECUTE_TASKS_MUTATION = `
       ok
       error
       tasks {
-        id
-        company {
-          id
-        }
-        name
-        description
-        acceptanceCriteria
-        assigneeActorId
-        threadId
-        parentTaskId
-        status
-        createdAt
-        updatedAt
-        dependencyTaskIds
-        comments {
-          id
-          taskId
-          comment
-          authorActorId
-          authorActor {
-            id
-            kind
-            displayName
-            agentId
-            userId
-            email
-          }
-          createdAt
-          updatedAt
-        }
+${TASK_FIELDS}
       }
     }
   }
@@ -2276,36 +2143,7 @@ export const COMPANY_API_REFRESH_GITHUB_INSTALLATION_REPOSITORIES_MUTATION = `
 export const COMPANY_API_LIST_TASKS_QUERY = `
   query CompanyApiListTasks($topLevelOnly: Boolean, $rootTaskId: ID, $maxDepth: Int) {
     tasks(topLevelOnly: $topLevelOnly, rootTaskId: $rootTaskId, maxDepth: $maxDepth) {
-      id
-      name
-      description
-      acceptanceCriteria
-      assigneeActorId
-      threadId
-      parentTaskId
-      status
-      createdAt
-      updatedAt
-      dependencyTaskIds
-      comments {
-        id
-        taskId
-        comment
-        authorActorId
-        authorActor {
-          id
-          kind
-          displayName
-          agentId
-          userId
-          email
-        }
-        createdAt
-        updatedAt
-      }
-      company {
-        id
-      }
+${TASK_FIELDS}
     }
   }
 `;
@@ -2320,7 +2158,7 @@ export const COMPANY_API_LIST_TASK_OPTIONS_QUERY = `
   }
 `;
 
-export const COMPANY_API_LIST_TASK_ASSIGNABLE_PRINCIPALS_QUERY = `
+export const COMPANY_API_LIST_TASK_ASSIGNABLE_ACTORS_QUERY = `
   query CompanyApiListTaskAssignableActors {
     taskAssignableActors {
       id
@@ -2355,36 +2193,7 @@ export const COMPANY_API_CREATE_TASK_MUTATION = `
       ok
       error
       task {
-        id
-        name
-        description
-        acceptanceCriteria
-        assigneeActorId
-        threadId
-        parentTaskId
-        status
-        createdAt
-        updatedAt
-        dependencyTaskIds
-        comments {
-          id
-          taskId
-          comment
-          authorActorId
-          authorActor {
-            id
-            kind
-            displayName
-            agentId
-            userId
-            email
-          }
-          createdAt
-          updatedAt
-        }
-        company {
-          id
-        }
+${TASK_FIELDS}
       }
     }
   }
@@ -2435,42 +2244,13 @@ export const COMPANY_API_SET_TASK_PARENT_MUTATION = `
       ok
       error
       task {
-        id
-        name
-        description
-        acceptanceCriteria
-        assigneeActorId
-        threadId
-        parentTaskId
-        status
-        createdAt
-        updatedAt
-        dependencyTaskIds
-        comments {
-          id
-          taskId
-          comment
-          authorActorId
-          authorActor {
-            id
-            kind
-            displayName
-            agentId
-            userId
-            email
-          }
-          createdAt
-          updatedAt
-        }
-        company {
-          id
-        }
+${TASK_FIELDS}
       }
     }
   }
 `;
 
-export const COMPANY_API_SET_TASK_ASSIGNEE_PRINCIPAL_MUTATION = `
+export const COMPANY_API_SET_TASK_ASSIGNEE_ACTOR_MUTATION = `
   mutation CompanyApiSetTaskAssigneeActor(
     $taskId: ID!
     $assigneeActorId: ID
@@ -2533,36 +2313,7 @@ export const COMPANY_API_BATCH_EXECUTE_TASKS_MUTATION = `
       ok
       error
       tasks {
-        id
-        name
-        description
-        acceptanceCriteria
-        assigneeActorId
-        threadId
-        parentTaskId
-        status
-        createdAt
-        updatedAt
-        dependencyTaskIds
-        comments {
-          id
-          taskId
-          comment
-          authorActorId
-          authorActor {
-            id
-            kind
-            displayName
-            agentId
-            userId
-            email
-          }
-          createdAt
-          updatedAt
-        }
-        company {
-          id
-        }
+${TASK_FIELDS}
       }
     }
   }

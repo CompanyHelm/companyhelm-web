@@ -38,7 +38,7 @@ import {
   LIST_TASKS_QUERY,
   LIST_TASK_PAGE_TASKS_QUERY,
   LIST_TASK_OPTIONS_QUERY,
-  LIST_TASK_ASSIGNABLE_PRINCIPALS_QUERY,
+  LIST_TASK_ASSIGNABLE_ACTORS_QUERY,
   LIST_AGENT_RUNNERS_QUERY,
   CREATE_AGENT_RUNNER_MUTATION,
   REGENERATE_AGENT_RUNNER_SECRET_MUTATION,
@@ -60,7 +60,7 @@ import {
   ADD_TASK_DEPENDENCY_MUTATION,
   REMOVE_TASK_DEPENDENCY_MUTATION,
   SET_TASK_PARENT_MUTATION,
-  SET_TASK_ASSIGNEE_PRINCIPAL_MUTATION,
+  SET_TASK_ASSIGNEE_ACTOR_MUTATION,
   SET_TASK_STATUS_MUTATION,
   DELETE_TASK_MUTATION,
   BATCH_DELETE_TASKS_MUTATION,
@@ -129,12 +129,12 @@ import {
   COMPANY_API_REFRESH_GITHUB_INSTALLATION_REPOSITORIES_MUTATION,
   COMPANY_API_LIST_TASKS_QUERY,
   COMPANY_API_LIST_TASK_OPTIONS_QUERY,
-  COMPANY_API_LIST_TASK_ASSIGNABLE_PRINCIPALS_QUERY,
+  COMPANY_API_LIST_TASK_ASSIGNABLE_ACTORS_QUERY,
   COMPANY_API_CREATE_TASK_MUTATION,
   COMPANY_API_ADD_TASK_DEPENDENCY_MUTATION,
   COMPANY_API_REMOVE_TASK_DEPENDENCY_MUTATION,
   COMPANY_API_SET_TASK_PARENT_MUTATION,
-  COMPANY_API_SET_TASK_ASSIGNEE_PRINCIPAL_MUTATION,
+  COMPANY_API_SET_TASK_ASSIGNEE_ACTOR_MUTATION,
   COMPANY_API_SET_TASK_STATUS_MUTATION,
   COMPANY_API_DELETE_TASK_MUTATION,
   COMPANY_API_BATCH_DELETE_TASKS_MUTATION,
@@ -1137,6 +1137,26 @@ function toTaskCommentPayload(taskComment: any) {
   };
 }
 
+function toTaskRunPayload(taskRun: any) {
+  const taskRunId = resolveLegacyId(taskRun?.id);
+  if (!taskRunId) {
+    return null;
+  }
+  return {
+    id: taskRunId,
+    taskId: resolveLegacyId(taskRun?.taskId),
+    status: resolveLegacyId(taskRun?.status) || "queued",
+    threadId: resolveLegacyId(taskRun?.threadId) || null,
+    agentId: resolveLegacyId(taskRun?.agentId) || null,
+    triggeredByActorId: resolveLegacyId(taskRun?.triggeredByActorId) || null,
+    failureMessage: String(taskRun?.failureMessage || "") || null,
+    startedAt: resolveLegacyId(taskRun?.startedAt),
+    finishedAt: resolveLegacyId(taskRun?.finishedAt),
+    createdAt: resolveLegacyId(taskRun?.createdAt),
+    updatedAt: resolveLegacyId(taskRun?.updatedAt),
+  };
+}
+
 function toActorPayload(actor: any) {
   const actorId = resolveLegacyId(actor?.id);
   if (!actorId) {
@@ -1157,6 +1177,18 @@ function toActorPayload(actor: any) {
 function toTaskPayload(task: any) {
   const assigneeActor = toActorPayload(task?.assigneeActor);
   const assigneeAgentId = resolveLegacyId(task?.agentId, assigneeActor?.agentId) || null;
+  const runs = Array.isArray(task?.runs)
+    ? task.runs
+        .map((taskRun: any) => toTaskRunPayload(taskRun))
+        .filter((taskRun: any) => taskRun?.id)
+    : [];
+  const latestRun = toTaskRunPayload(task?.latestRun);
+  const activeRun = toTaskRunPayload(task?.activeRun);
+  const threadId = resolveLegacyId(
+    activeRun?.threadId,
+    latestRun?.threadId,
+    task?.threadId,
+  ) || null;
   return {
     id: resolveLegacyId(task?.id),
     companyId: resolveLegacyId(task?.company?.id, task?.companyId),
@@ -1166,12 +1198,17 @@ function toTaskPayload(task: any) {
     assigneeActorId: resolveLegacyId(task?.assigneeActorId) || null,
     assigneeActor,
     assigneeAgentId,
-    threadId: resolveLegacyId(task?.threadId) || null,
+    threadId,
     parentTaskId: resolveLegacyId(task?.parentTaskId) || null,
     status: resolveLegacyId(task?.status) || "draft",
     createdAt: resolveLegacyId(task?.createdAt),
     updatedAt: resolveLegacyId(task?.updatedAt),
     dependencyTaskIds: normalizeUniqueStringList(task?.dependencyTaskIds || []),
+    runs,
+    latestRun,
+    activeRun,
+    attemptCount: Number.isInteger(task?.attemptCount) ? Number(task.attemptCount) : runs.length,
+    lastRunStatus: resolveLegacyId(task?.lastRunStatus, latestRun?.status) || null,
     comments: Array.isArray(task?.comments)
       ? task.comments
           .map((comment: any) => toTaskCommentPayload(comment))
@@ -2421,8 +2458,8 @@ async function executeGraphQL(query: any, variables: any = {}) {
     };
   }
 
-  if (query === LIST_TASK_ASSIGNABLE_PRINCIPALS_QUERY) {
-    const data = await executeRawGraphQL(COMPANY_API_LIST_TASK_ASSIGNABLE_PRINCIPALS_QUERY, {
+  if (query === LIST_TASK_ASSIGNABLE_ACTORS_QUERY) {
+    const data = await executeRawGraphQL(COMPANY_API_LIST_TASK_ASSIGNABLE_ACTORS_QUERY, {
       companyId: resolveLegacyId(variables?.companyId),
     });
     return {
@@ -2593,8 +2630,8 @@ async function executeGraphQL(query: any, variables: any = {}) {
     };
   }
 
-  if (query === SET_TASK_ASSIGNEE_PRINCIPAL_MUTATION) {
-    const data = await executeRawGraphQL(COMPANY_API_SET_TASK_ASSIGNEE_PRINCIPAL_MUTATION, {
+  if (query === SET_TASK_ASSIGNEE_ACTOR_MUTATION) {
+    const data = await executeRawGraphQL(COMPANY_API_SET_TASK_ASSIGNEE_ACTOR_MUTATION, {
       companyId: resolveLegacyId(variables?.companyId),
       taskId: resolveLegacyId(variables?.taskId),
       assigneeActorId: resolveLegacyId(variables?.assigneeActorId) || null,
@@ -4104,7 +4141,7 @@ function App() {
     }
 
     try {
-      const data = await executeGraphQL(LIST_TASK_ASSIGNABLE_PRINCIPALS_QUERY, {
+      const data = await executeGraphQL(LIST_TASK_ASSIGNABLE_ACTORS_QUERY, {
         companyId: selectedCompanyId,
       });
       const nextActors = Array.isArray(data?.taskAssignableActors)
@@ -6834,7 +6871,7 @@ function App() {
       const nextStatus = String(draft.status || "").trim() || "draft";
 
       if (currentAssigneeActorId !== nextAssigneeActorId) {
-        const assigneeData = await executeGraphQL(SET_TASK_ASSIGNEE_PRINCIPAL_MUTATION, {
+        const assigneeData = await executeGraphQL(SET_TASK_ASSIGNEE_ACTOR_MUTATION, {
           companyId: selectedCompanyId,
           taskId,
           assigneeActorId: nextAssigneeActorId || null,
