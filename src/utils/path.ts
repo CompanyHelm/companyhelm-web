@@ -49,6 +49,9 @@ export function normalizePathname(rawPathname: string): string {
 export function getPageFromPathname(pathname: string = window.location.pathname): string {
   const segments = normalizePathname(pathname).toLowerCase().split("/").filter(Boolean);
   const pageId = segments[0] || "";
+  if (pageId === "actors" || pageId === "org") {
+    return "org";
+  }
   if (pageId && PAGE_IDS.has(pageId)) {
     return pageId;
   }
@@ -152,6 +155,20 @@ export function getRunnersRouteFromPathname(pathname: string = window.location.p
     return { view: "new", runnerId: "" };
   }
   return { view: "detail", runnerId: secondSegment };
+}
+
+export function getActorsRouteFromPathname(pathname: string = window.location.pathname): DetailRoute & { actorId: string } {
+  const segments = normalizePathname(pathname).split("/").filter(Boolean);
+  const topLevelSegment = String(segments[0] || "").toLowerCase();
+  if (topLevelSegment !== "actors" && topLevelSegment !== "org") {
+    return { view: "list", actorId: "" };
+  }
+
+  const actorId = String(segments[1] || "").trim();
+  if (!actorId) {
+    return { view: "list", actorId: "" };
+  }
+  return { view: "detail", actorId };
 }
 
 export function getTasksRouteFromPathname(pathname: string = window.location.pathname): DetailRoute & { taskId: string } {
@@ -258,6 +275,9 @@ export function getPathForPage(pageId: string): string {
   const normalizedPageId = String(pageId || "").trim().toLowerCase();
   if (normalizedPageId === "chat") {
     return "/chats";
+  }
+  if (normalizedPageId === "org") {
+    return "/actors";
   }
   if (normalizedPageId === "gitskillpackages") {
     return "/gitSkillPackages";

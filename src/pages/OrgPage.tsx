@@ -12,9 +12,10 @@ interface OrgPageProps {
   reportees: ReporteeRelation[];
   isLoading: boolean;
   error: string;
+  onOpenActor?: (actorId: string) => void;
 }
 
-export function OrgPage({ actors, reportees, isLoading, error }: OrgPageProps) {
+export function OrgPage({ actors, reportees, isLoading, error, onOpenActor }: OrgPageProps) {
   const [activeTab, setActiveTab] = useState<OrgTab>("table");
   const actorCountLabel = useMemo(() => {
     const count = Array.isArray(actors) ? actors.length : 0;
@@ -35,7 +36,7 @@ export function OrgPage({ actors, reportees, isLoading, error }: OrgPageProps) {
         <header className="org-page-header">
           <div>
             <p className="eyebrow">Org</p>
-            <h1>Org</h1>
+            <h1>Organization</h1>
             <p className="subcopy">Browse actor reporting structure across users and agents.</p>
           </div>
           <div className="count-chip">{actorCountLabel}</div>
@@ -62,9 +63,9 @@ export function OrgPage({ actors, reportees, isLoading, error }: OrgPageProps) {
         {isLoading ? (
           <p className="empty-hint">Loading org structure…</p>
         ) : activeTab === "graph" ? (
-          <OrgGraphView actors={actors} reportees={reportees} />
+          <OrgGraphView actors={actors} reportees={reportees} onOpenActor={onOpenActor} />
         ) : (
-          <OrgTableView actors={actors} reportees={reportees} />
+          <OrgTableView actors={actors} reportees={reportees} onOpenActor={onOpenActor} />
         )}
       </section>
     </Page>

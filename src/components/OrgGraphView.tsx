@@ -30,6 +30,11 @@ const NODE_HEIGHT = 84;
 interface OrgGraphViewProps {
   actors: Actor[];
   reportees: ReporteeRelation[];
+  onOpenActor?: (actorId: string) => void;
+}
+
+function getActorKindLabel(kind: Actor["kind"]) {
+  return kind === "user" ? "Human" : "AI";
 }
 
 function buildOrgGraph(actors: Actor[], reportees: ReporteeRelation[]) {
@@ -43,7 +48,7 @@ function buildOrgGraph(actors: Actor[], reportees: ReporteeRelation[]) {
     id: actor.id,
     position: { x: 0, y: 0 },
     data: {
-      label: `${actor.displayName} · ${actor.kind}`,
+      label: `${actor.displayName} · ${getActorKindLabel(actor.kind)}`,
     },
     type: "default",
     style: {
@@ -70,7 +75,7 @@ function buildOrgGraph(actors: Actor[], reportees: ReporteeRelation[]) {
   return { nodes, edges };
 }
 
-export function OrgGraphView({ actors, reportees }: OrgGraphViewProps) {
+export function OrgGraphView({ actors, reportees, onOpenActor }: OrgGraphViewProps) {
   const graph = useMemo(() => buildOrgGraph(actors, reportees), [actors, reportees]);
   const [nodes, setNodes] = useState<Node[]>(graph.nodes);
   const [edges, setEdges] = useState<Edge[]>(graph.edges);
@@ -135,6 +140,10 @@ export function OrgGraphView({ actors, reportees }: OrgGraphViewProps) {
   }, [graph]);
 
   const handleNodeClick = useCallback<NodeMouseHandler>((_event, node) => {
+    if (onOpenActor) {
+      onOpenActor(node.id);
+      return;
+    }
     if (typeof window === "undefined") {
       return;
     }
@@ -142,7 +151,7 @@ export function OrgGraphView({ actors, reportees }: OrgGraphViewProps) {
     if (selectedNode instanceof HTMLElement) {
       selectedNode.scrollIntoView({ block: "center", behavior: "smooth" });
     }
-  }, []);
+  }, [onOpenActor]);
 
   if (graph.nodes.length === 0) {
     return (

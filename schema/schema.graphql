@@ -1,5 +1,6 @@
 type Actor {
   agentId: ID
+  description: String
   displayName: String!
   email: String
   id: ID!
@@ -10,6 +11,12 @@ type Actor {
 enum ActorKind {
   agent
   user
+}
+
+type ActorMutationPayload {
+  actor: Actor
+  error: String
+  ok: Boolean!
 }
 
 type AddGithubInstallationPayload {
@@ -450,6 +457,7 @@ type Mutation {
   removeSkillGroupFromRole(roleId: ID!, skillGroupId: ID!): RoleMutationPayload!
   removeTaskDependency(dependencyTaskId: ID!, taskId: ID!): TaskMutationPayload!
   retryQueuedUserMessage(queuedMessageId: ID!): QueuedUserMessage!
+  setActorDescription(actorId: ID!, description: String): ActorMutationPayload!
   setActorManager(managerActorId: ID, reporteeActorId: ID!): ReporteeMutationPayload!
   setTaskAssigneeActor(assigneeActorId: ID, taskId: ID!): TaskMutationPayload!
   setTaskDescription(description: String, taskId: ID!): TaskMutationPayload!
@@ -484,6 +492,7 @@ type PreviewGitSkillPackagePayload {
 }
 
 type Query {
+  actor(id: ID!): Actor
   adminTable(first: Int = 50, search: String, status: String, tableName: String!): AdminTable!
   adminTables: [AdminTableSummary!]!
   agent(id: ID!): Agent

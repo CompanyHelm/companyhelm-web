@@ -4,9 +4,14 @@ import { buildOrgHierarchyRows } from "../utils/org-hierarchy.ts";
 interface OrgTableViewProps {
   actors: Actor[];
   reportees: ReporteeRelation[];
+  onOpenActor?: (actorId: string) => void;
 }
 
-export function OrgTableView({ actors, reportees }: OrgTableViewProps) {
+function getActorKindLabel(kind: Actor["kind"]) {
+  return kind === "user" ? "Human" : "AI";
+}
+
+export function OrgTableView({ actors, reportees, onOpenActor }: OrgTableViewProps) {
   const rows = buildOrgHierarchyRows({ actors, reportees });
   const actorById = new Map(
     (Array.isArray(actors) ? actors : []).map((actor) => [String(actor.id || "").trim(), actor] as const),
@@ -42,12 +47,22 @@ export function OrgTableView({ actors, reportees }: OrgTableViewProps) {
                   <span className="org-tree-marker" aria-hidden="true">
                     {row.depth > 0 ? "↳" : "•"}
                   </span>
-                  <span>{row.actor.displayName}</span>
+                  {onOpenActor ? (
+                    <button
+                      type="button"
+                      className="org-actor-link"
+                      onClick={() => onOpenActor(row.actor.id)}
+                    >
+                      {row.actor.displayName}
+                    </button>
+                  ) : (
+                    <span>{row.actor.displayName}</span>
+                  )}
                 </div>
               </td>
               <td>
                 <span className={`org-kind-pill org-kind-pill-${row.actor.kind}`}>
-                  {row.actor.kind}
+                  {getActorKindLabel(row.actor.kind)}
                 </span>
               </td>
               <td>{row.managerActorId ? (actorById.get(row.managerActorId)?.displayName || row.managerActorId) : "Root"}</td>

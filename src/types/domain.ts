@@ -177,6 +177,7 @@ export interface Actor {
   id: string;
   kind: "agent" | "user";
   displayName: string;
+  description?: string | null;
   agentId?: string | null;
   userId?: string | null;
   email?: string | null;

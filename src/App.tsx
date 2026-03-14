@@ -203,6 +203,7 @@ import {
   COMPANY_API_DELETE_QUEUED_USER_MESSAGE_MUTATION,
   COMPANY_API_INTERRUPT_TURN_MUTATION,
   LIST_ORG_QUERY,
+  SET_ACTOR_DESCRIPTION_MUTATION,
   START_RUNNER_SDK_AUTH_MUTATION,
 } from "./utils/graphql.ts";
 
@@ -251,6 +252,7 @@ import {
   getGitSkillPackagesRouteFromPathname,
   getRunnersRouteFromPathname,
   getTasksRouteFromPathname,
+  getActorsRouteFromPathname,
   getChatsRouteFromLocation,
   getChatsPath,
   DEFAULT_ADMIN_TABLE_NAME,
@@ -337,6 +339,7 @@ import {
 import { ReposPage } from "./pages/ReposPage.tsx";
 import { ProfilePage } from "./pages/ProfilePage.tsx";
 import { OrgPage } from "./pages/OrgPage.tsx";
+import { ActorPage } from "./pages/ActorPage.tsx";
 
 // --- Module-level mutable state (shared by adapter functions and executeGraphQL) ---
 const companyApiThreadMetadataById = new Map<any, any>();
@@ -3054,6 +3057,7 @@ function App() {
   const [skillsRoute, setSkillsRoute] = useState<any>(() => getSkillsRouteFromPathname());
   const [rolesRoute, setRolesRoute] = useState<any>(() => getRolesRouteFromPathname());
   const [tasksRoute, setTasksRoute] = useState<any>(() => getTasksRouteFromPathname());
+  const [actorsRoute, setActorsRoute] = useState<any>(() => getActorsRouteFromPathname());
   const [gitSkillPackagesRoute, setGitSkillPackagesRoute] = useState<any>(
     () => getGitSkillPackagesRouteFromPathname(),
   );
@@ -3119,6 +3123,7 @@ function App() {
   const [isLoadingTasks, setIsLoadingTasks] = useState<any>(false);
   const [isLoadingTaskPageTasks, setIsLoadingTaskPageTasks] = useState<any>(false);
   const [isLoadingOrg, setIsLoadingOrg] = useState<any>(false);
+  const [isSavingActorDescription, setIsSavingActorDescription] = useState<any>(false);
   const [isLoadingSkills, setIsLoadingSkills] = useState<any>(false);
   const [isLoadingRoles, setIsLoadingRoles] = useState<any>(false);
   const [isLoadingSkillGroups, setIsLoadingSkillGroups] = useState<any>(false);
@@ -4174,6 +4179,34 @@ function App() {
       setIsLoadingOrg(false);
     }
   }, [selectedCompanyId]);
+
+  const handleSaveActorDescription = useCallback(async (actorId: string, description: string) => {
+    const normalizedActorId = String(actorId || "").trim();
+    if (!normalizedActorId) {
+      setOrgError("Actor id is required.");
+      return;
+    }
+
+    try {
+      setOrgError("");
+      setIsSavingActorDescription(true);
+      const data = await executeGraphQL(SET_ACTOR_DESCRIPTION_MUTATION, {
+        actorId: normalizedActorId,
+        description,
+      });
+      const payload = data?.setActorDescription;
+      if (!payload?.ok || !payload?.actor) {
+        throw new Error(String(payload?.error || "Failed to save actor description."));
+      }
+
+      setOrgActors((currentActors: any[]) => (Array.isArray(currentActors) ? currentActors : []).map((actor) =>
+        String(actor?.id || "").trim() === normalizedActorId ? { ...actor, ...payload.actor } : actor));
+    } catch (saveError: any) {
+      setOrgError(saveError.message);
+    } finally {
+      setIsSavingActorDescription(false);
+    }
+  }, []);
 
   const refreshVisibleTaskData = useCallback(async () => {
     if (shouldLoadTaskPageData) {
@@ -6099,6 +6132,7 @@ function App() {
       setSkillsRoute(getSkillsRouteFromPathname());
       setRolesRoute(getRolesRouteFromPathname());
       setTasksRoute(getTasksRouteFromPathname());
+      setActorsRoute(getActorsRouteFromPathname());
       setGitSkillPackagesRoute(getGitSkillPackagesRouteFromPathname());
       setRunnersRoute(getRunnersRouteFromPathname());
       setChatsRoute(getChatsRouteFromLocation());
@@ -10173,12 +10207,25 @@ function App() {
         ) : null}
 
         {selectedCompanyId && activePage === "org" ? (
-          <OrgPage
-            actors={orgActors}
-            reportees={orgReportees}
-            isLoading={isLoadingOrg}
-            error={orgError}
-          />
+          actorsRoute.view === "detail" ? (
+            <ActorPage
+              actor={orgActors.find((actor: any) => String(actor?.id || "").trim() === String(actorsRoute.actorId || "").trim()) ?? null}
+              actors={orgActors}
+              reportees={orgReportees}
+              isSaving={isSavingActorDescription}
+              error={orgError}
+              onSaveDescription={(description: string) => handleSaveActorDescription(actorsRoute.actorId, description)}
+              onOpenActor={(actorId: string) => setBrowserPath(`/actors/${actorId}`)}
+            />
+          ) : (
+            <OrgPage
+              actors={orgActors}
+              reportees={orgReportees}
+              isLoading={isLoadingOrg}
+              error={orgError}
+              onOpenActor={(actorId: string) => setBrowserPath(`/actors/${actorId}`)}
+            />
+          )
         ) : null}
 
         {selectedCompanyId && activePage === "skills" ? (
