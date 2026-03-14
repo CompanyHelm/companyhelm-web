@@ -437,6 +437,8 @@ type Mutation {
   removeTaskDependency(dependencyTaskId: ID!, taskId: ID!): TaskMutationPayload!
   retryQueuedUserMessage(queuedMessageId: ID!): QueuedUserMessage!
   setTaskAssigneePrincipal(assigneePrincipalId: ID, taskId: ID!): TaskMutationPayload!
+  setTaskDescription(description: String, taskId: ID!): TaskMutationPayload!
+  setTaskName(name: String!, taskId: ID!): TaskMutationPayload!
   setTaskParent(parentTaskId: ID, taskId: ID!): TaskMutationPayload!
   setTaskStatus(status: TaskStatus!, taskId: ID!): TaskMutationPayload!
   signIn(email: String!, password: String!): AuthPayload!

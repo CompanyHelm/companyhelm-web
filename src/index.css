@@ -3915,6 +3915,66 @@ button:disabled {
   cursor: pointer;
 }
 
+.task-overview-editable-value {
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 0.3rem 0.4rem;
+  margin: -0.3rem -0.4rem;
+  transition: background 0.12s;
+}
+
+.task-overview-editable-value:hover {
+  background: rgba(15, 118, 110, 0.05);
+}
+
+.task-overview-edit-hint {
+  display: none;
+  font-size: 0.7rem;
+  color: var(--ink-2);
+  margin-left: 0.4rem;
+}
+
+.task-overview-editable-value:hover .task-overview-edit-hint {
+  display: inline;
+}
+
+.task-overview-inline-edit {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.task-overview-inline-edit-actions {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.task-description-modal-card {
+  width: min(42rem, 92vw);
+  max-height: 80vh;
+}
+
+.task-description-modal-body {
+  padding: 0.8rem 1rem;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.task-description-modal-content {
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 60vh;
+  overflow: auto;
+  line-height: 1.6;
+  color: var(--ink-0);
+}
+
+.task-description-modal-textarea {
+  width: 100%;
+  min-height: 14rem;
+  resize: vertical;
+}
+
 .task-overview-card-wide {
   grid-column: 1 / -1;
 }

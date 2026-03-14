@@ -142,6 +142,30 @@ const setTaskAssigneePrincipalMutation = graphql`
   }
 `;
 
+const setTaskNameMutation = graphql`
+  mutation TasksRouteSetTaskNameMutation($taskId: ID!, $name: String!) {
+    setTaskName(taskId: $taskId, name: $name) {
+      ok
+      error
+      task {
+        id
+      }
+    }
+  }
+`;
+
+const setTaskDescriptionMutation = graphql`
+  mutation TasksRouteSetTaskDescriptionMutation($taskId: ID!, $description: String) {
+    setTaskDescription(taskId: $taskId, description: $description) {
+      ok
+      error
+      task {
+        id
+      }
+    }
+  }
+`;
+
 const setTaskStatusMutation = graphql`
   mutation TasksRouteSetTaskStatusMutation($taskId: ID!, $status: TaskStatus!) {
     setTaskStatus(taskId: $taskId, status: $status) {
@@ -940,6 +964,55 @@ export function TasksRoute({
     });
   }, []);
 
+  const handleSetTaskName = useCallback(async (taskId: string, nextName: string) => {
+    const trimmedName = nextName.trim();
+    if (!trimmedName) {
+      setTaskError("Task name cannot be empty.");
+      return false;
+    }
+    try {
+      setSavingTaskId(taskId);
+      setTaskError("");
+      const response = await commitRouteMutation({
+        mutation: setTaskNameMutation,
+        variables: { taskId, name: trimmedName },
+      });
+      const result = response?.setTaskName;
+      if (!result?.ok) {
+        throw new Error(result?.error || "Task name update failed.");
+      }
+      refetchTasks();
+      return true;
+    } catch (error: any) {
+      setTaskError(error.message);
+      return false;
+    } finally {
+      setSavingTaskId(null);
+    }
+  }, [commitRouteMutation, refetchTasks]);
+
+  const handleSetTaskDescription = useCallback(async (taskId: string, nextDescription: string) => {
+    try {
+      setSavingTaskId(taskId);
+      setTaskError("");
+      const response = await commitRouteMutation({
+        mutation: setTaskDescriptionMutation,
+        variables: { taskId, description: nextDescription.trim() || null },
+      });
+      const result = response?.setTaskDescription;
+      if (!result?.ok) {
+        throw new Error(result?.error || "Task description update failed.");
+      }
+      refetchTasks();
+      return true;
+    } catch (error: any) {
+      setTaskError(error.message);
+      return false;
+    } finally {
+      setSavingTaskId(null);
+    }
+  }, [commitRouteMutation, refetchTasks]);
+
   return (
     <TasksPage
       tasks={viewModel.tasks}
@@ -969,6 +1042,8 @@ export function TasksRoute({
       onCreateAndExecuteTask={handleCreateAndExecuteTask}
       onDraftChange={handleDraftChange}
       onSaveRelationships={handleRelationshipSave}
+      onSetTaskName={handleSetTaskName}
+      onSetTaskDescription={handleSetTaskDescription}
       onExecuteTask={handleExecuteTask}
       onAddDependency={handleAddTaskDependency}
       onCreateTaskComment={handleCreateTaskComment}

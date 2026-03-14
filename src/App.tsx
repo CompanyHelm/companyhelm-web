@@ -5434,11 +5434,15 @@ function App() {
       setRelationshipDrafts({});
       return;
     }
+    if (useRelayTasksRoute) {
+      loadTaskOptions();
+      return;
+    }
     if (!shouldLoadTaskPageData) {
       return;
     }
     loadTaskPageTasks();
-  }, [loadTaskPageTasks, selectedCompanyId, shouldLoadTaskPageData]);
+  }, [loadTaskOptions, loadTaskPageTasks, selectedCompanyId, shouldLoadTaskPageData, useRelayTasksRoute]);
 
   useEffect(() => {
     if (!selectedCompanyId) {

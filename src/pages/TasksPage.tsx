@@ -51,6 +51,8 @@ interface TasksPageProps {
   onCreateAndExecuteTask: (event: FormEvent<HTMLFormElement>, agentId: string) => Promise<boolean> | boolean;
   onDraftChange: (taskId: string, field: string, value: string | string[]) => void;
   onSaveRelationships: (taskId: string) => Promise<boolean> | boolean;
+  onSetTaskName: (taskId: string, name: string) => Promise<boolean> | boolean;
+  onSetTaskDescription: (taskId: string, description: string) => Promise<boolean> | boolean;
   onExecuteTask: (taskId: string, agentId: string) => Promise<boolean> | boolean;
   onAddDependency?: (taskId: string, dependencyTaskId: string) => void;
   onCreateTaskComment: (taskId: string, comment: string) => Promise<boolean> | boolean;
@@ -105,6 +107,8 @@ export function TasksPage({
   onCreateAndExecuteTask,
   onDraftChange,
   onSaveRelationships,
+  onSetTaskName,
+  onSetTaskDescription,
   onExecuteTask,
   onAddDependency,
   onCreateTaskComment,
@@ -126,7 +130,11 @@ export function TasksPage({
   const [executeFallbackAgentId, setExecuteFallbackAgentId] = useState("");
   const [isExecutingTask, setIsExecutingTask] = useState(false);
   const [overviewCommentDraft, setOverviewCommentDraft] = useState("");
-  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const [isDescriptionModalOpen, setIsDescriptionModalOpen] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [descriptionDraft, setDescriptionDraft] = useState("");
 
   const visibleTaskById = useMemo(() => {
     return tasks.reduce((map, task) => {
@@ -242,7 +250,9 @@ export function TasksPage({
     setOverviewCommentDraft("");
     setIsEditModalOpen(false);
     setEditingTaskId("");
-    setIsDescriptionExpanded(false);
+    setIsDescriptionModalOpen(false);
+    setIsEditingName(false);
+    setIsEditingDescription(false);
   }, [activeTaskId]);
 
   useEffect(() => {
@@ -287,6 +297,36 @@ export function TasksPage({
       return;
     }
     await onSaveRelationships(activeTask.id);
+  }
+
+  function startEditingName() {
+    if (!activeTask) return;
+    setNameDraft(activeTask.name || "");
+    setIsEditingName(true);
+  }
+
+  async function saveNameEdit() {
+    if (!activeTask || !nameDraft.trim()) return;
+    const didSave = await onSetTaskName(activeTask.id, nameDraft);
+    if (didSave) {
+      setIsEditingName(false);
+    }
+  }
+
+  function openDescriptionModal(editing: boolean) {
+    if (!activeTask) return;
+    setDescriptionDraft(activeTask.description || "");
+    setIsEditingDescription(editing);
+    setIsDescriptionModalOpen(true);
+  }
+
+  async function saveDescriptionEdit() {
+    if (!activeTask) return;
+    const didSave = await onSetTaskDescription(activeTask.id, descriptionDraft);
+    if (didSave) {
+      setIsEditingDescription(false);
+      setIsDescriptionModalOpen(false);
+    }
   }
 
   async function handleOverviewCommentSubmit(event: FormEvent<HTMLFormElement>) {
@@ -545,22 +585,66 @@ export function TasksPage({
 
                       <div className="task-overview-field">
                         <span className="task-overview-field-label">Name</span>
-                        <strong>{activeTask.name || "Untitled task"}</strong>
+                        {isEditingName ? (
+                          <div className="task-overview-inline-edit">
+                            <input
+                              type="text"
+                              value={nameDraft}
+                              onChange={(e) => setNameDraft(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") void saveNameEdit();
+                                if (e.key === "Escape") setIsEditingName(false);
+                              }}
+                              autoFocus
+                            />
+                            <div className="task-overview-inline-edit-actions">
+                              <button
+                                type="button"
+                                className="secondary-btn"
+                                onClick={() => void saveNameEdit()}
+                                disabled={!nameDraft.trim() || isOverviewSavePending}
+                              >
+                                Save
+                              </button>
+                              <button
+                                type="button"
+                                className="task-overview-show-more-btn"
+                                onClick={() => setIsEditingName(false)}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="task-overview-editable-value" onClick={startEditingName}>
+                            <strong>{activeTask.name || "Untitled task"}</strong>
+                            <span className="task-overview-edit-hint">Click to edit</span>
+                          </div>
+                        )}
                       </div>
                       <div className="task-overview-field">
                         <span className="task-overview-field-label">Description</span>
-                        <span className={!isDescriptionExpanded && (activeTask.description || "").length > 200 ? "task-overview-field-value-truncated" : ""}>
+                        <span className={(activeTask.description || "").length > 200 ? "task-overview-field-value-truncated" : ""}>
                           {activeTask.description || "No description provided."}
                         </span>
-                        {(activeTask.description || "").length > 200 ? (
+                        <div className="task-overview-inline-edit-actions">
+                          {(activeTask.description || "").length > 200 ? (
+                            <button
+                              type="button"
+                              className="task-overview-show-more-btn"
+                              onClick={() => openDescriptionModal(false)}
+                            >
+                              Show more
+                            </button>
+                          ) : null}
                           <button
                             type="button"
                             className="task-overview-show-more-btn"
-                            onClick={() => setIsDescriptionExpanded((v) => !v)}
+                            onClick={() => openDescriptionModal(true)}
                           >
-                            {isDescriptionExpanded ? "Show less" : "Show more"}
+                            Edit
                           </button>
-                        ) : null}
+                        </div>
                       </div>
 
                       <label htmlFor="overview-task-assignee">Assignee</label>
@@ -845,6 +929,62 @@ export function TasksPage({
               {isExecutingTask ? "Executing..." : "Execute task"}
             </button>
           </div>
+        </div>
+      </CreationModal>
+
+      <CreationModal
+        modalId="task-description-modal"
+        title="Description"
+        isOpen={isDescriptionModalOpen}
+        onClose={() => { setIsDescriptionModalOpen(false); setIsEditingDescription(false); }}
+        cardClassName="task-description-modal-card"
+      >
+        <div className="task-description-modal-body">
+          {isEditingDescription ? (
+            <>
+              <textarea
+                className="task-description-modal-textarea"
+                rows={12}
+                value={descriptionDraft}
+                onChange={(e) => setDescriptionDraft(e.target.value)}
+                autoFocus
+              />
+              <div className="task-form-actions">
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={() => setIsEditingDescription(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void saveDescriptionEdit()}
+                  disabled={isOverviewSavePending}
+                >
+                  {isOverviewSavePending ? "Saving..." : "Save"}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="task-description-modal-content">
+                {activeTask?.description || "No description provided."}
+              </div>
+              <div className="task-form-actions">
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={() => {
+                    setDescriptionDraft(activeTask?.description || "");
+                    setIsEditingDescription(true);
+                  }}
+                >
+                  Edit
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </CreationModal>
     </Page>
