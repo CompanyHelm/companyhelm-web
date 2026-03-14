@@ -52,11 +52,16 @@ export function TaskEditModal({
   const [commentDraft, setCommentDraft] = useState("");
   const [selectedExecuteAgentId, setSelectedExecuteAgentId] = useState("");
 
+  const taskId = task?.id || "";
+
+  useEffect(() => {
+    setCommentDraft("");
+    setSelectedExecuteAgentId("");
+  }, [taskId]);
+
   if (!task) {
     return null;
   }
-
-  const taskId = task.id;
   const taskName = task.name;
   const currentChildTaskIds = tasks
     .filter((candidateTask) => String(candidateTask.parentTaskId || "").trim() === taskId)
@@ -102,11 +107,6 @@ export function TaskEditModal({
     || JSON.stringify(normalizedCurrentChildTaskIds) !== JSON.stringify(normalizedDraftChildTaskIds)
     || assigneePrincipalId !== currentAssigneePrincipalId
     || status !== (String(task?.status || "").trim() || "draft");
-
-  useEffect(() => {
-    setCommentDraft("");
-    setSelectedExecuteAgentId("");
-  }, [taskId]);
 
   function removeDependency(depId: string) {
     onDraftChange(taskId, "dependencyTaskIds", draftDependencyTaskIds.filter((id) => id !== depId));

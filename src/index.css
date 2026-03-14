@@ -3373,30 +3373,50 @@ button:disabled {
   color: var(--ink-0);
 }
 
+/* ── Task detail hero ────────────────────────────── */
+
+.task-overview-scroll {
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.task-detail-hero {
+  position: relative;
+  border-left: 3px solid var(--action);
+  padding: 0.85rem 1rem;
+}
+
+.task-detail-hero-description {
+  margin: 0.35rem 0 0.75rem;
+  max-width: 72ch;
+  color: var(--ink-1);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.task-detail-hero-description-text {
+  margin: 0;
+}
+
+.task-detail-hero-stats {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+@media (max-width: 640px) {
+  .task-detail-hero-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .task-overview-grid-2col {
+    grid-template-columns: 1fr;
+  }
+}
+
 .task-detail-header {
   padding: 0.7rem 0.9rem 0;
   display: grid;
   gap: 0.6rem;
   border-bottom: 1px solid var(--panel-border);
-}
-
-.task-depth-controls {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  flex-wrap: wrap;
-  padding-bottom: 0.7rem;
-}
-
-.task-depth-label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--ink-1);
-}
-
-.task-depth-summary {
-  font-size: 0.74rem;
-  color: var(--ink-2);
 }
 
 /* ── React Flow graph nodes ─────────────────────── */
@@ -3888,6 +3908,10 @@ button:disabled {
   overflow: auto;
 }
 
+.task-overview-grid-2col {
+  grid-template-columns: repeat(2, 1fr);
+}
+
 .task-overview-card {
   border: 1px solid rgba(26, 32, 38, 0.08);
   border-radius: 14px;
@@ -3971,8 +3995,101 @@ button:disabled {
 
 .task-description-modal-textarea {
   width: 100%;
-  min-height: 14rem;
+  min-height: 18rem;
   resize: vertical;
+  line-height: 1.6;
+  font-size: 0.88rem;
+  padding: 0.75rem;
+}
+
+.task-description-modal-hint {
+  font-size: 0.72rem;
+  color: var(--ink-2);
+  margin-right: auto;
+}
+
+/* ── Task dependencies modal ────────────────────── */
+
+.task-dependencies-modal-card {
+  width: min(32rem, 92vw);
+}
+
+.task-dependencies-modal-body {
+  padding: 0.8rem 1rem;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.task-dependencies-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.task-dependencies-modal-add select {
+  font-size: 0.82rem;
+  color: var(--action);
+  cursor: pointer;
+}
+
+.task-dependencies-modal-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+}
+
+.task-dependencies-modal-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.6rem 0.5rem;
+  border-bottom: 1px solid rgba(26, 32, 38, 0.06);
+}
+
+.task-dependencies-modal-item:last-child {
+  border-bottom: none;
+}
+
+.task-dependencies-modal-item-name {
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--ink-0);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-dependencies-modal-unlink {
+  flex-shrink: 0;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid rgba(158, 29, 36, 0.2);
+  border-radius: 6px;
+  background: none;
+  color: var(--danger);
+  font-size: 0.76rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.task-dependencies-modal-unlink:hover:not(:disabled) {
+  background: rgba(158, 29, 36, 0.08);
+  border-color: rgba(158, 29, 36, 0.35);
+}
+
+.task-dependencies-modal-unlink:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.task-dependencies-modal-empty {
+  padding: 1.5rem 0;
+  text-align: center;
 }
 
 .task-overview-card-wide {

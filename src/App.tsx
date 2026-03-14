@@ -3118,7 +3118,7 @@ function App() {
   const [startingRunnerSdkAuthKey, setStartingRunnerSdkAuthKey] = useState<any>("");
   const [appFlags, setAppFlags] = useState<AppFlags>(() => getPersistedFlags());
   const [isCreatingAgent, setIsCreatingAgent] = useState<any>(false);
-  const [taskPageDepth, setTaskPageDepth] = useState<any>("5");
+  const [taskPageDepth, setTaskPageDepth] = useState<any>("all");
   const [savingAgentId, setSavingAgentId] = useState<any>(null);
   const [deletingAgentId, setDeletingAgentId] = useState<any>(null);
   const [initializingAgentId, setInitializingAgentId] = useState<any>(null);
@@ -6047,7 +6047,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    setTaskPageDepth("5");
+    setTaskPageDepth("all");
   }, [selectedCompanyId, tasksRoute.taskId, tasksRoute.view]);
 
   useEffect(() => {
@@ -10067,8 +10067,6 @@ function App() {
           <Suspense fallback={<div className="page-empty-panel"><p>Loading tasks...</p></div>}>
             <RelayTasksRoute
               activeTaskId={tasksRoute.view === "detail" ? tasksRoute.taskId : ""}
-              visibleDepth={taskPageDepth}
-              onVisibleDepthChange={setTaskPageDepth}
               onOpenTask={(taskId: string) => setBrowserPath(`/tasks/${taskId}`)}
               onBackToTasks={() => setBrowserPath("/tasks")}
               onOpenTaskThread={handleOpenTaskThread}

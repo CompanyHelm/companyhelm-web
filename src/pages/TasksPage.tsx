@@ -55,19 +55,16 @@ interface TasksPageProps {
   onSetTaskDescription: (taskId: string, description: string) => Promise<boolean> | boolean;
   onExecuteTask: (taskId: string, agentId: string) => Promise<boolean> | boolean;
   onAddDependency?: (taskId: string, dependencyTaskId: string) => void;
+  onRemoveDependency?: (taskId: string, dependencyTaskId: string) => void;
   onCreateTaskComment: (taskId: string, comment: string) => Promise<boolean> | boolean;
   onDeleteTask: (taskId: string, taskName: string) => void;
   onBatchDeleteTasks: (taskIds: string[]) => Promise<boolean> | boolean;
   onBatchExecuteTasks: (taskIds: string[], fallbackAgentId?: string) => Promise<boolean> | boolean;
   onOpenTaskThread: (threadId: string) => Promise<void> | void;
   activeTaskId: string;
-  visibleDepth: string;
-  onVisibleDepthChange: (value: string) => void;
   onOpenTask: (taskId: string) => void;
   onBackToTasks: () => void;
 }
-
-const DEPTH_OPTIONS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "all"] as const;
 
 function toCountLabel(count: number, singularLabel: string, pluralLabel?: string) {
   if (count === 0) {
@@ -111,14 +108,13 @@ export function TasksPage({
   onSetTaskDescription,
   onExecuteTask,
   onAddDependency,
+  onRemoveDependency,
   onCreateTaskComment,
   onDeleteTask,
   onBatchDeleteTasks,
   onBatchExecuteTasks,
   onOpenTaskThread,
   activeTaskId,
-  visibleDepth,
-  onVisibleDepthChange,
   onOpenTask,
   onBackToTasks,
 }: TasksPageProps) {
@@ -131,9 +127,9 @@ export function TasksPage({
   const [isExecutingTask, setIsExecutingTask] = useState(false);
   const [overviewCommentDraft, setOverviewCommentDraft] = useState("");
   const [isDescriptionModalOpen, setIsDescriptionModalOpen] = useState(false);
+  const [isDependenciesModalOpen, setIsDependenciesModalOpen] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
-  const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [descriptionDraft, setDescriptionDraft] = useState("");
 
   const visibleTaskById = useMemo(() => {
@@ -180,10 +176,6 @@ export function TasksPage({
     [activeTask, taskOptions],
   );
   const totalSubtaskCount = fullDescendantTree.length;
-  const maxAvailableDepth = useMemo(
-    () => fullDescendantTree.reduce((maxDepth, entry) => Math.max(maxDepth, entry.depth + 1), 0),
-    [fullDescendantTree],
-  );
   const visibleDescendantTree = useMemo(
     () => (activeTask ? getDescendantTaskTree(tasks, activeTask.id) : []),
     [activeTask, tasks],
@@ -251,8 +243,8 @@ export function TasksPage({
     setIsEditModalOpen(false);
     setEditingTaskId("");
     setIsDescriptionModalOpen(false);
+    setIsDependenciesModalOpen(false);
     setIsEditingName(false);
-    setIsEditingDescription(false);
   }, [activeTaskId]);
 
   useEffect(() => {
@@ -313,10 +305,9 @@ export function TasksPage({
     }
   }
 
-  function openDescriptionModal(editing: boolean) {
+  function openDescriptionModal() {
     if (!activeTask) return;
     setDescriptionDraft(activeTask.description || "");
-    setIsEditingDescription(editing);
     setIsDescriptionModalOpen(true);
   }
 
@@ -324,9 +315,18 @@ export function TasksPage({
     if (!activeTask) return;
     const didSave = await onSetTaskDescription(activeTask.id, descriptionDraft);
     if (didSave) {
-      setIsEditingDescription(false);
       setIsDescriptionModalOpen(false);
     }
+  }
+
+  function handleUnlinkDependency(depId: string) {
+    if (!activeTask || !onRemoveDependency) return;
+    onRemoveDependency(activeTask.id, depId);
+  }
+
+  function handleAddDependencyFromModal(depId: string) {
+    if (!activeTask || !depId || !onAddDependency) return;
+    onAddDependency(activeTask.id, depId);
   }
 
   async function handleOverviewCommentSubmit(event: FormEvent<HTMLFormElement>) {
@@ -376,14 +376,22 @@ export function TasksPage({
     void executeActiveTask("");
   }
 
-  const visibleSubtaskCount = visibleDescendantTasks.length;
-  const hiddenSubtaskCount = Math.max(totalSubtaskCount - visibleSubtaskCount, 0);
   const currentParentTask = activeTaskDraft?.parentTaskId
     ? taskLookup.get(String(activeTaskDraft.parentTaskId || "").trim()) || null
     : null;
-  const dependencyLabels = (activeTaskDraft?.dependencyTaskIds || [])
-    .map((taskId) => taskLookup.get(String(taskId || "").trim())?.name || "Untitled task")
-    .filter(Boolean);
+  const dependencyItems = (activeTaskDraft?.dependencyTaskIds || [])
+    .map((depId) => {
+      const normalizedId = String(depId || "").trim();
+      return {
+        id: normalizedId,
+        name: taskLookup.get(normalizedId)?.name || "Untitled task",
+      };
+    })
+    .filter((item) => item.id);
+  const dependencyIdSet = new Set(dependencyItems.map((d) => d.id));
+  const availableDependencyOptions = taskOptions.filter(
+    (t) => t.id !== activeTask?.id && !dependencyIdSet.has(String(t.id || "").trim()),
+  );
   const isOverviewSavePending = activeTask ? savingTaskId === activeTask.id : false;
   const isOverviewCommentPending = activeTask ? commentingTaskId === activeTask.id : false;
   const executeButtonDisabled = !activeTask
@@ -394,12 +402,6 @@ export function TasksPage({
   const detailTaskCountLabel = activeTask
     ? toCountLabel(totalSubtaskCount, "subtask")
     : topLevelTaskCountLabel;
-
-  const depthSummaryText = visibleDepth === "all"
-    ? `Showing all ${totalSubtaskCount} subtasks`
-    : hiddenSubtaskCount > 0
-      ? `Showing ${visibleSubtaskCount} of ${totalSubtaskCount} subtasks up to depth ${visibleDepth}`
-      : `Showing ${visibleSubtaskCount} subtasks up to depth ${visibleDepth}`;
 
   const pageActions = useMemo(() => {
     if (activeTaskId && !activeTask) {
@@ -528,6 +530,7 @@ export function TasksPage({
 
         {!isLoadingTasks && activeTask ? (
           <section className="panel task-detail-panel">
+              {/* ── Tabs ── */}
               <div className="task-detail-header">
                 <div className="task-view-tabs">
                   <button
@@ -549,102 +552,120 @@ export function TasksPage({
                     className={`task-view-tab${activeTab === "table" ? " task-view-tab-active" : ""}`}
                     onClick={() => setActiveTab("table")}
                   >
-                    Table
+                    Sub tasks
                   </button>
-                </div>
-
-                <div className="task-depth-controls">
-                  <label htmlFor="task-depth-select" className="task-depth-label">Depth</label>
-                  <select
-                    id="task-depth-select"
-                    value={visibleDepth}
-                    onChange={(event) => onVisibleDepthChange(event.target.value)}
-                  >
-                    {DEPTH_OPTIONS.map((option) => (
-                      <option key={`task-depth-${option}`} value={option}>
-                        {option === "all"
-                          ? maxAvailableDepth > 0 ? `All levels (${maxAvailableDepth})` : "All levels"
-                          : `${option} level${option === "1" ? "" : "s"}`}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="task-depth-summary">{depthSummaryText}</span>
                 </div>
               </div>
 
+              {/* ── Tab content ── */}
               <div className="task-view-container">
                 {activeTab === "overview" ? (
-                  <div className="task-overview-grid">
-                    <section className="task-overview-card">
-                      <div className="task-overview-card-header">
-                        <h3>Task fields</h3>
-                        <p className="chat-card-meta">
-                          Save assignee and status here. Use relationship editing for parent and dependency changes.
-                        </p>
+                  <div className="task-overview-scroll">
+                    {/* ── Hero section ── */}
+                    <div className="task-detail-hero">
+                      <div className="role-detail-hero-top">
+                        <button type="button" className="role-detail-hero-back" onClick={onBackToTasks}>
+                          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5" /><path d="M12 19l-7-7 7-7" /></svg>
+                          Back to tasks
+                        </button>
                       </div>
 
-                      <div className="task-overview-field">
-                        <span className="task-overview-field-label">Name</span>
-                        {isEditingName ? (
-                          <div className="task-overview-inline-edit">
-                            <input
-                              type="text"
-                              value={nameDraft}
-                              onChange={(e) => setNameDraft(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") void saveNameEdit();
-                                if (e.key === "Escape") setIsEditingName(false);
-                              }}
-                              autoFocus
-                            />
-                            <div className="task-overview-inline-edit-actions">
-                              <button
-                                type="button"
-                                className="secondary-btn"
-                                onClick={() => void saveNameEdit()}
-                                disabled={!nameDraft.trim() || isOverviewSavePending}
-                              >
-                                Save
-                              </button>
-                              <button
-                                type="button"
-                                className="task-overview-show-more-btn"
-                                onClick={() => setIsEditingName(false)}
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="task-overview-editable-value" onClick={startEditingName}>
-                            <strong>{activeTask.name || "Untitled task"}</strong>
-                            <span className="task-overview-edit-hint">Click to edit</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="task-overview-field">
-                        <span className="task-overview-field-label">Description</span>
-                        <span className={(activeTask.description || "").length > 200 ? "task-overview-field-value-truncated" : ""}>
+                      {isEditingName ? (
+                        <div className="role-detail-hero-edit-form">
+                          <input
+                            className="role-detail-hero-edit-input"
+                            value={nameDraft}
+                            onChange={(e) => setNameDraft(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") void saveNameEdit();
+                              if (e.key === "Escape") setIsEditingName(false);
+                            }}
+                            autoFocus
+                          />
+                          <button
+                            type="button"
+                            onClick={() => void saveNameEdit()}
+                            disabled={!nameDraft.trim() || isOverviewSavePending}
+                          >
+                            {isOverviewSavePending ? "Saving..." : "Save"}
+                          </button>
+                          <button
+                            type="button"
+                            className="secondary-btn"
+                            onClick={() => setIsEditingName(false)}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="role-detail-hero-title-row">
+                          <h1 className="role-detail-hero-title">{activeTask.name || "Untitled task"}</h1>
+                          <span className={`task-status-pill task-status-pill-${String(activeTask.status || "draft").trim()}`}>
+                            {activeTask.status || "draft"}
+                          </span>
+                          <button
+                            type="button"
+                            className="role-detail-hero-edit-btn"
+                            onClick={startEditingName}
+                            aria-label="Edit name"
+                            title="Edit name"
+                          >
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                              <path d="M17 3a2.85 2.85 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                              <path d="m15 5 4 4" />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
+
+                      <div className="task-detail-hero-description">
+                        <p className={(activeTask.description || "").length > 200 ? "task-detail-hero-description-text task-overview-field-value-truncated" : "task-detail-hero-description-text"}>
                           {activeTask.description || "No description provided."}
-                        </span>
+                        </p>
                         <div className="task-overview-inline-edit-actions">
                           {(activeTask.description || "").length > 200 ? (
-                            <button
-                              type="button"
-                              className="task-overview-show-more-btn"
-                              onClick={() => openDescriptionModal(false)}
-                            >
+                            <button type="button" className="task-overview-show-more-btn" onClick={() => openDescriptionModal()}>
                               Show more
                             </button>
                           ) : null}
-                          <button
-                            type="button"
-                            className="task-overview-show-more-btn"
-                            onClick={() => openDescriptionModal(true)}
-                          >
+                          <button type="button" className="task-overview-show-more-btn" onClick={() => openDescriptionModal()}>
                             Edit
                           </button>
                         </div>
+                      </div>
+
+                      <div className="role-detail-stats task-detail-hero-stats">
+                        <div className="role-detail-stat">
+                          <p className="role-detail-stat-value">{directChildCount}</p>
+                          <p className="role-detail-stat-label">Subtasks</p>
+                        </div>
+                        <div className="role-detail-stat">
+                          <p className="role-detail-stat-value">{dependencyItems.length}</p>
+                          <p className="role-detail-stat-label">Dependencies</p>
+                        </div>
+                        <div className="role-detail-stat">
+                          <p className="role-detail-stat-value">{activeTaskComments.length}</p>
+                          <p className="role-detail-stat-label">Comments</p>
+                        </div>
+                        <div className="role-detail-stat">
+                          <p className="role-detail-stat-value">
+                            {currentParentTask
+                              ? (currentParentTask.name || "Untitled").length > 16
+                                ? `${(currentParentTask.name || "Untitled").slice(0, 16)}...`
+                                : currentParentTask.name || "Untitled"
+                              : "None"}
+                          </p>
+                          <p className="role-detail-stat-label">Parent</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* ── Overview cards ── */}
+                    <div className="task-overview-grid task-overview-grid-2col">
+                    {/* Properties card */}
+                    <section className="task-overview-card">
+                      <div className="task-overview-card-header">
+                        <h3>Properties</h3>
                       </div>
 
                       <label htmlFor="overview-task-assignee">Assignee</label>
@@ -686,10 +707,69 @@ export function TasksPage({
                       </div>
                     </section>
 
+                    {/* Relationships card */}
+                    <section className="task-overview-card">
+                      <div className="task-overview-card-header">
+                        <h3>Relationships</h3>
+                      </div>
+
+                      <div className="task-overview-field">
+                        <span className="task-overview-field-label">Parent</span>
+                        <span>
+                          {currentParentTask ? (
+                            <button
+                              type="button"
+                              className="task-overview-show-more-btn"
+                              onClick={() => onOpenTask(String(currentParentTask.id || "").trim())}
+                            >
+                              {currentParentTask.name || "Untitled task"}
+                            </button>
+                          ) : "No parent task"}
+                        </span>
+                      </div>
+                      <div className="task-overview-field">
+                        <span className="task-overview-field-label">Direct subtasks</span>
+                        <strong>{directChildCount}</strong>
+                      </div>
+                      <div className="task-overview-field">
+                        <span className="task-overview-field-label">Dependencies</span>
+                        {dependencyItems.length > 0 ? (
+                          <div className="task-relation-pills">
+                            {dependencyItems.map((dep) => (
+                              <span key={dep.id} className="task-relation-pill">
+                                <span>{dep.name}</span>
+                                <button
+                                  type="button"
+                                  className="task-relation-pill-remove"
+                                  onClick={() => void handleUnlinkDependency(dep.id)}
+                                  aria-label={`Unlink ${dep.name}`}
+                                  disabled={isOverviewSavePending}
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="chat-card-meta">No dependencies</span>
+                        )}
+                      </div>
+
+                      <div className="task-form-actions">
+                        <button
+                          type="button"
+                          className="secondary-btn"
+                          onClick={() => setIsDependenciesModalOpen(true)}
+                        >
+                          Edit task dependencies
+                        </button>
+                      </div>
+                    </section>
+
+                    {/* Actions card */}
                     <section className="task-overview-card">
                       <div className="task-overview-card-header">
                         <h3>Actions</h3>
-                        <p className="chat-card-meta">Run the task, open the task thread, or edit relationships.</p>
                       </div>
 
                       <div className="task-overview-actions">
@@ -702,13 +782,6 @@ export function TasksPage({
                             : undefined}
                         >
                           {isExecutingTask ? "Executing..." : "Execute task"}
-                        </button>
-                        <button
-                          type="button"
-                          className="secondary-btn"
-                          onClick={openActiveTaskEditModal}
-                        >
-                          Edit relationships
                         </button>
                         <button
                           type="button"
@@ -735,49 +808,10 @@ export function TasksPage({
                       ) : null}
                     </section>
 
+                    {/* Comments card */}
                     <section className="task-overview-card">
                       <div className="task-overview-card-header">
-                        <h3>Relationships</h3>
-                        <p className="chat-card-meta">Hierarchy, dependencies, and visible depth coverage.</p>
-                      </div>
-
-                      <div className="task-overview-stats">
-                        <div className="task-overview-stat">
-                          <span className="task-overview-stat-label">Parent</span>
-                          <strong>{currentParentTask?.name || "No parent task"}</strong>
-                        </div>
-                        <div className="task-overview-stat">
-                          <span className="task-overview-stat-label">Direct subtasks</span>
-                          <strong>{directChildCount}</strong>
-                        </div>
-                        <div className="task-overview-stat">
-                          <span className="task-overview-stat-label">Dependencies</span>
-                          <strong>{dependencyLabels.length}</strong>
-                        </div>
-                        <div className="task-overview-stat">
-                          <span className="task-overview-stat-label">Depth</span>
-                          <strong>{visibleDepth === "all" ? "All" : visibleDepth}</strong>
-                        </div>
-                        <div className="task-overview-stat">
-                          <span className="task-overview-stat-label">Comments</span>
-                          <strong>{activeTaskComments.length}</strong>
-                        </div>
-                      </div>
-
-                      <div className="task-overview-field">
-                        <span className="task-overview-field-label">Blocked by</span>
-                        <span>{dependencyLabels.length > 0 ? dependencyLabels.join(", ") : "No dependencies"}</span>
-                      </div>
-                      <div className="task-overview-field">
-                        <span className="task-overview-field-label">Coverage</span>
-                        <span>{depthSummaryText}</span>
-                      </div>
-                    </section>
-
-                    <section className="task-overview-card task-overview-card-wide">
-                      <div className="task-overview-card-header">
                         <h3>Comments</h3>
-                        <p className="chat-card-meta">Capture execution context, blockers, and handoff notes without leaving the overview.</p>
                       </div>
 
                       {activeTaskComments.length > 0 ? (
@@ -818,6 +852,7 @@ export function TasksPage({
                       </form>
                     </section>
                   </div>
+                  </div>
                 ) : null}
 
                 {activeTab === "graph" ? (
@@ -841,7 +876,7 @@ export function TasksPage({
                     />
                   ) : (
                     <div className="task-empty-panel">
-                      <p className="empty-hint">No subtasks are visible at the current depth.</p>
+                      <p className="empty-hint">No subtasks yet.</p>
                     </div>
                   )
                 ) : null}
@@ -934,56 +969,100 @@ export function TasksPage({
 
       <CreationModal
         modalId="task-description-modal"
-        title="Description"
+        title="Edit description"
         isOpen={isDescriptionModalOpen}
-        onClose={() => { setIsDescriptionModalOpen(false); setIsEditingDescription(false); }}
+        onClose={() => setIsDescriptionModalOpen(false)}
         cardClassName="task-description-modal-card"
       >
         <div className="task-description-modal-body">
-          {isEditingDescription ? (
-            <>
-              <textarea
-                className="task-description-modal-textarea"
-                rows={12}
-                value={descriptionDraft}
-                onChange={(e) => setDescriptionDraft(e.target.value)}
-                autoFocus
-              />
-              <div className="task-form-actions">
-                <button
-                  type="button"
-                  className="secondary-btn"
-                  onClick={() => setIsEditingDescription(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void saveDescriptionEdit()}
-                  disabled={isOverviewSavePending}
-                >
-                  {isOverviewSavePending ? "Saving..." : "Save"}
-                </button>
-              </div>
-            </>
+          <textarea
+            className="task-description-modal-textarea"
+            value={descriptionDraft}
+            onChange={(e) => setDescriptionDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                void saveDescriptionEdit();
+              }
+            }}
+            placeholder="Add a description..."
+            autoFocus
+          />
+          <div className="task-form-actions">
+            <span className="task-description-modal-hint">
+              {navigator.platform?.includes("Mac") ? "\u2318" : "Ctrl"}+Enter to save
+            </span>
+            <button
+              type="button"
+              className="secondary-btn"
+              onClick={() => setIsDescriptionModalOpen(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => void saveDescriptionEdit()}
+              disabled={isOverviewSavePending}
+            >
+              {isOverviewSavePending ? "Saving..." : "Save"}
+            </button>
+          </div>
+        </div>
+      </CreationModal>
+
+      <CreationModal
+        modalId="task-dependencies-modal"
+        title="Edit task dependencies"
+        isOpen={isDependenciesModalOpen}
+        onClose={() => setIsDependenciesModalOpen(false)}
+        cardClassName="task-dependencies-modal-card"
+      >
+        <div className="task-dependencies-modal-body">
+          <div className="task-dependencies-modal-header">
+            <span className="task-overview-field-label">
+              {dependencyItems.length > 0
+                ? `${dependencyItems.length} ${dependencyItems.length === 1 ? "dependency" : "dependencies"}`
+                : "No dependencies"}
+            </span>
+            <div className="task-dependencies-modal-add">
+              <select
+                value=""
+                onChange={(e) => {
+                  if (e.target.value) handleAddDependencyFromModal(e.target.value);
+                }}
+                disabled={isOverviewSavePending}
+              >
+                <option value="">+ Add dependency</option>
+                {availableDependencyOptions.map((t) => (
+                  <option key={`dep-add-${t.id}`} value={t.id}>
+                    {t.name || "Untitled task"}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {dependencyItems.length > 0 ? (
+            <ul className="task-dependencies-modal-list">
+              {dependencyItems.map((dep) => (
+                <li key={dep.id} className="task-dependencies-modal-item">
+                  <span className="task-dependencies-modal-item-name">{dep.name}</span>
+                  <button
+                    type="button"
+                    className="task-dependencies-modal-unlink"
+                    onClick={() => void handleUnlinkDependency(dep.id)}
+                    disabled={isOverviewSavePending}
+                    aria-label={`Unlink ${dep.name}`}
+                  >
+                    Unlink
+                  </button>
+                </li>
+              ))}
+            </ul>
           ) : (
-            <>
-              <div className="task-description-modal-content">
-                {activeTask?.description || "No description provided."}
-              </div>
-              <div className="task-form-actions">
-                <button
-                  type="button"
-                  className="secondary-btn"
-                  onClick={() => {
-                    setDescriptionDraft(activeTask?.description || "");
-                    setIsEditingDescription(true);
-                  }}
-                >
-                  Edit
-                </button>
-              </div>
-            </>
+            <p className="chat-card-meta task-dependencies-modal-empty">
+              This task has no dependencies. Add one using the dropdown above.
+            </p>
           )}
         </div>
       </CreationModal>

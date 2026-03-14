@@ -266,8 +266,6 @@ interface ConfirmationRequest {
 
 interface TasksRouteProps {
   activeTaskId: string;
-  visibleDepth: string;
-  onVisibleDepthChange: (value: string) => void;
   onOpenTask: (taskId: string) => void;
   onBackToTasks: () => void;
   onOpenTaskThread: (threadId: string) => Promise<void> | void;
@@ -319,23 +317,18 @@ async function fetchTaskOptions(): Promise<TaskOptionRecord[]> {
   return Array.isArray(payload?.data?.taskOptions) ? payload.data.taskOptions : [];
 }
 
-function getQueryVariables(params: { activeTaskId: string; visibleDepth: string }) {
+function getQueryVariables(params: { activeTaskId: string }) {
   const normalizedActiveTaskId = String(params.activeTaskId || "").trim();
-  const normalizedVisibleDepth = String(params.visibleDepth || "").trim().toLowerCase();
   const isTaskDetailRoute = Boolean(normalizedActiveTaskId);
   return {
     topLevelOnly: !isTaskDetailRoute,
     rootTaskId: isTaskDetailRoute ? normalizedActiveTaskId : null,
-    maxDepth: isTaskDetailRoute && normalizedVisibleDepth !== "all"
-      ? Number.parseInt(normalizedVisibleDepth || "5", 10) || 5
-      : null,
+    maxDepth: null,
   };
 }
 
 export function TasksRoute({
   activeTaskId,
-  visibleDepth,
-  onVisibleDepthChange,
   onOpenTask,
   onBackToTasks,
   onOpenTaskThread,
@@ -369,8 +362,8 @@ export function TasksRoute({
   }, [fetchKey]);
 
   const queryVariables = useMemo(
-    () => getQueryVariables({ activeTaskId, visibleDepth }),
-    [activeTaskId, visibleDepth],
+    () => getQueryVariables({ activeTaskId }),
+    [activeTaskId],
   );
   const queryData = useLazyLoadQuery(tasksRouteQuery, queryVariables, {
     fetchPolicy: "store-and-network",
@@ -865,6 +858,38 @@ export function TasksRoute({
     }
   }, [commitRouteMutation, refetchTasks, relationshipDrafts, viewModel.taskOptions, viewModel.tasks]);
 
+  const handleRemoveTaskDependency = useCallback(async (taskId: string, dependencyTaskId: string) => {
+    const currentTask = viewModel.tasks.find((task) => task.id === taskId);
+    if (!currentTask) {
+      return;
+    }
+    const currentDependencies = normalizeUniqueStringList(currentTask.dependencyTaskIds || []);
+    if (!currentDependencies.includes(dependencyTaskId)) {
+      return;
+    }
+
+    try {
+      setSavingTaskId(taskId);
+      setTaskError("");
+      const response = await commitRouteMutation({
+        mutation: removeTaskDependencyMutation,
+        variables: {
+          taskId,
+          dependencyTaskId,
+        },
+      });
+      const result = response?.removeTaskDependency;
+      if (!result?.ok) {
+        throw new Error(result?.error || "Failed to remove dependency.");
+      }
+      refetchTasks();
+    } catch (error: any) {
+      setTaskError(error.message);
+    } finally {
+      setSavingTaskId(null);
+    }
+  }, [commitRouteMutation, refetchTasks, viewModel.tasks]);
+
   const handleAddTaskDependency = useCallback(async (taskId: string, dependencyTaskId: string) => {
     const currentTask = viewModel.tasks.find((task) => task.id === taskId);
     if (!currentTask) {
@@ -1046,14 +1071,13 @@ export function TasksRoute({
       onSetTaskDescription={handleSetTaskDescription}
       onExecuteTask={handleExecuteTask}
       onAddDependency={handleAddTaskDependency}
+      onRemoveDependency={handleRemoveTaskDependency}
       onCreateTaskComment={handleCreateTaskComment}
       onDeleteTask={handleDeleteTask}
       onBatchDeleteTasks={handleBatchDeleteTasks}
       onBatchExecuteTasks={handleBatchExecuteTasks}
       onOpenTaskThread={onOpenTaskThread}
       activeTaskId={activeTaskId}
-      visibleDepth={visibleDepth}
-      onVisibleDepthChange={onVisibleDepthChange}
       onOpenTask={onOpenTask}
       onBackToTasks={onBackToTasks}
     />
