@@ -18,6 +18,17 @@ export const ME_QUERY = `
   }
 `;
 
+export const UPDATE_PROFILE_MUTATION = `
+  mutation UpdateProfile($firstName: String!, $lastName: String) {
+    updateProfile(firstName: $firstName, lastName: $lastName) {
+      id
+      email
+      firstName
+      lastName
+    }
+  }
+`;
+
 export const CREATE_COMPANY_MUTATION = `
   mutation CreateCompany($name: String!, $id: String) {
     createCompany(name: $name, id: $id) {
@@ -2054,6 +2065,17 @@ export const COMPANY_API_LIST_COMPANIES_CONNECTION_QUERY = `
 export const COMPANY_API_ME_QUERY = `
   query CompanyApiMe {
     me {
+      id
+      email
+      firstName
+      lastName
+    }
+  }
+`;
+
+export const COMPANY_API_UPDATE_PROFILE_MUTATION = `
+  mutation CompanyApiUpdateProfile($firstName: String!, $lastName: String) {
+    updateProfile(firstName: $firstName, lastName: $lastName) {
       id
       email
       firstName

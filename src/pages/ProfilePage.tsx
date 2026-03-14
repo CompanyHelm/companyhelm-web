@@ -1,20 +1,42 @@
+import { useEffect, useState, type FormEvent } from "react";
 import { Page } from "../components/Page.tsx";
 
 export function ProfilePage({
   currentUser,
   currentUserError,
   isLoadingCurrentUser,
+  isSavingProfileName,
   selectedCompany,
   tasks,
   skills,
   agents,
   agentRunners,
+  onSaveProfileName,
   onSignOut,
 }: any) {
+  const [firstNameDraft, setFirstNameDraft] = useState("");
+  const [lastNameDraft, setLastNameDraft] = useState("");
+
+  useEffect(() => {
+    setFirstNameDraft(String(currentUser?.firstName || ""));
+    setLastNameDraft(String(currentUser?.lastName || ""));
+  }, [currentUser?.firstName, currentUser?.lastName, currentUser?.id]);
+
   const firstName = String(currentUser?.firstName || "").trim();
   const lastName = String(currentUser?.lastName || "").trim();
   const email = String(currentUser?.email || "").trim();
   const displayName = `${firstName} ${lastName}`.trim() || firstName || "Unknown user";
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!onSaveProfileName) {
+      return;
+    }
+    await onSaveProfileName({
+      firstName: firstNameDraft,
+      lastName: lastNameDraft,
+    });
+  };
 
   return (
     <Page><div className="page-stack">
@@ -27,21 +49,53 @@ export function ProfilePage({
         </header>
         {isLoadingCurrentUser ? <p className="empty-hint">Loading profile...</p> : null}
         {currentUserError ? <p className="error-banner">{currentUserError}</p> : null}
-        {!isLoadingCurrentUser && !currentUserError && currentUser ? (
-          <dl className="profile-user-details">
-            <div>
-              <dt>Name</dt>
-              <dd>{displayName}</dd>
-            </div>
-            <div>
-              <dt>Email</dt>
-              <dd>{email || "Not set"}</dd>
-            </div>
-            <div>
-              <dt>Company</dt>
-              <dd>{selectedCompany?.name || "No company selected"}</dd>
-            </div>
-          </dl>
+        {!isLoadingCurrentUser && currentUser ? (
+          <>
+            <form className="profile-user-form" onSubmit={handleSubmit}>
+              <div className="profile-user-form-grid">
+                <label className="profile-user-form-field" htmlFor="profile-first-name">
+                  <span className="profile-user-form-label">First name</span>
+                  <input
+                    id="profile-first-name"
+                    className="chat-settings-input"
+                    value={firstNameDraft}
+                    onChange={(event) => setFirstNameDraft(event.target.value)}
+                    autoComplete="given-name"
+                    required
+                  />
+                </label>
+                <label className="profile-user-form-field" htmlFor="profile-last-name">
+                  <span className="profile-user-form-label">Last name</span>
+                  <input
+                    id="profile-last-name"
+                    className="chat-settings-input"
+                    value={lastNameDraft}
+                    onChange={(event) => setLastNameDraft(event.target.value)}
+                    autoComplete="family-name"
+                  />
+                </label>
+              </div>
+              <div className="profile-user-actions">
+                <button type="submit" className="primary-button" disabled={isSavingProfileName}>
+                  {isSavingProfileName ? "Saving..." : "Save profile"}
+                </button>
+              </div>
+            </form>
+            <dl className="profile-user-details">
+              <div>
+                <dt>Name</dt>
+                <dd>{displayName}</dd>
+              </div>
+              <div>
+                <dt>Email</dt>
+                <dd>{email || "Not set"}</dd>
+              </div>
+              <div>
+                <dt>Company</dt>
+                <dd>{selectedCompany?.name || "No company selected"}</dd>
+              </div>
+            </dl>
+          </>
         ) : null}
       </section>
       <section className="runner-summary-grid">

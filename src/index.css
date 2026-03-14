@@ -1497,6 +1497,33 @@ h2 {
   gap: 0.8rem;
 }
 
+.profile-user-form {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.profile-user-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.profile-user-form-field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.profile-user-form-label {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.78rem;
+  color: var(--ink-1);
+}
+
+.profile-user-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
 .profile-user-details {
   margin: 0;
   display: grid;
@@ -1518,6 +1545,12 @@ h2 {
   margin: 0;
   font-size: 0.96rem;
   color: var(--ink-0);
+}
+
+@media (max-width: 720px) {
+  .profile-user-form-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .panel-header {

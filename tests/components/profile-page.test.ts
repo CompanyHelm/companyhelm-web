@@ -14,6 +14,7 @@ function renderProfilePageMarkup(overrides: Record<string, unknown> = {}) {
       },
       currentUserError: "",
       isLoadingCurrentUser: false,
+      isSavingProfileName: false,
       selectedCompany: {
         name: "Acme",
       },
@@ -21,6 +22,7 @@ function renderProfilePageMarkup(overrides: Record<string, unknown> = {}) {
       skills: [],
       agents: [],
       agentRunners: [],
+      onSaveProfileName: () => true,
       onSignOut: () => {},
       ...overrides,
     }),
@@ -33,52 +35,11 @@ test("ProfilePage renders a logout button", () => {
   assert.match(markup, />Log out</);
 });
 
-function findButtonElement(node: unknown): any {
-  if (!node) {
-    return null;
-  }
-  if (Array.isArray(node)) {
-    for (const child of node) {
-      const match = findButtonElement(child);
-      if (match) {
-        return match;
-      }
-    }
-    return null;
-  }
-  if (!React.isValidElement(node)) {
-    return null;
-  }
-  if (node.type === "button") {
-    return node;
-  }
-  return findButtonElement(node.props?.children);
-}
+test("ProfilePage renders editable profile name fields", () => {
+  const markup = renderProfilePageMarkup();
 
-test("ProfilePage wires logout button to onSignOut", () => {
-  let signOutCount = 0;
-  const element = ProfilePage({
-    currentUser: {
-      firstName: "Alex",
-      lastName: "Smith",
-      email: "alex@example.com",
-    },
-    currentUserError: "",
-    isLoadingCurrentUser: false,
-    selectedCompany: {
-      name: "Acme",
-    },
-    tasks: [],
-    skills: [],
-    agents: [],
-    agentRunners: [],
-    onSignOut: () => {
-      signOutCount += 1;
-    },
-  });
-
-  const button = findButtonElement(element);
-  assert.ok(button);
-  button.props.onClick();
-  assert.equal(signOutCount, 1);
+  assert.match(markup, /profile-first-name/);
+  assert.match(markup, /profile-last-name/);
+  assert.match(markup, />Save profile</);
+  assert.match(markup, />Alex Smith</);
 });

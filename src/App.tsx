@@ -27,6 +27,7 @@ import { ArchivedChatSelection } from "./utils/archivedChatSelection.ts";
 import {
   LIST_COMPANIES_QUERY,
   ME_QUERY,
+  UPDATE_PROFILE_MUTATION,
   CREATE_COMPANY_MUTATION,
   DELETE_COMPANY_MUTATION,
   LIST_GITHUB_APP_CONFIG_QUERY,
@@ -118,6 +119,7 @@ import {
   COMPANY_API_PAGE_SIZE,
   COMPANY_API_LIST_COMPANIES_CONNECTION_QUERY,
   COMPANY_API_ME_QUERY,
+  COMPANY_API_UPDATE_PROFILE_MUTATION,
   COMPANY_API_CREATE_COMPANY_MUTATION,
   COMPANY_API_DELETE_COMPANY_MUTATION,
   COMPANY_API_EXPORT_COMPANY_DATA_QUERY,
@@ -1537,6 +1539,24 @@ async function executeGraphQL(query: any, variables: any = {}) {
     const currentUser = data?.me;
     return {
       currentUser: currentUser
+        ? {
+          id: resolveLegacyId(currentUser.id),
+          email: resolveLegacyId(currentUser.email),
+          firstName: resolveLegacyId(currentUser.firstName),
+          lastName: resolveLegacyId(currentUser.lastName) || null,
+        }
+        : null,
+    };
+  }
+
+  if (query === UPDATE_PROFILE_MUTATION) {
+    const data = await executeRawGraphQL(COMPANY_API_UPDATE_PROFILE_MUTATION, {
+      firstName: resolveLegacyId(variables?.firstName),
+      lastName: resolveLegacyId(variables?.lastName) || null,
+    });
+    const currentUser = data?.updateProfile;
+    return {
+      updateProfile: currentUser
         ? {
           id: resolveLegacyId(currentUser.id),
           email: resolveLegacyId(currentUser.email),
@@ -3149,6 +3169,7 @@ function App() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isLoadingCurrentUser, setIsLoadingCurrentUser] = useState<any>(false);
   const [currentUserError, setCurrentUserError] = useState<any>("");
+  const [isSavingCurrentUserProfile, setIsSavingCurrentUserProfile] = useState<any>(false);
   const [tasks, setTasks] = useState<any>([]);
   const [taskPageTasks, setTaskPageTasks] = useState<any>([]);
   const [taskOptions, setTaskOptions] = useState<any>([]);
@@ -4071,6 +4092,40 @@ function App() {
       setCurrentUserError(loadError.message);
     } finally {
       setIsLoadingCurrentUser(false);
+    }
+  }, []);
+
+  const handleSaveCurrentUserProfile = useCallback(async (input: any) => {
+    const firstName = String(input?.firstName || "").trim();
+    const lastName = String(input?.lastName || "").trim();
+    if (!firstName) {
+      setCurrentUserError("First name is required.");
+      return false;
+    }
+
+    try {
+      setCurrentUserError("");
+      setIsSavingCurrentUserProfile(true);
+      const data = await executeGraphQL(UPDATE_PROFILE_MUTATION, {
+        firstName,
+        lastName: lastName || null,
+      });
+      const nextUser = data?.updateProfile || null;
+      if (!nextUser) {
+        throw new Error("Profile update did not return a user.");
+      }
+      setCurrentUser({
+        id: resolveLegacyId(nextUser.id),
+        email: resolveLegacyId(nextUser.email),
+        firstName: resolveLegacyId(nextUser.firstName),
+        lastName: resolveLegacyId(nextUser.lastName) || null,
+      });
+      return true;
+    } catch (saveError: any) {
+      setCurrentUserError(saveError.message);
+      return false;
+    } finally {
+      setIsSavingCurrentUserProfile(false);
     }
   }, []);
 
@@ -10849,11 +10904,13 @@ function App() {
             currentUser={currentUser}
             currentUserError={currentUserError}
             isLoadingCurrentUser={isLoadingCurrentUser}
+            isSavingProfileName={isSavingCurrentUserProfile}
             selectedCompany={selectedCompany}
             tasks={tasks}
             skills={skills}
             agents={agents}
             agentRunners={agentRunners}
+            onSaveProfileName={handleSaveCurrentUserProfile}
             onSignOut={() => authProvider.signOut()}
           />
         ) : null}
