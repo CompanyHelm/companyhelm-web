@@ -247,6 +247,7 @@ export const LIST_ORG_QUERY = `
       id
       kind
       displayName
+      description
       agentId
       userId
       email
@@ -260,6 +261,7 @@ export const LIST_ORG_QUERY = `
         id
         kind
         displayName
+        description
         agentId
         userId
         email
@@ -268,12 +270,37 @@ export const LIST_ORG_QUERY = `
         id
         kind
         displayName
+        description
         agentId
         userId
         email
       }
       createdAt
       updatedAt
+    }
+  }
+`;
+
+export const SET_ACTOR_DESCRIPTION_MUTATION = `
+  mutation SetActorDescription(
+    $actorId: ID!
+    $description: String
+  ) {
+    setActorDescription(
+      actorId: $actorId
+      description: $description
+    ) {
+      ok
+      error
+      actor {
+        id
+        kind
+        displayName
+        description
+        agentId
+        userId
+        email
+      }
     }
   }
 `;

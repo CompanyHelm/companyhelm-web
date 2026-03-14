@@ -3594,6 +3594,16 @@ button:disabled {
   min-width: 0;
 }
 
+.org-actor-link {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
 .org-tree-marker {
   color: var(--action);
   font-weight: 700;
@@ -3631,6 +3641,66 @@ button:disabled {
     rgba(255, 255, 255, 0.82);
 }
 
+.actor-page-panel {
+  gap: 1.25rem;
+}
+
+.actor-overview-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.actor-overview-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  border-radius: 20px;
+  border: 1px solid var(--panel-border);
+  background: rgba(255, 255, 255, 0.86);
+  padding: 1.1rem;
+}
+
+.actor-meta-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.actor-meta-label {
+  display: block;
+  margin-bottom: 0.3rem;
+  color: rgba(71, 85, 105, 0.92);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.actor-description-label {
+  font-weight: 600;
+}
+
+.actor-description-textarea {
+  min-height: 220px;
+}
+
+.actor-overview-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.actor-markdown-preview {
+  overflow-wrap: anywhere;
+}
+
+.actor-markdown-preview :where(h1, h2, h3, h4) {
+  margin: 0.2rem 0 0.6rem;
+}
+
+.actor-markdown-preview :where(p, ul, ol) {
+  margin: 0.45rem 0;
+}
+
 @media (max-width: 720px) {
   .org-page-header {
     flex-direction: column;
@@ -3638,6 +3708,14 @@ button:disabled {
 
   .org-graph-surface {
     min-height: 28rem;
+  }
+
+  .actor-overview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .actor-meta-list {
+    grid-template-columns: 1fr;
   }
 }
 

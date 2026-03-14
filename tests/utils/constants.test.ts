@@ -30,6 +30,7 @@ test("visible navigation uses the reorganized product-domain sections", () => {
   const visibleSections = NAV_SECTIONS.map((section) => ({
     label: section.label,
     itemIds: section.items.map((item) => item.id),
+    itemHrefs: section.items.map((item) => item.href),
   }));
   const visibleNavItemIds = visibleSections.flatMap((section) => section.itemIds);
 
@@ -37,14 +38,17 @@ test("visible navigation uses the reorganized product-domain sections", () => {
     {
       label: "Workspace",
       itemIds: ["dashboard", "tasks", "org", "chats"],
+      itemHrefs: ["/dashboard", "/tasks", "/actors", "/chats"],
     },
     {
       label: "AI Studio",
       itemIds: ["agents", "skills", "skill-groups", "roles"],
+      itemHrefs: ["/agents", "/skills", "/skill-groups", "/roles"],
     },
     {
       label: "Platform",
       itemIds: ["agent-runner", "mcp-servers", "gitskillpackages", "repos", "secrets"],
+      itemHrefs: ["/agent-runner", "/mcp-servers", "/gitSkillPackages", "/repos", "/secrets"],
     },
   ]);
   assert.equal(visibleNavItemIds.includes("approvals"), false);

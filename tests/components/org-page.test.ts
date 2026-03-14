@@ -28,11 +28,13 @@ function renderOrgPageMarkup() {
 test("OrgPage renders table and graph tabs with the hierarchy table by default", () => {
   const markup = renderOrgPageMarkup();
 
-  assert.match(markup, />Org</);
+  assert.match(markup, />Organization</);
   assert.match(markup, />Table</);
   assert.match(markup, />Graph</);
   assert.match(markup, /Jane Doe/);
   assert.match(markup, /Build Agent/);
+  assert.match(markup, />Human</);
+  assert.match(markup, />AI</);
   assert.match(markup, /Root/);
 });
 
