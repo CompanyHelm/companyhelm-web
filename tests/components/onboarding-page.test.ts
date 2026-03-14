@@ -34,6 +34,7 @@ function renderOnboardingPageMarkup(overrides: Record<string, unknown> = {}) {
       onCreateAgent: async () => false,
       createdAgent: null,
       isCreatingPostCreateChat: false,
+      githubAppInstallUrl: "https://github.com/apps/companyhelm/installations/new?state=company-1",
       onChatNow: () => {},
       onSkipPostCreate: () => {},
       onAdvanceToAgentPhase: () => {},
@@ -45,15 +46,14 @@ function renderOnboardingPageMarkup(overrides: Record<string, unknown> = {}) {
   );
 }
 
-test("OnboardingPage renders company, runner, configuring, and first-agent steps", () => {
+test("OnboardingPage renders company, runner, configuring, first-agent, and github steps", () => {
   const markup = renderOnboardingPageMarkup();
 
   assert.match(markup, />Create company</);
   assert.match(markup, />Create agent runner</);
   assert.match(markup, />Configuring runner</);
   assert.match(markup, />Create first agent</);
-  assert.doesNotMatch(markup, />Create first chat</);
-  assert.doesNotMatch(markup, />Start your first chat</);
+  assert.match(markup, />Install GitHub App</);
 });
 
 test("OnboardingPage still renders the onboarding agent form", () => {
@@ -64,18 +64,15 @@ test("OnboardingPage still renders the onboarding agent form", () => {
   assert.match(markup, /id="onboarding-agent-model"/);
 });
 
-test("OnboardingPage renders the post-create actions instead of the agent form after agent creation", () => {
+test("OnboardingPage renders the github terminal step instead of chat actions after agent creation", () => {
   const markup = renderOnboardingPageMarkup({
-    createdAgent: {
-      id: "agent-1",
-      name: "CEO Agent",
-    },
+    onboardingPhase: "github",
   });
 
-  assert.match(markup, />Agent created</);
-  assert.match(markup, />CEO Agent</);
-  assert.match(markup, />Chat now</);
+  assert.match(markup, />Install GitHub App</);
   assert.match(markup, />Skip for now</);
+  assert.match(markup, /href="https:\/\/github\.com\/apps\/companyhelm\/installations\/new\?state=company-1"/);
+  assert.doesNotMatch(markup, />Chat now</);
   assert.doesNotMatch(markup, /id="onboarding-agent-name"/);
 });
 
@@ -268,7 +265,7 @@ test("OnboardingPage disables create agent when reasoning level is not selected 
   assert.match(markup, /<button type="submit" disabled="">Create agent<\/button>/);
 });
 
-test("FlagsPage exposes the configuring onboarding phase option and not chat", () => {
+test("FlagsPage exposes the github onboarding phase option and not chat", () => {
   const markup = renderToStaticMarkup(
     React.createElement(FlagsPage, {
       flags: { skipOnboarding: false },
@@ -283,5 +280,6 @@ test("FlagsPage exposes the configuring onboarding phase option and not chat", (
   assert.match(markup, />runner</);
   assert.match(markup, />configuring</);
   assert.match(markup, />agent</);
+  assert.match(markup, />github</);
   assert.match(markup, />done</);
 });

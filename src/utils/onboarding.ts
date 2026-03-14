@@ -1,5 +1,4 @@
 import type { OnboardingPhase } from "./persistence.ts";
-import { getChatsPath } from "./path.ts";
 
 interface OnboardingCountState {
   runnerCount: number;
@@ -62,12 +61,12 @@ export function reconcileOnboardingPhase({
   }
 
   if (phase === "agent" && normalizeCount(agentCount) > 0) {
-    return null;
+    return "github";
+  }
+
+  if (phase === "github") {
+    return "github";
   }
 
   return phase;
-}
-
-export function getPostAgentCreationOnboardingRedirectPath(agentId: string): string {
-  return getChatsPath({ agentId: String(agentId || "").trim() });
 }

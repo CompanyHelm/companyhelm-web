@@ -38,6 +38,7 @@ function createBaseProps(overrides: Record<string, unknown> = {}) {
     onAdvanceToAgentPhase: () => {},
     codexAuthEvent: null,
     isStartingCodexAuth: false,
+    githubAppInstallUrl: "https://github.com/apps/companyhelm/installations/new?state=company-1",
     onStartCodexDeviceAuth: () => {},
     onCreateChatForAgent: async () => {},
     setOnboardingPhase: () => {},
@@ -99,4 +100,22 @@ test("OnboardingGate renders nothing when the company already has a ready runner
   });
 
   assert.equal(markup, "");
+});
+
+test("OnboardingGate preserves an explicit github phase even when the company already has a runner and agent", () => {
+  const markup = renderOnboardingGateMarkup({
+    onboardingPhase: "github",
+    agentRunners: [{
+      id: "runner-1",
+      name: "Runner One",
+      isConnected: true,
+      status: "ready",
+      availableAgentSdks: [{ id: "sdk-1", name: "codex", status: "ready", isAvailable: true, availableModels: [] }],
+    }],
+    agents: [{ id: "agent-1" }],
+  });
+
+  assert.match(markup, />Install GitHub App</);
+  assert.match(markup, /href="https:\/\/github\.com\/apps\/companyhelm\/installations\/new\?state=company-1"/);
+  assert.doesNotMatch(markup, />Chat now</);
 });

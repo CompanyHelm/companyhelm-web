@@ -1,17 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { isRunnerReadyAndConnected } from "../utils/formatting.ts";
 import {
   deriveEffectiveOnboardingPhase,
   reconcileOnboardingPhase,
 } from "../utils/onboarding.ts";
-import { setBrowserPath } from "../utils/path.ts";
-import type { CreatedAgentSummary } from "../utils/agent-creation.ts";
 import type { OnboardingState } from "../utils/persistence.ts";
 import { OnboardingPage, type OnboardingPageProps } from "../pages/OnboardingPage.tsx";
 
 interface OnboardingGateProps extends Omit<
   OnboardingPageProps,
-  "onboardingPhase" | "provisionedSecret" | "onboardingRunnerId" | "createdAgent" | "isCreatingPostCreateChat" | "onChatNow" | "onSkipPostCreate"
+  "onboardingPhase" | "provisionedSecret" | "onboardingRunnerId"
 > {
   selectedCompanyId: string;
   skipOnboarding: boolean;
@@ -25,7 +23,6 @@ interface OnboardingGateProps extends Omit<
   setOnboardingRunnerId: (runnerId: string) => void;
   setOnboardingRunnerSecret: (runnerSecret: string) => void;
   persistOnboarding: (state: Partial<OnboardingState>) => void;
-  onCreateChatForAgent: (agentId: string) => Promise<void> | void;
 }
 
 function resolveOnboardingPhase({
@@ -68,13 +65,10 @@ export function OnboardingGate({
   setOnboardingRunnerId,
   setOnboardingRunnerSecret,
   persistOnboarding,
-  onCreateChatForAgent,
   ...onboardingPageProps
 }: OnboardingGateProps) {
   const normalizedCompanyId = String(selectedCompanyId || "").trim();
   const normalizedRunnerId = String(onboardingRunnerId || "").trim();
-  const [createdAgent, setCreatedAgent] = useState<CreatedAgentSummary | null>(null);
-  const [isCreatingPostCreateChat, setIsCreatingPostCreateChat] = useState(false);
 
   const onboardingCounts = useMemo(() => {
     const runnerCount = agentRunners.length;
@@ -87,14 +81,11 @@ export function OnboardingGate({
     if (!normalizedCompanyId || skipOnboarding || !hasLoadedAgentRunners) {
       return null;
     }
-    if (createdAgent) {
-      return "agent";
-    }
     return resolveOnboardingPhase({
       onboardingPhase,
       ...onboardingCounts,
     });
-  }, [createdAgent, hasLoadedAgentRunners, normalizedCompanyId, onboardingCounts, onboardingPhase, skipOnboarding]);
+  }, [hasLoadedAgentRunners, normalizedCompanyId, onboardingCounts, onboardingPhase, skipOnboarding]);
 
   const resolvedOnboardingRunnerId = useMemo(() => {
     if (normalizedRunnerId && agentRunners.some((runner) => String(runner?.id || "").trim() === normalizedRunnerId)) {
@@ -111,7 +102,6 @@ export function OnboardingGate({
   useEffect(() => {
     if (
       resolvedPhase === "agent"
-      && !createdAgent
       && resolvedOnboardingRunnerId
       && !String(onboardingPageProps.agentRunnerId || "").trim()
     ) {
@@ -119,7 +109,6 @@ export function OnboardingGate({
     }
   }, [
     resolvedPhase,
-    createdAgent,
     resolvedOnboardingRunnerId,
     onboardingPageProps.agentRunnerId,
     onboardingPageProps.onAgentRunnerChange,
@@ -127,9 +116,6 @@ export function OnboardingGate({
 
   useEffect(() => {
     if (!normalizedCompanyId || skipOnboarding || !hasLoadedAgentRunners) {
-      return;
-    }
-    if (createdAgent) {
       return;
     }
 
@@ -179,55 +165,19 @@ export function OnboardingGate({
     setOnboardingRunnerId,
     setOnboardingRunnerSecret,
     skipOnboarding,
-    createdAgent,
   ]);
 
-  function completeOnboarding() {
-    setCreatedAgent(null);
-    setOnboardingPhase("done");
-    setOnboardingRunnerId("");
-    setOnboardingRunnerSecret("");
-    persistOnboarding({
-      phase: "done",
-      runnerId: "",
-      runnerSecret: "",
-    });
-    // Tell the parent that onboarding is finished so it stops rendering the
-    // onboarding gate and shows the main app content instead.  Without this
-    // the `showOnboarding` flag stays true, OnboardingGate returns null, and
-    // the user sees an empty page.
-    onboardingPageProps.onSkip();
-  }
-
   async function handleCreateAgent(event: Parameters<OnboardingPageProps["onCreateAgent"]>[0]) {
-    const createdAgentName = String(onboardingPageProps.agentName || "").trim() || "New agent";
     const result = await onboardingPageProps.onCreateAgent(event);
     if (typeof result === "string") {
-      setCreatedAgent({
-        id: result,
-        name: createdAgentName,
+      setOnboardingPhase("github");
+      persistOnboarding({
+        phase: "github",
+        runnerId: resolvedOnboardingRunnerId,
+        runnerSecret: "",
       });
     }
     return result;
-  }
-
-  async function handleChatNow() {
-    if (!createdAgent?.id) {
-      return;
-    }
-
-    try {
-      setIsCreatingPostCreateChat(true);
-      await onCreateChatForAgent(createdAgent.id);
-      completeOnboarding();
-    } finally {
-      setIsCreatingPostCreateChat(false);
-    }
-  }
-
-  function handleSkipPostCreate() {
-    completeOnboarding();
-    setBrowserPath("/agents");
   }
 
   if (!normalizedCompanyId || skipOnboarding || !hasLoadedAgentRunners || resolvedPhase === null) {
@@ -242,10 +192,7 @@ export function OnboardingGate({
       agentRunners={agentRunners}
       onboardingPhase={resolvedPhase}
       onCreateAgent={handleCreateAgent}
-      createdAgent={createdAgent}
-      isCreatingPostCreateChat={isCreatingPostCreateChat}
-      onChatNow={handleChatNow}
-      onSkipPostCreate={handleSkipPostCreate}
+      onSkipPostCreate={onboardingPageProps.onSkip}
     />
   );
 }
