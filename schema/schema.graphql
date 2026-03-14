@@ -1,3 +1,17 @@
+type Actor {
+  agentId: ID
+  displayName: String!
+  email: String
+  id: ID!
+  kind: ActorKind!
+  userId: ID
+}
+
+enum ActorKind {
+  agent
+  user
+}
+
 type AddGithubInstallationPayload {
   error: String
   githubInstallation: GithubInstallation
@@ -51,9 +65,9 @@ type Agent {
   mcpServerIds: [ID!]!
   name: String!
   roleIds: [ID!]!
-  skillIds: [ID!]!
   roles: [Role!]!
   runner: AgentRunner!
+  skillIds: [ID!]!
   status: AgentStatus!
   threads(after: String, first: Int = 20, status: ThreadStatus): ThreadConnection!
 }
@@ -129,14 +143,14 @@ enum AgentStatus {
 
 type Approval {
   createdAt: String!
-  createdByPrincipalId: ID
+  createdByActorId: ID
   id: ID!
   reason: String!
   rejectionReason: String
   requestingAgentId: ID
   requestingAgentName: String
   resolvedAt: String
-  resolvedByPrincipalId: ID
+  resolvedByActorId: ID
   secretId: ID!
   secretName: String
   status: ApprovalStatus!
@@ -406,7 +420,7 @@ type Mutation {
   createRole(name: String!, parentRoleId: ID): RoleMutationPayload!
   createSecret(description: String!, name: String!, value: String!): SecretMutationPayload!
   createSkillGroup(name: String!, parentSkillGroupId: ID): SkillGroupMutationPayload!
-  createTask(acceptanceCriteria: String, assigneePrincipalId: ID, dependencyTaskIds: [ID!], description: String, name: String!, parentTaskId: ID, status: TaskStatus): TaskMutationPayload!
+  createTask(acceptanceCriteria: String, assigneeActorId: ID, dependencyTaskIds: [ID!], description: String, name: String!, parentTaskId: ID, status: TaskStatus): TaskMutationPayload!
   createTaskComment(comment: String!, taskId: ID!): TaskCommentMutationPayload!
   createThread(additionalModelInstructions: String, agentId: ID!, title: String): Thread!
   deleteAgent(input: DeleteAgentInput!): DeleteAgentPayload!
@@ -436,7 +450,7 @@ type Mutation {
   removeSkillGroupFromRole(roleId: ID!, skillGroupId: ID!): RoleMutationPayload!
   removeTaskDependency(dependencyTaskId: ID!, taskId: ID!): TaskMutationPayload!
   retryQueuedUserMessage(queuedMessageId: ID!): QueuedUserMessage!
-  setTaskAssigneePrincipal(assigneePrincipalId: ID, taskId: ID!): TaskMutationPayload!
+  setTaskAssigneeActor(assigneeActorId: ID, taskId: ID!): TaskMutationPayload!
   setTaskDescription(description: String, taskId: ID!): TaskMutationPayload!
   setTaskName(name: String!, taskId: ID!): TaskMutationPayload!
   setTaskParent(parentTaskId: ID, taskId: ID!): TaskMutationPayload!
@@ -468,20 +482,6 @@ type PreviewGitSkillPackagePayload {
   tags: [GitSkillReference!]!
 }
 
-type Principal {
-  agentId: ID
-  displayName: String!
-  email: String
-  id: ID!
-  kind: PrincipalKind!
-  userId: ID
-}
-
-enum PrincipalKind {
-  agent
-  user
-}
-
 type Query {
   adminTable(first: Int = 50, search: String, status: String, tableName: String!): AdminTable!
   adminTables: [AdminTableSummary!]!
@@ -508,7 +508,7 @@ type Query {
   skill(id: ID!): Skill
   skillGroups: [SkillGroup!]!
   skills: [Skill!]!
-  taskAssignablePrincipals: [Principal!]!
+  taskAssignableActors: [Actor!]!
   taskOptions: [TaskOption!]!
   tasks(maxDepth: Int, rootTaskId: ID, topLevelOnly: Boolean): [Task!]!
   thread(id: ID!): Thread
@@ -681,8 +681,8 @@ type Subscription {
 type Task {
   acceptanceCriteria: String
   agentId: ID
-  assigneePrincipal: Principal
-  assigneePrincipalId: ID
+  assigneeActor: Actor
+  assigneeActorId: ID
   comments: [TaskComment!]!
   company: Company!
   createdAt: String!
@@ -697,8 +697,8 @@ type Task {
 }
 
 type TaskComment {
-  authorPrincipal: Principal
-  authorPrincipalId: ID!
+  authorActor: Actor
+  authorActorId: ID!
   comment: String!
   createdAt: String!
   id: ID!

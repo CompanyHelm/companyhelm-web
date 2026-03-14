@@ -1,7 +1,7 @@
 import { createRelationshipDrafts } from "../../utils/drafts.ts";
 import type {
   Agent,
-  Principal,
+  Actor,
   TaskComment,
   TaskItem,
   TaskRelationshipDraftById,
@@ -11,7 +11,7 @@ type LooseRecord = Record<string, unknown>;
 
 interface TaskRouteViewModel {
   agents: Agent[];
-  principals: Principal[];
+  actors: Actor[];
   relationshipDrafts: TaskRelationshipDraftById;
   taskOptions: TaskItem[];
   tasks: TaskItem[];
@@ -24,7 +24,7 @@ function toRecord(value: unknown): LooseRecord {
   return value as LooseRecord;
 }
 
-function toPrincipal(value: unknown): Principal | null {
+function toActor(value: unknown): Actor | null {
   const record = toRecord(value);
   const id = String(record.id || "").trim();
   const kind = String(record.kind || "").trim();
@@ -52,8 +52,8 @@ function toTaskComment(value: unknown): TaskComment | null {
     id,
     taskId: String(record.taskId || "").trim() || null,
     comment: String(record.comment || "").trim(),
-    authorPrincipalId: String(record.authorPrincipalId || "").trim() || null,
-    authorPrincipal: toPrincipal(record.authorPrincipal),
+    authorActorId: String(record.authorActorId || "").trim() || null,
+    authorActor: toActor(record.authorActor),
     createdAt: String(record.createdAt || "").trim() || null,
     updatedAt: String(record.updatedAt || "").trim() || null,
   };
@@ -66,16 +66,16 @@ function toTaskItem(value: unknown): TaskItem | null {
   if (!id || !name) {
     return null;
   }
-  const assigneePrincipal = toPrincipal(record.assigneePrincipal);
+  const assigneeActor = toActor(record.assigneeActor);
   return {
     id,
     companyId: String(toRecord(record.company).id || "").trim() || undefined,
     name,
     description: String(record.description || "").trim() || "",
     acceptanceCriteria: String(record.acceptanceCriteria || "").trim() || "",
-    assigneePrincipalId: String(record.assigneePrincipalId || "").trim() || null,
-    assigneePrincipal,
-    assigneeAgentId: assigneePrincipal?.agentId || null,
+    assigneeActorId: String(record.assigneeActorId || "").trim() || null,
+    assigneeActor,
+    assigneeAgentId: assigneeActor?.agentId || null,
     threadId: String(record.threadId || "").trim() || null,
     parentTaskId: String(record.parentTaskId || "").trim() || null,
     status: String(record.status || "").trim() || "draft",
@@ -122,10 +122,10 @@ export function toTaskRouteViewModel(value: unknown): TaskRouteViewModel {
   const taskOptions = Array.isArray(record.taskOptions)
     ? record.taskOptions.map((entry) => toTaskOption(entry)).filter((entry): entry is TaskItem => Boolean(entry))
     : [];
-  const principals = Array.isArray(record.taskAssignablePrincipals)
-    ? record.taskAssignablePrincipals
-      .map((entry) => toPrincipal(entry))
-      .filter((entry): entry is Principal => Boolean(entry))
+  const actors = Array.isArray(record.taskAssignableActors)
+    ? record.taskAssignableActors
+      .map((entry) => toActor(entry))
+      .filter((entry): entry is Actor => Boolean(entry))
     : [];
   const agentEdges = Array.isArray(toRecord(record.agents).edges) ? toRecord(record.agents).edges as unknown[] : [];
   const agents = agentEdges
@@ -135,7 +135,7 @@ export function toTaskRouteViewModel(value: unknown): TaskRouteViewModel {
   return {
     tasks,
     taskOptions,
-    principals,
+    actors,
     agents,
     relationshipDrafts: createRelationshipDrafts(tasks, taskOptions) as TaskRelationshipDraftById,
   };

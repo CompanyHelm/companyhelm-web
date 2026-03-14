@@ -9,7 +9,7 @@ interface TaskEditModalProps {
     id: string;
     name: string;
   }>;
-  principals: Array<{
+  actors: Array<{
     id: string;
     kind: "agent" | "user";
     displayName: string;
@@ -21,7 +21,7 @@ interface TaskEditModalProps {
   deletingTaskId: string | null;
   onDraftChange: (
     taskId: string,
-    field: "dependencyTaskIds" | "parentTaskId" | "childTaskIds" | "assigneePrincipalId" | "status",
+    field: "dependencyTaskIds" | "parentTaskId" | "childTaskIds" | "assigneeActorId" | "status",
     value: string | string[],
   ) => void;
   onSaveRelationships: (taskId: string) => Promise<boolean> | boolean;
@@ -36,7 +36,7 @@ export function TaskEditModal({
   task,
   tasks,
   agents,
-  principals,
+  actors,
   relationshipDraft,
   savingTaskId,
   commentingTaskId,
@@ -71,24 +71,24 @@ export function TaskEditModal({
     dependencyTaskIds: Array.isArray(task?.dependencyTaskIds) ? task.dependencyTaskIds : [],
     parentTaskId: String(task?.parentTaskId || "").trim(),
     childTaskIds: currentChildTaskIds,
-    assigneePrincipalId: String(task?.assigneePrincipalId || "").trim(),
+    assigneeActorId: String(task?.assigneeActorId || "").trim(),
     status: String(task?.status || "").trim() || "draft",
   };
   const selectedChildTaskIds = Array.isArray(draft?.childTaskIds) ? draft.childTaskIds : [];
   const draftDependencyTaskIds = Array.isArray(draft?.dependencyTaskIds) ? draft.dependencyTaskIds : [];
   const parentTaskId = String(draft?.parentTaskId || "").trim();
-  const assigneePrincipalId = String(draft?.assigneePrincipalId || "").trim();
+  const assigneeActorId = String(draft?.assigneeActorId || "").trim();
   const status = String(draft?.status || "").trim() || "draft";
   const taskThreadId = String(task?.threadId || "").trim();
   const isBusy = savingTaskId === taskId || deletingTaskId === taskId;
-  const currentAssigneePrincipalId = String(task?.assigneePrincipalId || "").trim();
+  const currentAssigneeActorId = String(task?.assigneeActorId || "").trim();
   const currentAssigneeAgentId = String(task?.assigneeAgentId || "").trim();
   const draftAssigneeAgentId = String(
-    principals.find((principal) => principal.id === assigneePrincipalId && principal.kind === "agent")?.agentId || "",
+    actors.find((actor) => actor.id === assigneeActorId && actor.kind === "agent")?.agentId || "",
   ).trim();
   const derivedExecuteAgentId = selectedExecuteAgentId.trim()
     || draftAssigneeAgentId
-    || (assigneePrincipalId === currentAssigneePrincipalId ? currentAssigneeAgentId : "");
+    || (assigneeActorId === currentAssigneeActorId ? currentAssigneeAgentId : "");
   const normalizedCurrentDependencyTaskIds = [...(Array.isArray(task?.dependencyTaskIds) ? task.dependencyTaskIds : [])]
     .map((value) => String(value).trim())
     .filter(Boolean)
@@ -105,7 +105,7 @@ export function TaskEditModal({
   const hasDraftChanges = JSON.stringify(normalizedCurrentDependencyTaskIds) !== JSON.stringify(normalizedDraftDependencyTaskIds)
     || parentTaskId !== String(task?.parentTaskId || "").trim()
     || JSON.stringify(normalizedCurrentChildTaskIds) !== JSON.stringify(normalizedDraftChildTaskIds)
-    || assigneePrincipalId !== currentAssigneePrincipalId
+    || assigneeActorId !== currentAssigneeActorId
     || status !== (String(task?.status || "").trim() || "draft");
 
   function removeDependency(depId: string) {
@@ -202,13 +202,13 @@ export function TaskEditModal({
         <label htmlFor="edit-task-assignee">Assignee</label>
         <select
           id="edit-task-assignee"
-          value={assigneePrincipalId}
-          onChange={(event: ChangeEvent<HTMLSelectElement>) => onDraftChange(taskId, "assigneePrincipalId", event.target.value)}
+          value={assigneeActorId}
+          onChange={(event: ChangeEvent<HTMLSelectElement>) => onDraftChange(taskId, "assigneeActorId", event.target.value)}
         >
           <option value="">Unassigned</option>
-          {principals.map((principal) => (
-            <option key={`edit-assignee-${principal.id}`} value={principal.id}>
-              {principal.displayName} ({principal.kind === "agent" ? "Agent" : "Human"})
+          {actors.map((actor) => (
+            <option key={`edit-assignee-${actor.id}`} value={actor.id}>
+              {actor.displayName} ({actor.kind === "agent" ? "Agent" : "Human"})
             </option>
           ))}
         </select>
@@ -249,7 +249,7 @@ export function TaskEditModal({
               onChange={(event: ChangeEvent<HTMLSelectElement>) => setSelectedExecuteAgentId(event.target.value)}
             >
               <option value="">
-                {draftAssigneeAgentId || (assigneePrincipalId === currentAssigneePrincipalId && currentAssigneeAgentId)
+                {draftAssigneeAgentId || (assigneeActorId === currentAssigneeActorId && currentAssigneeAgentId)
                   ? "Use assigned agent"
                   : "Select agent"}
               </option>
@@ -353,8 +353,8 @@ export function TaskEditModal({
               <li key={`task-comment-${comment.id}`} className="task-comment-item">
                 <p>{comment.comment}</p>
                 <span className="chat-card-meta">
-                  {String(comment.authorPrincipal?.displayName || "").trim() || "Unknown principal"} · {" "}
-                  {comment.authorPrincipal?.kind === "agent" ? "Agent" : "Human"} · {" "}
+                  {String(comment.authorActor?.displayName || "").trim() || "Unknown actor"} · {" "}
+                  {comment.authorActor?.kind === "agent" ? "Agent" : "Human"} · {" "}
                   {comment.createdAt ? new Date(comment.createdAt).toLocaleString() : ""}
                 </span>
               </li>

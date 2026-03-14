@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7c78695aa7371c122a01531fc6ad4f4b>>
+ * @generated SignedSource<<15c10899ed0874173aae1f16a6efc487>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type PrincipalKind = "agent" | "user" | "%future added value";
+export type ActorKind = "agent" | "user" | "%future added value";
 export type TasksRouteQuery$variables = {
   maxDepth?: number | null | undefined;
   rootTaskId?: string | null | undefined;
@@ -25,12 +25,12 @@ export type TasksRouteQuery$data = {
       };
     }>;
   };
-  readonly taskAssignablePrincipals: ReadonlyArray<{
+  readonly taskAssignableActors: ReadonlyArray<{
     readonly agentId: string | null | undefined;
     readonly displayName: string;
     readonly email: string | null | undefined;
     readonly id: string;
-    readonly kind: PrincipalKind;
+    readonly kind: ActorKind;
     readonly userId: string | null | undefined;
   }>;
   readonly tasks: ReadonlyArray<{
@@ -123,9 +123,9 @@ v5 = [
 v6 = {
   "alias": null,
   "args": null,
-  "concreteType": "Principal",
+  "concreteType": "Actor",
   "kind": "LinkedField",
-  "name": "taskAssignablePrincipals",
+  "name": "taskAssignableActors",
   "plural": true,
   "selections": (v5/*: any*/),
   "storageKey": null
@@ -275,15 +275,15 @@ return {
             "alias": null,
             "args": null,
             "kind": "ScalarField",
-            "name": "assigneePrincipalId",
+            "name": "assigneeActorId",
             "storageKey": null
           },
           {
             "alias": null,
             "args": null,
-            "concreteType": "Principal",
+            "concreteType": "Actor",
             "kind": "LinkedField",
-            "name": "assigneePrincipal",
+            "name": "assigneeActor",
             "plural": false,
             "selections": (v5/*: any*/),
             "storageKey": null
@@ -345,15 +345,15 @@ return {
                 "alias": null,
                 "args": null,
                 "kind": "ScalarField",
-                "name": "authorPrincipalId",
+                "name": "authorActorId",
                 "storageKey": null
               },
               {
                 "alias": null,
                 "args": null,
-                "concreteType": "Principal",
+                "concreteType": "Actor",
                 "kind": "LinkedField",
-                "name": "authorPrincipal",
+                "name": "authorActor",
                 "plural": false,
                 "selections": (v5/*: any*/),
                 "storageKey": null
@@ -371,16 +371,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "4426a7c86269a4f428d0fb876175ef0f",
+    "cacheID": "23a5ad8e5bb4c858ae0d90cd5d241364",
     "id": null,
     "metadata": {},
     "name": "TasksRouteQuery",
     "operationKind": "query",
-    "text": "query TasksRouteQuery(\n  $topLevelOnly: Boolean\n  $rootTaskId: ID\n  $maxDepth: Int\n) {\n  tasks(topLevelOnly: $topLevelOnly, rootTaskId: $rootTaskId, maxDepth: $maxDepth) {\n    ...TasksRoute_task\n    id\n  }\n  taskAssignablePrincipals {\n    id\n    kind\n    displayName\n    agentId\n    userId\n    email\n  }\n  agents(first: 200) {\n    edges {\n      node {\n        id\n        name\n      }\n    }\n  }\n}\n\nfragment TasksRoute_task on Task {\n  id\n  company {\n    id\n  }\n  name\n  description\n  acceptanceCriteria\n  assigneePrincipalId\n  assigneePrincipal {\n    id\n    kind\n    displayName\n    agentId\n    userId\n    email\n  }\n  threadId\n  parentTaskId\n  status\n  createdAt\n  updatedAt\n  dependencyTaskIds\n  comments {\n    id\n    taskId\n    comment\n    authorPrincipalId\n    authorPrincipal {\n      id\n      kind\n      displayName\n      agentId\n      userId\n      email\n    }\n    createdAt\n    updatedAt\n  }\n}\n"
+    "text": "query TasksRouteQuery(\n  $topLevelOnly: Boolean\n  $rootTaskId: ID\n  $maxDepth: Int\n) {\n  tasks(topLevelOnly: $topLevelOnly, rootTaskId: $rootTaskId, maxDepth: $maxDepth) {\n    ...TasksRoute_task\n    id\n  }\n  taskAssignableActors {\n    id\n    kind\n    displayName\n    agentId\n    userId\n    email\n  }\n  agents(first: 200) {\n    edges {\n      node {\n        id\n        name\n      }\n    }\n  }\n}\n\nfragment TasksRoute_task on Task {\n  id\n  company {\n    id\n  }\n  name\n  description\n  acceptanceCriteria\n  assigneeActorId\n  assigneeActor {\n    id\n    kind\n    displayName\n    agentId\n    userId\n    email\n  }\n  threadId\n  parentTaskId\n  status\n  createdAt\n  updatedAt\n  dependencyTaskIds\n  comments {\n    id\n    taskId\n    comment\n    authorActorId\n    authorActor {\n      id\n      kind\n      displayName\n      agentId\n      userId\n      email\n    }\n    createdAt\n    updatedAt\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "5c9f6aa5fb8a2c205be3621d4a6b5192";
+(node as any).hash = "1b13ae1cb76e9e443fd1fdb3dcc76dfd";
 
 export default node;

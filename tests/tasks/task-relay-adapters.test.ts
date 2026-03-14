@@ -14,9 +14,9 @@ test("toTaskRouteViewModel adapts Relay task route data into legacy TasksPage pr
         name: "Ship Relay route",
         description: "Move tasks to Relay.",
         acceptanceCriteria: "Tasks page loads from Relay.",
-        assigneePrincipalId: "principal-user-1",
-        assigneePrincipal: {
-          id: "principal-user-1",
+        assigneeActorId: "actor-user-1",
+        assigneeActor: {
+          id: "actor-user-1",
           kind: "user",
           displayName: "Jane Doe",
           agentId: null,
@@ -34,9 +34,9 @@ test("toTaskRouteViewModel adapts Relay task route data into legacy TasksPage pr
             id: "comment-1",
             taskId: "task-1",
             comment: "Use Relay-generated artifacts.",
-            authorPrincipalId: "principal-user-1",
-            authorPrincipal: {
-              id: "principal-user-1",
+            authorActorId: "actor-user-1",
+            authorActor: {
+              id: "actor-user-1",
               kind: "user",
               displayName: "Jane Doe",
               agentId: null,
@@ -61,9 +61,9 @@ test("toTaskRouteViewModel adapts Relay task route data into legacy TasksPage pr
         parentTaskId: "task-1",
       },
     ],
-    taskAssignablePrincipals: [
+    taskAssignableActors: [
       {
-        id: "principal-user-1",
+        id: "actor-user-1",
         kind: "user",
         displayName: "Jane Doe",
         agentId: null,
@@ -85,9 +85,9 @@ test("toTaskRouteViewModel adapts Relay task route data into legacy TasksPage pr
 
   assert.equal(viewModel.tasks.length, 1);
   assert.equal(viewModel.tasks[0]?.id, "task-1");
-  assert.equal(viewModel.tasks[0]?.assigneePrincipal?.displayName, "Jane Doe");
+  assert.equal(viewModel.tasks[0]?.assigneeActor?.displayName, "Jane Doe");
   assert.equal(viewModel.taskOptions[1]?.parentTaskId, "task-1");
-  assert.equal(viewModel.principals[0]?.email, "jane@example.com");
+  assert.equal(viewModel.actors[0]?.email, "jane@example.com");
   assert.equal(viewModel.agents[0]?.name, "Build Agent");
 });
 

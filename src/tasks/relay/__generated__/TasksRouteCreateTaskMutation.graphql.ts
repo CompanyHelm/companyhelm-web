@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fef8d64d5f6253c616aacbc65afd8caf>>
+ * @generated SignedSource<<7d4a59bb33709c7a76282deb72532d87>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,7 +11,7 @@
 import { ConcreteRequest } from 'relay-runtime';
 export type TaskStatus = "completed" | "draft" | "in_progress" | "pending" | "%future added value";
 export type TasksRouteCreateTaskMutation$variables = {
-  assigneePrincipalId?: string | null | undefined;
+  assigneeActorId?: string | null | undefined;
   dependencyTaskIds?: ReadonlyArray<string> | null | undefined;
   description?: string | null | undefined;
   name: string;
@@ -36,7 +36,7 @@ const node: ConcreteRequest = (function(){
 var v0 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "assigneePrincipalId"
+  "name": "assigneeActorId"
 },
 v1 = {
   "defaultValue": null,
@@ -69,8 +69,8 @@ v6 = [
     "args": [
       {
         "kind": "Variable",
-        "name": "assigneePrincipalId",
-        "variableName": "assigneePrincipalId"
+        "name": "assigneeActorId",
+        "variableName": "assigneeActorId"
       },
       {
         "kind": "Variable",
@@ -171,16 +171,16 @@ return {
     "selections": (v6/*: any*/)
   },
   "params": {
-    "cacheID": "84281b5cda175ea5fe18c8cc128714dc",
+    "cacheID": "4b5a8c3902b824d08ecde129e42412a1",
     "id": null,
     "metadata": {},
     "name": "TasksRouteCreateTaskMutation",
     "operationKind": "mutation",
-    "text": "mutation TasksRouteCreateTaskMutation(\n  $name: String!\n  $description: String\n  $status: TaskStatus\n  $assigneePrincipalId: ID\n  $parentTaskId: ID\n  $dependencyTaskIds: [ID!]\n) {\n  createTask(name: $name, description: $description, status: $status, assigneePrincipalId: $assigneePrincipalId, parentTaskId: $parentTaskId, dependencyTaskIds: $dependencyTaskIds) {\n    ok\n    error\n    task {\n      id\n    }\n  }\n}\n"
+    "text": "mutation TasksRouteCreateTaskMutation(\n  $name: String!\n  $description: String\n  $status: TaskStatus\n  $assigneeActorId: ID\n  $parentTaskId: ID\n  $dependencyTaskIds: [ID!]\n) {\n  createTask(name: $name, description: $description, status: $status, assigneeActorId: $assigneeActorId, parentTaskId: $parentTaskId, dependencyTaskIds: $dependencyTaskIds) {\n    ok\n    error\n    task {\n      id\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e293629fdb734993bf7db0aa74fae751";
+(node as any).hash = "4422838ae321901303ad260c781d9e9d";
 
 export default node;

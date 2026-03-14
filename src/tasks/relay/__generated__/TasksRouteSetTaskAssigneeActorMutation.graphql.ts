@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8e7a2be8f511068c23dbf04b28954616>>
+ * @generated SignedSource<<094d34d7b8a1e2cdb03c8a9e467c93c1>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,12 +9,12 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type TasksRouteSetTaskAssigneePrincipalMutation$variables = {
-  assigneePrincipalId?: string | null | undefined;
+export type TasksRouteSetTaskAssigneeActorMutation$variables = {
+  assigneeActorId?: string | null | undefined;
   taskId: string;
 };
-export type TasksRouteSetTaskAssigneePrincipalMutation$data = {
-  readonly setTaskAssigneePrincipal: {
+export type TasksRouteSetTaskAssigneeActorMutation$data = {
+  readonly setTaskAssigneeActor: {
     readonly error: string | null | undefined;
     readonly ok: boolean;
     readonly task: {
@@ -22,16 +22,16 @@ export type TasksRouteSetTaskAssigneePrincipalMutation$data = {
     } | null | undefined;
   };
 };
-export type TasksRouteSetTaskAssigneePrincipalMutation = {
-  response: TasksRouteSetTaskAssigneePrincipalMutation$data;
-  variables: TasksRouteSetTaskAssigneePrincipalMutation$variables;
+export type TasksRouteSetTaskAssigneeActorMutation = {
+  response: TasksRouteSetTaskAssigneeActorMutation$data;
+  variables: TasksRouteSetTaskAssigneeActorMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
 var v0 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "assigneePrincipalId"
+  "name": "assigneeActorId"
 },
 v1 = {
   "defaultValue": null,
@@ -44,8 +44,8 @@ v2 = [
     "args": [
       {
         "kind": "Variable",
-        "name": "assigneePrincipalId",
-        "variableName": "assigneePrincipalId"
+        "name": "assigneeActorId",
+        "variableName": "assigneeActorId"
       },
       {
         "kind": "Variable",
@@ -55,7 +55,7 @@ v2 = [
     ],
     "concreteType": "TaskMutationPayload",
     "kind": "LinkedField",
-    "name": "setTaskAssigneePrincipal",
+    "name": "setTaskAssigneeActor",
     "plural": false,
     "selections": [
       {
@@ -102,7 +102,7 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "TasksRouteSetTaskAssigneePrincipalMutation",
+    "name": "TasksRouteSetTaskAssigneeActorMutation",
     "selections": (v2/*: any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -114,20 +114,20 @@ return {
       (v0/*: any*/)
     ],
     "kind": "Operation",
-    "name": "TasksRouteSetTaskAssigneePrincipalMutation",
+    "name": "TasksRouteSetTaskAssigneeActorMutation",
     "selections": (v2/*: any*/)
   },
   "params": {
-    "cacheID": "30f24fb4587a041946d653a75e632ccd",
+    "cacheID": "d56566260d69098fb3b1ee028a015383",
     "id": null,
     "metadata": {},
-    "name": "TasksRouteSetTaskAssigneePrincipalMutation",
+    "name": "TasksRouteSetTaskAssigneeActorMutation",
     "operationKind": "mutation",
-    "text": "mutation TasksRouteSetTaskAssigneePrincipalMutation(\n  $taskId: ID!\n  $assigneePrincipalId: ID\n) {\n  setTaskAssigneePrincipal(taskId: $taskId, assigneePrincipalId: $assigneePrincipalId) {\n    ok\n    error\n    task {\n      id\n    }\n  }\n}\n"
+    "text": "mutation TasksRouteSetTaskAssigneeActorMutation(\n  $taskId: ID!\n  $assigneeActorId: ID\n) {\n  setTaskAssigneeActor(taskId: $taskId, assigneeActorId: $assigneeActorId) {\n    ok\n    error\n    task {\n      id\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f7d76809bb7c17a5908236a849a060b5";
+(node as any).hash = "2739767bc682feca68563b30aa01c440";
 
 export default node;

@@ -11,7 +11,7 @@ interface AgentOption {
   name: string;
 }
 
-interface PrincipalOption {
+interface ActorOption {
   id: string | number;
   kind: "agent" | "user";
   displayName: string;
@@ -23,17 +23,17 @@ interface TaskCreateModalProps {
   onClose: () => void;
   tasks: TaskOption[];
   agents: AgentOption[];
-  principals: PrincipalOption[];
+  actors: ActorOption[];
   name: string;
   description: string;
-  assigneePrincipalId: string;
+  assigneeActorId: string;
   status: string;
   parentTaskId: string;
   dependencyTaskIds: string[];
   isSubmittingTask: boolean;
   onNameChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
-  onAssigneePrincipalIdChange: (value: string) => void;
+  onAssigneeActorIdChange: (value: string) => void;
   onStatusChange: (value: string) => void;
   onParentTaskIdChange: (value: string) => void;
   onDependencyTaskIdsChange: (value: string[]) => void;
@@ -46,17 +46,17 @@ export function TaskCreateModal({
   onClose,
   tasks,
   agents,
-  principals,
+  actors,
   name,
   description,
-  assigneePrincipalId,
+  assigneeActorId,
   status,
   parentTaskId,
   dependencyTaskIds,
   isSubmittingTask,
   onNameChange,
   onDescriptionChange,
-  onAssigneePrincipalIdChange,
+  onAssigneeActorIdChange,
   onStatusChange,
   onParentTaskIdChange,
   onDependencyTaskIdsChange,
@@ -65,7 +65,7 @@ export function TaskCreateModal({
 }: TaskCreateModalProps) {
   const [selectedAgentId, setSelectedAgentId] = useState("");
   const assignedAgentId = String(
-    principals.find((principal) => String(principal.id) === String(assigneePrincipalId) && principal.kind === "agent")
+    actors.find((actor) => String(actor.id) === String(assigneeActorId) && actor.kind === "agent")
       ?.agentId || "",
   ).trim();
   const effectiveExecuteAgentId = String(selectedAgentId || assignedAgentId).trim();
@@ -120,14 +120,14 @@ export function TaskCreateModal({
         <label htmlFor="task-assignee">Assignee</label>
         <select
           id="task-assignee"
-          name="assigneePrincipalId"
-          value={String(assigneePrincipalId || "")}
-          onChange={(event: ChangeEvent<HTMLSelectElement>) => onAssigneePrincipalIdChange(event.target.value)}
+          name="assigneeActorId"
+          value={String(assigneeActorId || "")}
+          onChange={(event: ChangeEvent<HTMLSelectElement>) => onAssigneeActorIdChange(event.target.value)}
         >
           <option value="">Unassigned</option>
-          {principals.map((principal) => (
-            <option key={`create-assignee-${principal.id}`} value={String(principal.id)}>
-              {principal.displayName} ({principal.kind === "agent" ? "Agent" : "Human"})
+          {actors.map((actor) => (
+            <option key={`create-assignee-${actor.id}`} value={String(actor.id)}>
+              {actor.displayName} ({actor.kind === "agent" ? "Agent" : "Human"})
             </option>
           ))}
         </select>

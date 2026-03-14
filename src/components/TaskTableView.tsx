@@ -21,7 +21,7 @@ interface TaskTableTask {
   name?: string;
   status?: string;
   description?: string;
-  assigneePrincipalId?: string | null;
+  assigneeActorId?: string | null;
   assigneeAgentId?: string | null;
   dependencyTaskIds?: Array<string | number>;
   comments?: unknown[];
