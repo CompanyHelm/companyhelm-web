@@ -4718,6 +4718,15 @@ button:disabled {
   gap: 0.45rem;
 }
 
+.heartbeat-field label,
+.heartbeat-field > span:first-child {
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(26, 32, 38, 0.66);
+}
+
 .heartbeat-field-display {
   width: 100%;
   min-height: 2.7rem;
@@ -4725,19 +4734,26 @@ button:disabled {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 0.72rem 0.82rem;
-  border: 1px solid rgba(26, 32, 38, 0.12);
-  border-radius: 0.85rem;
-  background: rgba(255, 255, 255, 0.72);
+  padding: 0.8rem 0.9rem;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 0.95rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.88));
   color: var(--ink-1);
   text-align: left;
   cursor: pointer;
-  transition: border-color 0.12s, background 0.12s, box-shadow 0.12s;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  transition: transform 0.12s, border-color 0.12s, background 0.12s, box-shadow 0.12s;
 }
 
 .heartbeat-field-display:hover:not(:disabled) {
   border-color: rgba(15, 118, 110, 0.28);
-  background: rgba(248, 250, 252, 0.96);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(241, 245, 249, 0.94));
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.65),
+    0 8px 18px rgba(148, 163, 184, 0.12);
 }
 
 .heartbeat-field-display:focus-visible {
@@ -4782,6 +4798,83 @@ button:disabled {
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.heartbeat-toggle {
+  width: 100%;
+  min-height: 2.7rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  border-radius: 0.95rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.9));
+  color: var(--ink-1);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.12s, border-color 0.12s, box-shadow 0.12s, background 0.12s;
+}
+
+.heartbeat-toggle:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(15, 118, 110, 0.25);
+  box-shadow: 0 8px 18px rgba(148, 163, 184, 0.12);
+}
+
+.heartbeat-toggle:focus-visible {
+  outline: none;
+  border-color: rgba(15, 118, 110, 0.35);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+}
+
+.heartbeat-toggle:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.heartbeat-toggle-copy {
+  font-weight: 600;
+}
+
+.heartbeat-toggle-track {
+  position: relative;
+  flex: 0 0 auto;
+  width: 2.9rem;
+  height: 1.7rem;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.32);
+  box-shadow: inset 0 1px 3px rgba(15, 23, 42, 0.14);
+  transition: background 0.12s, box-shadow 0.12s;
+}
+
+.heartbeat-toggle-thumb {
+  position: absolute;
+  top: 0.16rem;
+  left: 0.16rem;
+  width: 1.38rem;
+  height: 1.38rem;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.18);
+  transition: transform 0.16s ease;
+}
+
+.heartbeat-toggle-active {
+  border-color: rgba(15, 118, 110, 0.28);
+  background:
+    linear-gradient(180deg, rgba(240, 253, 250, 0.98), rgba(236, 253, 245, 0.92));
+}
+
+.heartbeat-toggle-active .heartbeat-toggle-track {
+  background: linear-gradient(90deg, rgba(13, 148, 136, 0.95), rgba(15, 118, 110, 0.98));
+  box-shadow: inset 0 1px 3px rgba(15, 23, 42, 0.1);
+}
+
+.heartbeat-toggle-active .heartbeat-toggle-thumb {
+  transform: translateX(1.2rem);
 }
 
 .heartbeat-save-notice {

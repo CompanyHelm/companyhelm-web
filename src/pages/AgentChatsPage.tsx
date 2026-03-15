@@ -543,13 +543,10 @@ export function AgentChatsPage({
     };
     handleHeartbeatDraftChange(heartbeatId, "enabled", nextEnabled);
     if (heartbeatDraftMatchesSource(nextDraft, heartbeat)) {
-      setHeartbeatFieldEditing(heartbeatId, "enabled", false);
       return;
     }
     const didSave = await handleSaveHeartbeat(heartbeatId, nextDraft);
-    if (didSave) {
-      setHeartbeatFieldEditing(heartbeatId, "enabled", false);
-    }
+    return didSave;
   }
 
   function handleHeartbeatFieldKeyDown(event: any, heartbeatId: string, field: string, heartbeat: any) {
@@ -945,7 +942,6 @@ export function AgentChatsPage({
                       const isNameEditing = Boolean(editingHeartbeatFieldsById?.[heartbeatId]?.name);
                       const isPromptEditing = Boolean(editingHeartbeatFieldsById?.[heartbeatId]?.prompt);
                       const isIntervalEditing = Boolean(editingHeartbeatFieldsById?.[heartbeatId]?.intervalMinutes);
-                      const isEnabledEditing = Boolean(editingHeartbeatFieldsById?.[heartbeatId]?.enabled);
                       return (
                         <div
                           key={heartbeatId}
@@ -1054,34 +1050,21 @@ export function AgentChatsPage({
                             </div>
                             <div className="heartbeat-field">
                               <span>Enabled</span>
-                              {isEnabledEditing ? (
-                                <label style={{ display: "inline-flex", gap: "0.5rem", alignItems: "center", minHeight: "2.7rem" }}>
-                                  <input
-                                    type="checkbox"
-                                    checked={draft.enabled !== false}
-                                    onChange={(event: any) => void handleHeartbeatEnabledChange(heartbeatId, heartbeat, event.target.checked)}
-                                    disabled={isHeartbeatSaving}
-                                    autoFocus
-                                  />
-                                  <span>{draft.enabled !== false ? "Enabled" : "Paused"}</span>
-                                </label>
-                              ) : (
                                 <button
                                   type="button"
-                                  className="heartbeat-field-display"
-                                  onClick={() => setHeartbeatFieldEditing(heartbeatId, "enabled", true)}
+                                  className={`heartbeat-toggle${draft.enabled !== false ? " heartbeat-toggle-active" : ""}`}
+                                  onClick={() => void handleHeartbeatEnabledChange(heartbeatId, heartbeat, draft.enabled === false)}
                                   disabled={isHeartbeatSaving}
-                                  aria-label="Edit Enabled"
-                                  title="Edit"
+                                  aria-label={draft.enabled !== false ? "Disable heartbeat" : "Enable heartbeat"}
+                                  aria-pressed={draft.enabled !== false}
                                 >
-                                  <span className="heartbeat-field-display-text">
+                                  <span className="heartbeat-toggle-copy">
                                     {draft.enabled !== false ? "Enabled" : "Paused"}
                                   </span>
-                                  <span className="heartbeat-field-display-icon" aria-hidden="true">
-                                    {renderPencilIcon()}
+                                  <span className="heartbeat-toggle-track" aria-hidden="true">
+                                    <span className="heartbeat-toggle-thumb" />
                                   </span>
                                 </button>
-                              )}
                             </div>
                           </div>
                           <div className="task-overview-field"><span className="task-overview-field-label">Next scheduled</span><span>{formatTimestamp(heartbeat?.nextHeartbeatAt) || "Not scheduled"}</span></div>
