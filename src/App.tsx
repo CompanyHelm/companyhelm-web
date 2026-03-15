@@ -8903,7 +8903,8 @@ function App() {
     const resolvedAgentId = String(agentId || "").trim();
     const normalizedName = String(draft?.name || "").trim();
     const normalizedPrompt = String(draft?.prompt || "").trim();
-    const normalizedIntervalSeconds = Number(draft?.intervalSeconds);
+    const normalizedIntervalMinutes = Number(draft?.intervalMinutes);
+    const normalizedIntervalSeconds = normalizedIntervalMinutes * 60;
 
     if (!selectedCompanyId) {
       setAgentError("Select a company before editing heartbeats.");
@@ -8921,8 +8922,8 @@ function App() {
       setAgentError("Heartbeat prompt is required.");
       return false;
     }
-    if (!Number.isInteger(normalizedIntervalSeconds) || normalizedIntervalSeconds <= 0) {
-      setAgentError("Heartbeat interval must be a positive number of seconds.");
+    if (!Number.isInteger(normalizedIntervalMinutes) || normalizedIntervalMinutes <= 0) {
+      setAgentError("Heartbeat interval must be a positive number of minutes.");
       return false;
     }
 
@@ -8954,7 +8955,8 @@ function App() {
     const resolvedHeartbeatId = String(heartbeatId || "").trim();
     const normalizedName = String(draft?.name || "").trim();
     const normalizedPrompt = String(draft?.prompt || "").trim();
-    const normalizedIntervalSeconds = Number(draft?.intervalSeconds);
+    const normalizedIntervalMinutes = Number(draft?.intervalMinutes);
+    const normalizedIntervalSeconds = normalizedIntervalMinutes * 60;
 
     if (!selectedCompanyId) {
       setAgentError("Select a company before editing heartbeats.");
@@ -8972,8 +8974,8 @@ function App() {
       setAgentError("Heartbeat prompt is required.");
       return false;
     }
-    if (!Number.isInteger(normalizedIntervalSeconds) || normalizedIntervalSeconds <= 0) {
-      setAgentError("Heartbeat interval must be a positive number of seconds.");
+    if (!Number.isInteger(normalizedIntervalMinutes) || normalizedIntervalMinutes <= 0) {
+      setAgentError("Heartbeat interval must be a positive number of minutes.");
       return false;
     }
 

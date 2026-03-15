@@ -123,16 +123,26 @@ function createEmptyHeartbeatDraft() {
   return {
     name: "",
     prompt: "",
-    intervalSeconds: "3600",
+    intervalMinutes: "60",
     enabled: true,
   };
+}
+
+function formatHeartbeatIntervalMinutes(intervalSeconds: any) {
+  const normalizedIntervalSeconds = Number(intervalSeconds);
+  if (!Number.isFinite(normalizedIntervalSeconds) || normalizedIntervalSeconds <= 0) {
+    return "";
+  }
+
+  const intervalMinutes = normalizedIntervalSeconds / 60;
+  return Number.isInteger(intervalMinutes) ? String(intervalMinutes) : String(intervalMinutes);
 }
 
 function createHeartbeatDraftFromHeartbeat(heartbeat: any) {
   return {
     name: String(heartbeat?.name || "").trim(),
     prompt: String(heartbeat?.prompt || "").trim(),
-    intervalSeconds: String(heartbeat?.intervalSeconds || ""),
+    intervalMinutes: formatHeartbeatIntervalMinutes(heartbeat?.intervalSeconds),
     enabled: heartbeat?.enabled !== false,
   };
 }
@@ -410,7 +420,7 @@ export function AgentChatsPage({
     try {
       return await onUpdateHeartbeat(agent.id, heartbeatId, {
         ...draft,
-        intervalSeconds: Number(draft.intervalSeconds),
+        intervalMinutes: Number(draft.intervalMinutes),
       });
     } finally {
       setSavingHeartbeatId("");
@@ -426,7 +436,7 @@ export function AgentChatsPage({
     try {
       const didCreate = await onCreateHeartbeat(agent.id, {
         ...newHeartbeatDraft,
-        intervalSeconds: Number(newHeartbeatDraft.intervalSeconds),
+        intervalMinutes: Number(newHeartbeatDraft.intervalMinutes),
       });
       if (didCreate) {
         setNewHeartbeatDraft(createEmptyHeartbeatDraft());
@@ -753,13 +763,13 @@ export function AgentChatsPage({
                           </div>
                           <div style={{ display: "grid", gap: "0.45rem", gridTemplateColumns: "minmax(0, 11rem) minmax(0, 1fr)", alignItems: "end" }}>
                             <div style={{ display: "grid", gap: "0.45rem" }}>
-                              <label htmlFor={`heartbeat-interval-${heartbeatId}`}>Interval (sec)</label>
+                              <label htmlFor={`heartbeat-interval-${heartbeatId}`}>Interval (min)</label>
                               <input
                                 id={`heartbeat-interval-${heartbeatId}`}
                                 type="number"
                                 min="1"
-                                value={draft.intervalSeconds}
-                                onChange={(event: any) => handleHeartbeatDraftChange(heartbeatId, "intervalSeconds", event.target.value)}
+                                value={draft.intervalMinutes}
+                                onChange={(event: any) => handleHeartbeatDraftChange(heartbeatId, "intervalMinutes", event.target.value)}
                               />
                             </div>
                             <label style={{ display: "inline-flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.35rem" }}>
@@ -821,13 +831,13 @@ export function AgentChatsPage({
                     </div>
                     <div style={{ display: "grid", gap: "0.45rem", gridTemplateColumns: "minmax(0, 11rem) minmax(0, 1fr)", alignItems: "end" }}>
                       <div style={{ display: "grid", gap: "0.45rem" }}>
-                        <label htmlFor="new-heartbeat-interval">Interval (sec)</label>
+                        <label htmlFor="new-heartbeat-interval">Interval (min)</label>
                         <input
                           id="new-heartbeat-interval"
                           type="number"
                           min="1"
-                          value={newHeartbeatDraft.intervalSeconds}
-                          onChange={(event: any) => setNewHeartbeatDraft((current: any) => ({ ...current, intervalSeconds: event.target.value }))}
+                          value={newHeartbeatDraft.intervalMinutes}
+                          onChange={(event: any) => setNewHeartbeatDraft((current: any) => ({ ...current, intervalMinutes: event.target.value }))}
                         />
                       </div>
                       <label style={{ display: "inline-flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.35rem" }}>

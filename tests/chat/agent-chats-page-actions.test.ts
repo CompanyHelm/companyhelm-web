@@ -155,6 +155,7 @@ test("AgentChatsPage renders heartbeat controls and schedule state", () => {
   });
 
   assert.match(markup, />Heartbeat schedules</);
+  assert.match(markup, /Interval \(min\)/);
   assert.match(markup, /Morning check-in/);
   assert.match(markup, /Review open work and continue if needed\./);
   assert.match(markup, /thread-1/);
