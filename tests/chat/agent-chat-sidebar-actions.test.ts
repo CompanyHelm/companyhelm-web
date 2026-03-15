@@ -95,6 +95,7 @@ function renderAgentChatPageMarkup(overrides: Record<string, unknown> = {}) {
       onDeleteQueuedMessage: () => {},
       onCreateChatForAgent: async () => {},
       onOpenChatFromList: () => {},
+      allowArchivedMode: false,
       ...overrides,
     }),
   );
@@ -164,8 +165,7 @@ test("AgentChatPage mobile sidebar renders permanent delete actions in archived 
     assert.match(markup, /Thread 1/);
     assert.match(markup, /Thread 2/);
     assert.match(markup, /Thread 1[\s\S]*chat-thread-status chat-thread-status-archived">archived</);
-    assert.doesNotMatch(markup, /aria-label="New chat"/);
-    assert.doesNotMatch(markup, /aria-label="Start new chat"/);
+    assert.match(markup, /aria-label="Start new chat"/);
   } finally {
     if (typeof originalWindow === "undefined") {
       Reflect.deleteProperty(testGlobal, "window");
@@ -227,6 +227,7 @@ test("AgentChatPage archived sidebar does not render batch selection controls", 
     const deleteLabels = markup.match(/aria-label="Delete permanently"/g) || [];
 
     assert.equal(deleteLabels.length, 2);
+    assert.doesNotMatch(markup, /aria-label="Chat list filter"/);
     assert.doesNotMatch(markup, /aria-label="Select all archived chats"/);
     assert.doesNotMatch(markup, /aria-label="Select archived chat Thread 1"/);
     assert.doesNotMatch(markup, /aria-label="Select archived chat Thread 2"/);

@@ -2,7 +2,6 @@ import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } fr
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CreationModal } from "../components/CreationModal.tsx";
-import { ChatListStatusToggle } from "../components/ChatListStatusToggle.tsx";
 import { ChatSessionRunningBadge } from "../components/ChatSessionRunningBadge.tsx";
 import { ThreadTaskSummary } from "../components/ThreadTaskSummary.tsx";
 import { useSetPageActions } from "../components/PageActionsContext.tsx";
@@ -368,13 +367,16 @@ export function AgentChatPage({
   onDeleteQueuedMessage,
   onCreateChatForAgent,
   onOpenChatFromList,
+  allowArchivedMode = true,
 }: any) {
   const normalizedRouteNotFoundMessage = String(routeNotFoundMessage || "").trim();
   const hasRouteNotFoundMessage = Boolean(normalizedRouteNotFoundMessage);
   const canChat = Boolean(agent && session) && !hasRouteNotFoundMessage;
   const selectedAgentId = String(agent?.id || "").trim();
   const selectedSessionId = String(session?.id || "").trim();
-  const normalizedChatListStatusFilter = normalizeChatListStatusFilter(chatListStatusFilter);
+  const normalizedChatListStatusFilter = allowArchivedMode
+    ? normalizeChatListStatusFilter(chatListStatusFilter)
+    : "active";
   const canShowCreateChatActions = normalizedChatListStatusFilter !== "archived";
   const sessionStatus = String(session?.status || "").trim().toLowerCase();
   const isSessionArchived = canChat && sessionStatus === "archived";
@@ -776,10 +778,6 @@ export function AgentChatPage({
         <aside className="panel list-panel chat-sidebar-panel chat-sidebar-panel-mobile-full">
           <div className="chat-sidebar-toolbar">
             <h2 className="chat-mobile-full-title">Chats</h2>
-            <ChatListStatusToggle
-              value={normalizedChatListStatusFilter}
-              onChange={onChatListStatusFilterChange}
-            />
           </div>
           {isLoadingChatIndex ? <p className="empty-hint">Loading chats...</p> : null}
           {!isLoadingChatIndex && sortedSidebarAgents.length === 0 ? (
@@ -885,10 +883,6 @@ export function AgentChatPage({
             <div className="chat-mobile-overlay-header chat-mobile-overlay-header-stacked">
               <h3 className="chat-mobile-full-title">Chats</h3>
               <div className="chat-mobile-overlay-actions">
-                <ChatListStatusToggle
-                  value={normalizedChatListStatusFilter}
-                  onChange={onChatListStatusFilterChange}
-                />
                 <button
                   type="button"
                   className="secondary-btn chat-mobile-overlay-close"
@@ -997,10 +991,6 @@ export function AgentChatPage({
           <aside className="panel list-panel chat-sidebar-panel">
             <div className="chat-sidebar-toolbar">
               <p className="chat-sidebar-title">Chats</p>
-              <ChatListStatusToggle
-                value={normalizedChatListStatusFilter}
-                onChange={onChatListStatusFilterChange}
-              />
             </div>
             {isLoadingChatIndex ? <p className="empty-hint">Loading chats...</p> : null}
             {!isLoadingChatIndex && sortedSidebarAgents.length === 0 ? (

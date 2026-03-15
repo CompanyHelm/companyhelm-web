@@ -5859,8 +5859,12 @@ function App() {
     if (!selectedCompanyId || activePage !== "chats") {
       return;
     }
+    if (chatListStatusFilter !== CHAT_LIST_STATUS_FILTER_ACTIVE) {
+      setChatListStatusFilter(CHAT_LIST_STATUS_FILTER_ACTIVE);
+      return;
+    }
     void loadChatsBootstrapData();
-  }, [activePage, loadChatsBootstrapData, selectedCompanyId]);
+  }, [activePage, chatListStatusFilter, loadChatsBootstrapData, selectedCompanyId]);
 
   useEffect(() => {
     if (!selectedCompanyId || activePage !== "chats" || !chatAgentId) {
@@ -10809,6 +10813,7 @@ function App() {
             onDeleteQueuedMessage={handleDeleteQueuedChatMessage}
             onCreateChatForAgent={handleCreateChatForAgent}
             onOpenChatFromList={handleOpenChatFromList}
+            allowArchivedMode={false}
           />
         ) : null}
 
@@ -10921,6 +10926,7 @@ function App() {
               onDeleteQueuedMessage={handleDeleteQueuedChatMessage}
               onCreateChatForAgent={handleCreateChatForAgent}
               onOpenChatFromList={handleOpenChatFromList}
+              allowArchivedMode
             />
           ) : (
             <AgentsPage
