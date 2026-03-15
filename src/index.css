@@ -4718,6 +4718,28 @@ button:disabled {
   gap: 0.45rem;
 }
 
+.heartbeat-field-input {
+  width: 100%;
+  border-radius: 11px;
+  border: 1px solid rgba(26, 32, 38, 0.24);
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--ink-0);
+  padding: 0.62rem 0.72rem;
+  font-size: 0.93rem;
+  font-family: inherit;
+}
+
+.heartbeat-field-input:focus {
+  outline: none;
+  border-color: var(--action);
+  box-shadow: 0 0 0 4px var(--ring);
+}
+
+.heartbeat-field-textarea {
+  resize: vertical;
+  min-height: 7rem;
+}
+
 .heartbeat-field label,
 .heartbeat-field > span:first-child {
   font-size: 0.72rem;

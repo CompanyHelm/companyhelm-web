@@ -958,6 +958,7 @@ export function AgentChatsPage({
                             {isNameEditing ? (
                               <input
                                 id={`heartbeat-name-${heartbeatId}`}
+                                className="heartbeat-field-input"
                                 type="text"
                                 value={draft.name}
                                 onChange={(event: any) => handleHeartbeatDraftChange(heartbeatId, "name", event.target.value)}
@@ -989,6 +990,7 @@ export function AgentChatsPage({
                             {isPromptEditing ? (
                               <textarea
                                 id={`heartbeat-prompt-${heartbeatId}`}
+                                className="heartbeat-field-input heartbeat-field-textarea"
                                 rows={4}
                                 value={draft.prompt}
                                 onChange={(event: any) => handleHeartbeatDraftChange(heartbeatId, "prompt", event.target.value)}
@@ -1021,6 +1023,7 @@ export function AgentChatsPage({
                               {isIntervalEditing ? (
                                 <input
                                   id={`heartbeat-interval-${heartbeatId}`}
+                                  className="heartbeat-field-input"
                                   type="number"
                                   min="1"
                                   value={draft.intervalMinutes}
@@ -1109,6 +1112,7 @@ export function AgentChatsPage({
                       <label htmlFor="new-heartbeat-name">Name</label>
                       <input
                         id="new-heartbeat-name"
+                        className="heartbeat-field-input"
                         type="text"
                         value={newHeartbeatDraft.name}
                         onChange={(event: any) => setNewHeartbeatDraft((current: any) => ({ ...current, name: event.target.value }))}
@@ -1118,6 +1122,7 @@ export function AgentChatsPage({
                       <label htmlFor="new-heartbeat-prompt">Prompt</label>
                       <textarea
                         id="new-heartbeat-prompt"
+                        className="heartbeat-field-input heartbeat-field-textarea"
                         rows={4}
                         value={newHeartbeatDraft.prompt}
                         onChange={(event: any) => setNewHeartbeatDraft((current: any) => ({ ...current, prompt: event.target.value }))}
@@ -1128,6 +1133,7 @@ export function AgentChatsPage({
                         <label htmlFor="new-heartbeat-interval">Interval (min)</label>
                         <input
                           id="new-heartbeat-interval"
+                          className="heartbeat-field-input"
                           type="number"
                           min="1"
                           value={newHeartbeatDraft.intervalMinutes}
