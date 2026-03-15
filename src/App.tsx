@@ -3810,7 +3810,6 @@ function App() {
     if (activePage === "chats") {
       const items = [{ label: "Chats", href: "/chats" }];
       if (chatAgentId && resolvedChatSessionId) {
-        items.push({ label: getAgentLabel(chatAgentId), href: getChatsPath({ agentId: chatAgentId }) });
         items.push({
           label: getChatLabel(resolvedChatSessionId),
           href: getChatsPath({ agentId: chatAgentId, threadId: resolvedChatSessionId }),
