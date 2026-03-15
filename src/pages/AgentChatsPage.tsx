@@ -481,36 +481,8 @@ export function AgentChatsPage({
 
       {agent && agentSummary ? (
         <>
-          <section className="panel role-detail-hero">
-            <div className="role-detail-hero-title-row">
-              <h1 className="role-detail-hero-title">{agent.name}</h1>
-            </div>
-
-            <div className="agent-detail-hero-runner">
-              <span className="agent-detail-hero-runner-label">Runner</span>
-              <span className="agent-detail-hero-runner-value">{agentSummary.assignedRunnerLabel}</span>
-            </div>
-
-            <div className="role-detail-stats">
-              <div className="role-detail-stat">
-                <p className="role-detail-stat-value">{agentSummary.modelLabel}</p>
-                <p className="role-detail-stat-label">Model</p>
-              </div>
-              <div className="role-detail-stat">
-                <p className="role-detail-stat-value">{agentSummary.reasoningLabel}</p>
-                <p className="role-detail-stat-label">Reasoning</p>
-              </div>
-              <div className="role-detail-stat">
-                <p className="role-detail-stat-value">{agentSummary.assignedRoles.length}</p>
-                <p className="role-detail-stat-label">Roles</p>
-              </div>
-              <div className="role-detail-stat">
-                <p className="role-detail-stat-value">{agentSummary.chatCount}</p>
-                <p className="role-detail-stat-label">Chats</p>
-              </div>
-            </div>
-
-            <div className="task-view-tabs agent-detail-view-tabs" role="tablist" aria-label="Agent detail views">
+          <section className="panel">
+            <div className="task-view-tabs" role="tablist" aria-label="Agent detail views">
               {detailTabs.map((tab) => (
                 <button
                   key={tab.id}
@@ -527,143 +499,114 @@ export function AgentChatsPage({
           </section>
 
           {resolvedActiveTab === "overview" ? (
-            <div className="role-detail-grid">
-              <div className="role-detail-column">
-                <div className="role-detail-card">
-                  <div className="role-detail-card-header">
-                    <svg viewBox="0 0 24 24"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg>
-                    <h3>Configuration</h3>
+            <>
+              <section className="panel role-detail-hero">
+                <div className="role-detail-hero-title-row">
+                  <h1 className="role-detail-hero-title">{agent.name}</h1>
+                </div>
+
+                <div className="agent-detail-hero-runner">
+                  <span className="agent-detail-hero-runner-label">Runner</span>
+                  <span className="agent-detail-hero-runner-value">{agentSummary.assignedRunnerLabel}</span>
+                </div>
+
+                <div className="role-detail-stats">
+                  <div className="role-detail-stat">
+                    <p className="role-detail-stat-value">{agentSummary.modelLabel}</p>
+                    <p className="role-detail-stat-label">Model</p>
                   </div>
-                  <AgentEditorForm
-                    agent={agent}
-                    agentRunners={agentRunners || []}
-                    roles={roles || []}
-                    skills={skills || []}
-                    mcpServers={mcpServers || []}
-                    roleMcpServerIdsByRoleId={roleMcpServerIdsByRoleId || {}}
-                    runnerCodexModelEntriesById={runnerCodexModelEntriesById || {}}
-                    agentDraft={agentDrafts?.[agent.id]}
-                    savingAgentId={savingAgentId}
-                    deletingAgentId={deletingAgentId}
-                    initializingAgentId={initializingAgentId}
-                    onAgentDraftChange={onAgentDraftChange}
-                    onSaveAgent={onSaveAgent}
-                    onEnsureAgentEditorData={onEnsureAgentEditorData}
-                    saveButtonLabel="Save agent"
-                  />
+                  <div className="role-detail-stat">
+                    <p className="role-detail-stat-value">{agentSummary.reasoningLabel}</p>
+                    <p className="role-detail-stat-label">Reasoning</p>
+                  </div>
+                  <div className="role-detail-stat">
+                    <p className="role-detail-stat-value">{agentSummary.assignedRoles.length}</p>
+                    <p className="role-detail-stat-label">Roles</p>
+                  </div>
+                  <div className="role-detail-stat">
+                    <p className="role-detail-stat-value">{agentSummary.chatCount}</p>
+                    <p className="role-detail-stat-label">Chats</p>
+                  </div>
+                </div>
+              </section>
+
+              <div className="role-detail-grid">
+                <div className="role-detail-column">
+                  <div className="role-detail-card">
+                    <div className="role-detail-card-header">
+                      <svg viewBox="0 0 24 24"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg>
+                      <h3>Configuration</h3>
+                    </div>
+                    <AgentEditorForm
+                      agent={agent}
+                      agentRunners={agentRunners || []}
+                      roles={roles || []}
+                      skills={skills || []}
+                      mcpServers={mcpServers || []}
+                      roleMcpServerIdsByRoleId={roleMcpServerIdsByRoleId || {}}
+                      runnerCodexModelEntriesById={runnerCodexModelEntriesById || {}}
+                      agentDraft={agentDrafts?.[agent.id]}
+                      savingAgentId={savingAgentId}
+                      deletingAgentId={deletingAgentId}
+                      initializingAgentId={initializingAgentId}
+                      onAgentDraftChange={onAgentDraftChange}
+                      onSaveAgent={onSaveAgent}
+                      onEnsureAgentEditorData={onEnsureAgentEditorData}
+                      saveButtonLabel="Save agent"
+                    />
+                  </div>
+                </div>
+
+                <div className="role-detail-column">
+                  <div className="role-detail-card role-detail-card-muted">
+                    <div className="role-detail-card-header">
+                      <svg viewBox="0 0 24 24"><path d="M3 12h18" /><path d="M3 6h18" /><path d="M3 18h18" /></svg>
+                      <h3>Overview</h3>
+                    </div>
+                    <div className="task-overview-fields">
+                      <div className="task-overview-field"><span className="task-overview-field-label">Runner</span><span>{agentSummary.assignedRunnerLabel}</span></div>
+                      <div className="task-overview-field"><span className="task-overview-field-label">SDK</span><span>{agentSummary.sdkLabel}</span></div>
+                      <div className="task-overview-field"><span className="task-overview-field-label">Model</span><span>{agentSummary.modelLabel}</span></div>
+                      <div className="task-overview-field"><span className="task-overview-field-label">Reasoning</span><span>{agentSummary.reasoningLabel}</span></div>
+                      <div className="task-overview-field"><span className="task-overview-field-label">Chats</span><span>{chatCountLabel}</span></div>
+                      <div className="task-overview-field"><span className="task-overview-field-label">Heartbeat schedules</span><span>{agentSummary.heartbeatCount}</span></div>
+                    </div>
+                  </div>
+
+                  <div className="role-detail-card role-detail-card-muted">
+                    <div className="role-detail-card-header">
+                      <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>
+                      <h3>Effective Skills</h3>
+                    </div>
+                    {agentSummary.effectiveSkills.length === 0 ? (
+                      <div className="role-detail-empty">No effective skills assigned</div>
+                    ) : (
+                      <div className="role-detail-pills">
+                        {agentSummary.effectiveSkills.map((skill: any) => (
+                          <span key={`effective-skill-${skill.id}`} className="tag-pill">{skill.name}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="role-detail-card role-detail-card-muted">
+                    <div className="role-detail-card-header">
+                      <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="6" rx="2" /><rect x="2" y="15" width="20" height="6" rx="2" /><path d="M12 9v6" /></svg>
+                      <h3>Effective MCP Servers</h3>
+                    </div>
+                    {agentSummary.effectiveMcpServers.length === 0 ? (
+                      <div className="role-detail-empty">No effective MCP servers assigned</div>
+                    ) : (
+                      <div className="role-detail-pills">
+                        {agentSummary.effectiveMcpServers.map((mcpServer: any) => (
+                          <span key={`effective-mcp-${mcpServer.id}`} className="tag-pill">{mcpServer.name}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-
-              <div className="role-detail-column">
-                <div className="role-detail-card role-detail-card-muted">
-                  <div className="role-detail-card-header">
-                    <svg viewBox="0 0 24 24"><path d="M3 12h18" /><path d="M3 6h18" /><path d="M3 18h18" /></svg>
-                    <h3>Overview</h3>
-                  </div>
-                  <div className="task-overview-fields">
-                    <div className="task-overview-field"><span className="task-overview-field-label">Runner</span><span>{agentSummary.assignedRunnerLabel}</span></div>
-                    <div className="task-overview-field"><span className="task-overview-field-label">SDK</span><span>{agentSummary.sdkLabel}</span></div>
-                    <div className="task-overview-field"><span className="task-overview-field-label">Model</span><span>{agentSummary.modelLabel}</span></div>
-                    <div className="task-overview-field"><span className="task-overview-field-label">Reasoning</span><span>{agentSummary.reasoningLabel}</span></div>
-                    <div className="task-overview-field"><span className="task-overview-field-label">Chats</span><span>{chatCountLabel}</span></div>
-                    <div className="task-overview-field"><span className="task-overview-field-label">Heartbeat schedules</span><span>{agentSummary.heartbeatCount}</span></div>
-                  </div>
-                </div>
-
-                <div className="role-detail-card role-detail-card-muted">
-                  <div className="role-detail-card-header">
-                    <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
-                    <h3>Roles</h3>
-                    <span className="role-detail-card-count">{agentSummary.assignedRoles.length}</span>
-                  </div>
-                  {agentSummary.assignedRoles.length === 0 ? (
-                    <div className="role-detail-empty">No roles assigned</div>
-                  ) : (
-                    <div className="role-detail-pills">
-                      {agentSummary.assignedRoles.map((role: any) => (
-                        <span key={`agent-role-${role.id}`} className="tag-pill">{role.name}</span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="role-detail-card role-detail-card-muted">
-                  <div className="role-detail-card-header">
-                    <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>
-                    <h3>Direct Skills</h3>
-                  </div>
-                  {agentSummary.directSkills.length === 0 ? (
-                    <div className="role-detail-empty">No direct skills assigned</div>
-                  ) : (
-                    <div className="role-detail-pills">
-                      {agentSummary.directSkills.map((skill: any) => (
-                        <span key={`direct-skill-${skill.id}`} className="tag-pill">{skill.name}</span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="role-detail-card role-detail-card-muted">
-                  <div className="role-detail-card-header">
-                    <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>
-                    <h3>Effective Skills</h3>
-                  </div>
-                  {agentSummary.effectiveSkills.length === 0 ? (
-                    <div className="role-detail-empty">No effective skills assigned</div>
-                  ) : (
-                    <div className="role-detail-pills">
-                      {agentSummary.effectiveSkills.map((skill: any) => (
-                        <span key={`effective-skill-${skill.id}`} className="tag-pill">{skill.name}</span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="role-detail-card role-detail-card-muted">
-                  <div className="role-detail-card-header">
-                    <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="6" rx="2" /><rect x="2" y="15" width="20" height="6" rx="2" /><path d="M12 9v6" /></svg>
-                    <h3>Direct MCP Servers</h3>
-                  </div>
-                  {agentSummary.directMcpServers.length === 0 ? (
-                    <div className="role-detail-empty">No direct MCP servers assigned</div>
-                  ) : (
-                    <div className="role-detail-pills">
-                      {agentSummary.directMcpServers.map((mcpServer: any) => (
-                        <span key={`direct-mcp-${mcpServer.id}`} className="tag-pill">{mcpServer.name}</span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="role-detail-card role-detail-card-muted">
-                  <div className="role-detail-card-header">
-                    <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="6" rx="2" /><rect x="2" y="15" width="20" height="6" rx="2" /><path d="M12 9v6" /></svg>
-                    <h3>Effective MCP Servers</h3>
-                  </div>
-                  {agentSummary.effectiveMcpServers.length === 0 ? (
-                    <div className="role-detail-empty">No effective MCP servers assigned</div>
-                  ) : (
-                    <div className="role-detail-pills">
-                      {agentSummary.effectiveMcpServers.map((mcpServer: any) => (
-                        <span key={`effective-mcp-${mcpServer.id}`} className="tag-pill">{mcpServer.name}</span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="role-detail-card role-detail-card-muted">
-                  <div className="role-detail-card-header">
-                    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
-                    <h3>Default Instructions</h3>
-                  </div>
-                  {agentSummary.instructions ? (
-                    <pre className="agent-detail-instructions-pre">{agentSummary.instructions}</pre>
-                  ) : (
-                    <div className="role-detail-empty">No default instructions</div>
-                  )}
-                </div>
-              </div>
-            </div>
+            </>
           ) : null}
 
           {resolvedActiveTab === "chats" ? (

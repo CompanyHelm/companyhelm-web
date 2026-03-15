@@ -127,7 +127,7 @@ test("AgentChatsPage overview renders inline editor and assignment sections", ()
     },
   });
 
-  assert.match(markup, />Direct Skills</);
+  assert.match(markup, />Direct skills</);
   assert.match(markup, />Direct MCP Servers</);
   assert.match(markup, />Effective Skills</);
   assert.match(markup, />Effective MCP Servers</);
