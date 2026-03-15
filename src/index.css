@@ -2035,6 +2035,27 @@ button:disabled {
   gap: 0.9rem;
 }
 
+.agent-config-group {
+  display: grid;
+  gap: 0.8rem;
+  padding: 0.95rem 1rem;
+  border-radius: 14px;
+  background: rgba(238, 242, 243, 0.45);
+  border: 1px solid rgba(26, 32, 38, 0.06);
+}
+
+.agent-config-group-header h4 {
+  margin: 0;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--ink-0);
+}
+
+.agent-config-group-body {
+  display: grid;
+  gap: 0.9rem;
+}
+
 .agent-config-section {
   display: grid;
   gap: 0.4rem;
@@ -4687,6 +4708,35 @@ button:disabled {
   gap: 0.45rem;
   flex-wrap: wrap;
   margin-top: 0.3rem;
+}
+
+.heartbeat-field {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.heartbeat-field-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+}
+
+.heartbeat-field-readonly {
+  min-height: 2.7rem;
+  display: flex;
+  align-items: center;
+}
+
+.heartbeat-field-readonly-multiline {
+  white-space: pre-wrap;
+  align-items: flex-start;
+}
+
+.heartbeat-save-notice {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--action);
 }
 
 .danger-btn {

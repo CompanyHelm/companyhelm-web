@@ -175,7 +175,7 @@ test("AgentChatPage mobile sidebar renders permanent delete actions in archived 
   }
 });
 
-test("AgentChatPage archived sidebar renders cross-agent batch selection controls", () => {
+test("AgentChatPage archived sidebar does not render batch selection controls", () => {
   const originalWindow = testGlobal.window;
   const localStorageMap = new Map<string, string>();
 
@@ -222,13 +222,15 @@ test("AgentChatPage archived sidebar renders cross-agent batch selection control
           },
         ],
       },
-      onBatchDeleteChats: async () => ({ deletedKeys: [], failedKeys: [] }),
     });
 
-    assert.match(markup, /aria-label="Select all archived chats"/);
-    assert.match(markup, /aria-label="Select archived chat Thread 1"/);
-    assert.match(markup, /aria-label="Select archived chat Thread 2"/);
-    assert.match(markup, />\s*Delete selected\s*</);
+    const deleteLabels = markup.match(/aria-label="Delete permanently"/g) || [];
+
+    assert.equal(deleteLabels.length, 2);
+    assert.doesNotMatch(markup, /aria-label="Select all archived chats"/);
+    assert.doesNotMatch(markup, /aria-label="Select archived chat Thread 1"/);
+    assert.doesNotMatch(markup, /aria-label="Select archived chat Thread 2"/);
+    assert.doesNotMatch(markup, />\s*Delete selected\s*</);
   } finally {
     if (typeof originalWindow === "undefined") {
       Reflect.deleteProperty(testGlobal, "window");

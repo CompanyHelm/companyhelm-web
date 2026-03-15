@@ -146,6 +146,33 @@ function createHeartbeatDraftFromHeartbeat(heartbeat: any) {
   };
 }
 
+function normalizeHeartbeatDraftForComparison(draft: any) {
+  return {
+    name: String(draft?.name || "").trim(),
+    prompt: String(draft?.prompt || "").trim(),
+    intervalMinutes: Number(draft?.intervalMinutes),
+    enabled: draft?.enabled !== false,
+  };
+}
+
+function heartbeatDraftMatchesSource(draft: any, heartbeat: any) {
+  const normalizedDraft = normalizeHeartbeatDraftForComparison(draft);
+  const sourceDraft = normalizeHeartbeatDraftForComparison(createHeartbeatDraftFromHeartbeat(heartbeat));
+  return normalizedDraft.name === sourceDraft.name
+    && normalizedDraft.prompt === sourceDraft.prompt
+    && normalizedDraft.intervalMinutes === sourceDraft.intervalMinutes
+    && normalizedDraft.enabled === sourceDraft.enabled;
+}
+
+function renderPencilIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+    </svg>
+  );
+}
+
 export function AgentChatsPage({
   selectedCompanyId,
   agent,
@@ -200,10 +227,12 @@ export function AgentChatsPage({
   const [isHeartbeatComposerOpen, setIsHeartbeatComposerOpen] = useState<any>(false);
   const [selectedArchivedChatKeys, setSelectedArchivedChatKeys] = useState<any>(new Set());
   const [heartbeatDraftsById, setHeartbeatDraftsById] = useState<any>({});
+  const [editingHeartbeatFieldsById, setEditingHeartbeatFieldsById] = useState<any>({});
   const [newHeartbeatDraft, setNewHeartbeatDraft] = useState<any>(createEmptyHeartbeatDraft);
   const [savingHeartbeatId, setSavingHeartbeatId] = useState<any>("");
   const [deletingHeartbeatId, setDeletingHeartbeatId] = useState<any>("");
   const [heartbeatError, setHeartbeatError] = useState<any>("");
+  const [heartbeatSaveNotice, setHeartbeatSaveNotice] = useState<any>(null);
   const runnerLookup = useMemo(() => {
     return (Array.isArray(agentRunners) ? agentRunners : []).reduce((map: any, runner: any) => {
       const runnerId = String(runner?.id || "").trim();
@@ -379,6 +408,26 @@ export function AgentChatsPage({
     );
   }, [agent?.id, JSON.stringify(agent?.heartbeats || [])]);
 
+  useEffect(() => {
+    setEditingHeartbeatFieldsById({});
+    setHeartbeatSaveNotice(null);
+  }, [agent?.id]);
+
+  useEffect(() => {
+    if (!heartbeatSaveNotice?.heartbeatId) {
+      return undefined;
+    }
+    const timeoutId = window.setTimeout(() => {
+      setHeartbeatSaveNotice((current: any) => {
+        if (!current || current?.heartbeatId !== heartbeatSaveNotice.heartbeatId || current?.token !== heartbeatSaveNotice.token) {
+          return current;
+        }
+        return null;
+      });
+    }, 2200);
+    return () => window.clearTimeout(timeoutId);
+  }, [heartbeatSaveNotice]);
+
   async function handleNewChat() {
     const createdSessionId = await onCreateChatSession({
       title: chatSessionTitleDraft || null,
@@ -413,20 +462,112 @@ export function AgentChatsPage({
     }));
   }
 
-  async function handleSaveHeartbeat(heartbeatId: string) {
+  function setHeartbeatFieldEditing(heartbeatId: string, field: string, isEditing: boolean) {
+    setEditingHeartbeatFieldsById((currentFields: Record<string, Record<string, boolean>>) => {
+      const nextFields = {
+        ...(currentFields || {}),
+      };
+      const heartbeatFields = {
+        ...(nextFields[heartbeatId] || {}),
+      };
+      if (isEditing) {
+        heartbeatFields[field] = true;
+        nextFields[heartbeatId] = heartbeatFields;
+        return nextFields;
+      }
+      delete heartbeatFields[field];
+      if (Object.keys(heartbeatFields).length > 0) {
+        nextFields[heartbeatId] = heartbeatFields;
+      } else {
+        delete nextFields[heartbeatId];
+      }
+      return nextFields;
+    });
+  }
+
+  function resetHeartbeatDraftField(heartbeatId: string, field: string, heartbeat: any) {
+    const sourceDraft = createHeartbeatDraftFromHeartbeat(heartbeat);
+    setHeartbeatDraftsById((currentDrafts: Record<string, any>) => ({
+      ...currentDrafts,
+      [heartbeatId]: {
+        ...(currentDrafts[heartbeatId] || sourceDraft),
+        [field]: sourceDraft[field],
+      },
+    }));
+  }
+
+  function markHeartbeatSaved(heartbeatId: string) {
+    setHeartbeatSaveNotice({
+      heartbeatId,
+      token: Date.now(),
+    });
+  }
+
+  async function handleSaveHeartbeat(heartbeatId: string, draftOverride: any = null) {
     if (!agent || !onUpdateHeartbeat) {
       return false;
     }
-    const draft = heartbeatDraftsById[heartbeatId] || createEmptyHeartbeatDraft();
+    const draft = draftOverride || heartbeatDraftsById[heartbeatId] || createEmptyHeartbeatDraft();
     setHeartbeatError("");
     setSavingHeartbeatId(heartbeatId);
     try {
-      return await onUpdateHeartbeat(agent.id, heartbeatId, {
+      const didSave = await onUpdateHeartbeat(agent.id, heartbeatId, {
         ...draft,
         intervalMinutes: Number(draft.intervalMinutes),
       });
+      if (didSave) {
+        markHeartbeatSaved(heartbeatId);
+      }
+      return didSave;
     } finally {
       setSavingHeartbeatId("");
+    }
+  }
+
+  async function handleHeartbeatFieldBlur(heartbeatId: string, field: string, heartbeat: any) {
+    const draft = heartbeatDraftsById[heartbeatId] || createHeartbeatDraftFromHeartbeat(heartbeat);
+    if (heartbeatDraftMatchesSource(draft, heartbeat)) {
+      setHeartbeatFieldEditing(heartbeatId, field, false);
+      return;
+    }
+    const didSave = await handleSaveHeartbeat(heartbeatId);
+    if (didSave) {
+      setHeartbeatFieldEditing(heartbeatId, field, false);
+    }
+  }
+
+  async function handleHeartbeatEnabledChange(heartbeatId: string, heartbeat: any, nextEnabled: boolean) {
+    const nextDraft = {
+      ...(heartbeatDraftsById[heartbeatId] || createHeartbeatDraftFromHeartbeat(heartbeat)),
+      enabled: nextEnabled,
+    };
+    handleHeartbeatDraftChange(heartbeatId, "enabled", nextEnabled);
+    if (heartbeatDraftMatchesSource(nextDraft, heartbeat)) {
+      setHeartbeatFieldEditing(heartbeatId, "enabled", false);
+      return;
+    }
+    const didSave = await handleSaveHeartbeat(heartbeatId, nextDraft);
+    if (didSave) {
+      setHeartbeatFieldEditing(heartbeatId, "enabled", false);
+    }
+  }
+
+  function handleHeartbeatFieldKeyDown(event: any, heartbeatId: string, field: string, heartbeat: any) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      resetHeartbeatDraftField(heartbeatId, field, heartbeat);
+      setHeartbeatFieldEditing(heartbeatId, field, false);
+      event.currentTarget.blur();
+      return;
+    }
+    if (event.key === "Enter" && event.currentTarget.tagName !== "TEXTAREA") {
+      event.preventDefault();
+      event.currentTarget.blur();
+      return;
+    }
+    if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+      event.preventDefault();
+      event.currentTarget.blur();
     }
   }
 
@@ -530,80 +671,29 @@ export function AgentChatsPage({
                 </div>
               </section>
 
-              <div className="role-detail-grid">
-                <div className="role-detail-column">
-                  <div className="role-detail-card">
-                    <div className="role-detail-card-header">
-                      <svg viewBox="0 0 24 24"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg>
-                      <h3>Configuration</h3>
-                    </div>
-                    <AgentEditorForm
-                      agent={agent}
-                      agentRunners={agentRunners || []}
-                      roles={roles || []}
-                      skills={skills || []}
-                      mcpServers={mcpServers || []}
-                      roleMcpServerIdsByRoleId={roleMcpServerIdsByRoleId || {}}
-                      runnerCodexModelEntriesById={runnerCodexModelEntriesById || {}}
-                      agentDraft={agentDrafts?.[agent.id]}
-                      savingAgentId={savingAgentId}
-                      deletingAgentId={deletingAgentId}
-                      initializingAgentId={initializingAgentId}
-                      onAgentDraftChange={onAgentDraftChange}
-                      onSaveAgent={onSaveAgent}
-                      onEnsureAgentEditorData={onEnsureAgentEditorData}
-                      saveButtonLabel="Save agent"
-                    />
+              <div className="role-detail-column">
+                <div className="role-detail-card">
+                  <div className="role-detail-card-header">
+                    <svg viewBox="0 0 24 24"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg>
+                    <h3>Configuration</h3>
                   </div>
-                </div>
-
-                <div className="role-detail-column">
-                  <div className="role-detail-card role-detail-card-muted">
-                    <div className="role-detail-card-header">
-                      <svg viewBox="0 0 24 24"><path d="M3 12h18" /><path d="M3 6h18" /><path d="M3 18h18" /></svg>
-                      <h3>Overview</h3>
-                    </div>
-                    <div className="task-overview-fields">
-                      <div className="task-overview-field"><span className="task-overview-field-label">Runner</span><span>{agentSummary.assignedRunnerLabel}</span></div>
-                      <div className="task-overview-field"><span className="task-overview-field-label">SDK</span><span>{agentSummary.sdkLabel}</span></div>
-                      <div className="task-overview-field"><span className="task-overview-field-label">Model</span><span>{agentSummary.modelLabel}</span></div>
-                      <div className="task-overview-field"><span className="task-overview-field-label">Reasoning</span><span>{agentSummary.reasoningLabel}</span></div>
-                      <div className="task-overview-field"><span className="task-overview-field-label">Chats</span><span>{chatCountLabel}</span></div>
-                      <div className="task-overview-field"><span className="task-overview-field-label">Heartbeat schedules</span><span>{agentSummary.heartbeatCount}</span></div>
-                    </div>
-                  </div>
-
-                  <div className="role-detail-card role-detail-card-muted">
-                    <div className="role-detail-card-header">
-                      <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>
-                      <h3>Effective Skills</h3>
-                    </div>
-                    {agentSummary.effectiveSkills.length === 0 ? (
-                      <div className="role-detail-empty">No effective skills assigned</div>
-                    ) : (
-                      <div className="role-detail-pills">
-                        {agentSummary.effectiveSkills.map((skill: any) => (
-                          <span key={`effective-skill-${skill.id}`} className="tag-pill">{skill.name}</span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="role-detail-card role-detail-card-muted">
-                    <div className="role-detail-card-header">
-                      <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="6" rx="2" /><rect x="2" y="15" width="20" height="6" rx="2" /><path d="M12 9v6" /></svg>
-                      <h3>Effective MCP Servers</h3>
-                    </div>
-                    {agentSummary.effectiveMcpServers.length === 0 ? (
-                      <div className="role-detail-empty">No effective MCP servers assigned</div>
-                    ) : (
-                      <div className="role-detail-pills">
-                        {agentSummary.effectiveMcpServers.map((mcpServer: any) => (
-                          <span key={`effective-mcp-${mcpServer.id}`} className="tag-pill">{mcpServer.name}</span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <AgentEditorForm
+                    agent={agent}
+                    agentRunners={agentRunners || []}
+                    roles={roles || []}
+                    skills={skills || []}
+                    mcpServers={mcpServers || []}
+                    roleMcpServerIdsByRoleId={roleMcpServerIdsByRoleId || {}}
+                    runnerCodexModelEntriesById={runnerCodexModelEntriesById || {}}
+                    agentDraft={agentDrafts?.[agent.id]}
+                    savingAgentId={savingAgentId}
+                    deletingAgentId={deletingAgentId}
+                    initializingAgentId={initializingAgentId}
+                    onAgentDraftChange={onAgentDraftChange}
+                    onSaveAgent={onSaveAgent}
+                    onEnsureAgentEditorData={onEnsureAgentEditorData}
+                    saveButtonLabel="Save agent"
+                  />
                 </div>
               </div>
             </>
@@ -850,6 +940,12 @@ export function AgentChatsPage({
                     {agent.heartbeats.map((heartbeat: any) => {
                       const heartbeatId = String(heartbeat?.id || "").trim();
                       const draft = heartbeatDraftsById[heartbeatId] || createHeartbeatDraftFromHeartbeat(heartbeat);
+                      const isHeartbeatSaving = savingHeartbeatId === heartbeatId || savingAgentId === agent.id;
+                      const isHeartbeatDeleting = deletingHeartbeatId === heartbeatId || savingAgentId === agent.id;
+                      const isNameEditing = Boolean(editingHeartbeatFieldsById?.[heartbeatId]?.name);
+                      const isPromptEditing = Boolean(editingHeartbeatFieldsById?.[heartbeatId]?.prompt);
+                      const isIntervalEditing = Boolean(editingHeartbeatFieldsById?.[heartbeatId]?.intervalMinutes);
+                      const isEnabledEditing = Boolean(editingHeartbeatFieldsById?.[heartbeatId]?.enabled);
                       return (
                         <div
                           key={heartbeatId}
@@ -861,61 +957,156 @@ export function AgentChatsPage({
                             gap: "0.75rem",
                           }}
                         >
-                          <div style={{ display: "grid", gap: "0.45rem" }}>
-                            <label htmlFor={`heartbeat-name-${heartbeatId}`}>Name</label>
-                            <input
-                              id={`heartbeat-name-${heartbeatId}`}
-                              type="text"
-                              value={draft.name}
-                              onChange={(event: any) => handleHeartbeatDraftChange(heartbeatId, "name", event.target.value)}
-                            />
+                          <div className="heartbeat-field">
+                            <div className="heartbeat-field-header">
+                              <label htmlFor={`heartbeat-name-${heartbeatId}`}>Name</label>
+                              {!isNameEditing ? (
+                                <button
+                                  type="button"
+                                  className="agent-config-edit-toggle"
+                                  onClick={() => setHeartbeatFieldEditing(heartbeatId, "name", true)}
+                                  disabled={isHeartbeatSaving}
+                                  aria-label="Edit Name"
+                                  title="Edit"
+                                >
+                                  {renderPencilIcon()}
+                                </button>
+                              ) : null}
+                            </div>
+                            {isNameEditing ? (
+                              <input
+                                id={`heartbeat-name-${heartbeatId}`}
+                                type="text"
+                                value={draft.name}
+                                onChange={(event: any) => handleHeartbeatDraftChange(heartbeatId, "name", event.target.value)}
+                                onBlur={() => void handleHeartbeatFieldBlur(heartbeatId, "name", heartbeat)}
+                                onKeyDown={(event: any) => handleHeartbeatFieldKeyDown(event, heartbeatId, "name", heartbeat)}
+                                disabled={isHeartbeatSaving}
+                                autoFocus
+                              />
+                            ) : (
+                              <div className="task-form-readonly heartbeat-field-readonly">
+                                {draft.name || "Untitled heartbeat"}
+                              </div>
+                            )}
                           </div>
-                          <div style={{ display: "grid", gap: "0.45rem" }}>
-                            <label htmlFor={`heartbeat-prompt-${heartbeatId}`}>Prompt</label>
-                            <textarea
-                              id={`heartbeat-prompt-${heartbeatId}`}
-                              rows={4}
-                              value={draft.prompt}
-                              onChange={(event: any) => handleHeartbeatDraftChange(heartbeatId, "prompt", event.target.value)}
-                            />
+                          <div className="heartbeat-field">
+                            <div className="heartbeat-field-header">
+                              <label htmlFor={`heartbeat-prompt-${heartbeatId}`}>Prompt</label>
+                              {!isPromptEditing ? (
+                                <button
+                                  type="button"
+                                  className="agent-config-edit-toggle"
+                                  onClick={() => setHeartbeatFieldEditing(heartbeatId, "prompt", true)}
+                                  disabled={isHeartbeatSaving}
+                                  aria-label="Edit Prompt"
+                                  title="Edit"
+                                >
+                                  {renderPencilIcon()}
+                                </button>
+                              ) : null}
+                            </div>
+                            {isPromptEditing ? (
+                              <textarea
+                                id={`heartbeat-prompt-${heartbeatId}`}
+                                rows={4}
+                                value={draft.prompt}
+                                onChange={(event: any) => handleHeartbeatDraftChange(heartbeatId, "prompt", event.target.value)}
+                                onBlur={() => void handleHeartbeatFieldBlur(heartbeatId, "prompt", heartbeat)}
+                                onKeyDown={(event: any) => handleHeartbeatFieldKeyDown(event, heartbeatId, "prompt", heartbeat)}
+                                disabled={isHeartbeatSaving}
+                                autoFocus
+                              />
+                            ) : (
+                              <div className="task-form-readonly heartbeat-field-readonly heartbeat-field-readonly-multiline">
+                                {draft.prompt || "No prompt configured"}
+                              </div>
+                            )}
                           </div>
                           <div style={{ display: "grid", gap: "0.45rem", gridTemplateColumns: "minmax(0, 11rem) minmax(0, 1fr)", alignItems: "end" }}>
-                            <div style={{ display: "grid", gap: "0.45rem" }}>
-                              <label htmlFor={`heartbeat-interval-${heartbeatId}`}>Interval (min)</label>
-                              <input
-                                id={`heartbeat-interval-${heartbeatId}`}
-                                type="number"
-                                min="1"
-                                value={draft.intervalMinutes}
-                                onChange={(event: any) => handleHeartbeatDraftChange(heartbeatId, "intervalMinutes", event.target.value)}
-                              />
+                            <div className="heartbeat-field">
+                              <div className="heartbeat-field-header">
+                                <label htmlFor={`heartbeat-interval-${heartbeatId}`}>Interval (min)</label>
+                                {!isIntervalEditing ? (
+                                  <button
+                                    type="button"
+                                    className="agent-config-edit-toggle"
+                                    onClick={() => setHeartbeatFieldEditing(heartbeatId, "intervalMinutes", true)}
+                                    disabled={isHeartbeatSaving}
+                                    aria-label="Edit Interval"
+                                    title="Edit"
+                                  >
+                                    {renderPencilIcon()}
+                                  </button>
+                                ) : null}
+                              </div>
+                              {isIntervalEditing ? (
+                                <input
+                                  id={`heartbeat-interval-${heartbeatId}`}
+                                  type="number"
+                                  min="1"
+                                  value={draft.intervalMinutes}
+                                  onChange={(event: any) => handleHeartbeatDraftChange(heartbeatId, "intervalMinutes", event.target.value)}
+                                  onBlur={() => void handleHeartbeatFieldBlur(heartbeatId, "intervalMinutes", heartbeat)}
+                                  onKeyDown={(event: any) => handleHeartbeatFieldKeyDown(event, heartbeatId, "intervalMinutes", heartbeat)}
+                                  disabled={isHeartbeatSaving}
+                                  autoFocus
+                                />
+                              ) : (
+                                <div className="task-form-readonly heartbeat-field-readonly">
+                                  {draft.intervalMinutes || "Not set"}
+                                </div>
+                              )}
                             </div>
-                            <label style={{ display: "inline-flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.35rem" }}>
-                              <input
-                                type="checkbox"
-                                checked={draft.enabled !== false}
-                                onChange={(event: any) => handleHeartbeatDraftChange(heartbeatId, "enabled", event.target.checked)}
-                              />
-                              <span>Enabled</span>
-                            </label>
+                            <div className="heartbeat-field">
+                              <div className="heartbeat-field-header">
+                                <span>Enabled</span>
+                                {!isEnabledEditing ? (
+                                  <button
+                                    type="button"
+                                    className="agent-config-edit-toggle"
+                                    onClick={() => setHeartbeatFieldEditing(heartbeatId, "enabled", true)}
+                                    disabled={isHeartbeatSaving}
+                                    aria-label="Edit Enabled"
+                                    title="Edit"
+                                  >
+                                    {renderPencilIcon()}
+                                  </button>
+                                ) : null}
+                              </div>
+                              {isEnabledEditing ? (
+                                <label style={{ display: "inline-flex", gap: "0.5rem", alignItems: "center", minHeight: "2.7rem" }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={draft.enabled !== false}
+                                    onChange={(event: any) => void handleHeartbeatEnabledChange(heartbeatId, heartbeat, event.target.checked)}
+                                    disabled={isHeartbeatSaving}
+                                    autoFocus
+                                  />
+                                  <span>{draft.enabled !== false ? "Enabled" : "Paused"}</span>
+                                </label>
+                              ) : (
+                                <div className="task-form-readonly heartbeat-field-readonly">
+                                  {draft.enabled !== false ? "Enabled" : "Paused"}
+                                </div>
+                              )}
+                            </div>
                           </div>
                           <div className="task-overview-field"><span className="task-overview-field-label">Next scheduled</span><span>{formatTimestamp(heartbeat?.nextHeartbeatAt) || "Not scheduled"}</span></div>
                           <div className="task-overview-field"><span className="task-overview-field-label">Last sent</span><span>{formatTimestamp(heartbeat?.lastSentAt) || "Never"}</span></div>
                           <div className="task-overview-field"><span className="task-overview-field-label">Thread</span><span>{String(heartbeat?.threadId || "").trim() || "No linked thread yet"}</span></div>
                           <div className="task-form-actions">
-                            <button
-                              type="button"
-                              className="secondary-btn"
-                              onClick={() => void handleSaveHeartbeat(heartbeatId)}
-                              disabled={savingHeartbeatId === heartbeatId || savingAgentId === agent.id}
-                            >
-                              Save heartbeat
-                            </button>
+                            {isHeartbeatSaving ? (
+                              <span className="heartbeat-save-notice" role="status" aria-live="polite">Saving...</span>
+                            ) : null}
+                            {heartbeatSaveNotice?.heartbeatId === heartbeatId ? (
+                              <span className="heartbeat-save-notice" role="status" aria-live="polite">Saved</span>
+                            ) : null}
                             <button
                               type="button"
                               className="danger-btn"
                               onClick={() => void handleDeleteHeartbeat(heartbeatId)}
-                              disabled={deletingHeartbeatId === heartbeatId || savingAgentId === agent.id}
+                              disabled={isHeartbeatDeleting}
                             >
                               Delete
                             </button>

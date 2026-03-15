@@ -355,6 +355,19 @@ export function AgentEditorForm({
     );
   }
 
+  function renderGroupShell(title: string, children: ReactNode) {
+    return (
+      <section className="agent-config-group">
+        <header className="agent-config-group-header">
+          <h4>{title}</h4>
+        </header>
+        <div className="agent-config-group-body">
+          {children}
+        </div>
+      </section>
+    );
+  }
+
   const fullscreenEditor = isInstructionsFullscreen && typeof document !== "undefined"
     ? createPortal(
       <div
@@ -405,422 +418,429 @@ export function AgentEditorForm({
     <>
       <form className="task-form" onSubmit={handleSubmit}>
         <div className="agent-config-layout">
-          {renderSectionShell({
-            sectionId: "name",
-            label: "Name",
-            children: editingSectionById.name ? (
-              <div className="agent-config-inline-edit">
-                <input
-                  id={`edit-agent-name-${agent.id}`}
-                  value={editingDraft.name}
-                  onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                    onAgentDraftChange(agent.id, "name", event.target.value)
-                  }
-                  disabled={isEditingDisabled}
-                />
-              </div>
-            ) : (
-              <p className="agent-config-value">{editingDraft.name || "Unnamed agent"}</p>
-            ),
-          })}
-
-          {renderSectionShell({
-            sectionId: "runner",
-            label: "Runner",
-            children: editingSectionById.runner ? (
-              <div className="agent-config-inline-edit">
-                <select
-                  id={`edit-agent-runner-${agent.id}`}
-                  value={editingDraft.agentRunnerId}
-                  onChange={(event: ChangeEvent<HTMLSelectElement>) =>
-                    onAgentDraftChange(agent.id, "agentRunnerId", event.target.value)
-                  }
-                  disabled={isEditingDisabled}
-                >
-                  <option value="">Unassigned</option>
-                  {agentRunners.map((runner) => (
-                    <option
-                      key={runner.id}
-                      value={runner.id}
-                      disabled={!isRunnerReadyAndConnected(runner)}
-                    >
-                      {formatRunnerLabel(runner)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : (
-              <p className="agent-config-value">
-                {(() => {
-                  if (!editingDraft.agentRunnerId) {
-                    return "Unassigned";
-                  }
-                  const selectedRunner = agentRunners.find((runner) => runner.id === editingDraft.agentRunnerId);
-                  return selectedRunner ? formatRunnerLabel(selectedRunner) : editingDraft.agentRunnerId;
-                })()}
-              </p>
-            ),
-          })}
-
-          {renderSectionShell({
-            sectionId: "sdk",
-            label: "SDK",
-            children: editingSectionById.sdk ? (
-              <div className="agent-config-inline-edit">
-                <select
-                  id={`edit-agent-sdk-${agent.id}`}
-                  value={editingDraft.agentSdk}
-                  onChange={(event: ChangeEvent<HTMLSelectElement>) =>
-                    onAgentDraftChange(agent.id, "agentSdk", event.target.value)
-                  }
-                  disabled={isEditingDisabled}
-                >
-                  {AVAILABLE_AGENT_SDKS.map((sdkName) => (
-                    <option
-                      key={`${agent.id}-sdk-${sdkName}`}
-                      value={sdkName}
-                      disabled={
-                        Boolean(editingDraft.agentRunnerId)
-                        && runnerSdkAvailabilityByName.get(sdkName) !== "available"
-                        && editingDraft.agentSdk !== sdkName
+          {renderGroupShell("Basics", (
+            <>
+              {renderSectionShell({
+                sectionId: "name",
+                label: "Name",
+                children: editingSectionById.name ? (
+                  <div className="agent-config-inline-edit">
+                    <input
+                      id={`edit-agent-name-${agent.id}`}
+                      value={editingDraft.name}
+                      onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                        onAgentDraftChange(agent.id, "name", event.target.value)
                       }
+                      disabled={isEditingDisabled}
+                    />
+                  </div>
+                ) : (
+                  <p className="agent-config-value">{editingDraft.name || "Unnamed agent"}</p>
+                ),
+              })}
+              {renderSectionShell({
+                sectionId: "runner",
+                label: "Runner",
+                children: editingSectionById.runner ? (
+                  <div className="agent-config-inline-edit">
+                    <select
+                      id={`edit-agent-runner-${agent.id}`}
+                      value={editingDraft.agentRunnerId}
+                      onChange={(event: ChangeEvent<HTMLSelectElement>) =>
+                        onAgentDraftChange(agent.id, "agentRunnerId", event.target.value)
+                      }
+                      disabled={isEditingDisabled}
                     >
-                      {formatAvailabilityOptionLabel(
-                        sdkName,
-                        runnerSdkAvailabilityByName.get(sdkName) || "not-reported",
-                        { isCurrent: editingDraft.agentSdk === sdkName },
-                      )}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : (
-              <p className="agent-config-value">{editingDraft.agentSdk || "n/a"}</p>
-            ),
-          })}
-
-          {renderSectionShell({
-            sectionId: "model",
-            label: "Model",
-            children: editingSectionById.model ? (
-              <div className="agent-config-inline-edit">
-                <select
-                  id={`edit-agent-model-${agent.id}`}
-                  value={editingDraft.model}
-                  onChange={(event: ChangeEvent<HTMLSelectElement>) =>
-                    onAgentDraftChange(agent.id, "model", event.target.value)
-                  }
-                  disabled={isEditingDisabled || !editingDraft.agentRunnerId}
-                >
-                  {!editingDraft.agentRunnerId ? (
-                    <option value="">Select a runner first</option>
-                  ) : runnerCodexModelEntries.length === 0 ? (
-                    <option value="">No models reported by selected runner</option>
-                  ) : getRunnerModelNames(runnerCodexModelEntries).length === 0 ? (
-                    <option value="">No available models reported by selected runner</option>
-                  ) : (
-                    <>
-                      <option value="">Select model</option>
-                      {missingModelOption ? (
-                        <option value={missingModelOption} disabled>
-                          {formatAvailabilityOptionLabel(missingModelOption, "not-reported", { isCurrent: true })}
-                        </option>
-                      ) : null}
-                      {runnerCodexModelEntries.map((modelEntry) => (
+                      <option value="">Unassigned</option>
+                      {agentRunners.map((runner) => (
                         <option
-                          key={`${agent.id}-model-${modelEntry.name}`}
-                          value={modelEntry.name}
-                          disabled={!modelEntry.isAvailable && editingDraft.model !== modelEntry.name}
+                          key={runner.id}
+                          value={runner.id}
+                          disabled={!isRunnerReadyAndConnected(runner)}
+                        >
+                          {formatRunnerLabel(runner)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <p className="agent-config-value">
+                    {(() => {
+                      if (!editingDraft.agentRunnerId) {
+                        return "Unassigned";
+                      }
+                      const selectedRunner = agentRunners.find((runner) => runner.id === editingDraft.agentRunnerId);
+                      return selectedRunner ? formatRunnerLabel(selectedRunner) : editingDraft.agentRunnerId;
+                    })()}
+                  </p>
+                ),
+              })}
+              {renderSectionShell({
+                sectionId: "sdk",
+                label: "SDK",
+                children: editingSectionById.sdk ? (
+                  <div className="agent-config-inline-edit">
+                    <select
+                      id={`edit-agent-sdk-${agent.id}`}
+                      value={editingDraft.agentSdk}
+                      onChange={(event: ChangeEvent<HTMLSelectElement>) =>
+                        onAgentDraftChange(agent.id, "agentSdk", event.target.value)
+                      }
+                      disabled={isEditingDisabled}
+                    >
+                      {AVAILABLE_AGENT_SDKS.map((sdkName) => (
+                        <option
+                          key={`${agent.id}-sdk-${sdkName}`}
+                          value={sdkName}
+                          disabled={
+                            Boolean(editingDraft.agentRunnerId)
+                            && runnerSdkAvailabilityByName.get(sdkName) !== "available"
+                            && editingDraft.agentSdk !== sdkName
+                          }
                         >
                           {formatAvailabilityOptionLabel(
-                            modelEntry.name,
-                            modelEntry.isAvailable ? "available" : "unavailable",
-                            { isCurrent: editingDraft.model === modelEntry.name },
+                            sdkName,
+                            runnerSdkAvailabilityByName.get(sdkName) || "not-reported",
+                            { isCurrent: editingDraft.agentSdk === sdkName },
                           )}
                         </option>
                       ))}
-                    </>
-                  )}
-                </select>
-              </div>
-            ) : (
-              <p className="agent-config-value">{editingDraft.model || "n/a"}</p>
-            ),
-          })}
+                    </select>
+                  </div>
+                ) : (
+                  <p className="agent-config-value">{editingDraft.agentSdk || "n/a"}</p>
+                ),
+              })}
+              {renderSectionShell({
+                sectionId: "model",
+                label: "Model",
+                children: editingSectionById.model ? (
+                  <div className="agent-config-inline-edit">
+                    <select
+                      id={`edit-agent-model-${agent.id}`}
+                      value={editingDraft.model}
+                      onChange={(event: ChangeEvent<HTMLSelectElement>) =>
+                        onAgentDraftChange(agent.id, "model", event.target.value)
+                      }
+                      disabled={isEditingDisabled || !editingDraft.agentRunnerId}
+                    >
+                      {!editingDraft.agentRunnerId ? (
+                        <option value="">Select a runner first</option>
+                      ) : runnerCodexModelEntries.length === 0 ? (
+                        <option value="">No models reported by selected runner</option>
+                      ) : getRunnerModelNames(runnerCodexModelEntries).length === 0 ? (
+                        <option value="">No available models reported by selected runner</option>
+                      ) : (
+                        <>
+                          <option value="">Select model</option>
+                          {missingModelOption ? (
+                            <option value={missingModelOption} disabled>
+                              {formatAvailabilityOptionLabel(missingModelOption, "not-reported", { isCurrent: true })}
+                            </option>
+                          ) : null}
+                          {runnerCodexModelEntries.map((modelEntry) => (
+                            <option
+                              key={`${agent.id}-model-${modelEntry.name}`}
+                              value={modelEntry.name}
+                              disabled={!modelEntry.isAvailable && editingDraft.model !== modelEntry.name}
+                            >
+                              {formatAvailabilityOptionLabel(
+                                modelEntry.name,
+                                modelEntry.isAvailable ? "available" : "unavailable",
+                                { isCurrent: editingDraft.model === modelEntry.name },
+                              )}
+                            </option>
+                          ))}
+                        </>
+                      )}
+                    </select>
+                  </div>
+                ) : (
+                  <p className="agent-config-value">{editingDraft.model || "n/a"}</p>
+                ),
+              })}
+              {renderSectionShell({
+                sectionId: "reasoning",
+                label: "Reasoning",
+                children: editingSectionById.reasoning ? (
+                  <div className="agent-config-inline-edit">
+                    <select
+                      id={`edit-agent-reasoning-${agent.id}`}
+                      value={editingDraft.modelReasoningLevel}
+                      onChange={(event: ChangeEvent<HTMLSelectElement>) =>
+                        onAgentDraftChange(agent.id, "modelReasoningLevel", event.target.value)
+                      }
+                      disabled={isEditingDisabled || !editingDraft.agentRunnerId || !editingDraft.model}
+                    >
+                      {!editingDraft.agentRunnerId ? (
+                        <option value="">Select a runner first</option>
+                      ) : !editingDraft.model ? (
+                        <option value="">Select a model first</option>
+                      ) : runnerReasoningLevels.length === 0 ? (
+                        <option value="">No reasoning levels reported for this model</option>
+                      ) : (
+                        <>
+                          <option value="">Select reasoning</option>
+                          {runnerReasoningLevels.map((reasoningLevel) => (
+                            <option key={`${agent.id}-reasoning-${reasoningLevel}`} value={reasoningLevel}>
+                              {reasoningLevel}
+                            </option>
+                          ))}
+                        </>
+                      )}
+                    </select>
+                  </div>
+                ) : (
+                  <p className="agent-config-value">{editingDraft.modelReasoningLevel || "n/a"}</p>
+                ),
+              })}
+              {renderSectionShell({
+                sectionId: "instructions",
+                label: "Default additional model instructions",
+                children: (
+                  <button
+                    type="button"
+                    className="agent-config-text-trigger"
+                    onClick={() => setIsInstructionsFullscreen(true)}
+                    disabled={isEditingDisabled}
+                  >
+                    {summarizeInstructions(editingDraft.defaultAdditionalModelInstructions || "")}
+                  </button>
+                ),
+              })}
+            </>
+          ))}
 
-          {renderSectionShell({
-            sectionId: "reasoning",
-            label: "Reasoning",
-            children: editingSectionById.reasoning ? (
-              <div className="agent-config-inline-edit">
-                <select
-                  id={`edit-agent-reasoning-${agent.id}`}
-                  value={editingDraft.modelReasoningLevel}
-                  onChange={(event: ChangeEvent<HTMLSelectElement>) =>
-                    onAgentDraftChange(agent.id, "modelReasoningLevel", event.target.value)
-                  }
-                  disabled={isEditingDisabled || !editingDraft.agentRunnerId || !editingDraft.model}
-                >
-                  {!editingDraft.agentRunnerId ? (
-                    <option value="">Select a runner first</option>
-                  ) : !editingDraft.model ? (
-                    <option value="">Select a model first</option>
-                  ) : runnerReasoningLevels.length === 0 ? (
-                    <option value="">No reasoning levels reported for this model</option>
-                  ) : (
-                    <>
-                      <option value="">Select reasoning</option>
-                      {runnerReasoningLevels.map((reasoningLevel) => (
-                        <option key={`${agent.id}-reasoning-${reasoningLevel}`} value={reasoningLevel}>
-                          {reasoningLevel}
-                        </option>
-                      ))}
-                    </>
-                  )}
-                </select>
-              </div>
-            ) : (
-              <p className="agent-config-value">{editingDraft.modelReasoningLevel || "n/a"}</p>
-            ),
-          })}
-
-          {renderSectionShell({
-            sectionId: "instructions",
-            label: "Default additional model instructions",
-            children: (
-              <button
-                type="button"
-                className="agent-config-text-trigger"
-                onClick={() => setIsInstructionsFullscreen(true)}
-                disabled={isEditingDisabled}
-              >
-                {summarizeInstructions(editingDraft.defaultAdditionalModelInstructions || "")}
-              </button>
-            ),
-          })}
-
-          {renderSectionShell({
-            sectionId: "roles",
-            label: "Assigned roles",
-            children: editingSectionById.roles ? (
-              <div className="agent-config-inline-edit">
+          {renderGroupShell("Roles", (
+            renderSectionShell({
+              sectionId: "roles",
+              label: "Assigned roles",
+              children: editingSectionById.roles ? (
+                <div className="agent-config-inline-edit">
+                  <div className="inline-selection-list">
+                    {directRoles.length === 0 ? (
+                      <span className="empty-hint">No roles assigned.</span>
+                    ) : (
+                      directRoles.map((role) => (
+                        <button
+                          key={`edit-agent-role-${agent.id}-${role.id}`}
+                          type="button"
+                          className="tag-remove-btn"
+                          onClick={() =>
+                            onAgentDraftChange(
+                              agent.id,
+                              "roleIds",
+                              editingRoleIds.filter((candidateId) => candidateId !== role.id),
+                            )
+                          }
+                          disabled={isEditingDisabled}
+                          title={`Remove ${role.name}`}
+                        >
+                          {role.name} ×
+                        </button>
+                      ))
+                    )}
+                  </div>
+                  <select
+                    value=""
+                    onChange={(event: ChangeEvent<HTMLSelectElement>) => {
+                      const nextRoleId = String(event.target.value || "").trim();
+                      if (!nextRoleId) {
+                        return;
+                      }
+                      onAgentDraftChange(agent.id, "roleIds", [...editingRoleIds, nextRoleId]);
+                    }}
+                    disabled={isEditingDisabled || editingAvailableRoles.length === 0}
+                  >
+                    <option value="">
+                      {editingAvailableRoles.length === 0 ? "All roles already assigned" : "Add role"}
+                    </option>
+                    {editingAvailableRoles.map((role) => (
+                      <option key={`edit-agent-role-option-${agent.id}-${role.id}`} value={role.id}>
+                        {role.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
                 <div className="inline-selection-list">
                   {directRoles.length === 0 ? (
                     <span className="empty-hint">No roles assigned.</span>
                   ) : (
                     directRoles.map((role) => (
-                      <button
-                        key={`edit-agent-role-${agent.id}-${role.id}`}
-                        type="button"
-                        className="tag-remove-btn"
-                        onClick={() =>
-                          onAgentDraftChange(
-                            agent.id,
-                            "roleIds",
-                            editingRoleIds.filter((candidateId) => candidateId !== role.id),
-                          )
-                        }
-                        disabled={isEditingDisabled}
-                        title={`Remove ${role.name}`}
-                      >
-                        {role.name} ×
-                      </button>
+                      <span key={`agent-role-pill-${role.id}`} className="tag-pill">{role.name}</span>
                     ))
                   )}
                 </div>
-                <select
-                  value=""
-                  onChange={(event: ChangeEvent<HTMLSelectElement>) => {
-                    const nextRoleId = String(event.target.value || "").trim();
-                    if (!nextRoleId) {
-                      return;
-                    }
-                    onAgentDraftChange(agent.id, "roleIds", [...editingRoleIds, nextRoleId]);
-                  }}
-                  disabled={isEditingDisabled || editingAvailableRoles.length === 0}
-                >
-                  <option value="">
-                    {editingAvailableRoles.length === 0 ? "All roles already assigned" : "Add role"}
-                  </option>
-                  {editingAvailableRoles.map((role) => (
-                    <option key={`edit-agent-role-option-${agent.id}-${role.id}`} value={role.id}>
-                      {role.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : (
-              <div className="inline-selection-list">
-                {directRoles.length === 0 ? (
-                  <span className="empty-hint">No roles assigned.</span>
-                ) : (
-                  directRoles.map((role) => (
-                    <span key={`agent-role-pill-${role.id}`} className="tag-pill">{role.name}</span>
-                  ))
-                )}
-              </div>
-            ),
-          })}
+              ),
+            })
+          ))}
 
-          {renderSectionShell({
-            sectionId: "direct-skills",
-            label: "Direct skills",
-            children: editingSectionById["direct-skills"] ? (
-              <div className="agent-config-inline-edit">
-                <div className="inline-selection-list">
-                  {directSkills.length === 0 ? (
-                    <span className="empty-hint">No direct skills assigned.</span>
-                  ) : (
-                    directSkills.map((skill) => (
-                      <button
-                        key={`edit-agent-direct-skill-${agent.id}-${skill.id}`}
-                        type="button"
-                        className="tag-remove-btn"
-                        onClick={() =>
-                          onAgentDraftChange(
-                            agent.id,
-                            "skillIds",
-                            editingSkillIds.filter((candidateId) => candidateId !== skill.id),
-                          )
+          {renderGroupShell("Skills", (
+            <>
+              {renderSectionShell({
+                sectionId: "direct-skills",
+                label: "Direct skills",
+                children: editingSectionById["direct-skills"] ? (
+                  <div className="agent-config-inline-edit">
+                    <div className="inline-selection-list">
+                      {directSkills.length === 0 ? (
+                        <span className="empty-hint">No direct skills assigned.</span>
+                      ) : (
+                        directSkills.map((skill) => (
+                          <button
+                            key={`edit-agent-direct-skill-${agent.id}-${skill.id}`}
+                            type="button"
+                            className="tag-remove-btn"
+                            onClick={() =>
+                              onAgentDraftChange(
+                                agent.id,
+                                "skillIds",
+                                editingSkillIds.filter((candidateId) => candidateId !== skill.id),
+                              )
+                            }
+                            disabled={isEditingDisabled}
+                            title={`Remove ${skill.name}`}
+                          >
+                            {skill.name} ×
+                          </button>
+                        ))
+                      )}
+                    </div>
+                    <select
+                      value=""
+                      onChange={(event: ChangeEvent<HTMLSelectElement>) => {
+                        const nextSkillId = String(event.target.value || "").trim();
+                        if (!nextSkillId) {
+                          return;
                         }
-                        disabled={isEditingDisabled}
-                        title={`Remove ${skill.name}`}
-                      >
-                        {skill.name} ×
-                      </button>
-                    ))
-                  )}
-                </div>
-                <select
-                  value=""
-                  onChange={(event: ChangeEvent<HTMLSelectElement>) => {
-                    const nextSkillId = String(event.target.value || "").trim();
-                    if (!nextSkillId) {
-                      return;
-                    }
-                    onAgentDraftChange(agent.id, "skillIds", [...editingSkillIds, nextSkillId]);
-                  }}
-                  disabled={isEditingDisabled || editingAvailableSkills.length === 0}
-                >
-                  <option value="">
-                    {editingAvailableSkills.length === 0 ? "All skills already assigned" : "Add direct skill"}
-                  </option>
-                  {editingAvailableSkills.map((skill) => (
-                    <option key={`edit-agent-direct-skill-option-${agent.id}-${skill.id}`} value={skill.id}>
-                      {skill.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : (
-              <div className="inline-selection-list">
-                {directSkills.length === 0 ? (
-                  <span className="empty-hint">No direct skills assigned.</span>
+                        onAgentDraftChange(agent.id, "skillIds", [...editingSkillIds, nextSkillId]);
+                      }}
+                      disabled={isEditingDisabled || editingAvailableSkills.length === 0}
+                    >
+                      <option value="">
+                        {editingAvailableSkills.length === 0 ? "All skills already assigned" : "Add direct skill"}
+                      </option>
+                      {editingAvailableSkills.map((skill) => (
+                        <option key={`edit-agent-direct-skill-option-${agent.id}-${skill.id}`} value={skill.id}>
+                          {skill.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 ) : (
-                  directSkills.map((skill) => (
-                    <span key={`direct-skill-pill-${skill.id}`} className="tag-pill">{skill.name}</span>
-                  ))
-                )}
-              </div>
-            ),
-          })}
+                  <div className="inline-selection-list">
+                    {directSkills.length === 0 ? (
+                      <span className="empty-hint">No direct skills assigned.</span>
+                    ) : (
+                      directSkills.map((skill) => (
+                        <span key={`direct-skill-pill-${skill.id}`} className="tag-pill">{skill.name}</span>
+                      ))
+                    )}
+                  </div>
+                ),
+              })}
+              {renderSectionShell({
+                sectionId: "inherited-skills",
+                label: "Effective Skills",
+                editable: false,
+                children: (
+                  <div className="inline-selection-list">
+                    {effectiveSkills.length === 0 ? (
+                      <span className="empty-hint">No effective skills assigned.</span>
+                    ) : (
+                      effectiveSkills.map((skill) => (
+                        <span key={`effective-skill-pill-${skill.id}`} className="tag-pill">{skill.name}</span>
+                      ))
+                    )}
+                  </div>
+                ),
+              })}
+            </>
+          ))}
 
-          {renderSectionShell({
-            sectionId: "inherited-skills",
-            label: "Inherited skills",
-            editable: false,
-            children: (
-              <div className="inline-selection-list">
-                {effectiveSkills.length === 0 ? (
-                  <span className="empty-hint">No skills inherited from assigned roles.</span>
-                ) : (
-                  effectiveSkills.map((skill) => (
-                    <span key={`effective-skill-pill-${skill.id}`} className="tag-pill">{skill.name}</span>
-                  ))
-                )}
-              </div>
-            ),
-          })}
-
-          {renderSectionShell({
-            sectionId: "direct-mcp",
-            label: "Direct MCP Servers",
-            children: editingSectionById["direct-mcp"] ? (
-              <div className="agent-config-inline-edit">
-                <div className="inline-selection-list">
-                  {directMcpServers.length === 0 ? (
-                    <span className="empty-hint">No direct MCP servers assigned.</span>
-                  ) : (
-                    directMcpServers.map((mcpServer) => (
-                      <button
-                        key={`edit-agent-direct-mcp-${agent.id}-${mcpServer.id}`}
-                        type="button"
-                        className="tag-remove-btn"
-                        onClick={() =>
-                          onAgentDraftChange(
-                            agent.id,
-                            "mcpServerIds",
-                            editingMcpServerIds.filter((candidateId) => candidateId !== mcpServer.id),
-                          )
+          {renderGroupShell("MCP Servers", (
+            <>
+              {renderSectionShell({
+                sectionId: "direct-mcp",
+                label: "Direct MCP Servers",
+                children: editingSectionById["direct-mcp"] ? (
+                  <div className="agent-config-inline-edit">
+                    <div className="inline-selection-list">
+                      {directMcpServers.length === 0 ? (
+                        <span className="empty-hint">No direct MCP servers assigned.</span>
+                      ) : (
+                        directMcpServers.map((mcpServer) => (
+                          <button
+                            key={`edit-agent-direct-mcp-${agent.id}-${mcpServer.id}`}
+                            type="button"
+                            className="tag-remove-btn"
+                            onClick={() =>
+                              onAgentDraftChange(
+                                agent.id,
+                                "mcpServerIds",
+                                editingMcpServerIds.filter((candidateId) => candidateId !== mcpServer.id),
+                              )
+                            }
+                            disabled={isEditingDisabled}
+                            title={`Remove ${mcpServer.name}`}
+                          >
+                            {mcpServer.name} ×
+                          </button>
+                        ))
+                      )}
+                    </div>
+                    <select
+                      value=""
+                      onChange={(event: ChangeEvent<HTMLSelectElement>) => {
+                        const nextMcpServerId = String(event.target.value || "").trim();
+                        if (!nextMcpServerId) {
+                          return;
                         }
-                        disabled={isEditingDisabled}
-                        title={`Remove ${mcpServer.name}`}
-                      >
-                        {mcpServer.name} ×
-                      </button>
-                    ))
-                  )}
-                </div>
-                <select
-                  value=""
-                  onChange={(event: ChangeEvent<HTMLSelectElement>) => {
-                    const nextMcpServerId = String(event.target.value || "").trim();
-                    if (!nextMcpServerId) {
-                      return;
-                    }
-                    onAgentDraftChange(agent.id, "mcpServerIds", [...editingMcpServerIds, nextMcpServerId]);
-                  }}
-                  disabled={isEditingDisabled || editingAvailableMcpServers.length === 0}
-                >
-                  <option value="">
-                    {editingAvailableMcpServers.length === 0 ? "All MCP servers already assigned" : "Add direct MCP server"}
-                  </option>
-                  {editingAvailableMcpServers.map((mcpServer) => (
-                    <option key={`edit-agent-direct-mcp-option-${agent.id}-${mcpServer.id}`} value={mcpServer.id}>
-                      {mcpServer.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : (
-              <div className="inline-selection-list">
-                {directMcpServers.length === 0 ? (
-                  <span className="empty-hint">No direct MCP servers assigned.</span>
+                        onAgentDraftChange(agent.id, "mcpServerIds", [...editingMcpServerIds, nextMcpServerId]);
+                      }}
+                      disabled={isEditingDisabled || editingAvailableMcpServers.length === 0}
+                    >
+                      <option value="">
+                        {editingAvailableMcpServers.length === 0 ? "All MCP servers already assigned" : "Add direct MCP server"}
+                      </option>
+                      {editingAvailableMcpServers.map((mcpServer) => (
+                        <option key={`edit-agent-direct-mcp-option-${agent.id}-${mcpServer.id}`} value={mcpServer.id}>
+                          {mcpServer.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 ) : (
-                  directMcpServers.map((mcpServer) => (
-                    <span key={`direct-mcp-pill-${mcpServer.id}`} className="tag-pill">{mcpServer.name}</span>
-                  ))
-                )}
-              </div>
-            ),
-          })}
-
-          {renderSectionShell({
-            sectionId: "effective-mcp",
-            label: "Effective MCP Servers",
-            editable: false,
-            children: (
-              <div className="inline-selection-list">
-                {resolvedEffectiveMcpServers.length === 0 ? (
-                  <span className="empty-hint">No MCP servers inherited from assigned roles.</span>
-                ) : (
-                  resolvedEffectiveMcpServers.map((mcpServer) => (
-                    <span key={`effective-mcp-pill-${mcpServer.id}`} className="tag-pill">{mcpServer.name}</span>
-                  ))
-                )}
-              </div>
-            ),
-          })}
+                  <div className="inline-selection-list">
+                    {directMcpServers.length === 0 ? (
+                      <span className="empty-hint">No direct MCP servers assigned.</span>
+                    ) : (
+                      directMcpServers.map((mcpServer) => (
+                        <span key={`direct-mcp-pill-${mcpServer.id}`} className="tag-pill">{mcpServer.name}</span>
+                      ))
+                    )}
+                  </div>
+                ),
+              })}
+              {renderSectionShell({
+                sectionId: "effective-mcp",
+                label: "Effective MCP Servers",
+                editable: false,
+                children: (
+                  <div className="inline-selection-list">
+                    {resolvedEffectiveMcpServers.length === 0 ? (
+                      <span className="empty-hint">No effective MCP servers assigned.</span>
+                    ) : (
+                      resolvedEffectiveMcpServers.map((mcpServer) => (
+                        <span key={`effective-mcp-pill-${mcpServer.id}`} className="tag-pill">{mcpServer.name}</span>
+                      ))
+                    )}
+                  </div>
+                ),
+              })}
+            </>
+          ))}
         </div>
 
         <div className="task-card-actions modal-actions">
