@@ -45,6 +45,8 @@ function renderAgentChatsPageMarkup(overrides: Record<string, unknown> = {}) {
       onOpenChat: () => {},
       onArchiveChat: () => {},
       onDeleteChat: () => {},
+      activeTab: "overview",
+      onSelectTab: () => {},
       onBackToAgents: () => {},
       onSetChatDraftMessage: () => {},
       agentRunners: [],
@@ -66,6 +68,7 @@ function renderAgentChatsPageMarkup(overrides: Record<string, unknown> = {}) {
 
 test("AgentChatsPage hides create actions in archived mode", () => {
   const markup = renderAgentChatsPageMarkup({
+    activeTab: "chats",
     chatListStatusFilter: "archived",
   });
 
@@ -75,6 +78,7 @@ test("AgentChatsPage hides create actions in archived mode", () => {
 
 test("AgentChatsPage archived mode renders batch selection controls", () => {
   const markup = renderAgentChatsPageMarkup({
+    activeTab: "chats",
     chatListStatusFilter: "archived",
     onBatchDeleteChats: async () => ({ deletedKeys: [], failedKeys: [] }),
   });
@@ -87,6 +91,7 @@ test("AgentChatsPage archived mode renders batch selection controls", () => {
 
 test("AgentChatsPage shows create actions in active mode", () => {
   const markup = renderAgentChatsPageMarkup({
+    activeTab: "chats",
     chatListStatusFilter: "active",
   });
 
@@ -94,7 +99,7 @@ test("AgentChatsPage shows create actions in active mode", () => {
   assert.match(markup, /aria-label="Chat settings"/);
 });
 
-test("AgentChatsPage renders direct and inherited agent assignment sections separately", () => {
+test("AgentChatsPage overview renders inline editor and assignment sections", () => {
   const markup = renderAgentChatsPageMarkup({
     agent: {
       id: "agent-1",
@@ -126,10 +131,14 @@ test("AgentChatsPage renders direct and inherited agent assignment sections sepa
   assert.match(markup, />Direct MCP Servers</);
   assert.match(markup, />Effective Skills</);
   assert.match(markup, />Effective MCP Servers</);
+  assert.match(markup, />Configuration</);
+  assert.match(markup, />Save agent</);
+  assert.doesNotMatch(markup, /Back to agents/);
 });
 
-test("AgentChatsPage renders heartbeat controls and schedule state", () => {
+test("AgentChatsPage heartbeats tab renders heartbeat controls and schedule state", () => {
   const markup = renderAgentChatsPageMarkup({
+    activeTab: "heartbeats",
     agent: {
       id: "agent-1",
       name: "Build Agent",
@@ -164,8 +173,21 @@ test("AgentChatsPage renders heartbeat controls and schedule state", () => {
 });
 
 test("AgentChatsPage renders empty heartbeat state when none exist", () => {
-  const markup = renderAgentChatsPageMarkup();
+  const markup = renderAgentChatsPageMarkup({
+    activeTab: "heartbeats",
+  });
 
   assert.match(markup, />Heartbeat schedules</);
   assert.match(markup, /No heartbeat schedules configured/);
+});
+
+test("AgentChatsPage renders tab buttons with the active tab selected", () => {
+  const markup = renderAgentChatsPageMarkup({
+    activeTab: "overview",
+  });
+
+  assert.match(markup, /role="tab"/);
+  assert.match(markup, /aria-selected="true"[^>]*>Overview</);
+  assert.match(markup, />Chats</);
+  assert.match(markup, />Heartbeats</);
 });

@@ -5305,6 +5305,10 @@ button:disabled {
   color: var(--ink-1);
 }
 
+.agent-detail-view-tabs {
+  margin-top: 0.85rem;
+}
+
 .agent-detail-instructions-pre {
   margin: 0;
   font-family: "IBM Plex Mono", monospace;

@@ -4,6 +4,8 @@ import {
   buildGithubAppInstallUrl,
   clearGithubInstallCallbackFromLocation,
   getAdminRouteFromPathname,
+  getAgentPath,
+  getAgentsRouteFromPathname,
   getActorsRouteFromPathname,
   getPageFromPathname,
   getTasksRouteFromPathname,
@@ -70,6 +72,28 @@ test("getActorsRouteFromPathname returns detail view for /actors/:actorId", () =
     view: "detail",
     actorId: "actor-123",
   });
+});
+
+test("getAgentsRouteFromPathname returns overview tab by default for /agents/:agentId", () => {
+  assert.deepEqual(getAgentsRouteFromPathname("/agents/agent-123"), {
+    view: "agent",
+    agentId: "agent-123",
+    sessionId: "",
+    tab: "overview",
+  });
+});
+
+test("getAgentsRouteFromPathname reads the tab query from the detail URL", () => {
+  assert.deepEqual(getAgentsRouteFromPathname("/agents/agent-123", "?tab=heartbeats"), {
+    view: "agent",
+    agentId: "agent-123",
+    sessionId: "",
+    tab: "heartbeats",
+  });
+});
+
+test("getAgentPath always includes the normalized tab query", () => {
+  assert.equal(getAgentPath({ agentId: "agent-123", tab: "Chats" }), "/agents/agent-123?tab=chats");
 });
 
 test("getAdminRouteFromPathname returns table view for /admin/tables/:tableName", () => {

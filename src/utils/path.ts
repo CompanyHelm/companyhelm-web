@@ -5,9 +5,19 @@ interface ChatsRouteLocationInput {
   search?: string;
 }
 
+interface AgentsRouteLocationInput {
+  pathname?: string;
+  search?: string;
+}
+
 interface ChatsPathInput {
   agentId?: string;
   threadId?: string;
+}
+
+interface AgentPathInput {
+  agentId?: string;
+  tab?: string;
 }
 
 interface SetBrowserPathOptions {
@@ -23,6 +33,7 @@ type AgentRoute = {
   view: "list" | "agent";
   agentId: string;
   sessionId: string;
+  tab: "overview" | "chats" | "heartbeats";
 };
 
 type DetailRoute = {
@@ -35,6 +46,17 @@ type AdminRoute = {
 };
 
 export const DEFAULT_ADMIN_TABLE_NAME = "runner_requests";
+
+export function normalizeAgentDetailTab(value: string = ""): "overview" | "chats" | "heartbeats" {
+  const normalizedValue = String(value || "").trim().toLowerCase();
+  if (normalizedValue === "chats") {
+    return "chats";
+  }
+  if (normalizedValue === "heartbeats") {
+    return "heartbeats";
+  }
+  return "overview";
+}
 
 export function normalizePathname(rawPathname: string): string {
   const trimmed = String(rawPathname || "").trim();
@@ -102,17 +124,44 @@ export function buildGithubAppInstallUrl({ appLink, companyId }: GithubInstallUr
   }
 }
 
-export function getAgentsRouteFromPathname(pathname: string = window.location.pathname): AgentRoute {
+export function getAgentsRouteFromPathname(
+  pathnameOrLocation: string | AgentsRouteLocationInput = typeof window !== "undefined" ? window.location.pathname : "/",
+  search?: string,
+): AgentRoute {
+  const fallbackPathname = typeof window !== "undefined" ? window.location.pathname : "/";
+  const fallbackSearch = typeof window !== "undefined" ? window.location.search : "";
+  const pathname = typeof pathnameOrLocation === "string"
+    ? pathnameOrLocation
+    : pathnameOrLocation.pathname || fallbackPathname;
+  const resolvedSearch = typeof pathnameOrLocation === "string"
+    ? (typeof search === "string" ? search : fallbackSearch)
+    : pathnameOrLocation.search || fallbackSearch;
   const segments = normalizePathname(pathname).split("/").filter(Boolean);
   if (segments[0] !== "agents") {
-    return { view: "list", agentId: "", sessionId: "" };
+    return { view: "list", agentId: "", sessionId: "", tab: "overview" };
   }
 
   const agentId = segments[1] || "";
   if (!agentId) {
-    return { view: "list", agentId: "", sessionId: "" };
+    return { view: "list", agentId: "", sessionId: "", tab: "overview" };
   }
-  return { view: "agent", agentId, sessionId: "" };
+  const params = new URLSearchParams(String(resolvedSearch || ""));
+  return {
+    view: "agent",
+    agentId,
+    sessionId: "",
+    tab: normalizeAgentDetailTab(params.get("tab") || ""),
+  };
+}
+
+export function getAgentPath({ agentId = "", tab = "overview" }: AgentPathInput = {}): string {
+  const resolvedAgentId = String(agentId || "").trim();
+  if (!resolvedAgentId) {
+    return "/agents";
+  }
+  const params = new URLSearchParams();
+  params.set("tab", normalizeAgentDetailTab(tab));
+  return `/agents/${resolvedAgentId}?${params.toString()}`;
 }
 
 export function getSkillsRouteFromPathname(pathname: string = window.location.pathname): DetailRoute & { skillId: string } {

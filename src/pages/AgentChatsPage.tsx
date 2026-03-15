@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Page } from "../components/Page.tsx";
 import { CreationModal } from "../components/CreationModal.tsx";
-import { AgentEditModal } from "../components/AgentEditModal.tsx";
+import { AgentEditorForm } from "../components/AgentEditorForm.tsx";
 import { ChatListStatusToggle } from "../components/ChatListStatusToggle.tsx";
 import { ChatSessionRunningBadge } from "../components/ChatSessionRunningBadge.tsx";
 import { ThreadTaskSummary } from "../components/ThreadTaskSummary.tsx";
@@ -9,7 +9,6 @@ import { isChatSessionRunning } from "../utils/chat.ts";
 import { ArchivedChatSelection } from "../utils/archivedChatSelection.ts";
 import { formatRunnerLabel, formatTimestamp } from "../utils/formatting.ts";
 import { normalizeUniqueStringList } from "../utils/normalization.ts";
-import { useSetPageActions } from "../components/PageActionsContext.tsx";
 
 function collectRoleAndSubroleIds(roleIds: any, roles: any) {
   const normalizedRoleIds = normalizeUniqueStringList(roleIds || []);
@@ -171,7 +170,8 @@ export function AgentChatsPage({
   onArchiveChat,
   onDeleteChat,
   onBatchDeleteChats,
-  onBackToAgents,
+  activeTab = "overview",
+  onSelectTab,
   onSetChatDraftMessage,
   agentRunners,
   skills,
@@ -197,7 +197,6 @@ export function AgentChatsPage({
   const canShowCreateChatActions = normalizedChatListStatusFilter !== "archived";
   const isCreateChatDisabled = !agent || isCreatingChatSession || Boolean(resolvedCreateChatDisabledReason);
   const [isCreateSettingsOpen, setIsCreateSettingsOpen] = useState<any>(false);
-  const [isEditAgentModalOpen, setIsEditAgentModalOpen] = useState<any>(false);
   const [isHeartbeatComposerOpen, setIsHeartbeatComposerOpen] = useState<any>(false);
   const [selectedArchivedChatKeys, setSelectedArchivedChatKeys] = useState<any>(new Set());
   const [heartbeatDraftsById, setHeartbeatDraftsById] = useState<any>({});
@@ -262,6 +261,10 @@ export function AgentChatsPage({
       const role = roleLookup.get(roleId);
       return role?.name || "Unknown role";
     });
+    const assignedRoles = assignedRoleIds.map((roleId: any, index: number) => ({
+      id: roleId,
+      name: assignedRoleLabels[index] || "Unknown role",
+    }));
     const assignedRoleSummary = assignedRoleLabels.length > 0 ? assignedRoleLabels.join(", ") : "none";
     const directSkillIds = normalizeUniqueStringList(agent.skillIds || []);
     const directSkills = directSkillIds.map((skillId: any) => {
@@ -310,6 +313,11 @@ export function AgentChatsPage({
 
     return {
       assignedRunnerLabel,
+      assignedRoles,
+      directSkills,
+      effectiveSkills,
+      directMcpServers,
+      effectiveMcpServers,
       assignedRoleSummary,
       directSkillSummary,
       effectiveSkillSummary,
@@ -318,8 +326,11 @@ export function AgentChatsPage({
       modelLabel,
       reasoningLabel,
       instructions,
+      sdkLabel: String(agent.agentSdk || "").trim() || "n/a",
+      chatCount: chatSessions.length,
+      heartbeatCount: Array.isArray(agent.heartbeats) ? agent.heartbeats.length : 0,
     };
-  }, [agent, mcpServerLookup, roleLookup, roleMcpServerIdsByRoleId, roles, runnerLookup, skills]);
+  }, [agent, chatSessions.length, mcpServerLookup, roleLookup, roleMcpServerIdsByRoleId, roles, runnerLookup, skills]);
   const visibleArchivedChats = useMemo(() => {
     if (!agent || normalizedChatListStatusFilter !== "archived") {
       return [];
@@ -376,14 +387,6 @@ export function AgentChatsPage({
     if (createdSessionId) {
       onOpenChat(createdSessionId);
     }
-  }
-
-  async function handleSaveEditedAgent(agentId: string) {
-    const didSave = await onSaveAgent(agentId);
-    if (didSave) {
-      setIsEditAgentModalOpen(false);
-    }
-    return didSave;
   }
 
   async function handleBatchDeleteArchivedChats() {
@@ -461,60 +464,24 @@ export function AgentChatsPage({
     }
   }
 
-  const pageActions = useMemo(() => (
-    <>
-      <button
-        type="button"
-        className="chat-minimal-header-icon-btn"
-        onClick={() => setIsEditAgentModalOpen(true)}
-        aria-label="Edit agent settings"
-        title="Edit agent settings"
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <circle cx="12" cy="12" r="3" />
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-        </svg>
-      </button>
-    </>
-  ), []);
-  useSetPageActions(pageActions);
+  const resolvedActiveTab = activeTab === "chats" ? "chats" : activeTab === "heartbeats" ? "heartbeats" : "overview";
+  const detailTabs = [
+    { id: "overview", label: "Overview" },
+    { id: "chats", label: "Chats" },
+    { id: "heartbeats", label: "Heartbeats" },
+  ];
 
   return (
     <Page><div className="page-stack">
       {!agent ? (
         <section className="panel">
           <p className="empty-hint">Agent not found.</p>
-          <button type="button" className="secondary-btn" onClick={onBackToAgents} style={{ marginTop: "0.5rem" }}>
-            Back to agents
-          </button>
         </section>
       ) : null}
 
       {agent && agentSummary ? (
         <>
-          {/* ── Hero header ── */}
           <section className="panel role-detail-hero">
-            <div className="role-detail-hero-top">
-              <button type="button" className="role-detail-hero-back" onClick={onBackToAgents}>
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5" /><path d="M12 19l-7-7 7-7" /></svg>
-                Back to agents
-              </button>
-              <div style={{ display: "flex", gap: "0.35rem" }}>
-                <button
-                  type="button"
-                  className="role-detail-hero-edit-btn"
-                  onClick={() => setIsEditAgentModalOpen(true)}
-                  aria-label="Edit agent settings"
-                  title="Edit agent settings"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <circle cx="12" cy="12" r="3" />
-                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
             <div className="role-detail-hero-title-row">
               <h1 className="role-detail-hero-title">{agent.name}</h1>
             </div>
@@ -534,357 +501,172 @@ export function AgentChatsPage({
                 <p className="role-detail-stat-label">Reasoning</p>
               </div>
               <div className="role-detail-stat">
-                <p className="role-detail-stat-value">{normalizeUniqueStringList(agent.roleIds || []).length}</p>
+                <p className="role-detail-stat-value">{agentSummary.assignedRoles.length}</p>
                 <p className="role-detail-stat-label">Roles</p>
               </div>
               <div className="role-detail-stat">
-                <p className="role-detail-stat-value">{chatSessions.length}</p>
+                <p className="role-detail-stat-value">{agentSummary.chatCount}</p>
                 <p className="role-detail-stat-label">Chats</p>
               </div>
             </div>
+
+            <div className="task-view-tabs agent-detail-view-tabs" role="tablist" aria-label="Agent detail views">
+              {detailTabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={resolvedActiveTab === tab.id}
+                  className={`task-view-tab${resolvedActiveTab === tab.id ? " task-view-tab-active" : ""}`}
+                  onClick={() => onSelectTab?.(tab.id)}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
           </section>
 
-          {/* ── Two-column grid ── */}
-          <div className="role-detail-grid">
-            {/* ── Left: Agent config (read-only) ── */}
-            <div className="role-detail-column">
-
-              {/* Roles */}
-              <div className="role-detail-card role-detail-card-muted">
-                <div className="role-detail-card-header">
-                  <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
-                  <h3>Roles</h3>
-                  <span className="role-detail-card-count">{normalizeUniqueStringList(agent.roleIds || []).length}</span>
-                </div>
-                {normalizeUniqueStringList(agent.roleIds || []).length === 0 ? (
-                  <div className="role-detail-empty">No roles assigned</div>
-                ) : (
-                  <div className="role-detail-pills">
-                    {normalizeUniqueStringList(agent.roleIds || []).map((roleId: any) => {
-                      const role = roleLookup.get(roleId);
-                      return (
-                        <span key={`agent-role-${roleId}`} className="tag-pill">
-                          {role?.name || "Unknown role"}
-                        </span>
-                      );
-                    })}
+          {resolvedActiveTab === "overview" ? (
+            <div className="role-detail-grid">
+              <div className="role-detail-column">
+                <div className="role-detail-card">
+                  <div className="role-detail-card-header">
+                    <svg viewBox="0 0 24 24"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg>
+                    <h3>Configuration</h3>
                   </div>
-                )}
+                  <AgentEditorForm
+                    agent={agent}
+                    agentRunners={agentRunners || []}
+                    roles={roles || []}
+                    skills={skills || []}
+                    mcpServers={mcpServers || []}
+                    roleMcpServerIdsByRoleId={roleMcpServerIdsByRoleId || {}}
+                    runnerCodexModelEntriesById={runnerCodexModelEntriesById || {}}
+                    agentDraft={agentDrafts?.[agent.id]}
+                    savingAgentId={savingAgentId}
+                    deletingAgentId={deletingAgentId}
+                    initializingAgentId={initializingAgentId}
+                    onAgentDraftChange={onAgentDraftChange}
+                    onSaveAgent={onSaveAgent}
+                    onEnsureAgentEditorData={onEnsureAgentEditorData}
+                    saveButtonLabel="Save agent"
+                  />
+                </div>
               </div>
 
-              {/* Effective MCP Servers */}
-              <div className="role-detail-card role-detail-card-muted">
-                <div className="role-detail-card-header">
-                  <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>
-                  <h3>Direct Skills</h3>
+              <div className="role-detail-column">
+                <div className="role-detail-card role-detail-card-muted">
+                  <div className="role-detail-card-header">
+                    <svg viewBox="0 0 24 24"><path d="M3 12h18" /><path d="M3 6h18" /><path d="M3 18h18" /></svg>
+                    <h3>Overview</h3>
+                  </div>
+                  <div className="task-overview-fields">
+                    <div className="task-overview-field"><span className="task-overview-field-label">Runner</span><span>{agentSummary.assignedRunnerLabel}</span></div>
+                    <div className="task-overview-field"><span className="task-overview-field-label">SDK</span><span>{agentSummary.sdkLabel}</span></div>
+                    <div className="task-overview-field"><span className="task-overview-field-label">Model</span><span>{agentSummary.modelLabel}</span></div>
+                    <div className="task-overview-field"><span className="task-overview-field-label">Reasoning</span><span>{agentSummary.reasoningLabel}</span></div>
+                    <div className="task-overview-field"><span className="task-overview-field-label">Chats</span><span>{chatCountLabel}</span></div>
+                    <div className="task-overview-field"><span className="task-overview-field-label">Heartbeat schedules</span><span>{agentSummary.heartbeatCount}</span></div>
+                  </div>
                 </div>
-                {(() => {
-                  const directSkillIds = normalizeUniqueStringList(agent.skillIds || []);
-                  return directSkillIds.length === 0 ? (
+
+                <div className="role-detail-card role-detail-card-muted">
+                  <div className="role-detail-card-header">
+                    <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+                    <h3>Roles</h3>
+                    <span className="role-detail-card-count">{agentSummary.assignedRoles.length}</span>
+                  </div>
+                  {agentSummary.assignedRoles.length === 0 ? (
+                    <div className="role-detail-empty">No roles assigned</div>
+                  ) : (
+                    <div className="role-detail-pills">
+                      {agentSummary.assignedRoles.map((role: any) => (
+                        <span key={`agent-role-${role.id}`} className="tag-pill">{role.name}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="role-detail-card role-detail-card-muted">
+                  <div className="role-detail-card-header">
+                    <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>
+                    <h3>Direct Skills</h3>
+                  </div>
+                  {agentSummary.directSkills.length === 0 ? (
                     <div className="role-detail-empty">No direct skills assigned</div>
                   ) : (
                     <div className="role-detail-pills">
-                      {directSkillIds.map((skillId: any) => {
-                        const skill = (Array.isArray(skills) ? skills : []).find((candidate: any) => String(candidate?.id || "").trim() === skillId);
-                        return (
-                          <span key={`direct-skill-${skillId}`} className="tag-pill">
-                            {String(skill?.name || "").trim() || "Unknown skill"}
-                          </span>
-                        );
-                      })}
+                      {agentSummary.directSkills.map((skill: any) => (
+                        <span key={`direct-skill-${skill.id}`} className="tag-pill">{skill.name}</span>
+                      ))}
                     </div>
-                  );
-                })()}
-              </div>
-
-              <div className="role-detail-card role-detail-card-muted">
-                <div className="role-detail-card-header">
-                  <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>
-                  <h3>Effective Skills</h3>
+                  )}
                 </div>
-                {(() => {
-                  const directSkills = normalizeUniqueStringList(agent.skillIds || []).map((skillId: any) => {
-                    const skill = (Array.isArray(skills) ? skills : []).find((candidate: any) => String(candidate?.id || "").trim() === skillId);
-                    return {
-                      id: skillId,
-                      name: String(skill?.name || "").trim() || "Unknown skill",
-                    };
-                  });
-                  const inheritedSkills = resolveEffectiveRoleSkills(
-                    normalizeUniqueStringList(agent.roleIds || []),
-                    roles,
-                  );
-                  const effectiveSkills = unionAssignments(directSkills, inheritedSkills);
-                  return effectiveSkills.length === 0 ? (
+
+                <div className="role-detail-card role-detail-card-muted">
+                  <div className="role-detail-card-header">
+                    <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>
+                    <h3>Effective Skills</h3>
+                  </div>
+                  {agentSummary.effectiveSkills.length === 0 ? (
                     <div className="role-detail-empty">No effective skills assigned</div>
                   ) : (
                     <div className="role-detail-pills">
-                      {effectiveSkills.map((skill: any) => (
-                        <span key={`eff-skill-${skill.id}`} className="tag-pill">
-                          {skill.name}
-                        </span>
+                      {agentSummary.effectiveSkills.map((skill: any) => (
+                        <span key={`effective-skill-${skill.id}`} className="tag-pill">{skill.name}</span>
                       ))}
                     </div>
-                  );
-                })()}
-              </div>
-
-              <div className="role-detail-card role-detail-card-muted">
-                <div className="role-detail-card-header">
-                  <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="6" rx="2" /><rect x="2" y="15" width="20" height="6" rx="2" /><path d="M12 9v6" /></svg>
-                  <h3>Direct MCP Servers</h3>
+                  )}
                 </div>
-                {(() => {
-                  const directMcpServerIds = normalizeUniqueStringList(agent.mcpServerIds || []);
-                  return directMcpServerIds.length === 0 ? (
+
+                <div className="role-detail-card role-detail-card-muted">
+                  <div className="role-detail-card-header">
+                    <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="6" rx="2" /><rect x="2" y="15" width="20" height="6" rx="2" /><path d="M12 9v6" /></svg>
+                    <h3>Direct MCP Servers</h3>
+                  </div>
+                  {agentSummary.directMcpServers.length === 0 ? (
                     <div className="role-detail-empty">No direct MCP servers assigned</div>
                   ) : (
                     <div className="role-detail-pills">
-                      {directMcpServerIds.map((mcpServerId: any) => {
-                        const mcpServer = mcpServerLookup.get(mcpServerId);
-                        return (
-                          <span key={`direct-mcp-${mcpServerId}`} className="tag-pill">
-                            {mcpServer?.name || "Unknown MCP server"}
-                          </span>
-                        );
-                      })}
+                      {agentSummary.directMcpServers.map((mcpServer: any) => (
+                        <span key={`direct-mcp-${mcpServer.id}`} className="tag-pill">{mcpServer.name}</span>
+                      ))}
                     </div>
-                  );
-                })()}
-              </div>
-
-              <div className="role-detail-card role-detail-card-muted">
-                <div className="role-detail-card-header">
-                  <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="6" rx="2" /><rect x="2" y="15" width="20" height="6" rx="2" /><path d="M12 9v6" /></svg>
-                  <h3>Effective MCP Servers</h3>
+                  )}
                 </div>
-                {(() => {
-                  const directMcpServers = normalizeUniqueStringList(agent.mcpServerIds || []).map((mcpServerId: any) => {
-                    const mcpServer = mcpServerLookup.get(mcpServerId);
-                    return {
-                      id: mcpServerId,
-                      name: mcpServer?.name || "Unknown MCP server",
-                    };
-                  });
-                  const inheritedMcpServers = resolveEffectiveRoleMcpServerIds(
-                    normalizeUniqueStringList(agent.roleIds || []),
-                    roles,
-                    roleMcpServerIdsByRoleId,
-                  ).map((mcpServerId: any) => {
-                    const mcpServer = mcpServerLookup.get(mcpServerId);
-                    return {
-                      id: mcpServerId,
-                      name: mcpServer?.name || "Unknown MCP server",
-                    };
-                  });
-                  const effectiveMcpServers = unionAssignments(directMcpServers, inheritedMcpServers);
-                  return effectiveMcpServers.length === 0 ? (
+
+                <div className="role-detail-card role-detail-card-muted">
+                  <div className="role-detail-card-header">
+                    <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="6" rx="2" /><rect x="2" y="15" width="20" height="6" rx="2" /><path d="M12 9v6" /></svg>
+                    <h3>Effective MCP Servers</h3>
+                  </div>
+                  {agentSummary.effectiveMcpServers.length === 0 ? (
                     <div className="role-detail-empty">No effective MCP servers assigned</div>
                   ) : (
                     <div className="role-detail-pills">
-                      {effectiveMcpServers.map((mcpServer: any) => {
-                        return (
-                          <span key={`eff-mcp-${mcpServer.id}`} className="tag-pill">
-                            {mcpServer.name}
-                          </span>
-                        );
-                      })}
+                      {agentSummary.effectiveMcpServers.map((mcpServer: any) => (
+                        <span key={`effective-mcp-${mcpServer.id}`} className="tag-pill">{mcpServer.name}</span>
+                      ))}
                     </div>
-                  );
-                })()}
-              </div>
-
-              {/* SDK */}
-              <div className="role-detail-card role-detail-card-muted">
-                <div className="role-detail-card-header">
-                  <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>
-                  <h3>SDK</h3>
+                  )}
                 </div>
-                <span className="tag-pill">{agent.agentSdk || "n/a"}</span>
-              </div>
 
-              {/* Default Instructions */}
-              <div className="role-detail-card role-detail-card-muted">
-                <div className="role-detail-card-header">
-                  <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
-                  <h3>Default Instructions</h3>
+                <div className="role-detail-card role-detail-card-muted">
+                  <div className="role-detail-card-header">
+                    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
+                    <h3>Default Instructions</h3>
+                  </div>
+                  {agentSummary.instructions ? (
+                    <pre className="agent-detail-instructions-pre">{agentSummary.instructions}</pre>
+                  ) : (
+                    <div className="role-detail-empty">No default instructions</div>
+                  )}
                 </div>
-                {agentSummary.instructions ? (
-                  <pre className="agent-detail-instructions-pre">{agentSummary.instructions}</pre>
-                ) : (
-                  <div className="role-detail-empty">No default instructions</div>
-                )}
-              </div>
-
-              <div className="role-detail-card role-detail-card-muted">
-                <div className="role-detail-card-header">
-                  <svg viewBox="0 0 24 24"><path d="M12 8v4l3 3" /><circle cx="12" cy="12" r="9" /></svg>
-                  <h3>Heartbeat schedules</h3>
-                  <span className="role-detail-card-count">{Array.isArray(agent.heartbeats) ? agent.heartbeats.length : 0}</span>
-                </div>
-                {heartbeatError || resolvedAgentError ? (
-                  <p className="error-banner" style={{ marginBottom: "0.75rem" }}>
-                    {heartbeatError || resolvedAgentError}
-                  </p>
-                ) : null}
-                {Array.isArray(agent.heartbeats) && agent.heartbeats.length > 0 ? (
-                  <div style={{ display: "grid", gap: "0.9rem" }}>
-                    {agent.heartbeats.map((heartbeat: any) => {
-                      const heartbeatId = String(heartbeat?.id || "").trim();
-                      const draft = heartbeatDraftsById[heartbeatId] || createHeartbeatDraftFromHeartbeat(heartbeat);
-                      return (
-                        <div
-                          key={heartbeatId}
-                          style={{
-                            border: "1px solid rgba(148, 163, 184, 0.18)",
-                            borderRadius: "1rem",
-                            padding: "0.95rem",
-                            display: "grid",
-                            gap: "0.75rem",
-                          }}
-                        >
-                          <div style={{ display: "grid", gap: "0.45rem" }}>
-                            <label htmlFor={`heartbeat-name-${heartbeatId}`}>Name</label>
-                            <input
-                              id={`heartbeat-name-${heartbeatId}`}
-                              type="text"
-                              value={draft.name}
-                              onChange={(event: any) => handleHeartbeatDraftChange(heartbeatId, "name", event.target.value)}
-                            />
-                          </div>
-                          <div style={{ display: "grid", gap: "0.45rem" }}>
-                            <label htmlFor={`heartbeat-prompt-${heartbeatId}`}>Prompt</label>
-                            <textarea
-                              id={`heartbeat-prompt-${heartbeatId}`}
-                              rows={4}
-                              value={draft.prompt}
-                              onChange={(event: any) => handleHeartbeatDraftChange(heartbeatId, "prompt", event.target.value)}
-                            />
-                          </div>
-                          <div style={{ display: "grid", gap: "0.45rem", gridTemplateColumns: "minmax(0, 11rem) minmax(0, 1fr)", alignItems: "end" }}>
-                            <div style={{ display: "grid", gap: "0.45rem" }}>
-                              <label htmlFor={`heartbeat-interval-${heartbeatId}`}>Interval (min)</label>
-                              <input
-                                id={`heartbeat-interval-${heartbeatId}`}
-                                type="number"
-                                min="1"
-                                value={draft.intervalMinutes}
-                                onChange={(event: any) => handleHeartbeatDraftChange(heartbeatId, "intervalMinutes", event.target.value)}
-                              />
-                            </div>
-                            <label style={{ display: "inline-flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.35rem" }}>
-                              <input
-                                type="checkbox"
-                                checked={draft.enabled !== false}
-                                onChange={(event: any) => handleHeartbeatDraftChange(heartbeatId, "enabled", event.target.checked)}
-                              />
-                              <span>Enabled</span>
-                            </label>
-                          </div>
-                          <div className="task-overview-field"><span className="task-overview-field-label">Next scheduled</span><span>{formatTimestamp(heartbeat?.nextHeartbeatAt) || "Not scheduled"}</span></div>
-                          <div className="task-overview-field"><span className="task-overview-field-label">Last sent</span><span>{formatTimestamp(heartbeat?.lastSentAt) || "Never"}</span></div>
-                          <div className="task-overview-field"><span className="task-overview-field-label">Thread</span><span>{String(heartbeat?.threadId || "").trim() || "No linked thread yet"}</span></div>
-                          <div className="task-form-actions">
-                            <button
-                              type="button"
-                              className="secondary-btn"
-                              onClick={() => void handleSaveHeartbeat(heartbeatId)}
-                              disabled={savingHeartbeatId === heartbeatId || savingAgentId === agent.id}
-                            >
-                              Save heartbeat
-                            </button>
-                            <button
-                              type="button"
-                              className="danger-btn"
-                              onClick={() => void handleDeleteHeartbeat(heartbeatId)}
-                              disabled={deletingHeartbeatId === heartbeatId || savingAgentId === agent.id}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="role-detail-empty">No heartbeat schedules configured</div>
-                )}
-                {isHeartbeatComposerOpen ? (
-                  <div style={{ marginTop: "0.9rem", borderTop: "1px solid rgba(148, 163, 184, 0.16)", paddingTop: "0.9rem", display: "grid", gap: "0.75rem" }}>
-                    <div style={{ display: "grid", gap: "0.45rem" }}>
-                      <label htmlFor="new-heartbeat-name">Name</label>
-                      <input
-                        id="new-heartbeat-name"
-                        type="text"
-                        value={newHeartbeatDraft.name}
-                        onChange={(event: any) => setNewHeartbeatDraft((current: any) => ({ ...current, name: event.target.value }))}
-                      />
-                    </div>
-                    <div style={{ display: "grid", gap: "0.45rem" }}>
-                      <label htmlFor="new-heartbeat-prompt">Prompt</label>
-                      <textarea
-                        id="new-heartbeat-prompt"
-                        rows={4}
-                        value={newHeartbeatDraft.prompt}
-                        onChange={(event: any) => setNewHeartbeatDraft((current: any) => ({ ...current, prompt: event.target.value }))}
-                      />
-                    </div>
-                    <div style={{ display: "grid", gap: "0.45rem", gridTemplateColumns: "minmax(0, 11rem) minmax(0, 1fr)", alignItems: "end" }}>
-                      <div style={{ display: "grid", gap: "0.45rem" }}>
-                        <label htmlFor="new-heartbeat-interval">Interval (min)</label>
-                        <input
-                          id="new-heartbeat-interval"
-                          type="number"
-                          min="1"
-                          value={newHeartbeatDraft.intervalMinutes}
-                          onChange={(event: any) => setNewHeartbeatDraft((current: any) => ({ ...current, intervalMinutes: event.target.value }))}
-                        />
-                      </div>
-                      <label style={{ display: "inline-flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.35rem" }}>
-                        <input
-                          type="checkbox"
-                          checked={newHeartbeatDraft.enabled !== false}
-                          onChange={(event: any) => setNewHeartbeatDraft((current: any) => ({ ...current, enabled: event.target.checked }))}
-                        />
-                        <span>Enabled</span>
-                      </label>
-                    </div>
-                    <div className="task-form-actions">
-                      <button
-                        type="button"
-                        className="secondary-btn"
-                        onClick={() => void handleCreateHeartbeat()}
-                        disabled={savingHeartbeatId === "new" || savingAgentId === agent.id}
-                      >
-                        Create heartbeat
-                      </button>
-                      <button
-                        type="button"
-                        className="secondary-btn"
-                        onClick={() => {
-                          setIsHeartbeatComposerOpen(false);
-                          setNewHeartbeatDraft(createEmptyHeartbeatDraft());
-                        }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="task-form-actions" style={{ marginTop: "0.9rem" }}>
-                    <button
-                      type="button"
-                      className="secondary-btn"
-                      onClick={() => setIsHeartbeatComposerOpen(true)}
-                    >
-                      Add heartbeat
-                    </button>
-                  </div>
-                )}
               </div>
             </div>
+          ) : null}
 
-            {/* ── Right: Chats ── */}
+          {resolvedActiveTab === "chats" ? (
             <div className="role-detail-column">
               <div className="role-detail-card">
                 <div className="role-detail-card-header">
@@ -1105,7 +887,178 @@ export function AgentChatsPage({
                 ) : null}
               </div>
             </div>
-          </div>
+          ) : null}
+
+          {resolvedActiveTab === "heartbeats" ? (
+            <div className="role-detail-column">
+              <div className="role-detail-card role-detail-card-muted">
+                <div className="role-detail-card-header">
+                  <svg viewBox="0 0 24 24"><path d="M12 8v4l3 3" /><circle cx="12" cy="12" r="9" /></svg>
+                  <h3>Heartbeat schedules</h3>
+                  <span className="role-detail-card-count">{agentSummary.heartbeatCount}</span>
+                </div>
+                {heartbeatError || resolvedAgentError ? (
+                  <p className="error-banner" style={{ marginBottom: "0.75rem" }}>
+                    {heartbeatError || resolvedAgentError}
+                  </p>
+                ) : null}
+                {Array.isArray(agent.heartbeats) && agent.heartbeats.length > 0 ? (
+                  <div style={{ display: "grid", gap: "0.9rem" }}>
+                    {agent.heartbeats.map((heartbeat: any) => {
+                      const heartbeatId = String(heartbeat?.id || "").trim();
+                      const draft = heartbeatDraftsById[heartbeatId] || createHeartbeatDraftFromHeartbeat(heartbeat);
+                      return (
+                        <div
+                          key={heartbeatId}
+                          style={{
+                            border: "1px solid rgba(148, 163, 184, 0.18)",
+                            borderRadius: "1rem",
+                            padding: "0.95rem",
+                            display: "grid",
+                            gap: "0.75rem",
+                          }}
+                        >
+                          <div style={{ display: "grid", gap: "0.45rem" }}>
+                            <label htmlFor={`heartbeat-name-${heartbeatId}`}>Name</label>
+                            <input
+                              id={`heartbeat-name-${heartbeatId}`}
+                              type="text"
+                              value={draft.name}
+                              onChange={(event: any) => handleHeartbeatDraftChange(heartbeatId, "name", event.target.value)}
+                            />
+                          </div>
+                          <div style={{ display: "grid", gap: "0.45rem" }}>
+                            <label htmlFor={`heartbeat-prompt-${heartbeatId}`}>Prompt</label>
+                            <textarea
+                              id={`heartbeat-prompt-${heartbeatId}`}
+                              rows={4}
+                              value={draft.prompt}
+                              onChange={(event: any) => handleHeartbeatDraftChange(heartbeatId, "prompt", event.target.value)}
+                            />
+                          </div>
+                          <div style={{ display: "grid", gap: "0.45rem", gridTemplateColumns: "minmax(0, 11rem) minmax(0, 1fr)", alignItems: "end" }}>
+                            <div style={{ display: "grid", gap: "0.45rem" }}>
+                              <label htmlFor={`heartbeat-interval-${heartbeatId}`}>Interval (min)</label>
+                              <input
+                                id={`heartbeat-interval-${heartbeatId}`}
+                                type="number"
+                                min="1"
+                                value={draft.intervalMinutes}
+                                onChange={(event: any) => handleHeartbeatDraftChange(heartbeatId, "intervalMinutes", event.target.value)}
+                              />
+                            </div>
+                            <label style={{ display: "inline-flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.35rem" }}>
+                              <input
+                                type="checkbox"
+                                checked={draft.enabled !== false}
+                                onChange={(event: any) => handleHeartbeatDraftChange(heartbeatId, "enabled", event.target.checked)}
+                              />
+                              <span>Enabled</span>
+                            </label>
+                          </div>
+                          <div className="task-overview-field"><span className="task-overview-field-label">Next scheduled</span><span>{formatTimestamp(heartbeat?.nextHeartbeatAt) || "Not scheduled"}</span></div>
+                          <div className="task-overview-field"><span className="task-overview-field-label">Last sent</span><span>{formatTimestamp(heartbeat?.lastSentAt) || "Never"}</span></div>
+                          <div className="task-overview-field"><span className="task-overview-field-label">Thread</span><span>{String(heartbeat?.threadId || "").trim() || "No linked thread yet"}</span></div>
+                          <div className="task-form-actions">
+                            <button
+                              type="button"
+                              className="secondary-btn"
+                              onClick={() => void handleSaveHeartbeat(heartbeatId)}
+                              disabled={savingHeartbeatId === heartbeatId || savingAgentId === agent.id}
+                            >
+                              Save heartbeat
+                            </button>
+                            <button
+                              type="button"
+                              className="danger-btn"
+                              onClick={() => void handleDeleteHeartbeat(heartbeatId)}
+                              disabled={deletingHeartbeatId === heartbeatId || savingAgentId === agent.id}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="role-detail-empty">No heartbeat schedules configured</div>
+                )}
+                {isHeartbeatComposerOpen ? (
+                  <div style={{ marginTop: "0.9rem", borderTop: "1px solid rgba(148, 163, 184, 0.16)", paddingTop: "0.9rem", display: "grid", gap: "0.75rem" }}>
+                    <div style={{ display: "grid", gap: "0.45rem" }}>
+                      <label htmlFor="new-heartbeat-name">Name</label>
+                      <input
+                        id="new-heartbeat-name"
+                        type="text"
+                        value={newHeartbeatDraft.name}
+                        onChange={(event: any) => setNewHeartbeatDraft((current: any) => ({ ...current, name: event.target.value }))}
+                      />
+                    </div>
+                    <div style={{ display: "grid", gap: "0.45rem" }}>
+                      <label htmlFor="new-heartbeat-prompt">Prompt</label>
+                      <textarea
+                        id="new-heartbeat-prompt"
+                        rows={4}
+                        value={newHeartbeatDraft.prompt}
+                        onChange={(event: any) => setNewHeartbeatDraft((current: any) => ({ ...current, prompt: event.target.value }))}
+                      />
+                    </div>
+                    <div style={{ display: "grid", gap: "0.45rem", gridTemplateColumns: "minmax(0, 11rem) minmax(0, 1fr)", alignItems: "end" }}>
+                      <div style={{ display: "grid", gap: "0.45rem" }}>
+                        <label htmlFor="new-heartbeat-interval">Interval (min)</label>
+                        <input
+                          id="new-heartbeat-interval"
+                          type="number"
+                          min="1"
+                          value={newHeartbeatDraft.intervalMinutes}
+                          onChange={(event: any) => setNewHeartbeatDraft((current: any) => ({ ...current, intervalMinutes: event.target.value }))}
+                        />
+                      </div>
+                      <label style={{ display: "inline-flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.35rem" }}>
+                        <input
+                          type="checkbox"
+                          checked={newHeartbeatDraft.enabled !== false}
+                          onChange={(event: any) => setNewHeartbeatDraft((current: any) => ({ ...current, enabled: event.target.checked }))}
+                        />
+                        <span>Enabled</span>
+                      </label>
+                    </div>
+                    <div className="task-form-actions">
+                      <button
+                        type="button"
+                        className="secondary-btn"
+                        onClick={() => void handleCreateHeartbeat()}
+                        disabled={savingHeartbeatId === "new" || savingAgentId === agent.id}
+                      >
+                        Create heartbeat
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary-btn"
+                        onClick={() => {
+                          setIsHeartbeatComposerOpen(false);
+                          setNewHeartbeatDraft(createEmptyHeartbeatDraft());
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="task-form-actions" style={{ marginTop: "0.9rem" }}>
+                    <button
+                      type="button"
+                      className="secondary-btn"
+                      onClick={() => setIsHeartbeatComposerOpen(true)}
+                    >
+                      Add heartbeat
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : null}
 
           <CreationModal
             modalId="create-chat-settings-modal"
@@ -1152,25 +1105,6 @@ export function AgentChatsPage({
               </div>
             </div>
           </CreationModal>
-
-          <AgentEditModal
-            agents={agents || []}
-            agentRunners={agentRunners || []}
-            roles={roles || []}
-            skills={skills || []}
-            mcpServers={mcpServers || []}
-            roleMcpServerIdsByRoleId={roleMcpServerIdsByRoleId || {}}
-            runnerCodexModelEntriesById={runnerCodexModelEntriesById || {}}
-            agentDrafts={agentDrafts || {}}
-            savingAgentId={savingAgentId}
-            deletingAgentId={deletingAgentId}
-            initializingAgentId={initializingAgentId}
-            onAgentDraftChange={onAgentDraftChange}
-            onSaveAgent={handleSaveEditedAgent}
-            onEnsureAgentEditorData={onEnsureAgentEditorData}
-            editingAgentId={isEditAgentModalOpen && agent ? agent.id : ""}
-            onClose={() => setIsEditAgentModalOpen(false)}
-          />
         </>
       ) : null}
     </div></Page>

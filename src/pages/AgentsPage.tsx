@@ -22,7 +22,7 @@ import {
   normalizeRunnerAvailableAgentSdks,
 } from "../utils/normalization.ts";
 import { formatRunnerLabel, isRunnerReadyAndConnected } from "../utils/formatting.ts";
-import { setBrowserPath } from "../utils/path.ts";
+import { getAgentPath, setBrowserPath } from "../utils/path.ts";
 import { useSetPageActions } from "../components/PageActionsContext.tsx";
 import type {
   Agent,
@@ -519,12 +519,12 @@ export function AgentsPage({
                 <li
                   key={agent.id}
                   className="chat-card"
-                  onClick={() => !isBusy && setBrowserPath(`/agents/${agent.id}`)}
+                  onClick={() => !isBusy && setBrowserPath(getAgentPath({ agentId: agent.id, tab: "overview" }))}
                   role="button"
                   tabIndex={0}
                   onKeyDown={(event: KeyboardEvent<HTMLLIElement>) => {
                     if (event.key === "Enter" && !isBusy) {
-                      setBrowserPath(`/agents/${agent.id}`);
+                      setBrowserPath(getAgentPath({ agentId: agent.id, tab: "overview" }));
                     }
                   }}
                 >

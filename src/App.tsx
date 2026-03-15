@@ -254,6 +254,7 @@ import {
   normalizePathname,
   getPageFromPathname,
   getAgentsRouteFromPathname,
+  getAgentPath,
   getSkillsRouteFromPathname,
   getRolesRouteFromPathname,
   getGitSkillPackagesRouteFromPathname,
@@ -3786,7 +3787,7 @@ function App() {
         return [{ label: "Agents", href: "/agents" }];
       }
 
-      const agentHref = `/agents/${agentsRoute.agentId}`;
+      const agentHref = getAgentPath({ agentId: agentsRoute.agentId, tab: agentsRoute.tab });
       const items = [
         { label: "Agents", href: "/agents" },
         { label: getAgentLabel(agentsRoute.agentId), href: agentHref },
@@ -10173,7 +10174,7 @@ function App() {
     setChatTurns([]);
     setQueuedChatMessages([]);
     setIsLoadingChat(false);
-    setBrowserPath(`/agents/${resolvedAgentId}`);
+    setBrowserPath(getAgentPath({ agentId: resolvedAgentId, tab: "overview" }));
   }
 
   const taskLookup = useMemo(() => {
@@ -10818,6 +10819,7 @@ function App() {
               selectedCompanyId={selectedCompanyId}
               agent={agents.find((agent: any) => agent.id === chatAgentId) || null}
               agents={agents}
+              activeTab={agentsRoute.tab}
               chatSessions={chatSessions}
               chatSessionRunningById={chatSessionRunningById}
               isLoadingChatSessions={isLoadingChatSessions}
@@ -10847,8 +10849,12 @@ function App() {
               onDeleteChat={handleDeleteChatSession}
               onBatchDeleteChats={handleBatchDeleteChats}
               isBatchDeletingChats={isBatchDeletingChats}
-              onBackToAgents={() => {
-                navigateTo("agents");
+              onSelectTab={(tab: string) => {
+                const resolvedAgentId = String(chatAgentId || agentsRoute.agentId || "").trim();
+                if (!resolvedAgentId) {
+                  return;
+                }
+                setBrowserPath(getAgentPath({ agentId: resolvedAgentId, tab }));
               }}
               agentRunners={agentRunners}
               skills={skills}
@@ -11093,7 +11099,7 @@ function App() {
                     return;
                   }
                   setPendingEditAgentId(agentId);
-                  setBrowserPath(`/agents/${agentId}`);
+                  setBrowserPath(getAgentPath({ agentId, tab: "overview" }));
                 }}
               >
                 Update agent
