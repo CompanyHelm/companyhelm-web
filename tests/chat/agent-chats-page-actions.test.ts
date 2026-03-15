@@ -170,6 +170,11 @@ test("AgentChatsPage heartbeats tab renders heartbeat controls and schedule stat
   assert.match(markup, /thread-1/);
   assert.match(markup, /Next scheduled/);
   assert.match(markup, /Last sent/);
+  assert.match(markup, /aria-label="Edit Name"/);
+  assert.match(markup, /aria-label="Edit Prompt"/);
+  assert.match(markup, /aria-label="Edit Interval"/);
+  assert.match(markup, /aria-label="Edit Enabled"/);
+  assert.doesNotMatch(markup, />\s*Save heartbeat\s*</);
 });
 
 test("AgentChatsPage renders empty heartbeat state when none exist", () => {
