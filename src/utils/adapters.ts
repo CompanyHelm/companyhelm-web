@@ -81,7 +81,7 @@ function normalizeOptionalInstructions(value: unknown): string | null {
   return normalizedValue || null;
 }
 
-function toLegacyAgentHeartbeatPayload(heartbeat: unknown) {
+export function toLegacyAgentHeartbeatPayload(heartbeat: unknown) {
   const heartbeatRecord = toRecord(heartbeat);
   const threadRecord = toRecord(heartbeatRecord.thread);
 

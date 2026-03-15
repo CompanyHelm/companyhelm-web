@@ -234,6 +234,7 @@ import {
   parseMcpArgsText,
   parseMcpEnvVarsText,
 } from "./utils/normalization.ts";
+import { toLegacyAgentHeartbeatPayload } from "./utils/adapters.ts";
 
 import { isRunnerReadyAndConnected, normalizeChatStatus } from "./utils/formatting.ts";
 import { buildTaskExecutionPlan } from "./utils/task-execution.ts";
@@ -854,6 +855,9 @@ function toAgentPayload(agent: any) {
     defaultAdditionalModelInstructions: normalizeOptionalInstructions(
       agent?.defaultAdditionalModelInstructions,
     ),
+    heartbeats: Array.isArray(agent?.heartbeats)
+      ? agent.heartbeats.map((heartbeat: any) => toLegacyAgentHeartbeatPayload(heartbeat))
+      : [],
   };
 }
 
