@@ -80,7 +80,7 @@ function renderAgentEditModalMarkup(overrides: Record<string, unknown> = {}) {
   );
 }
 
-test("AgentEditModal renders runner names in the runner selector", () => {
+test("AgentEditModal renders the selected runner summary with an edit toggle", () => {
   const markup = renderAgentEditModalMarkup({
     agentRunners: [
       createRunner(),
@@ -101,12 +101,13 @@ test("AgentEditModal renders runner names in the runner selector", () => {
     ],
   });
 
-  assert.match(markup, /<option value="runner-1" selected="">Runner One<\/option>/);
-  assert.match(markup, /<option value="runner-2" disabled="">Runner Two<\/option>/);
+  assert.match(markup, />Runner</);
+  assert.match(markup, />Runner One</);
+  assert.match(markup, /aria-label="Edit Runner"/);
   assert.doesNotMatch(markup, /runner-1 \(connected\)/);
 });
 
-test("AgentEditModal renders direct skill and direct MCP controls separately from inherited summaries", () => {
+test("AgentEditModal renders direct and effective skill and MCP summaries separately", () => {
   const markup = renderAgentEditModalMarkup({
     skills: [
       { id: "skill-1", name: "Brainstorming" },
@@ -146,7 +147,9 @@ test("AgentEditModal renders direct skill and direct MCP controls separately fro
   });
 
   assert.match(markup, />Direct skills</);
-  assert.match(markup, />Inherited skills \(from roles\)</);
-  assert.match(markup, />Direct MCP servers</);
-  assert.match(markup, />Inherited MCP servers \(from roles\)</);
+  assert.match(markup, />Effective Skills</);
+  assert.match(markup, />Brainstorming</);
+  assert.match(markup, />Direct MCP Servers</);
+  assert.match(markup, />Effective MCP Servers</);
+  assert.match(markup, />Filesystem MCP</);
 });
