@@ -519,15 +519,19 @@ export function TasksRoute({
     taskStatus,
   ]);
 
-  const handleCreateAndExecuteTask = useCallback(async (event: FormEvent<HTMLFormElement>, agentId: string) => {
+  const handleCreateAndExecuteTask = useCallback(async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!name.trim()) {
       setTaskError("Task name is required.");
       return false;
     }
-    const normalizedAgentId = String(agentId || "").trim();
+    const normalizedAgentId = String(
+      viewModel.actors.find(
+        (actor) => String(actor.id || "").trim() === String(taskAssigneeActorId || "").trim() && actor.kind === "agent",
+      )?.agentId || "",
+    ).trim();
     if (!normalizedAgentId) {
-      setTaskError("Select an agent to execute the task.");
+      setTaskError("Assign the task to an agent to execute it.");
       return false;
     }
 
@@ -585,6 +589,7 @@ export function TasksRoute({
     resetCreateTaskForm,
     taskAssigneeActorId,
     taskStatus,
+    viewModel.actors,
   ]);
 
   const handleDeleteTask = useCallback(async (taskId: string, taskName: string) => {
