@@ -20,6 +20,7 @@ interface TaskTableTask {
   id: string | number;
   name?: string;
   status?: string;
+  lastRunStatus?: string | null;
   description?: string;
   assigneeActorId?: string | null;
   assigneeAgentId?: string | null;
@@ -45,6 +46,7 @@ interface TaskTableViewProps {
 
 type TaskTableOptionalColumnId =
   | "status"
+  | "run"
   | "description"
   | "blocking"
   | "blockedBy"
@@ -74,6 +76,22 @@ const TASK_TABLE_OPTIONAL_COLUMNS: TaskTableOptionalColumnDefinition[] = [
         {task.status || "draft"}
       </span>
     ),
+  },
+  {
+    id: "run",
+    label: "Run",
+    defaultVisible: true,
+    renderCell: (task) => {
+      const runStatus = String(task.lastRunStatus || "").trim();
+      if (!runStatus) {
+        return "\u2014";
+      }
+      return (
+        <span className={`task-status-pill task-status-pill-${runStatus}`}>
+          {runStatus}
+        </span>
+      );
+    },
   },
   {
     id: "description",

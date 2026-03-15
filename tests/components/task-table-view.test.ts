@@ -54,6 +54,7 @@ function renderTaskTableViewMarkup(storedVisibleColumns?: string) {
             id: "task-1",
             name: "Ship table changes",
             status: "pending",
+            lastRunStatus: "failed",
             description: "Make the table configurable",
             dependencyTaskIds: [],
             comments: [{ id: "comment-1" }],
@@ -97,6 +98,14 @@ test("TaskTableView falls back to default columns when stored visibility is inva
   assert.match(markup, />Description</);
   assert.match(markup, />Blocked by</);
   assert.match(markup, />Comments</);
+});
+
+test("TaskTableView renders the run column with the latest run status", () => {
+  const markup = renderTaskTableViewMarkup();
+
+  assert.match(markup, />Run</);
+  assert.match(markup, /task-status-pill-failed/);
+  assert.match(markup, />failed</);
 });
 
 test("TaskTableView uses a neutral fallback when task names are missing", () => {
