@@ -167,9 +167,9 @@ test("AgentChatsPage heartbeats tab renders heartbeat controls and schedule stat
   assert.match(markup, /Interval \(min\)/);
   assert.match(markup, /Morning check-in/);
   assert.match(markup, /Review open work and continue if needed\./);
-  assert.match(markup, /thread-1/);
   assert.match(markup, /Next scheduled/);
   assert.match(markup, /Last sent/);
+  assert.match(markup, />\s*Open thread\s*</);
   assert.match(markup, /aria-label="Edit Name"/);
   assert.match(markup, /aria-label="Edit Prompt"/);
   assert.match(markup, /aria-label="Edit Interval"/);

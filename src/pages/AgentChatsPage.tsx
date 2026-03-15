@@ -958,21 +958,7 @@ export function AgentChatsPage({
                           }}
                         >
                           <div className="heartbeat-field">
-                            <div className="heartbeat-field-header">
-                              <label htmlFor={`heartbeat-name-${heartbeatId}`}>Name</label>
-                              {!isNameEditing ? (
-                                <button
-                                  type="button"
-                                  className="agent-config-edit-toggle"
-                                  onClick={() => setHeartbeatFieldEditing(heartbeatId, "name", true)}
-                                  disabled={isHeartbeatSaving}
-                                  aria-label="Edit Name"
-                                  title="Edit"
-                                >
-                                  {renderPencilIcon()}
-                                </button>
-                              ) : null}
-                            </div>
+                            <label htmlFor={`heartbeat-name-${heartbeatId}`}>Name</label>
                             {isNameEditing ? (
                               <input
                                 id={`heartbeat-name-${heartbeatId}`}
@@ -985,27 +971,25 @@ export function AgentChatsPage({
                                 autoFocus
                               />
                             ) : (
-                              <div className="task-form-readonly heartbeat-field-readonly">
-                                {draft.name || "Untitled heartbeat"}
-                              </div>
+                              <button
+                                type="button"
+                                className="heartbeat-field-display"
+                                onClick={() => setHeartbeatFieldEditing(heartbeatId, "name", true)}
+                                disabled={isHeartbeatSaving}
+                                aria-label="Edit Name"
+                                title="Edit"
+                              >
+                                <span className="heartbeat-field-display-text">
+                                  {draft.name || "Untitled heartbeat"}
+                                </span>
+                                <span className="heartbeat-field-display-icon" aria-hidden="true">
+                                  {renderPencilIcon()}
+                                </span>
+                              </button>
                             )}
                           </div>
                           <div className="heartbeat-field">
-                            <div className="heartbeat-field-header">
-                              <label htmlFor={`heartbeat-prompt-${heartbeatId}`}>Prompt</label>
-                              {!isPromptEditing ? (
-                                <button
-                                  type="button"
-                                  className="agent-config-edit-toggle"
-                                  onClick={() => setHeartbeatFieldEditing(heartbeatId, "prompt", true)}
-                                  disabled={isHeartbeatSaving}
-                                  aria-label="Edit Prompt"
-                                  title="Edit"
-                                >
-                                  {renderPencilIcon()}
-                                </button>
-                              ) : null}
-                            </div>
+                            <label htmlFor={`heartbeat-prompt-${heartbeatId}`}>Prompt</label>
                             {isPromptEditing ? (
                               <textarea
                                 id={`heartbeat-prompt-${heartbeatId}`}
@@ -1018,28 +1002,26 @@ export function AgentChatsPage({
                                 autoFocus
                               />
                             ) : (
-                              <div className="task-form-readonly heartbeat-field-readonly heartbeat-field-readonly-multiline">
-                                {draft.prompt || "No prompt configured"}
-                              </div>
+                              <button
+                                type="button"
+                                className="heartbeat-field-display heartbeat-field-display-multiline"
+                                onClick={() => setHeartbeatFieldEditing(heartbeatId, "prompt", true)}
+                                disabled={isHeartbeatSaving}
+                                aria-label="Edit Prompt"
+                                title="Edit"
+                              >
+                                <span className="heartbeat-field-display-text">
+                                  {draft.prompt || "No prompt configured"}
+                                </span>
+                                <span className="heartbeat-field-display-icon" aria-hidden="true">
+                                  {renderPencilIcon()}
+                                </span>
+                              </button>
                             )}
                           </div>
                           <div style={{ display: "grid", gap: "0.45rem", gridTemplateColumns: "minmax(0, 11rem) minmax(0, 1fr)", alignItems: "end" }}>
                             <div className="heartbeat-field">
-                              <div className="heartbeat-field-header">
-                                <label htmlFor={`heartbeat-interval-${heartbeatId}`}>Interval (min)</label>
-                                {!isIntervalEditing ? (
-                                  <button
-                                    type="button"
-                                    className="agent-config-edit-toggle"
-                                    onClick={() => setHeartbeatFieldEditing(heartbeatId, "intervalMinutes", true)}
-                                    disabled={isHeartbeatSaving}
-                                    aria-label="Edit Interval"
-                                    title="Edit"
-                                  >
-                                    {renderPencilIcon()}
-                                  </button>
-                                ) : null}
-                              </div>
+                              <label htmlFor={`heartbeat-interval-${heartbeatId}`}>Interval (min)</label>
                               {isIntervalEditing ? (
                                 <input
                                   id={`heartbeat-interval-${heartbeatId}`}
@@ -1053,27 +1035,25 @@ export function AgentChatsPage({
                                   autoFocus
                                 />
                               ) : (
-                                <div className="task-form-readonly heartbeat-field-readonly">
-                                  {draft.intervalMinutes || "Not set"}
-                                </div>
+                                <button
+                                  type="button"
+                                  className="heartbeat-field-display"
+                                  onClick={() => setHeartbeatFieldEditing(heartbeatId, "intervalMinutes", true)}
+                                  disabled={isHeartbeatSaving}
+                                  aria-label="Edit Interval"
+                                  title="Edit"
+                                >
+                                  <span className="heartbeat-field-display-text">
+                                    {draft.intervalMinutes || "Not set"}
+                                  </span>
+                                  <span className="heartbeat-field-display-icon" aria-hidden="true">
+                                    {renderPencilIcon()}
+                                  </span>
+                                </button>
                               )}
                             </div>
                             <div className="heartbeat-field">
-                              <div className="heartbeat-field-header">
-                                <span>Enabled</span>
-                                {!isEnabledEditing ? (
-                                  <button
-                                    type="button"
-                                    className="agent-config-edit-toggle"
-                                    onClick={() => setHeartbeatFieldEditing(heartbeatId, "enabled", true)}
-                                    disabled={isHeartbeatSaving}
-                                    aria-label="Edit Enabled"
-                                    title="Edit"
-                                  >
-                                    {renderPencilIcon()}
-                                  </button>
-                                ) : null}
-                              </div>
+                              <span>Enabled</span>
                               {isEnabledEditing ? (
                                 <label style={{ display: "inline-flex", gap: "0.5rem", alignItems: "center", minHeight: "2.7rem" }}>
                                   <input
@@ -1086,15 +1066,26 @@ export function AgentChatsPage({
                                   <span>{draft.enabled !== false ? "Enabled" : "Paused"}</span>
                                 </label>
                               ) : (
-                                <div className="task-form-readonly heartbeat-field-readonly">
-                                  {draft.enabled !== false ? "Enabled" : "Paused"}
-                                </div>
+                                <button
+                                  type="button"
+                                  className="heartbeat-field-display"
+                                  onClick={() => setHeartbeatFieldEditing(heartbeatId, "enabled", true)}
+                                  disabled={isHeartbeatSaving}
+                                  aria-label="Edit Enabled"
+                                  title="Edit"
+                                >
+                                  <span className="heartbeat-field-display-text">
+                                    {draft.enabled !== false ? "Enabled" : "Paused"}
+                                  </span>
+                                  <span className="heartbeat-field-display-icon" aria-hidden="true">
+                                    {renderPencilIcon()}
+                                  </span>
+                                </button>
                               )}
                             </div>
                           </div>
                           <div className="task-overview-field"><span className="task-overview-field-label">Next scheduled</span><span>{formatTimestamp(heartbeat?.nextHeartbeatAt) || "Not scheduled"}</span></div>
                           <div className="task-overview-field"><span className="task-overview-field-label">Last sent</span><span>{formatTimestamp(heartbeat?.lastSentAt) || "Never"}</span></div>
-                          <div className="task-overview-field"><span className="task-overview-field-label">Thread</span><span>{String(heartbeat?.threadId || "").trim() || "No linked thread yet"}</span></div>
                           <div className="task-form-actions">
                             {isHeartbeatSaving ? (
                               <span className="heartbeat-save-notice" role="status" aria-live="polite">Saving...</span>
@@ -1102,6 +1093,17 @@ export function AgentChatsPage({
                             {heartbeatSaveNotice?.heartbeatId === heartbeatId ? (
                               <span className="heartbeat-save-notice" role="status" aria-live="polite">Saved</span>
                             ) : null}
+                            {String(heartbeat?.threadId || "").trim() ? (
+                              <button
+                                type="button"
+                                className="secondary-btn"
+                                onClick={() => onOpenChat(String(heartbeat.threadId))}
+                              >
+                                Open thread
+                              </button>
+                            ) : (
+                              <span className="task-overview-field-label">No linked thread yet</span>
+                            )}
                             <button
                               type="button"
                               className="danger-btn"

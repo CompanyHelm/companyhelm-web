@@ -2079,19 +2079,22 @@ button:disabled {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.9rem;
-  height: 1.9rem;
-  border-radius: 999px;
-  border: 1px solid rgba(15, 118, 110, 0.12);
-  background: rgba(15, 118, 110, 0.04);
+  width: 2.3rem;
+  height: 2.3rem;
+  flex-shrink: 0;
+  border-radius: 0.8rem;
+  border: 1px solid rgba(15, 118, 110, 0.16);
+  background: rgba(15, 118, 110, 0.07);
   color: var(--action);
   cursor: pointer;
-  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  transition: background 0.12s, border-color 0.12s, color 0.12s, transform 0.12s;
 }
 
 .agent-config-edit-toggle:hover:not(:disabled) {
-  background: rgba(15, 118, 110, 0.08);
-  border-color: rgba(15, 118, 110, 0.22);
+  background: rgba(15, 118, 110, 0.12);
+  border-color: rgba(15, 118, 110, 0.3);
+  transform: translateY(-1px);
 }
 
 .agent-config-edit-toggle:disabled {
@@ -2100,11 +2103,11 @@ button:disabled {
 }
 
 .agent-config-edit-toggle svg {
-  width: 0.9rem;
-  height: 0.9rem;
+  width: 1.08rem;
+  height: 1.08rem;
   fill: none;
   stroke: currentColor;
-  stroke-width: 2;
+  stroke-width: 2.15;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -4715,22 +4718,70 @@ button:disabled {
   gap: 0.45rem;
 }
 
-.heartbeat-field-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.55rem;
-}
-
-.heartbeat-field-readonly {
+.heartbeat-field-display {
+  width: 100%;
   min-height: 2.7rem;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.72rem 0.82rem;
+  border: 1px solid rgba(26, 32, 38, 0.12);
+  border-radius: 0.85rem;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--ink-1);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s, box-shadow 0.12s;
 }
 
-.heartbeat-field-readonly-multiline {
-  white-space: pre-wrap;
+.heartbeat-field-display:hover:not(:disabled) {
+  border-color: rgba(15, 118, 110, 0.28);
+  background: rgba(248, 250, 252, 0.96);
+}
+
+.heartbeat-field-display:focus-visible {
+  outline: none;
+  border-color: rgba(15, 118, 110, 0.35);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+}
+
+.heartbeat-field-display:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.heartbeat-field-display-multiline {
   align-items: flex-start;
+}
+
+.heartbeat-field-display-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: pre-wrap;
+}
+
+.heartbeat-field-display-icon {
+  flex: 0 0 auto;
+  width: 1.9rem;
+  height: 1.9rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 118, 110, 0.12);
+  background: rgba(15, 118, 110, 0.04);
+  color: var(--action);
+}
+
+.heartbeat-field-display-icon svg {
+  width: 0.9rem;
+  height: 0.9rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .heartbeat-save-notice {
