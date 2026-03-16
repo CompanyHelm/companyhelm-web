@@ -68,6 +68,7 @@ type Agent {
   defaultAdditionalModelInstructions: String
   defaultModel: AgentRunnerSdkModel!
   defaultReasoningLevel: String
+  heartbeats: [AgentHeartbeat!]!
   id: ID!
   mcpServerIds: [ID!]!
   name: String!
@@ -87,6 +88,24 @@ type AgentConnection {
 type AgentEdge {
   cursor: String!
   node: Agent!
+}
+
+type AgentHeartbeat {
+  agent: Agent!
+  agentId: ID!
+  company: Company!
+  companyId: ID!
+  createdAt: String!
+  enabled: Boolean!
+  id: ID!
+  intervalSeconds: Int!
+  lastSentAt: String
+  name: String!
+  nextHeartbeatAt: String!
+  prompt: String!
+  thread: Thread
+  threadId: ID
+  updatedAt: String!
 }
 
 type AgentRunner {
@@ -246,6 +265,12 @@ type CreateGitSkillPackagePayload {
   packageId: ID
   skills: [Skill!]!
   warnings: [String!]!
+}
+
+type DeleteAgentHeartbeatPayload {
+  deletedHeartbeatId: ID
+  error: String
+  ok: Boolean!
 }
 
 input DeleteAgentInput {
@@ -420,6 +445,7 @@ type Mutation {
   batchDeleteTasks(ids: [ID!]!): BatchDeleteTasksPayload!
   batchExecuteTasks(agentId: ID!, taskIds: [ID!]!): BatchTaskMutationPayload!
   createAgent(agentRunnerId: ID!, agentRunnerSdkId: ID!, defaultAdditionalModelInstructions: String, defaultModelId: ID!, defaultReasoningLevel: String, mcpServerIds: [ID!], name: String!, roleIds: [ID!], skillIds: [ID!]): Agent!
+  createAgentHeartbeat(agentId: ID!, enabled: Boolean = true, intervalSeconds: Int!, name: String!, prompt: String!): AgentHeartbeat!
   createAgentRunner(name: String!): AgentRunnerSecretPayload!
   createCompany(name: String!): Company!
   createGitSkillPackage(gitReference: String!, gitRepositoryUrl: String!): CreateGitSkillPackagePayload!
@@ -431,6 +457,7 @@ type Mutation {
   createTaskComment(comment: String!, taskId: ID!): TaskCommentMutationPayload!
   createThread(additionalModelInstructions: String, agentId: ID!, title: String): Thread!
   deleteAgent(input: DeleteAgentInput!): DeleteAgentPayload!
+  deleteAgentHeartbeat(heartbeatId: ID!): DeleteAgentHeartbeatPayload!
   deleteAgentRunner(agentRunnerId: ID!): Boolean!
   deleteApproval(id: ID!): DeleteApprovalPayload!
   deleteCompany: Boolean!
@@ -470,7 +497,9 @@ type Mutation {
   startRunnerSdkAuth(apiKey: String, authType: CodexAuthType!, runnerId: ID!, sdkId: ID!): AgentRunnerSdk!
   steerQueuedUserMessage(queuedMessageId: ID!): QueuedUserMessage!
   updateAgent(agentId: ID!, agentRunnerId: ID!, agentRunnerSdkId: ID!, defaultAdditionalModelInstructions: String, defaultModelId: ID!, defaultReasoningLevel: String, mcpServerIds: [ID!], name: String!, roleIds: [ID!], skillIds: [ID!]): Agent!
+  updateAgentHeartbeat(enabled: Boolean, heartbeatId: ID!, intervalSeconds: Int, name: String, prompt: String): AgentHeartbeat!
   updateMcpServer(args: [String!], authType: String, bearerTokenSecretId: ID, command: String, customHeaders: [McpHeaderInput!], enabled: Boolean, envVars: [McpEnvVarInput!], id: ID!, name: String!, transportType: String, url: String): McpServerMutationPayload!
+  updateProfile(firstName: String!, lastName: String): AuthUser!
   updateRole(id: ID!, name: String!, parentRoleId: ID): RoleMutationPayload!
   updateSecret(description: String!, id: ID!, name: String!, value: String): SecretMutationPayload!
   updateSkillGroup(id: ID!, name: String!, parentSkillGroupId: ID): SkillGroupMutationPayload!
@@ -720,6 +749,7 @@ type Task {
   createdAt: String!
   dependencyTaskIds: [ID!]!
   description: String
+  has_running_runs: Boolean!
   id: ID!
   lastRunStatus: TaskRunStatus
   latestRun: TaskRun
@@ -851,6 +881,7 @@ type ThreadTurnEdge {
 }
 
 enum ThreadTurnStatus {
+  cancelled
   completed
   running
 }
@@ -871,6 +902,7 @@ type TurnItem {
 }
 
 enum TurnItemStatus {
+  cancelled
   completed
   running
 }
