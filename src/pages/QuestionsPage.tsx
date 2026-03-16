@@ -49,7 +49,7 @@ export function QuestionsPage({
         <p className="chat-card-meta">{questionCountLabel}</p>
         {questionError ? <p className="error-banner">{questionError}</p> : null}
         {isLoadingQuestions ? <p className="empty-hint">Loading questions...</p> : null}
-        {!isLoadingQuestions && questions.length === 0 ? (
+        {!isLoadingQuestions && !questionError && questions.length === 0 ? (
           <p className="empty-hint">No open questions.</p>
         ) : null}
 

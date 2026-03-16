@@ -72,3 +72,15 @@ test("QuestionsPage renders loading and empty states", () => {
   });
   assert.match(emptyMarkup, /No open questions\./);
 });
+
+test("QuestionsPage does not show the empty state when loading failed", () => {
+  const errorMarkup = renderQuestionsPageMarkup({
+    isLoadingQuestions: false,
+    questions: [],
+    questionError: "Failed query: select ...",
+    questionCountLabel: "No open questions",
+  });
+
+  assert.match(errorMarkup, /Failed query: select \.\.\./);
+  assert.doesNotMatch(errorMarkup, /No open questions\./);
+});
