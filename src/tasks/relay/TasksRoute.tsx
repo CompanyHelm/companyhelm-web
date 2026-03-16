@@ -11,6 +11,7 @@ import {
   shouldRefetchTaskRoute,
   toTaskRouteViewModel,
 } from "./adapters.ts";
+import { filterTasksForAssigneeUserId } from "./task-route-filters.ts";
 
 const {
   commitMutation,
@@ -306,8 +307,10 @@ interface ConfirmationRequest {
 }
 
 interface TasksRouteProps {
+  pageId?: "tasks" | "my-tasks";
   activeTaskId: string;
   activeTab: "overview" | "runs" | "graph" | "table";
+  assigneeUserId?: string;
   onTabChange: (tab: "overview" | "runs" | "graph" | "table") => void;
   onOpenTask: (taskId: string) => void;
   onBackToTasks: () => void;
@@ -371,8 +374,10 @@ function getQueryVariables(params: { activeTaskId: string }) {
 }
 
 export function TasksRoute({
+  pageId = "tasks",
   activeTaskId,
   activeTab,
+  assigneeUserId = "",
   onTabChange,
   onOpenTask,
   onBackToTasks,
@@ -415,14 +420,27 @@ export function TasksRoute({
     fetchKey,
   }) as any;
   const taskNodes = useFragment(tasksRouteTaskFragment, queryData.tasks) as any[];
+  const filteredTaskRouteData = useMemo(() => {
+    if (pageId !== "my-tasks") {
+      return {
+        tasks: taskNodes,
+        taskOptions,
+      };
+    }
+    return filterTasksForAssigneeUserId({
+      tasks: taskNodes,
+      taskOptions,
+      assigneeUserId,
+    });
+  }, [assigneeUserId, pageId, taskNodes, taskOptions]);
   const viewModel = useMemo(
     () =>
       toTaskRouteViewModel({
         ...queryData,
-        tasks: taskNodes,
-        taskOptions,
+        tasks: filteredTaskRouteData.tasks,
+        taskOptions: filteredTaskRouteData.taskOptions,
       }),
-    [queryData, taskNodes, taskOptions],
+    [filteredTaskRouteData.taskOptions, filteredTaskRouteData.tasks, queryData],
   );
 
   useEffect(() => {
