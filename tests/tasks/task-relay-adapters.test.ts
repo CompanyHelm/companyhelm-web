@@ -148,13 +148,24 @@ test("shouldRefetchTaskRoute returns true when the active task was deleted", () 
   );
 });
 
-test("shouldRefetchTaskRoute returns false for record-only updates on other tasks", () => {
+test("shouldRefetchTaskRoute returns true for record-only updates on the list route", () => {
+  assert.equal(
+    shouldRefetchTaskRoute({
+      membershipChanged: false,
+      deletedTaskIds: ["task-2"],
+      activeTaskId: "",
+    }),
+    true,
+  );
+});
+
+test("shouldRefetchTaskRoute returns true for record-only updates on detail routes", () => {
   assert.equal(
     shouldRefetchTaskRoute({
       membershipChanged: false,
       deletedTaskIds: ["task-2"],
       activeTaskId: "task-1",
     }),
-    false,
+    true,
   );
 });

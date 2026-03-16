@@ -4134,27 +4134,24 @@ button:disabled {
 }
 
 .task-table-running-indicator {
-  width: 0.62rem;
-  min-width: 0.62rem;
-  height: 0.62rem;
+  width: 0.82rem;
+  min-width: 0.82rem;
+  height: 0.82rem;
   border-radius: 999px;
-  background: #2f9e44;
-  box-shadow: 0 0 0 0 rgba(47, 158, 68, 0.32);
-  animation: task-table-running-pulse 1.8s ease-out infinite;
+  border: 2px solid rgba(47, 158, 68, 0.24);
+  border-top-color: #2f9e44;
+  border-right-color: #2f9e44;
+  background: transparent;
+  box-sizing: border-box;
+  animation: task-table-running-spin 0.72s linear infinite;
 }
 
-@keyframes task-table-running-pulse {
+@keyframes task-table-running-spin {
   0% {
-    transform: scale(0.92);
-    box-shadow: 0 0 0 0 rgba(47, 158, 68, 0.32);
-  }
-  65% {
-    transform: scale(1);
-    box-shadow: 0 0 0 0.42rem rgba(47, 158, 68, 0);
+    transform: rotate(0deg);
   }
   100% {
-    transform: scale(0.92);
-    box-shadow: 0 0 0 0 rgba(47, 158, 68, 0);
+    transform: rotate(360deg);
   }
 }
 

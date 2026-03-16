@@ -187,8 +187,11 @@ export function shouldRefetchTaskRoute(params: {
   }
   const normalizedActiveTaskId = String(params.activeTaskId || "").trim();
   if (!normalizedActiveTaskId) {
-    return false;
+    return true;
   }
-  return Array.isArray(params.deletedTaskIds)
-    && params.deletedTaskIds.some((taskId) => String(taskId || "").trim() === normalizedActiveTaskId);
+  if (Array.isArray(params.deletedTaskIds)
+    && params.deletedTaskIds.some((taskId) => String(taskId || "").trim() === normalizedActiveTaskId)) {
+    return true;
+  }
+  return true;
 }
