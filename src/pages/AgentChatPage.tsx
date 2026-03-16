@@ -367,6 +367,7 @@ export function AgentChatPage({
   onDeleteQueuedMessage,
   onCreateChatForAgent,
   onOpenChatFromList,
+  onOpenAgentsPage,
   allowArchivedMode = true,
 }: any) {
   const normalizedRouteNotFoundMessage = String(routeNotFoundMessage || "").trim();
@@ -772,6 +773,21 @@ export function AgentChatPage({
     return onCreateChatForAgent?.(agentId);
   }, [onCreateChatForAgent]);
 
+  const renderNoAgentsState = useCallback(() => (
+    <div>
+      <p className="empty-hint">No agents available yet.</p>
+      {typeof onOpenAgentsPage === "function" ? (
+        <button
+          type="button"
+          className="secondary-btn"
+          onClick={() => onOpenAgentsPage()}
+        >
+          Create new agent
+        </button>
+      ) : null}
+    </div>
+  ), [onOpenAgentsPage]);
+
   return (
     <div className={`page-stack chat-page-stack${showChatSidebar ? " chat-page-stack-with-sidebar" : ""}`}>
       {showMobileNoSession ? (
@@ -781,7 +797,7 @@ export function AgentChatPage({
           </div>
           {isLoadingChatIndex ? <p className="empty-hint">Loading chats...</p> : null}
           {!isLoadingChatIndex && sortedSidebarAgents.length === 0 ? (
-            <p className="empty-hint">No agents available yet.</p>
+            renderNoAgentsState()
           ) : null}
           {sortedSidebarAgents.length > 0 ? (
             <ul className="chat-sidebar-agent-list">
@@ -894,7 +910,7 @@ export function AgentChatPage({
             </div>
             {isLoadingChatIndex ? <p className="empty-hint">Loading chats...</p> : null}
             {!isLoadingChatIndex && sortedSidebarAgents.length === 0 ? (
-              <p className="empty-hint">No agents available yet.</p>
+              renderNoAgentsState()
             ) : null}
             {sortedSidebarAgents.length > 0 ? (
               <ul className="chat-sidebar-agent-list">
@@ -994,7 +1010,7 @@ export function AgentChatPage({
             </div>
             {isLoadingChatIndex ? <p className="empty-hint">Loading chats...</p> : null}
             {!isLoadingChatIndex && sortedSidebarAgents.length === 0 ? (
-              <p className="empty-hint">No agents available yet.</p>
+              renderNoAgentsState()
             ) : null}
             {sortedSidebarAgents.length > 0 ? (
               <ul className="chat-sidebar-agent-list">

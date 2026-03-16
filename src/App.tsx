@@ -11011,6 +11011,7 @@ function App() {
             onDeleteQueuedMessage={handleDeleteQueuedChatMessage}
             onCreateChatForAgent={handleCreateChatForAgent}
             onOpenChatFromList={handleOpenChatFromList}
+            onOpenAgentsPage={() => setBrowserPath("/agents")}
             allowArchivedMode={false}
           />
         ) : null}

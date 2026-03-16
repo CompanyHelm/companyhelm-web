@@ -122,6 +122,20 @@ test("AgentChatPage shows explicit route not-found copy instead of starter promp
   assert.doesNotMatch(markup, /No messages yet\. Start with one of these prompts\./);
 });
 
+test("AgentChatPage shows a create agent action when no agents exist", () => {
+  const markup = renderAgentChatPageMarkup({
+    agent: null,
+    agents: [],
+    session: null,
+    chatSessionsByAgent: {},
+    showChatSidebar: true,
+    onOpenAgentsPage: () => {},
+  });
+
+  assert.match(markup, /No agents available yet\./);
+  assert.match(markup, />Create new agent</);
+});
+
 test("AgentChatPage shows pending thread copy while the thread is still provisioning", () => {
   const markup = renderAgentChatPageMarkup({
     session: {

@@ -198,7 +198,7 @@ export function resolveLoadedChatsRoute({
     return {
       agentId: "",
       threadId: "",
-      path: "/agents",
+      path: getChatsPath(),
     };
   }
 

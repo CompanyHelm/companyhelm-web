@@ -98,7 +98,7 @@ test("resolveLoadedChatsRoute auto-opens the first thread on wide layouts", asyn
   );
 });
 
-test("resolveLoadedChatsRoute falls back to /agents when no agent can be resolved", async () => {
+test("resolveLoadedChatsRoute stays on /chats when no agent can be resolved", async () => {
   const moduleRecord = await loadChatRouteNavigationModule();
   assert.equal(typeof moduleRecord.resolveLoadedChatsRoute, "function");
 
@@ -112,7 +112,7 @@ test("resolveLoadedChatsRoute falls back to /agents when no agent can be resolve
     {
       agentId: "",
       threadId: "",
-      path: "/agents",
+      path: "/chats",
     },
   );
 });
