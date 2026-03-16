@@ -8,6 +8,7 @@ interface CreationModalProps {
   onClose: () => void;
   children: ReactNode;
   cardClassName?: string;
+  closeOnOverlayClick?: boolean;
 }
 
 export function CreationModal({
@@ -18,6 +19,7 @@ export function CreationModal({
   onClose,
   children,
   cardClassName = "",
+  closeOnOverlayClick = true,
 }: CreationModalProps) {
   useEffect(() => {
     if (!isOpen) {
@@ -39,7 +41,11 @@ export function CreationModal({
   }
 
   return (
-    <div className="modal-overlay" role="presentation" onClick={onClose}>
+    <div
+      className="modal-overlay"
+      role="presentation"
+      onClick={closeOnOverlayClick ? onClose : undefined}
+    >
       <section
         className={["panel", "modal-card", cardClassName].filter(Boolean).join(" ")}
         role="dialog"

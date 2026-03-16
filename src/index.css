@@ -3624,6 +3624,34 @@ button:disabled {
   margin: 0;
 }
 
+.task-detail-hero-description-markdown {
+  position: relative;
+  color: var(--ink-1);
+}
+
+.task-detail-hero-description-markdown > :first-child {
+  margin-top: 0;
+}
+
+.task-detail-hero-description-markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.task-detail-hero-description-markdown-clamped {
+  max-height: calc(1.55em * 8);
+  overflow: hidden;
+  padding-right: 0.2rem;
+}
+
+.task-detail-hero-description-markdown-clamped::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 3.4rem;
+  background: linear-gradient(180deg, rgba(246, 246, 242, 0) 0%, rgba(246, 246, 242, 0.96) 100%);
+  pointer-events: none;
+}
+
 .task-detail-hero-stats {
   grid-template-columns: repeat(4, 1fr);
 }
@@ -4557,38 +4585,104 @@ button:disabled {
 }
 
 .task-description-modal-card {
-  width: min(42rem, 92vw);
-  max-height: 80vh;
+  width: min(1100px, calc(100vw - 2rem));
+  height: calc(100vh - 2rem);
+  max-height: calc(100vh - 2rem);
+  display: flex;
+  flex-direction: column;
 }
 
 .task-description-modal-body {
-  padding: 0.8rem 1rem;
-  display: grid;
-  gap: 0.7rem;
-}
-
-.task-description-modal-content {
-  white-space: pre-wrap;
-  word-break: break-word;
-  max-height: 60vh;
-  overflow: auto;
-  line-height: 1.6;
-  color: var(--ink-0);
+  padding: 0.95rem 1rem 1rem;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  gap: 0.85rem;
 }
 
 .task-description-modal-textarea {
   width: 100%;
-  min-height: 18rem;
-  resize: vertical;
+  flex: 1;
+  min-height: 20rem;
+  resize: none;
   line-height: 1.6;
-  font-size: 0.88rem;
-  padding: 0.75rem;
+  font-size: 0.94rem;
+  padding: 1rem 1.05rem 1.1rem;
+  border: none;
+  background: transparent;
+  box-shadow: none;
 }
 
 .task-description-modal-hint {
   font-size: 0.72rem;
   color: var(--ink-2);
-  margin-right: auto;
+}
+
+.task-description-modal-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.task-description-modal-toolbar-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.task-description-modal-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.24rem 0.62rem;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 118, 110, 0.2);
+  background: rgba(15, 118, 110, 0.08);
+  color: #0f766e;
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.task-description-modal-count {
+  font-size: 0.76rem;
+  color: var(--ink-2);
+}
+
+.task-description-modal-editor-frame {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.9rem;
+  border: 1px solid rgba(26, 32, 38, 0.08);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(248, 250, 252, 0.94) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    0 18px 34px rgba(148, 163, 184, 0.12);
+}
+
+.task-description-modal-editor-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.task-description-modal-textarea:focus {
+  outline: none;
+}
+
+.task-description-modal-actions {
+  justify-content: flex-end;
+  padding-top: 0.1rem;
 }
 
 /* ── Task dependencies modal ────────────────────── */
@@ -7106,6 +7200,26 @@ button:disabled {
 
   .modal-card-wide {
     width: 100%;
+  }
+
+  .task-description-modal-card {
+    width: 100%;
+    height: calc(100vh - 1.4rem);
+    max-height: calc(100vh - 1.4rem);
+  }
+
+  .task-description-modal-body {
+    padding: 0.8rem;
+  }
+
+  .task-description-modal-editor-frame {
+    padding: 0.75rem;
+    border-radius: 14px;
+  }
+
+  .task-description-modal-textarea {
+    min-height: 16rem;
+    padding: 0.8rem 0.85rem 0.95rem;
   }
 
   .edit-agent-instructions-fullscreen-overlay {

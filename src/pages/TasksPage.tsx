@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Page } from "../components/Page.tsx";
 import { CreationModal } from "../components/CreationModal.tsx";
 import { useSetPageActions } from "../components/PageActionsContext.tsx";
@@ -420,6 +422,12 @@ export function TasksPage({
   const detailTaskCountLabel = activeTask
     ? toCountLabel(totalSubtaskCount, "subtask")
     : topLevelTaskCountLabel;
+  const activeTaskDescription = String(activeTask?.description || "");
+  const hasLongTaskDescription = activeTaskDescription.trim().length > 220;
+  const descriptionSaveShortcutLabel = typeof navigator !== "undefined" && navigator.platform?.includes("Mac")
+    ? "\u2318"
+    : "Ctrl";
+  const descriptionCharacterCount = descriptionDraft.trim().length;
 
   const pageActions = useMemo(() => {
     if (activeTaskId && !activeTask) {
@@ -628,11 +636,25 @@ export function TasksPage({
                       )}
 
                       <div className="task-detail-hero-description">
-                        <p className={(activeTask.description || "").length > 200 ? "task-detail-hero-description-text task-overview-field-value-truncated" : "task-detail-hero-description-text"}>
-                          {activeTask.description || "No description provided."}
-                        </p>
+                        {activeTaskDescription.trim() ? (
+                          <div
+                            className={[
+                              "chat-message-content",
+                              "chat-message-content-markdown",
+                              "task-detail-hero-description-text",
+                              "task-detail-hero-description-markdown",
+                              hasLongTaskDescription ? "task-detail-hero-description-markdown-clamped" : "",
+                            ].filter(Boolean).join(" ")}
+                          >
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                              {activeTaskDescription}
+                            </ReactMarkdown>
+                          </div>
+                        ) : (
+                          <p className="task-detail-hero-description-text">No description provided.</p>
+                        )}
                         <div className="task-overview-inline-edit-actions">
-                          {(activeTask.description || "").length > 200 ? (
+                          {hasLongTaskDescription ? (
                             <button type="button" className="task-overview-show-more-btn" onClick={() => openDescriptionModal()}>
                               Show more
                             </button>
@@ -1043,28 +1065,42 @@ export function TasksPage({
       <CreationModal
         modalId="task-description-modal"
         title="Edit description"
+        description="Write the task brief in markdown. This editor stays open until you save or cancel."
         isOpen={isDescriptionModalOpen}
         onClose={() => setIsDescriptionModalOpen(false)}
-        cardClassName="task-description-modal-card"
+        closeOnOverlayClick={false}
+        cardClassName="modal-card-fullscreen task-description-modal-card"
       >
         <div className="task-description-modal-body">
-          <textarea
-            className="task-description-modal-textarea"
-            value={descriptionDraft}
-            onChange={(e) => setDescriptionDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                e.preventDefault();
-                void saveDescriptionEdit();
-              }
-            }}
-            placeholder="Add a description..."
-            autoFocus
-          />
-          <div className="task-form-actions">
-            <span className="task-description-modal-hint">
-              {navigator.platform?.includes("Mac") ? "\u2318" : "Ctrl"}+Enter to save
+          <div className="task-description-modal-toolbar">
+            <div className="task-description-modal-toolbar-group">
+              <span className="task-description-modal-chip">Markdown enabled</span>
+              <span className="task-description-modal-hint">{descriptionSaveShortcutLabel}+Enter to save</span>
+            </div>
+            <span className="task-description-modal-count">
+              {descriptionCharacterCount > 0 ? `${descriptionCharacterCount} chars` : "Start typing"}
             </span>
+          </div>
+          <div className="task-description-modal-editor-frame">
+            <label className="task-description-modal-editor-label" htmlFor="task-description-modal-textarea">
+              Description
+            </label>
+            <textarea
+              id="task-description-modal-textarea"
+              className="task-description-modal-textarea"
+              value={descriptionDraft}
+              onChange={(e) => setDescriptionDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault();
+                  void saveDescriptionEdit();
+                }
+              }}
+              placeholder={"Describe the task, constraints, acceptance criteria, or paste markdown notes here."}
+              autoFocus
+            />
+          </div>
+          <div className="task-form-actions task-description-modal-actions">
             <button
               type="button"
               className="secondary-btn"
@@ -1077,7 +1113,7 @@ export function TasksPage({
               onClick={() => void saveDescriptionEdit()}
               disabled={isOverviewSavePending}
             >
-              {isOverviewSavePending ? "Saving..." : "Save"}
+              {isOverviewSavePending ? "Saving..." : "Save description"}
             </button>
           </div>
         </div>
