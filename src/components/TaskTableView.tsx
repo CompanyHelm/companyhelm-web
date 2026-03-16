@@ -11,6 +11,7 @@ import {
 } from "react";
 import { CreationModal } from "./CreationModal.tsx";
 import { buildTaskExecutionPlan } from "../utils/task-execution.ts";
+import { buildTaskTableHierarchyRows } from "../utils/task-table-hierarchy.ts";
 import {
   getPersistedTaskTableColumnIds,
   persistTaskTableColumnIds,
@@ -19,6 +20,7 @@ import {
 interface TaskTableTask {
   id: string | number;
   name?: string;
+  parentTaskId?: string | number | null;
   status?: string;
   lastRunStatus?: string | null;
   description?: string;
@@ -42,6 +44,7 @@ interface TaskTableViewProps {
   onBatchDeleteTasks: (taskIds: string[]) => Promise<boolean> | boolean;
   onBatchExecuteTasks: (taskIds: string[], fallbackAgentId?: string) => Promise<boolean> | boolean;
   taskDepthById?: Map<string, number>;
+  collapsibleHierarchy?: boolean;
 }
 
 type TaskTableOptionalColumnId =
@@ -181,6 +184,7 @@ export function TaskTableView({
   onBatchDeleteTasks,
   onBatchExecuteTasks,
   taskDepthById,
+  collapsibleHierarchy = false,
 }: TaskTableViewProps) {
   const taskArray = Array.isArray(tasks) ? tasks : [];
   const agentArray = Array.isArray(agents) ? agents : [];
@@ -190,6 +194,7 @@ export function TaskTableView({
   const [fallbackAgentId, setFallbackAgentId] = useState("");
   const [isBatchActionPending, setIsBatchActionPending] = useState(false);
   const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);
+  const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(new Set());
   const [visibleOptionalColumnIds, setVisibleOptionalColumnIds] = useState<TaskTableOptionalColumnId[]>(() =>
     getPersistedTaskTableColumnIds(
       TASK_TABLE_OPTIONAL_COLUMN_IDS,
@@ -213,6 +218,20 @@ export function TaskTableView({
     () => [...selectedTaskIds],
     [selectedTaskIds],
   );
+  const taskRows = useMemo(
+    () => collapsibleHierarchy
+      ? buildTaskTableHierarchyRows(taskArray, expandedTaskIds)
+      : taskArray.map((task) => ({
+        task,
+        depth: taskDepthById?.get(String(task.id)) || 0,
+        hasChildren: false,
+      })),
+    [collapsibleHierarchy, expandedTaskIds, taskArray, taskDepthById],
+  );
+  const visibleTaskIdList = useMemo(
+    () => taskRows.map((row) => String(row.task.id)),
+    [taskRows],
+  );
   const availableFallbackAgents = useMemo(
     () =>
       agentArray
@@ -233,12 +252,30 @@ export function TaskTableView({
   );
 
   useEffect(() => {
-    const availableTaskIds = new Set(taskArray.map((task) => String(task.id)));
+    const availableTaskIds = new Set(visibleTaskIdList);
     setSelectedTaskIds((previous) => {
       const next = new Set([...previous].filter((taskId) => availableTaskIds.has(taskId)));
       return next.size === previous.size ? previous : next;
     });
-  }, [taskArray]);
+  }, [visibleTaskIdList]);
+
+  useEffect(() => {
+    if (!collapsibleHierarchy) {
+      setExpandedTaskIds((previous) => (previous.size === 0 ? previous : new Set()));
+      return;
+    }
+
+    const allTaskIds = new Set(taskArray.map((task) => String(task.id)));
+    const expandableTaskIds = new Set(
+      buildTaskTableHierarchyRows(taskArray, allTaskIds)
+        .filter((row) => row.hasChildren)
+        .map((row) => String(row.task.id)),
+    );
+    setExpandedTaskIds((previous) => {
+      const next = new Set([...previous].filter((taskId) => expandableTaskIds.has(taskId)));
+      return next.size === previous.size ? previous : next;
+    });
+  }, [collapsibleHierarchy, taskArray]);
 
   useEffect(() => {
     if (!isFallbackModalOpen) {
@@ -292,11 +329,11 @@ export function TaskTableView({
     };
   }, [isColumnMenuOpen]);
 
-  if (taskArray.length === 0) {
+  if (taskRows.length === 0) {
     return null;
   }
 
-  const allSelected = taskArray.length > 0 && taskArray.every((task) => selectedTaskIds.has(String(task.id)));
+  const allSelected = visibleTaskIdList.length > 0 && visibleTaskIdList.every((taskId) => selectedTaskIds.has(taskId));
   const selectedCount = selectedTaskIds.size;
   const selectedMissingAssigneeCount = selectionPlanWithoutFallback.missingTaskIds.length;
   const hasFallbackOptions = availableFallbackAgents.length > 0;
@@ -318,10 +355,22 @@ export function TaskTableView({
 
   function handleToggleAll(event: ChangeEvent<HTMLInputElement>) {
     if (event.target.checked) {
-      setSelectedTaskIds(new Set(taskArray.map((task) => String(task.id))));
+      setSelectedTaskIds(new Set(visibleTaskIdList));
       return;
     }
     setSelectedTaskIds(new Set());
+  }
+
+  function toggleTaskExpansion(taskId: string) {
+    setExpandedTaskIds((previous) => {
+      const next = new Set(previous);
+      if (next.has(taskId)) {
+        next.delete(taskId);
+      } else {
+        next.add(taskId);
+      }
+      return next;
+    });
   }
 
   function handleOptionalColumnToggle(columnId: TaskTableOptionalColumnId, checked: boolean) {
@@ -469,9 +518,11 @@ export function TaskTableView({
             </tr>
           </thead>
           <tbody>
-            {taskArray.map((task) => {
+            {taskRows.map((row) => {
+              const task = row.task;
               const taskId = String(task.id);
-              const taskDepth = taskDepthById?.get(taskId) || 0;
+              const taskDepth = row.depth;
+              const isExpanded = expandedTaskIds.has(taskId);
               const isSelected = selectedTaskIds.has(taskId);
 
               return (
@@ -502,6 +553,22 @@ export function TaskTableView({
                       style={{ "--task-depth": taskDepth } as CSSProperties}
                     >
                       {taskDepth > 0 ? <span className="task-table-tree-branch" aria-hidden="true" /> : null}
+                      {row.hasChildren ? (
+                        <button
+                          type="button"
+                          className={`task-table-tree-toggle${isExpanded ? " task-table-tree-toggle-expanded" : ""}`}
+                          aria-label={isExpanded ? "Collapse subtasks" : "Expand subtasks"}
+                          aria-expanded={isExpanded}
+                          onClick={(event: ReactMouseEvent<HTMLButtonElement>) => {
+                            event.stopPropagation();
+                            toggleTaskExpansion(taskId);
+                          }}
+                        >
+                          <svg viewBox="0 0 12 12" aria-hidden="true" focusable="false">
+                            <path d="M3 2.5 8 6 3 9.5" />
+                          </svg>
+                        </button>
+                      ) : null}
                       <span className="task-table-name-text">{task.name || "Untitled task"}</span>
                     </div>
                   </td>

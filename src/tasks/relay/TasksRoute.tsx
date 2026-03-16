@@ -361,7 +361,7 @@ function getQueryVariables(params: { activeTaskId: string }) {
   const normalizedActiveTaskId = String(params.activeTaskId || "").trim();
   const isTaskDetailRoute = Boolean(normalizedActiveTaskId);
   return {
-    topLevelOnly: !isTaskDetailRoute,
+    topLevelOnly: false,
     rootTaskId: isTaskDetailRoute ? normalizedActiveTaskId : null,
     maxDepth: null,
   };

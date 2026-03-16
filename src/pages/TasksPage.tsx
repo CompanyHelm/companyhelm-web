@@ -514,6 +514,7 @@ export function TasksPage({
                 onDeleteTask={handleDeleteTask}
                 onBatchDeleteTasks={onBatchDeleteTasks}
                 onBatchExecuteTasks={onBatchExecuteTasks}
+                collapsibleHierarchy
               />
             ) : (
               <div className="task-empty-panel">

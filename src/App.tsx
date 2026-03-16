@@ -4256,7 +4256,7 @@ function App() {
       const [taskPageData, nextTaskOptions] = await Promise.all([
         executeGraphQL(LIST_TASK_PAGE_TASKS_QUERY, {
           companyId: selectedCompanyId,
-          topLevelOnly: !isTaskDetailRoute,
+          topLevelOnly: false,
           rootTaskId: isTaskDetailRoute ? tasksRoute.taskId : null,
           maxDepth: isTaskDetailRoute ? normalizedMaxDepth : null,
         }),

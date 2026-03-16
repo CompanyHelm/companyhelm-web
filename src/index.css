@@ -4149,6 +4149,40 @@ button:disabled {
   transform: translateY(-0.04rem);
 }
 
+.task-table-tree-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  padding: 0;
+  border: 1px solid rgba(26, 32, 38, 0.12);
+  border-radius: 0.35rem;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease, color 150ms ease, transform 150ms ease;
+}
+
+.task-table-tree-toggle:hover {
+  border-color: rgba(26, 32, 38, 0.22);
+  background: rgba(26, 32, 38, 0.05);
+  color: var(--ink-0);
+}
+
+.task-table-tree-toggle svg {
+  width: 0.75rem;
+  height: 0.75rem;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  fill: none;
+  transition: transform 150ms ease;
+}
+
+.task-table-tree-toggle-expanded svg {
+  transform: rotate(90deg);
+}
+
 .task-table-desc {
   max-width: 260px;
   overflow: hidden;
