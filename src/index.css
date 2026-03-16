@@ -3612,8 +3612,44 @@ button:disabled {
   padding: 0.85rem 1rem;
 }
 
+.task-detail-hero-section {
+  position: relative;
+}
+
+.task-detail-hero-heading-section {
+  padding-bottom: 0.8rem;
+  margin-bottom: 0.85rem;
+  border-bottom: 1px solid rgba(15, 118, 110, 0.16);
+}
+
+.task-detail-hero-description-section {
+  padding: 0.85rem 0.95rem 0.95rem;
+  margin: 0 0 0.9rem;
+  border: 1px solid rgba(26, 32, 38, 0.08);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, rgba(248, 250, 252, 0.9) 100%);
+}
+
+.task-detail-hero-description-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.task-detail-hero-section-label {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
 .task-detail-hero-description {
-  margin: 0.35rem 0 0.75rem;
+  margin: 0.55rem 0 0;
   max-width: 72ch;
   color: var(--ink-1);
   font-size: 0.88rem;
@@ -3660,6 +3696,12 @@ button:disabled {
   .task-detail-hero-stats {
     grid-template-columns: repeat(2, 1fr);
   }
+
+  .task-detail-hero-description-section {
+    padding: 0.78rem 0.8rem 0.85rem;
+    border-radius: 14px;
+  }
+
   .task-overview-grid-2col {
     grid-template-columns: 1fr;
   }

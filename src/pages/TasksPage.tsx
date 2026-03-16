@@ -587,81 +587,89 @@ export function TasksPage({
                   <div className="task-overview-scroll">
                     {/* ── Hero section ── */}
                     <div className="task-detail-hero">
-                      {isEditingName ? (
-                        <div className="role-detail-hero-edit-form">
-                          <input
-                            className="role-detail-hero-edit-input"
-                            value={nameDraft}
-                            onChange={(e) => setNameDraft(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") void saveNameEdit();
-                              if (e.key === "Escape") setIsEditingName(false);
-                            }}
-                            autoFocus
-                          />
-                          <button
-                            type="button"
-                            onClick={() => void saveNameEdit()}
-                            disabled={!nameDraft.trim() || isOverviewSavePending}
-                          >
-                            {isOverviewSavePending ? "Saving..." : "Save"}
-                          </button>
-                          <button
-                            type="button"
-                            className="secondary-btn"
-                            onClick={() => setIsEditingName(false)}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="role-detail-hero-title-row">
-                          <h1 className="role-detail-hero-title">{activeTask.name || "Untitled task"}</h1>
-                          <span className={`task-status-pill task-status-pill-${String(activeTask.status || "draft").trim()}`}>
-                            {activeTask.status || "draft"}
-                          </span>
-                          <button
-                            type="button"
-                            className="role-detail-hero-edit-btn"
-                            onClick={startEditingName}
-                            aria-label="Edit name"
-                            title="Edit name"
-                          >
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                              <path d="M17 3a2.85 2.85 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                              <path d="m15 5 4 4" />
-                            </svg>
-                          </button>
-                        </div>
-                      )}
-
-                      <div className="task-detail-hero-description">
-                        {activeTaskDescription.trim() ? (
-                          <div
-                            className={[
-                              "chat-message-content",
-                              "chat-message-content-markdown",
-                              "task-detail-hero-description-text",
-                              "task-detail-hero-description-markdown",
-                              hasLongTaskDescription ? "task-detail-hero-description-markdown-clamped" : "",
-                            ].filter(Boolean).join(" ")}
-                          >
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                              {activeTaskDescription}
-                            </ReactMarkdown>
+                      <div className="task-detail-hero-section task-detail-hero-heading-section">
+                        <p className="task-detail-hero-section-label">Task</p>
+                        {isEditingName ? (
+                          <div className="role-detail-hero-edit-form">
+                            <input
+                              className="role-detail-hero-edit-input"
+                              value={nameDraft}
+                              onChange={(e) => setNameDraft(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") void saveNameEdit();
+                                if (e.key === "Escape") setIsEditingName(false);
+                              }}
+                              autoFocus
+                            />
+                            <button
+                              type="button"
+                              onClick={() => void saveNameEdit()}
+                              disabled={!nameDraft.trim() || isOverviewSavePending}
+                            >
+                              {isOverviewSavePending ? "Saving..." : "Save"}
+                            </button>
+                            <button
+                              type="button"
+                              className="secondary-btn"
+                              onClick={() => setIsEditingName(false)}
+                            >
+                              Cancel
+                            </button>
                           </div>
                         ) : (
-                          <p className="task-detail-hero-description-text">No description provided.</p>
-                        )}
-                        <div className="task-overview-inline-edit-actions">
-                          {hasLongTaskDescription ? (
-                            <button type="button" className="task-overview-show-more-btn" onClick={() => openDescriptionModal()}>
-                              Show more
+                          <div className="role-detail-hero-title-row">
+                            <h1 className="role-detail-hero-title">{activeTask.name || "Untitled task"}</h1>
+                            <span className={`task-status-pill task-status-pill-${String(activeTask.status || "draft").trim()}`}>
+                              {activeTask.status || "draft"}
+                            </span>
+                            <button
+                              type="button"
+                              className="role-detail-hero-edit-btn"
+                              onClick={startEditingName}
+                              aria-label="Edit name"
+                              title="Edit name"
+                            >
+                              <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M17 3a2.85 2.85 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                                <path d="m15 5 4 4" />
+                              </svg>
                             </button>
-                          ) : null}
-                          <button type="button" className="task-overview-show-more-btn" onClick={() => openDescriptionModal()}>
-                            Edit
-                          </button>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="task-detail-hero-section task-detail-hero-description-section">
+                        <div className="task-detail-hero-description-header">
+                          <p className="task-detail-hero-section-label">Description</p>
+                          <div className="task-overview-inline-edit-actions">
+                            {hasLongTaskDescription ? (
+                              <button type="button" className="task-overview-show-more-btn" onClick={() => openDescriptionModal()}>
+                                Show more
+                              </button>
+                            ) : null}
+                            <button type="button" className="task-overview-show-more-btn" onClick={() => openDescriptionModal()}>
+                              Edit
+                            </button>
+                          </div>
+                        </div>
+                        <div className="task-detail-hero-description">
+                          {activeTaskDescription.trim() ? (
+                            <div
+                              className={[
+                                "chat-message-content",
+                                "chat-message-content-markdown",
+                                "task-detail-hero-description-text",
+                                "task-detail-hero-description-markdown",
+                                hasLongTaskDescription ? "task-detail-hero-description-markdown-clamped" : "",
+                              ].filter(Boolean).join(" ")}
+                            >
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                {activeTaskDescription}
+                              </ReactMarkdown>
+                            </div>
+                          ) : (
+                            <p className="task-detail-hero-description-text">No description provided.</p>
+                          )}
                         </div>
                       </div>
 
