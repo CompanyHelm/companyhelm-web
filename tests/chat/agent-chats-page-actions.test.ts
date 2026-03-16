@@ -169,12 +169,45 @@ test("AgentChatsPage heartbeats tab renders heartbeat controls and schedule stat
   assert.match(markup, /Review open work and continue if needed\./);
   assert.match(markup, /Next scheduled/);
   assert.match(markup, /Last sent/);
+  assert.match(markup, />\s*Schedule now\s*</);
   assert.match(markup, />\s*Open thread\s*</);
   assert.match(markup, /aria-label="Edit Name"/);
   assert.match(markup, /aria-label="Edit Prompt"/);
   assert.match(markup, /aria-label="Edit Interval"/);
   assert.match(markup, /aria-label="Disable heartbeat"/);
   assert.doesNotMatch(markup, />\s*Save heartbeat\s*</);
+});
+
+test("AgentChatsPage shows schedule now for paused heartbeats", () => {
+  const markup = renderAgentChatsPageMarkup({
+    activeTab: "heartbeats",
+    agent: {
+      id: "agent-1",
+      name: "Build Agent",
+      model: "gpt-5",
+      modelReasoningLevel: "medium",
+      roleIds: [],
+      skillIds: [],
+      mcpServerIds: [],
+      defaultAdditionalModelInstructions: "",
+      heartbeats: [
+        {
+          id: "heartbeat-1",
+          name: "Morning check-in",
+          prompt: "Review open work and continue if needed.",
+          enabled: false,
+          intervalSeconds: 3600,
+          nextHeartbeatAt: "2026-03-14T10:00:00.000Z",
+          lastSentAt: "2026-03-14T09:00:00.000Z",
+          threadId: null,
+        },
+      ],
+    },
+  });
+
+  assert.match(markup, />\s*Schedule now\s*</);
+  assert.match(markup, /aria-label="Enable heartbeat"/);
+  assert.match(markup, /No linked thread yet/);
 });
 
 test("AgentChatsPage renders empty heartbeat state when none exist", () => {

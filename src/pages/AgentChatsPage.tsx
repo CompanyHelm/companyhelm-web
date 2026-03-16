@@ -215,6 +215,7 @@ export function AgentChatsPage({
   onCreateHeartbeat,
   onUpdateHeartbeat,
   onDeleteHeartbeat,
+  onScheduleHeartbeatNow,
   onEnsureAgentEditorData,
   isBatchDeletingChats = false,
 }: any) {
@@ -231,6 +232,7 @@ export function AgentChatsPage({
   const [newHeartbeatDraft, setNewHeartbeatDraft] = useState<any>(createEmptyHeartbeatDraft);
   const [savingHeartbeatId, setSavingHeartbeatId] = useState<any>("");
   const [deletingHeartbeatId, setDeletingHeartbeatId] = useState<any>("");
+  const [schedulingHeartbeatId, setSchedulingHeartbeatId] = useState<any>("");
   const [heartbeatError, setHeartbeatError] = useState<any>("");
   const [heartbeatSaveNotice, setHeartbeatSaveNotice] = useState<any>(null);
   const runnerLookup = useMemo(() => {
@@ -486,7 +488,7 @@ export function AgentChatsPage({
   }
 
   function resetHeartbeatDraftField(heartbeatId: string, field: string, heartbeat: any) {
-    const sourceDraft = createHeartbeatDraftFromHeartbeat(heartbeat);
+    const sourceDraft = createHeartbeatDraftFromHeartbeat(heartbeat) as Record<string, any>;
     setHeartbeatDraftsById((currentDrafts: Record<string, any>) => ({
       ...currentDrafts,
       [heartbeatId]: {
@@ -496,9 +498,10 @@ export function AgentChatsPage({
     }));
   }
 
-  function markHeartbeatSaved(heartbeatId: string) {
+  function markHeartbeatSaved(heartbeatId: string, message: string = "Saved") {
     setHeartbeatSaveNotice({
       heartbeatId,
+      message,
       token: Date.now(),
     });
   }
@@ -599,6 +602,23 @@ export function AgentChatsPage({
       return await onDeleteHeartbeat(agent.id, heartbeatId);
     } finally {
       setDeletingHeartbeatId("");
+    }
+  }
+
+  async function handleScheduleHeartbeatNow(heartbeatId: string) {
+    if (!agent || !onScheduleHeartbeatNow) {
+      return false;
+    }
+    setHeartbeatError("");
+    setSchedulingHeartbeatId(heartbeatId);
+    try {
+      const didSchedule = await onScheduleHeartbeatNow(agent.id, heartbeatId);
+      if (didSchedule) {
+        markHeartbeatSaved(heartbeatId, "Scheduled");
+      }
+      return didSchedule;
+    } finally {
+      setSchedulingHeartbeatId("");
     }
   }
 
@@ -939,6 +959,7 @@ export function AgentChatsPage({
                       const draft = heartbeatDraftsById[heartbeatId] || createHeartbeatDraftFromHeartbeat(heartbeat);
                       const isHeartbeatSaving = savingHeartbeatId === heartbeatId || savingAgentId === agent.id;
                       const isHeartbeatDeleting = deletingHeartbeatId === heartbeatId || savingAgentId === agent.id;
+                      const isHeartbeatScheduling = schedulingHeartbeatId === heartbeatId;
                       const isNameEditing = Boolean(editingHeartbeatFieldsById?.[heartbeatId]?.name);
                       const isPromptEditing = Boolean(editingHeartbeatFieldsById?.[heartbeatId]?.prompt);
                       const isIntervalEditing = Boolean(editingHeartbeatFieldsById?.[heartbeatId]?.intervalMinutes);
@@ -1076,9 +1097,22 @@ export function AgentChatsPage({
                             {isHeartbeatSaving ? (
                               <span className="heartbeat-save-notice" role="status" aria-live="polite">Saving...</span>
                             ) : null}
-                            {heartbeatSaveNotice?.heartbeatId === heartbeatId ? (
-                              <span className="heartbeat-save-notice" role="status" aria-live="polite">Saved</span>
+                            {isHeartbeatScheduling ? (
+                              <span className="heartbeat-save-notice" role="status" aria-live="polite">Scheduling...</span>
                             ) : null}
+                            {heartbeatSaveNotice?.heartbeatId === heartbeatId ? (
+                              <span className="heartbeat-save-notice" role="status" aria-live="polite">
+                                {heartbeatSaveNotice?.message || "Saved"}
+                              </span>
+                            ) : null}
+                            <button
+                              type="button"
+                              className="secondary-btn"
+                              onClick={() => void handleScheduleHeartbeatNow(heartbeatId)}
+                              disabled={isHeartbeatScheduling || isHeartbeatSaving || isHeartbeatDeleting || !onScheduleHeartbeatNow}
+                            >
+                              Schedule now
+                            </button>
                             {String(heartbeat?.threadId || "").trim() ? (
                               <button
                                 type="button"

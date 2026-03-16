@@ -198,6 +198,7 @@ import {
   COMPANY_API_CREATE_AGENT_HEARTBEAT_MUTATION,
   COMPANY_API_UPDATE_AGENT_HEARTBEAT_MUTATION,
   COMPANY_API_DELETE_AGENT_HEARTBEAT_MUTATION,
+  COMPANY_API_SCHEDULE_AGENT_HEARTBEAT_NOW_MUTATION,
   COMPANY_API_LIST_THREADS_CONNECTION_QUERY,
   COMPANY_API_CREATE_THREAD_MUTATION,
   COMPANY_API_UPDATE_THREAD_TITLE_MUTATION,
@@ -9204,6 +9205,35 @@ function App() {
     }
   }
 
+  async function handleScheduleAgentHeartbeatNow(agentId: any, heartbeatId: any) {
+    const resolvedAgentId = String(agentId || "").trim();
+    const resolvedHeartbeatId = String(heartbeatId || "").trim();
+
+    if (!selectedCompanyId) {
+      setAgentError("Select a company before editing heartbeats.");
+      return false;
+    }
+    if (!resolvedAgentId || !resolvedHeartbeatId) {
+      setAgentError("Heartbeat id is required.");
+      return false;
+    }
+
+    try {
+      setAgentError("");
+      const data = await executeRawGraphQL(COMPANY_API_SCHEDULE_AGENT_HEARTBEAT_NOW_MUTATION, {
+        heartbeatId: resolvedHeartbeatId,
+      });
+      if (!data?.scheduleAgentHeartbeatNow?.id) {
+        throw new Error("Heartbeat scheduling failed.");
+      }
+      await loadAgents();
+      return true;
+    } catch (scheduleError: any) {
+      setAgentError(scheduleError.message);
+      return false;
+    }
+  }
+
   async function handleInitializeAgent(agentId: any) {
     if (!selectedCompanyId) {
       setAgentError("Select a company before initializing agents.");
@@ -11084,6 +11114,7 @@ function App() {
               onCreateHeartbeat={handleCreateAgentHeartbeat}
               onUpdateHeartbeat={handleUpdateAgentHeartbeat}
               onDeleteHeartbeat={handleDeleteAgentHeartbeat}
+              onScheduleHeartbeatNow={handleScheduleAgentHeartbeatNow}
               onEnsureAgentEditorData={ensureAgentEditorData}
             />
           ) : agentsRoute.view === "chat" ? (

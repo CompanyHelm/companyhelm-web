@@ -3940,6 +3940,21 @@ export const COMPANY_API_DELETE_AGENT_HEARTBEAT_MUTATION = `
   }
 `;
 
+export const COMPANY_API_SCHEDULE_AGENT_HEARTBEAT_NOW_MUTATION = `
+  mutation CompanyApiScheduleAgentHeartbeatNow($heartbeatId: ID!) {
+    scheduleAgentHeartbeatNow(heartbeatId: $heartbeatId) {
+      id
+      name
+      prompt
+      enabled
+      intervalSeconds
+      nextHeartbeatAt
+      lastSentAt
+      threadId
+    }
+  }
+`;
+
 export const START_RUNNER_SDK_AUTH_MUTATION = `
   mutation StartRunnerSdkAuth($runnerId: ID!, $sdkId: ID!, $authType: CodexAuthType!, $apiKey: String) {
     startRunnerSdkAuth(runnerId: $runnerId, sdkId: $sdkId, authType: $authType, apiKey: $apiKey) {
