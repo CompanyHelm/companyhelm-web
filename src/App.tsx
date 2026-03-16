@@ -3906,17 +3906,18 @@ function App() {
       ];
     }
 
-    if (activePage === "tasks" && tasksRoute.view === "detail" && tasksRoute.taskId) {
+    if ((activePage === "tasks" || activePage === "my-tasks") && tasksRoute.view === "detail" && tasksRoute.taskId) {
+      const taskPageHref = getPathForPage(activePage);
       const matchingTask = (
         taskPageTasks.find((task: any) => task.id === tasksRoute.taskId)
         || taskOptions.find((task: any) => task.id === tasksRoute.taskId)
         || tasks.find((task: any) => task.id === tasksRoute.taskId)
       );
       return [
-        { label: "Tasks", href: "/tasks" },
+        { label: currentPageLabel, href: taskPageHref },
         {
           label: String(matchingTask?.name || "").trim() || "Untitled task",
-          href: getTaskPath({ taskId: tasksRoute.taskId, tab: tasksRoute.tab }),
+          href: getTaskPath({ pageId: activePage, taskId: tasksRoute.taskId, tab: tasksRoute.tab }),
         },
       ];
     }
@@ -4045,11 +4046,11 @@ function App() {
   const shouldSubscribeChatTurns = isChatConversationRoute;
   const shouldLoadGithubPageData = activePage === "settings" || activePage === "repos" || onboardingPhase === "github" || onboardingPhase === "agent";
   const shouldLoadGithubRepositoryData = activePage === "repos";
-  const shouldLoadCurrentUserData = activePage === "profile";
-  const useRelayTasksRoute = activePage === "tasks";
+  const shouldLoadCurrentUserData = activePage === "profile" || activePage === "my-tasks";
+  const useRelayTasksRoute = activePage === "tasks" || activePage === "my-tasks";
   const shouldLoadAllTaskData = activePage === "dashboard" || activePage === "profile";
-  const shouldLoadTaskPageData = activePage === "tasks" && !useRelayTasksRoute;
-  const shouldLoadTaskAssignableActorData = activePage === "tasks" && !useRelayTasksRoute;
+  const shouldLoadTaskPageData = (activePage === "tasks" || activePage === "my-tasks") && !useRelayTasksRoute;
+  const shouldLoadTaskAssignableActorData = (activePage === "tasks" || activePage === "my-tasks") && !useRelayTasksRoute;
   const shouldLoadOrgData = activePage === "org";
   const shouldLoadSkillData =
     activePage === "skills"
@@ -10679,21 +10680,30 @@ function App() {
           />
         ) : null}
 
-        {selectedCompanyId && activePage === "tasks" ? (
+        {selectedCompanyId && (activePage === "tasks" || activePage === "my-tasks") ? (
           <Suspense fallback={<div className="page-empty-panel"><p>Loading tasks...</p></div>}>
-            <RelayTasksRoute
-              activeTaskId={tasksRoute.view === "detail" ? tasksRoute.taskId : ""}
-              activeTab={tasksRoute.tab}
-              onTabChange={(tab: "overview" | "runs" | "graph" | "table") => {
-                if (!tasksRoute.taskId) {
-                  return;
-                }
-                setBrowserPath(getTaskPath({ taskId: tasksRoute.taskId, tab }));
-              }}
-              onOpenTask={(taskId: string) => setBrowserPath(getTaskPath({ taskId, tab: "overview" }))}
-              onOpenTaskThread={handleOpenTaskThread}
-              onRequestConfirmation={requestConfirmation}
-            />
+            {activePage === "my-tasks" && isLoadingCurrentUser ? (
+              <div className="page-empty-panel"><p>Loading tasks...</p></div>
+            ) : activePage === "my-tasks" && currentUserError ? (
+              <div className="page-empty-panel"><p>{currentUserError}</p></div>
+            ) : (
+              <RelayTasksRoute
+                pageId={activePage}
+                activeTaskId={tasksRoute.view === "detail" ? tasksRoute.taskId : ""}
+                activeTab={tasksRoute.tab}
+                assigneeUserId={activePage === "my-tasks" ? String(currentUser?.id || "").trim() : ""}
+                onTabChange={(tab: "overview" | "runs" | "graph" | "table") => {
+                  if (!tasksRoute.taskId) {
+                    return;
+                  }
+                  setBrowserPath(getTaskPath({ pageId: activePage, taskId: tasksRoute.taskId, tab }));
+                }}
+                onOpenTask={(taskId: string) => setBrowserPath(getTaskPath({ pageId: activePage, taskId, tab: "overview" }))}
+                onBackToTasks={() => setBrowserPath(getPathForPage(activePage))}
+                onOpenTaskThread={handleOpenTaskThread}
+                onRequestConfirmation={requestConfirmation}
+              />
+            )}
           </Suspense>
         ) : null}
 
