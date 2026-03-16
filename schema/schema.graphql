@@ -749,7 +749,7 @@ type Task {
   createdAt: String!
   dependencyTaskIds: [ID!]!
   description: String
-  has_running_runs: Boolean!
+  has_running_threads: Boolean!
   id: ID!
   lastRunStatus: TaskRunStatus
   latestRun: TaskRun

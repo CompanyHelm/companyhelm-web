@@ -12147,7 +12147,7 @@
             "deprecationReason": null
           },
           {
-            "name": "has_running_runs",
+            "name": "has_running_threads",
             "description": null,
             "args": [],
             "type": {

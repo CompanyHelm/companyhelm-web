@@ -221,7 +221,7 @@ export interface TaskItem extends NamedEntity {
   runs?: TaskRun[];
   latestRun?: TaskRun | null;
   activeRun?: TaskRun | null;
-  hasRunningRuns?: boolean;
+  hasRunningThreads?: boolean;
   attemptCount?: number;
   lastRunStatus?: string | null;
   dependencyTaskIds?: string[];

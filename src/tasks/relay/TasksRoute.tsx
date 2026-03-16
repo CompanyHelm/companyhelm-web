@@ -45,7 +45,7 @@ const tasksRouteTaskFragment = graphql`
     updatedAt
     attemptCount
     lastRunStatus
-    has_running_runs
+    has_running_threads
     latestRun {
       id
       taskId

@@ -123,7 +123,7 @@ test("TaskTableView renders a running indicator beside tasks with an active runn
             id: "task-1",
             name: "Ship table changes",
             status: "in_progress",
-            hasRunningRuns: true,
+            hasRunningThreads: true,
             dependencyTaskIds: [],
             comments: [],
             createdAt: "2026-03-08T10:00:00.000Z",

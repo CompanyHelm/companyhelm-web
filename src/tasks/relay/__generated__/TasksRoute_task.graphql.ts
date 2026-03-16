@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5b940d45a9037e744237dd9c87909f13>>
+ * @generated SignedSource<<3184e6dcb913cab5f87172561fee0e71>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -60,7 +60,7 @@ export type TasksRoute_task$data = ReadonlyArray<{
   readonly createdAt: string;
   readonly dependencyTaskIds: ReadonlyArray<string>;
   readonly description: string | null | undefined;
-  readonly has_running_runs: boolean;
+  readonly has_running_threads: boolean;
   readonly id: string;
   readonly lastRunStatus: TaskRunStatus | null | undefined;
   readonly latestRun: {
@@ -305,7 +305,7 @@ return {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "has_running_runs",
+      "name": "has_running_threads",
       "storageKey": null
     },
     {
@@ -390,6 +390,6 @@ return {
 };
 })();
 
-(node as any).hash = "908534366e02a281df31bcb1fecfcfff";
+(node as any).hash = "260b6a12c1fe393a3881f52c687302ee";
 
 export default node;

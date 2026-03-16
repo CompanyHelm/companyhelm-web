@@ -23,7 +23,7 @@ interface TaskTableTask {
   parentTaskId?: string | number | null;
   status?: string;
   lastRunStatus?: string | null;
-  hasRunningRuns?: boolean;
+  hasRunningThreads?: boolean;
   activeRun?: {
     status?: string | null;
   } | null;
@@ -528,7 +528,7 @@ export function TaskTableView({
               const taskDepth = row.depth;
               const isExpanded = expandedTaskIds.has(taskId);
               const isSelected = selectedTaskIds.has(taskId);
-              const hasRunningTaskRun = Boolean(task.hasRunningRuns);
+              const hasRunningTaskRun = Boolean(task.hasRunningThreads);
 
               return (
                 <tr
