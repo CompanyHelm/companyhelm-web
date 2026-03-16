@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Page } from "../components/Page.tsx";
@@ -24,6 +24,12 @@ import type {
 } from "../types/domain.ts";
 
 type TaskDetailTab = "overview" | "runs" | "graph" | "table";
+
+interface OverviewPropertyOption {
+  value: string;
+  label: string;
+  description?: string;
+}
 
 interface TasksPageProps {
   tasks: TaskItem[];
@@ -77,6 +83,110 @@ function toCountLabel(count: number, singularLabel: string, pluralLabel?: string
     return `1 ${singularLabel}`;
   }
   return `${count} ${pluralLabel || `${singularLabel}s`}`;
+}
+
+function formatTaskStatusLabel(status: string) {
+  if (status === "in_progress") {
+    return "In progress";
+  }
+  if (!status) {
+    return "Draft";
+  }
+  return `${status.charAt(0).toUpperCase()}${status.slice(1)}`;
+}
+
+function OverviewPropertyDropdown({
+  buttonId,
+  label,
+  options,
+  value,
+  placeholder,
+  onChange,
+}: {
+  buttonId: string;
+  label: string;
+  options: OverviewPropertyOption[];
+  value: string;
+  placeholder: string;
+  onChange: (nextValue: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const anchorRef = useRef<HTMLDivElement | null>(null);
+  const selectedOption = options.find((option) => option.value === value) || null;
+  const selectedLabel = selectedOption?.label || placeholder;
+  const selectedDescription = selectedOption?.description || "No selection";
+
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!anchorRef.current?.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
+
+  return (
+    <div className="task-overview-property-field">
+      <label className="task-overview-property-label" htmlFor={buttonId}>{label}</label>
+      <div className="task-overview-property-menu-anchor" ref={anchorRef}>
+        <button
+          id={buttonId}
+          type="button"
+          className="task-overview-property-menu-trigger"
+          aria-haspopup="listbox"
+          aria-expanded={isOpen}
+          onClick={() => setIsOpen((open) => !open)}
+        >
+          <span className="task-overview-property-menu-trigger-copy">
+            <span className="task-overview-property-menu-trigger-value">{selectedLabel}</span>
+            <span className="task-overview-property-menu-trigger-description">{selectedDescription}</span>
+          </span>
+          <span className="task-overview-property-menu-trigger-caret" aria-hidden="true" />
+        </button>
+        {isOpen ? (
+          <div className="task-overview-property-menu" role="listbox" aria-labelledby={buttonId}>
+            {options.map((option) => {
+              const isSelected = option.value === value;
+              return (
+                <button
+                  key={`${buttonId}-${option.value || "empty"}`}
+                  type="button"
+                  role="option"
+                  aria-selected={isSelected}
+                  className={`task-overview-property-menu-option${isSelected ? " task-overview-property-menu-option-selected" : ""}`}
+                  onClick={() => {
+                    onChange(option.value);
+                    setIsOpen(false);
+                  }}
+                >
+                  <span className="task-overview-property-menu-option-label">{option.label}</span>
+                  <span className="task-overview-property-menu-option-description">
+                    {option.description || " "}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
 }
 
 export function TasksPage({
@@ -412,6 +522,30 @@ export function TasksPage({
   const availableDependencyOptions = taskOptions.filter(
     (t) => t.id !== activeTask?.id && !dependencyIdSet.has(String(t.id || "").trim()),
   );
+  const assigneeOptions = useMemo(
+    () => [
+      {
+        value: "",
+        label: "Unassigned",
+        description: "No owner selected",
+      },
+      ...actors.map((actor) => ({
+        value: actor.id,
+        label: actor.displayName,
+        description: actor.kind === "agent" ? "Agent assignee" : "Human assignee",
+      })),
+    ],
+    [actors],
+  );
+  const statusOptions = useMemo(
+    () => [
+      { value: "draft", label: "Draft", description: "Not ready to run yet" },
+      { value: "pending", label: "Pending", description: "Ready and waiting" },
+      { value: "in_progress", label: "In progress", description: "Currently being worked" },
+      { value: "completed", label: "Completed", description: "Finished work" },
+    ],
+    [],
+  );
   const isOverviewSavePending = activeTask ? savingTaskId === activeTask.id : false;
   const isOverviewCommentPending = activeTask ? commentingTaskId === activeTask.id : false;
   const executeButtonDisabled = !activeTask
@@ -708,42 +842,23 @@ export function TasksPage({
                         <p className="task-overview-card-subtitle">Assignment and execution state for this task.</p>
                       </div>
 
-                      <div className="task-overview-property-field">
-                        <label className="task-overview-property-label" htmlFor="overview-task-assignee">Assignee</label>
-                        <div className="task-overview-property-control">
-                          <select
-                            id="overview-task-assignee"
-                            className="task-overview-property-select"
-                            value={String(activeTaskDraft?.assigneeActorId || "")}
-                            onChange={(event) =>
-                              onDraftChange(activeTask.id, "assigneeActorId", event.target.value)}
-                          >
-                            <option value="">Unassigned</option>
-                            {actors.map((actor) => (
-                              <option key={`overview-assignee-${actor.id}`} value={actor.id}>
-                                {actor.displayName} ({actor.kind === "agent" ? "Agent" : "Human"})
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
+                      <OverviewPropertyDropdown
+                        buttonId="overview-task-assignee"
+                        label="Assignee"
+                        options={assigneeOptions}
+                        value={String(activeTaskDraft?.assigneeActorId || "")}
+                        placeholder="Unassigned"
+                        onChange={(nextValue) => onDraftChange(activeTask.id, "assigneeActorId", nextValue)}
+                      />
 
-                      <div className="task-overview-property-field">
-                        <label className="task-overview-property-label" htmlFor="overview-task-status">Status</label>
-                        <div className="task-overview-property-control">
-                          <select
-                            id="overview-task-status"
-                            className="task-overview-property-select"
-                            value={String(activeTaskDraft?.status || "draft")}
-                            onChange={(event) => onDraftChange(activeTask.id, "status", event.target.value)}
-                          >
-                            <option value="draft">draft</option>
-                            <option value="pending">pending</option>
-                            <option value="in_progress">in_progress</option>
-                            <option value="completed">completed</option>
-                          </select>
-                        </div>
-                      </div>
+                      <OverviewPropertyDropdown
+                        buttonId="overview-task-status"
+                        label="Status"
+                        options={statusOptions}
+                        value={String(activeTaskDraft?.status || "draft")}
+                        placeholder={formatTaskStatusLabel(String(activeTaskDraft?.status || "draft"))}
+                        onChange={(nextValue) => onDraftChange(activeTask.id, "status", nextValue)}
+                      />
 
                       <div className="task-form-actions task-overview-property-actions">
                         <button

@@ -4891,6 +4891,113 @@ button:disabled {
     0 12px 28px rgba(148, 163, 184, 0.12);
 }
 
+.task-overview-property-menu-anchor {
+  position: relative;
+}
+
+.task-overview-property-menu-trigger {
+  width: 100%;
+  min-height: 4rem;
+  padding: 0.82rem 0.95rem;
+  border-radius: 14px;
+  border: 1px solid rgba(15, 118, 110, 0.14);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(244, 247, 246, 0.96) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.78),
+    0 8px 20px rgba(148, 163, 184, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  text-align: left;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.task-overview-property-menu-trigger:hover {
+  border-color: rgba(15, 118, 110, 0.28);
+}
+
+.task-overview-property-menu-trigger:focus {
+  outline: none;
+  transform: translateY(-1px);
+  border-color: rgba(15, 118, 110, 0.5);
+  box-shadow:
+    0 0 0 4px rgba(15, 118, 110, 0.12),
+    0 12px 28px rgba(148, 163, 184, 0.12);
+}
+
+.task-overview-property-menu-trigger-copy {
+  min-width: 0;
+  display: grid;
+  gap: 0.16rem;
+}
+
+.task-overview-property-menu-trigger-value {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--ink-0);
+}
+
+.task-overview-property-menu-trigger-description {
+  font-size: 0.75rem;
+  color: var(--ink-2);
+}
+
+.task-overview-property-menu-trigger-caret {
+  flex: 0 0 auto;
+  width: 0.56rem;
+  height: 0.56rem;
+  border-right: 2px solid rgba(26, 32, 38, 0.46);
+  border-bottom: 2px solid rgba(26, 32, 38, 0.46);
+  transform: rotate(45deg);
+  margin-top: -0.2rem;
+}
+
+.task-overview-property-menu {
+  position: absolute;
+  top: calc(100% + 0.45rem);
+  left: 0;
+  right: 0;
+  z-index: 5;
+  padding: 0.45rem;
+  border: 1px solid rgba(15, 118, 110, 0.14);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 20px 38px rgba(15, 23, 42, 0.16);
+  display: grid;
+  gap: 0.2rem;
+}
+
+.task-overview-property-menu-option {
+  width: 100%;
+  padding: 0.62rem 0.68rem;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink-0);
+  display: grid;
+  gap: 0.12rem;
+  text-align: left;
+}
+
+.task-overview-property-menu-option:hover {
+  background: rgba(15, 118, 110, 0.06);
+}
+
+.task-overview-property-menu-option-selected {
+  background: rgba(15, 118, 110, 0.1);
+}
+
+.task-overview-property-menu-option-label {
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.task-overview-property-menu-option-description {
+  font-size: 0.72rem;
+  color: var(--ink-2);
+}
+
 .task-overview-property-actions {
   margin-top: 0.05rem;
 }
