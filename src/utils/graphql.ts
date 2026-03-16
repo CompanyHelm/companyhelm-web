@@ -1058,6 +1058,46 @@ export const LIST_APPROVALS_QUERY = `
   }
 `;
 
+export const LIST_AGENT_QUESTIONS_QUERY = `
+  query ListAgentQuestions($status: String, $first: Int) {
+    agentQuestions(status: $status, first: $first) {
+      id
+      companyId
+      agentId
+      threadId
+      questionText
+      status
+      answerText
+      createdAt
+      updatedAt
+      agentName
+      threadTitle
+      options {
+        id
+        companyId
+        agentQuestionId
+        text
+        isRecommended
+        rank
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`;
+
+export const ANSWER_AGENT_QUESTION_MUTATION = `
+  mutation AnswerAgentQuestion($id: String!, $answerText: String!) {
+    answerAgentQuestion(id: $id, answerText: $answerText) {
+      ok
+      error
+      question {
+        id
+      }
+    }
+  }
+`;
+
 export const APPROVE_APPROVAL_MUTATION = `
   mutation ApproveApproval($id: String!) {
     approveApproval(id: $id) {
@@ -2935,6 +2975,46 @@ export const COMPANY_API_LIST_APPROVALS_QUERY = `
       secretName
       requestingAgentId
       requestingAgentName
+    }
+  }
+`;
+
+export const COMPANY_API_LIST_AGENT_QUESTIONS_QUERY = `
+  query CompanyApiListAgentQuestions($status: AgentQuestionStatus, $first: Int) {
+    agentQuestions(status: $status, first: $first) {
+      id
+      companyId
+      agentId
+      threadId
+      questionText
+      status
+      answerText
+      createdAt
+      updatedAt
+      agentName
+      threadTitle
+      options {
+        id
+        companyId
+        agentQuestionId
+        text
+        isRecommended
+        rank
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_ANSWER_AGENT_QUESTION_MUTATION = `
+  mutation CompanyApiAnswerAgentQuestion($id: ID!, $answerText: String!) {
+    answerAgentQuestion(id: $id, answerText: $answerText) {
+      ok
+      error
+      question {
+        id
+      }
     }
   }
 `;

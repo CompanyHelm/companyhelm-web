@@ -54,6 +54,8 @@ import {
   LIST_SECRET_VALUE_QUERY,
   LIST_SECRET_ACCESS_LOGS_QUERY,
   LIST_APPROVALS_QUERY,
+  LIST_AGENT_QUESTIONS_QUERY,
+  ANSWER_AGENT_QUESTION_MUTATION,
   APPROVE_APPROVAL_MUTATION,
   REJECT_APPROVAL_MUTATION,
   DELETE_APPROVAL_MUTATION,
@@ -151,6 +153,8 @@ import {
   COMPANY_API_LIST_SECRET_VALUE_QUERY,
   COMPANY_API_LIST_SECRET_ACCESS_LOGS_QUERY,
   COMPANY_API_LIST_APPROVALS_QUERY,
+  COMPANY_API_LIST_AGENT_QUESTIONS_QUERY,
+  COMPANY_API_ANSWER_AGENT_QUESTION_MUTATION,
   COMPANY_API_APPROVE_APPROVAL_MUTATION,
   COMPANY_API_REJECT_APPROVAL_MUTATION,
   COMPANY_API_DELETE_APPROVAL_MUTATION,
@@ -336,6 +340,7 @@ import { RolesPage } from "./pages/RolesPage.tsx";
 import { GitSkillPackagesPage } from "./pages/GitSkillPackagesPage.tsx";
 import { SecretsPage } from "./pages/SecretsPage.tsx";
 import { ApprovalsPage } from "./pages/ApprovalsPage.tsx";
+import { QuestionsPage } from "./pages/QuestionsPage.tsx";
 import { McpServersPage } from "./pages/McpServersPage.tsx";
 import { AgentChatsPage } from "./pages/AgentChatsPage.tsx";
 import { AgentChatPage } from "./pages/AgentChatPage.tsx";
@@ -1097,6 +1102,34 @@ function toApprovalPayload(approval: any) {
     secretName: resolveLegacyId(approval?.secretName) || null,
     requestingAgentId: resolveLegacyId(approval?.requestingAgentId) || null,
     requestingAgentName: resolveLegacyId(approval?.requestingAgentName) || null,
+  };
+}
+
+function toQuestionPayload(question: any) {
+  return {
+    id: resolveLegacyId(question?.id),
+    companyId: resolveLegacyId(question?.company?.id, question?.companyId),
+    agentId: resolveLegacyId(question?.agent?.id, question?.agentId),
+    threadId: resolveLegacyId(question?.thread?.id, question?.threadId),
+    questionText: String(question?.questionText || "").trim(),
+    status: resolveLegacyId(question?.status) || "open",
+    answerText: String(question?.answerText || "").trim() || null,
+    createdAt: resolveLegacyId(question?.createdAt),
+    updatedAt: resolveLegacyId(question?.updatedAt),
+    agentName: resolveLegacyId(question?.agentName) || null,
+    threadTitle: resolveLegacyId(question?.threadTitle) || null,
+    options: Array.isArray(question?.options)
+      ? question.options.map((option: any) => ({
+        id: resolveLegacyId(option?.id),
+        companyId: resolveLegacyId(option?.company?.id, option?.companyId),
+        agentQuestionId: resolveLegacyId(option?.agentQuestionId),
+        text: String(option?.text || "").trim(),
+        isRecommended: option?.isRecommended == null ? null : Boolean(option.isRecommended),
+        rank: resolveLegacyId(option?.rank) || null,
+        createdAt: resolveLegacyId(option?.createdAt),
+        updatedAt: resolveLegacyId(option?.updatedAt),
+      }))
+      : [],
   };
 }
 
@@ -2623,6 +2656,24 @@ async function executeGraphQL(query: any, variables: any = {}) {
     };
   }
 
+  if (query === LIST_AGENT_QUESTIONS_QUERY) {
+    const requestedStatus = resolveLegacyId(variables?.status).toLowerCase();
+    const normalizedStatus =
+      requestedStatus === "open" || requestedStatus === "completed" || requestedStatus === "cancelled"
+        ? requestedStatus
+        : null;
+    const data = await executeRawGraphQL(COMPANY_API_LIST_AGENT_QUESTIONS_QUERY, {
+      companyId: resolveLegacyId(variables?.companyId),
+      status: normalizedStatus,
+      first: typeof variables?.first === "number" ? variables.first : null,
+    });
+    return {
+      agentQuestions: Array.isArray(data?.agentQuestions)
+        ? data.agentQuestions.map((question: any) => toQuestionPayload(question))
+        : [],
+    };
+  }
+
   if (query === DELETE_GITHUB_INSTALLATION_MUTATION) {
     const data = await executeRawGraphQL(COMPANY_API_DELETE_GITHUB_INSTALLATION_MUTATION, {
       companyId: resolveLegacyId(variables?.companyId),
@@ -3073,6 +3124,22 @@ async function executeGraphQL(query: any, variables: any = {}) {
     };
   }
 
+  if (query === ANSWER_AGENT_QUESTION_MUTATION) {
+    const data = await executeRawGraphQL(COMPANY_API_ANSWER_AGENT_QUESTION_MUTATION, {
+      companyId: resolveLegacyId(variables?.companyId),
+      id: resolveLegacyId(variables?.id),
+      answerText: String(variables?.answerText || ""),
+    });
+    const payload = data?.answerAgentQuestion;
+    return {
+      answerAgentQuestion: {
+        ok: Boolean(payload?.ok),
+        error: payload?.error ? String(payload.error) : null,
+        question: payload?.question ? toQuestionPayload(payload.question) : null,
+      },
+    };
+  }
+
   if (query === REJECT_APPROVAL_MUTATION) {
     const nextVariables: any = {
       companyId: resolveLegacyId(variables?.companyId),
@@ -3188,6 +3255,7 @@ function App() {
   const [gitSkillPackages, setGitSkillPackages] = useState<any>([]);
   const [secrets, setSecrets] = useState<any>([]);
   const [approvals, setApprovals] = useState<any>([]);
+  const [questions, setQuestions] = useState<any>([]);
   const [mcpServers, setMcpServers] = useState<any>([]);
   const [adminTables, setAdminTables] = useState<any>([]);
   const [adminTableData, setAdminTableData] = useState<any>(null);
@@ -3213,6 +3281,7 @@ function App() {
   const [isLoadingGitSkillPackages, setIsLoadingGitSkillPackages] = useState<any>(false);
   const [isLoadingSecrets, setIsLoadingSecrets] = useState<any>(false);
   const [isLoadingApprovals, setIsLoadingApprovals] = useState<any>(false);
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState<any>(false);
   const [isLoadingMcpServers, setIsLoadingMcpServers] = useState<any>(false);
   const [isLoadingAdminTables, setIsLoadingAdminTables] = useState<any>(false);
   const [isLoadingAdminTable, setIsLoadingAdminTable] = useState<any>(false);
@@ -3223,6 +3292,7 @@ function App() {
   const [skillError, setSkillError] = useState<any>("");
   const [secretError, setSecretError] = useState<any>("");
   const [approvalError, setApprovalError] = useState<any>("");
+  const [questionError, setQuestionError] = useState<any>("");
   const [mcpServerError, setMcpServerError] = useState<any>("");
   const [adminError, setAdminError] = useState<any>("");
   const [runnerError, setRunnerError] = useState<any>("");
@@ -3247,6 +3317,7 @@ function App() {
   const [deletingSkillId, setDeletingSkillId] = useState<any>(null);
   const [deletingSecretId, setDeletingSecretId] = useState<any>(null);
   const [deletingApprovalId, setDeletingApprovalId] = useState<any>(null);
+  const [answeringQuestionId, setAnsweringQuestionId] = useState<any>(null);
   const [deletingMcpServerId, setDeletingMcpServerId] = useState<any>(null);
   const [deletingRunnerId, setDeletingRunnerId] = useState<any>(null);
   const [regeneratingRunnerId, setRegeneratingRunnerId] = useState<any>(null);
@@ -3283,6 +3354,7 @@ function App() {
   const [secretValue, setSecretValue] = useState<any>("");
   const [secretDrafts, setSecretDrafts] = useState<any>({});
   const [rejectionReasonDraftByApprovalId, setRejectionReasonDraftByApprovalId] = useState<any>({});
+  const [answerDraftByQuestionId, setAnswerDraftByQuestionId] = useState<any>({});
   const [secretAccessLogsBySecretId, setSecretAccessLogsBySecretId] = useState<any>({});
   const [isLoadingSecretAccessLogsBySecretId, setIsLoadingSecretAccessLogsBySecretId] = useState<any>({});
   const [secretAccessLogErrorBySecretId, setSecretAccessLogErrorBySecretId] = useState<any>({});
@@ -4576,6 +4648,42 @@ function App() {
     }
   }, [selectedCompanyId]);
 
+  const loadQuestions = useCallback(async () => {
+    if (!selectedCompanyId) {
+      setQuestionError("");
+      setQuestions([]);
+      setAnswerDraftByQuestionId({});
+      setIsLoadingQuestions(false);
+      return;
+    }
+
+    try {
+      setQuestionError("");
+      setIsLoadingQuestions(true);
+      const data = await executeGraphQL(LIST_AGENT_QUESTIONS_QUERY, {
+        companyId: selectedCompanyId,
+        status: "open",
+        first: 200,
+      });
+      const nextQuestions = Array.isArray(data?.agentQuestions) ? data.agentQuestions : [];
+      setQuestions(nextQuestions);
+      const validQuestionIds = new Set(
+        nextQuestions
+          .map((question: any) => String(question?.id || "").trim())
+          .filter(Boolean),
+      );
+      setAnswerDraftByQuestionId((currentByQuestionId: any) =>
+        Object.fromEntries(
+          Object.entries(currentByQuestionId || {}).filter(([questionId]) => validQuestionIds.has(questionId)),
+        ),
+      );
+    } catch (loadError: any) {
+      setQuestionError(loadError.message);
+    } finally {
+      setIsLoadingQuestions(false);
+    }
+  }, [selectedCompanyId]);
+
   const loadMcpServers = useCallback(async () => {
     if (!selectedCompanyId) {
       setMcpServerError("");
@@ -5782,6 +5890,14 @@ function App() {
     }
     loadApprovals();
   }, [loadApprovals, selectedCompanyId, shouldLoadApprovalData]);
+
+  useEffect(() => {
+    if (!selectedCompanyId) {
+      void loadQuestions();
+      return;
+    }
+    void loadQuestions();
+  }, [loadQuestions, selectedCompanyId]);
 
   useEffect(() => {
     if (!selectedCompanyId || !shouldLoadAdminData) {
@@ -8049,6 +8165,53 @@ function App() {
     }));
   }
 
+  function handleQuestionAnswerDraftChange(questionId: any, value: any) {
+    const normalizedQuestionId = String(questionId || "").trim();
+    if (!normalizedQuestionId) {
+      return;
+    }
+    setAnswerDraftByQuestionId((currentByQuestionId: any) => ({
+      ...(currentByQuestionId || {}),
+      [normalizedQuestionId]: String(value || ""),
+    }));
+  }
+
+  async function handleAnswerQuestion(questionId: any) {
+    const normalizedQuestionId = String(questionId || "").trim();
+    if (!selectedCompanyId || !normalizedQuestionId) {
+      return;
+    }
+
+    const answerText = String(answerDraftByQuestionId?.[normalizedQuestionId] || "").trim();
+    if (!answerText) {
+      setQuestionError("Answer text is required.");
+      return;
+    }
+
+    try {
+      setAnsweringQuestionId(normalizedQuestionId);
+      setQuestionError("");
+      const data = await executeGraphQL(ANSWER_AGENT_QUESTION_MUTATION, {
+        companyId: selectedCompanyId,
+        id: normalizedQuestionId,
+        answerText,
+      });
+      const payload = data?.answerAgentQuestion;
+      if (!payload?.ok) {
+        throw new Error(payload?.error || "Failed to answer question.");
+      }
+      setAnswerDraftByQuestionId((currentByQuestionId: any) => ({
+        ...(currentByQuestionId || {}),
+        [normalizedQuestionId]: "",
+      }));
+      await loadQuestions();
+    } catch (error: any) {
+      setQuestionError(error?.message || "Failed to answer question.");
+    } finally {
+      setAnsweringQuestionId(null);
+    }
+  }
+
   async function handleApproveApproval(approvalId: any) {
     const normalizedApprovalId = String(approvalId || "").trim();
     if (!selectedCompanyId || !normalizedApprovalId) {
@@ -10238,6 +10401,18 @@ function App() {
     return `${approvals.length} approvals`;
   }, [approvals.length]);
 
+  const questionCountLabel = useMemo(() => {
+    if (questions.length === 0) {
+      return "No open questions";
+    }
+    if (questions.length === 1) {
+      return "1 open question";
+    }
+    return `${questions.length} open questions`;
+  }, [questions.length]);
+
+  const openQuestionCount = questions.length;
+
   const runnerCountLabel = useMemo(() => {
     if (agentRunners.length === 0) {
       return "No runners";
@@ -10362,6 +10537,7 @@ function App() {
                 <nav className="side-nav" aria-label={`${section.label} navigation`}>
                   {section.items.map((item: any) => {
                     const isDisabled = item.requiresCompany && !selectedCompanyId;
+                    const showQuestionsBadge = item.id === "questions" && openQuestionCount > 0;
                     return (
                       <a
                         key={item.id}
@@ -10381,7 +10557,8 @@ function App() {
                           activePrimaryNavItemId === item.id ? "nav-link-active" : ""
                         } ${isDisabled ? "nav-link-disabled" : ""}`}
                       >
-                        {item.label}
+                        <span className="nav-link-label">{item.label}</span>
+                        {showQuestionsBadge ? <span className="nav-link-badge">{openQuestionCount}</span> : null}
                       </a>
                     );
                   })}
@@ -10658,6 +10835,19 @@ function App() {
             onApproveApproval={handleApproveApproval}
             onRejectApproval={handleRejectApproval}
             onDeleteApproval={handleDeleteApproval}
+          />
+        ) : null}
+
+        {selectedCompanyId && activePage === "questions" ? (
+          <QuestionsPage
+            questions={questions}
+            isLoadingQuestions={isLoadingQuestions}
+            questionError={questionError}
+            answeringQuestionId={answeringQuestionId}
+            answerDraftByQuestionId={answerDraftByQuestionId}
+            questionCountLabel={questionCountLabel}
+            onAnswerDraftChange={handleQuestionAnswerDraftChange}
+            onAnswerQuestion={handleAnswerQuestion}
           />
         ) : null}
 
