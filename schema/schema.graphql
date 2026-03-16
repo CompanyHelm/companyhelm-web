@@ -108,6 +108,44 @@ type AgentHeartbeat {
   updatedAt: String!
 }
 
+type AgentQuestion {
+  agentId: ID!
+  agentName: String
+  answerText: String
+  companyId: ID!
+  createdAt: String!
+  id: ID!
+  options: [AgentQuestionOption!]!
+  questionText: String!
+  status: AgentQuestionStatus!
+  threadId: ID!
+  threadTitle: String
+  updatedAt: String!
+}
+
+type AgentQuestionMutationPayload {
+  error: String
+  ok: Boolean!
+  question: AgentQuestion
+}
+
+type AgentQuestionOption {
+  agentQuestionId: ID!
+  companyId: ID!
+  createdAt: String!
+  id: ID!
+  isRecommended: Boolean
+  rank: AnswerRank
+  text: String!
+  updatedAt: String!
+}
+
+enum AgentQuestionStatus {
+  cancelled
+  completed
+  open
+}
+
 type AgentRunner {
   agentSdks: [AgentRunnerSdk!]!
   company: Company!
@@ -165,6 +203,14 @@ enum AgentStatus {
   deleting
   pending
   ready
+}
+
+enum AnswerRank {
+  atrocious
+  average
+  bad
+  excellent
+  good
 }
 
 type Approval {
@@ -440,6 +486,7 @@ type Mutation {
   addSkillToRole(roleId: ID!, skillId: ID!): RoleMutationPayload!
   addSkillToSkillGroup(skillGroupId: ID!, skillId: ID!): SkillGroupMutationPayload!
   addTaskDependency(dependencyTaskId: ID!, taskId: ID!): TaskMutationPayload!
+  answerAgentQuestion(answerText: String!, id: ID!): AgentQuestionMutationPayload!
   approveApproval(id: ID!): ApprovalMutationPayload!
   archiveThread(threadId: ID!): Thread!
   batchDeleteTasks(ids: [ID!]!): BatchDeleteTasksPayload!
@@ -525,6 +572,7 @@ type Query {
   adminTable(first: Int = 50, search: String, status: String, tableName: String!): AdminTable!
   adminTables: [AdminTableSummary!]!
   agent(id: ID!): Agent
+  agentQuestions(first: Int = 50, status: AgentQuestionStatus): [AgentQuestion!]!
   agentRunner(id: ID!): AgentRunner
   agentRunners(after: String, first: Int = 20): AgentRunnerConnection!
   agents(after: String, first: Int = 20): AgentConnection!
@@ -755,6 +803,7 @@ type Task {
   latestRun: TaskRun
   name: String!
   parentTaskId: ID
+  runningThreadId: ID
   runs: [TaskRun!]!
   status: TaskStatus!
   updatedAt: String!

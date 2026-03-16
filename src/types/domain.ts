@@ -213,6 +213,7 @@ export interface TaskItem extends NamedEntity {
   assigneeActorId?: string | null;
   assigneeActor?: Actor | null;
   assigneeAgentId?: string | null;
+  runningThreadId?: string | null;
   threadId?: string | null;
   parentTaskId?: string | null;
   status?: string;

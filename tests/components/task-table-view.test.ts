@@ -34,7 +34,7 @@ function createMockStorage(storageMap: Map<string, string>): Storage {
   };
 }
 
-function renderTaskTableViewMarkup(storedVisibleColumns?: string) {
+function renderTaskTableViewMarkup(storedVisibleColumns?: string, taskOverrides: Record<string, unknown> = {}) {
   const originalWindow = testGlobal.window;
   const storageMap = new Map<string, string>();
 
@@ -55,10 +55,12 @@ function renderTaskTableViewMarkup(storedVisibleColumns?: string) {
             name: "Ship table changes",
             status: "pending",
             lastRunStatus: "failed",
+            runningThreadId: null,
             description: "Make the table configurable",
             dependencyTaskIds: [],
             comments: [{ id: "comment-1" }],
             createdAt: "2026-03-08T10:00:00.000Z",
+            ...taskOverrides,
           },
         ],
         agents: [],
@@ -66,6 +68,7 @@ function renderTaskTableViewMarkup(storedVisibleColumns?: string) {
         onDeleteTask: () => {},
         onBatchDeleteTasks: async () => true,
         onBatchExecuteTasks: async () => true,
+        onOpenTaskThread: () => {},
       }),
     );
   } finally {
@@ -81,6 +84,16 @@ test("TaskTableView renders a Columns trigger in the toolbar", () => {
   const markup = renderTaskTableViewMarkup();
 
   assert.match(markup, />Columns</);
+});
+
+test("TaskTableView renders the thread column with an open-thread action for running tasks", () => {
+  const markup = renderTaskTableViewMarkup(
+    JSON.stringify(["thread"]),
+    { runningThreadId: "thread-1" },
+  );
+
+  assert.match(markup, />Thread</);
+  assert.match(markup, />Open thread</);
 });
 
 test("TaskTableView hides optional columns that are not visible", () => {
@@ -134,6 +147,7 @@ test("TaskTableView renders a running indicator beside tasks with an active runn
         onDeleteTask: () => {},
         onBatchDeleteTasks: async () => true,
         onBatchExecuteTasks: async () => true,
+        onOpenTaskThread: () => {},
       }),
     );
 
@@ -174,6 +188,7 @@ test("TaskTableView uses a neutral fallback when task names are missing", () => 
         onDeleteTask: () => {},
         onBatchDeleteTasks: async () => true,
         onBatchExecuteTasks: async () => true,
+        onOpenTaskThread: () => {},
       }),
     );
 

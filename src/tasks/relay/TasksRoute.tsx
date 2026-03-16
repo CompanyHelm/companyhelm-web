@@ -73,6 +73,7 @@ const tasksRouteTaskFragment = graphql`
       createdAt
       updatedAt
     }
+    runningThreadId
     runs {
       id
       taskId

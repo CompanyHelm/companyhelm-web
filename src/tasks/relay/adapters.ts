@@ -96,6 +96,7 @@ function toTaskItem(value: unknown): TaskItem | null {
     : [];
   const latestRun = toTaskRun(record.latestRun);
   const activeRun = toTaskRun(record.activeRun);
+  const runningThreadId = String(record.runningThreadId || "").trim() || null;
   const effectiveThreadId = String(activeRun?.threadId || latestRun?.threadId || record.threadId || "").trim() || null;
   return {
     id,
@@ -106,6 +107,7 @@ function toTaskItem(value: unknown): TaskItem | null {
     assigneeActorId: String(record.assigneeActorId || "").trim() || null,
     assigneeActor,
     assigneeAgentId: assigneeActor?.agentId || null,
+    runningThreadId,
     threadId: effectiveThreadId,
     parentTaskId: String(record.parentTaskId || "").trim() || null,
     status: String(record.status || "").trim() || "draft",

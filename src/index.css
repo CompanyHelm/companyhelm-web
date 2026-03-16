@@ -4319,6 +4319,26 @@ button:disabled {
   font-size: 0.76rem;
 }
 
+.task-table-thread {
+  white-space: nowrap;
+}
+
+.task-table-thread-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--brand-700);
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.task-table-thread-link:hover {
+  color: var(--brand-800);
+  text-decoration: underline;
+}
+
 .task-table-action {
   width: 2rem;
   text-align: center;
