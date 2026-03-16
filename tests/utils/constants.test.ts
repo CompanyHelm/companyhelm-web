@@ -37,8 +37,8 @@ test("visible navigation uses the reorganized product-domain sections", () => {
   assert.deepEqual(visibleSections, [
     {
       label: "Workspace",
-      itemIds: ["dashboard", "tasks", "org", "chats"],
-      itemHrefs: ["/dashboard", "/tasks", "/actors", "/chats"],
+      itemIds: ["dashboard", "tasks", "org", "chats", "questions"],
+      itemHrefs: ["/dashboard", "/tasks", "/actors", "/chats", "/questions"],
     },
     {
       label: "AI Studio",
@@ -54,6 +54,7 @@ test("visible navigation uses the reorganized product-domain sections", () => {
   assert.equal(visibleNavItemIds.includes("approvals"), false);
   assert.equal(PAGE_IDS.has("org"), true);
   assert.equal(PAGE_IDS.has("secrets"), true);
+  assert.equal(PAGE_IDS.has("questions"), true);
   assert.equal(PAGE_IDS.has("approvals"), true);
 });
 

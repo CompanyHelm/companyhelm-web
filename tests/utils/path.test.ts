@@ -77,6 +77,10 @@ test("getPageFromPathname resolves the Org page from /actors", () => {
   assert.equal(getPageFromPathname("/actors"), "org");
 });
 
+test("getPageFromPathname resolves the Questions page from /questions", () => {
+  assert.equal(getPageFromPathname("/questions"), "questions");
+});
+
 test("getActorsRouteFromPathname returns list view for /actors", () => {
   assert.deepEqual(getActorsRouteFromPathname("/actors"), { view: "list", actorId: "" });
 });
