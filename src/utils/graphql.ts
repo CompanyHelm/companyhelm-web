@@ -209,6 +209,7 @@ ${TASK_RUN_FIELDS}
   activeRun {
 ${TASK_RUN_FIELDS}
   }
+  has_running_runs
   attemptCount
   lastRunStatus
 `;

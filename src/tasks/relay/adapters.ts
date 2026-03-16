@@ -114,6 +114,7 @@ function toTaskItem(value: unknown): TaskItem | null {
     runs,
     latestRun,
     activeRun,
+    hasRunningRuns: Boolean(record.has_running_runs),
     attemptCount: Number.isInteger(record.attemptCount) ? Number(record.attemptCount) : runs.length,
     lastRunStatus: String(record.lastRunStatus || "").trim() || latestRun?.status || null,
     dependencyTaskIds: Array.isArray(record.dependencyTaskIds)

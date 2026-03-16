@@ -108,6 +108,46 @@ test("TaskTableView renders the run column with the latest run status", () => {
   assert.match(markup, />failed</);
 });
 
+test("TaskTableView renders a running indicator beside tasks with an active running run", () => {
+  const originalWindow = testGlobal.window;
+
+  try {
+    testGlobal.window = {
+      localStorage: createMockStorage(new Map()),
+    } as Window & typeof globalThis;
+
+    const markup = renderToStaticMarkup(
+      React.createElement(TaskTableView, {
+        tasks: [
+          {
+            id: "task-1",
+            name: "Ship table changes",
+            status: "in_progress",
+            hasRunningRuns: true,
+            dependencyTaskIds: [],
+            comments: [],
+            createdAt: "2026-03-08T10:00:00.000Z",
+          },
+        ],
+        agents: [],
+        onTaskClick: () => {},
+        onDeleteTask: () => {},
+        onBatchDeleteTasks: async () => true,
+        onBatchExecuteTasks: async () => true,
+      }),
+    );
+
+    assert.match(markup, /task-table-running-indicator/);
+    assert.match(markup, /Task run in progress/);
+  } finally {
+    if (typeof originalWindow === "undefined") {
+      Reflect.deleteProperty(testGlobal, "window");
+    } else {
+      testGlobal.window = originalWindow;
+    }
+  }
+});
+
 test("TaskTableView uses a neutral fallback when task names are missing", () => {
   const originalWindow = testGlobal.window;
 

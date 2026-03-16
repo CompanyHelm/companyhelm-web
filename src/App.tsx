@@ -1239,6 +1239,7 @@ function toTaskPayload(task: any) {
     runs,
     latestRun,
     activeRun,
+    hasRunningRuns: Boolean(task?.has_running_runs),
     attemptCount: Number.isInteger(task?.attemptCount) ? Number(task.attemptCount) : runs.length,
     lastRunStatus: resolveLegacyId(task?.lastRunStatus, latestRun?.status) || null,
     comments: Array.isArray(task?.comments)

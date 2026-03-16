@@ -23,6 +23,10 @@ interface TaskTableTask {
   parentTaskId?: string | number | null;
   status?: string;
   lastRunStatus?: string | null;
+  hasRunningRuns?: boolean;
+  activeRun?: {
+    status?: string | null;
+  } | null;
   description?: string;
   assigneeActorId?: string | null;
   assigneeAgentId?: string | null;
@@ -524,6 +528,7 @@ export function TaskTableView({
               const taskDepth = row.depth;
               const isExpanded = expandedTaskIds.has(taskId);
               const isSelected = selectedTaskIds.has(taskId);
+              const hasRunningTaskRun = Boolean(task.hasRunningRuns);
 
               return (
                 <tr
@@ -552,6 +557,13 @@ export function TaskTableView({
                       className="task-table-name-cell"
                       style={{ "--task-depth": taskDepth } as CSSProperties}
                     >
+                      {hasRunningTaskRun ? (
+                        <span
+                          className="task-table-running-indicator"
+                          aria-label="Task run in progress"
+                          title="Task run in progress"
+                        />
+                      ) : null}
                       {taskDepth > 0 ? <span className="task-table-tree-branch" aria-hidden="true" /> : null}
                       {row.hasChildren ? (
                         <button
