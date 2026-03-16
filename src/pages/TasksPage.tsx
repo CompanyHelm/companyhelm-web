@@ -702,42 +702,53 @@ export function TasksPage({
                     {/* ── Overview cards ── */}
                     <div className="task-overview-grid task-overview-grid-2col">
                     {/* Properties card */}
-                    <section className="task-overview-card">
+                    <section className="task-overview-card task-overview-card-properties">
                       <div className="task-overview-card-header">
                         <h3>Properties</h3>
+                        <p className="task-overview-card-subtitle">Assignment and execution state for this task.</p>
                       </div>
 
-                      <label htmlFor="overview-task-assignee">Assignee</label>
-                      <select
-                        id="overview-task-assignee"
-                        value={String(activeTaskDraft?.assigneeActorId || "")}
-                        onChange={(event) =>
-                          onDraftChange(activeTask.id, "assigneeActorId", event.target.value)}
-                      >
-                        <option value="">Unassigned</option>
-                        {actors.map((actor) => (
-                          <option key={`overview-assignee-${actor.id}`} value={actor.id}>
-                            {actor.displayName} ({actor.kind === "agent" ? "Agent" : "Human"})
-                          </option>
-                        ))}
-                      </select>
+                      <div className="task-overview-property-field">
+                        <label className="task-overview-property-label" htmlFor="overview-task-assignee">Assignee</label>
+                        <div className="task-overview-property-control">
+                          <select
+                            id="overview-task-assignee"
+                            className="task-overview-property-select"
+                            value={String(activeTaskDraft?.assigneeActorId || "")}
+                            onChange={(event) =>
+                              onDraftChange(activeTask.id, "assigneeActorId", event.target.value)}
+                          >
+                            <option value="">Unassigned</option>
+                            {actors.map((actor) => (
+                              <option key={`overview-assignee-${actor.id}`} value={actor.id}>
+                                {actor.displayName} ({actor.kind === "agent" ? "Agent" : "Human"})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
 
-                      <label htmlFor="overview-task-status">Status</label>
-                      <select
-                        id="overview-task-status"
-                        value={String(activeTaskDraft?.status || "draft")}
-                        onChange={(event) => onDraftChange(activeTask.id, "status", event.target.value)}
-                      >
-                        <option value="draft">draft</option>
-                        <option value="pending">pending</option>
-                        <option value="in_progress">in_progress</option>
-                        <option value="completed">completed</option>
-                      </select>
+                      <div className="task-overview-property-field">
+                        <label className="task-overview-property-label" htmlFor="overview-task-status">Status</label>
+                        <div className="task-overview-property-control">
+                          <select
+                            id="overview-task-status"
+                            className="task-overview-property-select"
+                            value={String(activeTaskDraft?.status || "draft")}
+                            onChange={(event) => onDraftChange(activeTask.id, "status", event.target.value)}
+                          >
+                            <option value="draft">draft</option>
+                            <option value="pending">pending</option>
+                            <option value="in_progress">in_progress</option>
+                            <option value="completed">completed</option>
+                          </select>
+                        </div>
+                      </div>
 
-                      <div className="task-form-actions">
+                      <div className="task-form-actions task-overview-property-actions">
                         <button
                           type="button"
-                          className="secondary-btn"
+                          className="task-overview-save-btn"
                           onClick={() => void handleSaveOverviewTask()}
                           disabled={isOverviewSavePending}
                         >

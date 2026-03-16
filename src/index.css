@@ -4825,6 +4825,90 @@ button:disabled {
   font-size: 0.94rem;
 }
 
+.task-overview-card-subtitle {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+.task-overview-card-properties {
+  gap: 0.8rem;
+}
+
+.task-overview-property-field {
+  display: grid;
+  gap: 0.38rem;
+}
+
+.task-overview-property-label {
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.task-overview-property-control {
+  position: relative;
+}
+
+.task-overview-property-control::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 0.9rem;
+  width: 0.48rem;
+  height: 0.48rem;
+  border-right: 2px solid rgba(26, 32, 38, 0.46);
+  border-bottom: 2px solid rgba(26, 32, 38, 0.46);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+
+.task-overview-property-select {
+  appearance: none;
+  padding: 0.82rem 2.45rem 0.82rem 0.92rem;
+  border-radius: 14px;
+  border: 1px solid rgba(15, 118, 110, 0.14);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(244, 247, 246, 0.96) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.78),
+    0 8px 20px rgba(148, 163, 184, 0.08);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.task-overview-property-select:hover {
+  border-color: rgba(15, 118, 110, 0.28);
+}
+
+.task-overview-property-select:focus {
+  transform: translateY(-1px);
+  border-color: rgba(15, 118, 110, 0.5);
+  box-shadow:
+    0 0 0 4px rgba(15, 118, 110, 0.12),
+    0 12px 28px rgba(148, 163, 184, 0.12);
+}
+
+.task-overview-property-actions {
+  margin-top: 0.05rem;
+}
+
+.task-overview-save-btn {
+  min-height: 2.6rem;
+  padding: 0.7rem 1rem;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(15, 118, 110, 0.96) 0%, rgba(13, 148, 136, 0.96) 100%);
+  color: #f8fffe;
+  box-shadow: 0 12px 24px rgba(15, 118, 110, 0.16);
+}
+
+.task-overview-save-btn:hover:not(:disabled) {
+  filter: brightness(1.02);
+  box-shadow: 0 16px 30px rgba(15, 118, 110, 0.22);
+}
+
 .task-overview-field {
   display: grid;
   gap: 0.18rem;
