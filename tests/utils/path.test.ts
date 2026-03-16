@@ -8,6 +8,7 @@ import {
   getAgentsRouteFromPathname,
   getActorsRouteFromPathname,
   getPageFromPathname,
+  getTaskPath,
   getTasksRouteFromPathname,
   resolveAdminTableNameForRoute,
 } from "../../src/utils/path.ts";
@@ -45,18 +46,31 @@ function createMockWindow(initialHref: string): Window & typeof globalThis {
 }
 
 test("getTasksRouteFromPathname returns list view for /tasks", () => {
-  assert.deepEqual(getTasksRouteFromPathname("/tasks"), { view: "list", taskId: "" });
+  assert.deepEqual(getTasksRouteFromPathname("/tasks"), { view: "list", taskId: "", tab: "overview" });
 });
 
 test("getTasksRouteFromPathname returns detail view for /tasks/:taskId", () => {
   assert.deepEqual(getTasksRouteFromPathname("/tasks/task-123"), {
     view: "detail",
     taskId: "task-123",
+    tab: "overview",
   });
 });
 
 test("getTasksRouteFromPathname ignores non-task paths", () => {
-  assert.deepEqual(getTasksRouteFromPathname("/skills/skill-1"), { view: "list", taskId: "" });
+  assert.deepEqual(getTasksRouteFromPathname("/skills/skill-1"), { view: "list", taskId: "", tab: "overview" });
+});
+
+test("getTasksRouteFromPathname reads the tab query from the detail URL", () => {
+  assert.deepEqual(getTasksRouteFromPathname("/tasks/task-123", "?tab=graph"), {
+    view: "detail",
+    taskId: "task-123",
+    tab: "graph",
+  });
+});
+
+test("getTaskPath always includes the normalized tab query", () => {
+  assert.equal(getTaskPath({ taskId: "task-123", tab: "Table" }), "/tasks/task-123?tab=table");
 });
 
 test("getPageFromPathname resolves the Org page from /actors", () => {

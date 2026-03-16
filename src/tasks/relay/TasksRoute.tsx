@@ -306,6 +306,8 @@ interface ConfirmationRequest {
 
 interface TasksRouteProps {
   activeTaskId: string;
+  activeTab: "overview" | "runs" | "graph" | "table";
+  onTabChange: (tab: "overview" | "runs" | "graph" | "table") => void;
   onOpenTask: (taskId: string) => void;
   onBackToTasks: () => void;
   onOpenTaskThread: (threadId: string) => Promise<void> | void;
@@ -369,6 +371,8 @@ function getQueryVariables(params: { activeTaskId: string }) {
 
 export function TasksRoute({
   activeTaskId,
+  activeTab,
+  onTabChange,
   onOpenTask,
   onBackToTasks,
   onOpenTaskThread,
@@ -1123,8 +1127,9 @@ export function TasksRoute({
       onBatchExecuteTasks={handleBatchExecuteTasks}
       onOpenTaskThread={onOpenTaskThread}
       activeTaskId={activeTaskId}
+      activeTab={activeTab}
+      onTabChange={onTabChange}
       onOpenTask={onOpenTask}
-      onBackToTasks={onBackToTasks}
     />
   );
 }

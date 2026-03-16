@@ -10,6 +10,11 @@ interface AgentsRouteLocationInput {
   search?: string;
 }
 
+interface TasksRouteLocationInput {
+  pathname?: string;
+  search?: string;
+}
+
 interface ChatsPathInput {
   agentId?: string;
   threadId?: string;
@@ -17,6 +22,11 @@ interface ChatsPathInput {
 
 interface AgentPathInput {
   agentId?: string;
+  tab?: string;
+}
+
+interface TaskPathInput {
+  taskId?: string;
   tab?: string;
 }
 
@@ -40,6 +50,12 @@ type DetailRoute = {
   view: "list" | "detail";
 };
 
+type TaskRoute = {
+  view: "list" | "detail";
+  taskId: string;
+  tab: "overview" | "runs" | "graph" | "table";
+};
+
 type AdminRoute = {
   view: "home" | "table";
   tableName: string;
@@ -54,6 +70,20 @@ export function normalizeAgentDetailTab(value: string = ""): "overview" | "chats
   }
   if (normalizedValue === "heartbeats") {
     return "heartbeats";
+  }
+  return "overview";
+}
+
+export function normalizeTaskDetailTab(value: string = ""): "overview" | "runs" | "graph" | "table" {
+  const normalizedValue = String(value || "").trim().toLowerCase();
+  if (normalizedValue === "runs") {
+    return "runs";
+  }
+  if (normalizedValue === "graph") {
+    return "graph";
+  }
+  if (normalizedValue === "table") {
+    return "table";
   }
   return "overview";
 }
@@ -220,17 +250,39 @@ export function getActorsRouteFromPathname(pathname: string = window.location.pa
   return { view: "detail", actorId };
 }
 
-export function getTasksRouteFromPathname(pathname: string = window.location.pathname): DetailRoute & { taskId: string } {
+export function getTasksRouteFromPathname(
+  pathnameOrLocation: string | TasksRouteLocationInput = typeof window !== "undefined" ? window.location.pathname : "/",
+  search?: string,
+): TaskRoute {
+  const fallbackPathname = typeof window !== "undefined" ? window.location.pathname : "/";
+  const fallbackSearch = typeof window !== "undefined" ? window.location.search : "";
+  const pathname = typeof pathnameOrLocation === "string"
+    ? pathnameOrLocation
+    : pathnameOrLocation.pathname || fallbackPathname;
+  const resolvedSearch = typeof pathnameOrLocation === "string"
+    ? (typeof search === "string" ? search : fallbackSearch)
+    : pathnameOrLocation.search || fallbackSearch;
   const segments = normalizePathname(pathname).split("/").filter(Boolean);
   if (String(segments[0] || "").toLowerCase() !== "tasks") {
-    return { view: "list", taskId: "" };
+    return { view: "list", taskId: "", tab: "overview" };
   }
 
   const taskId = String(segments[1] || "").trim();
   if (!taskId) {
-    return { view: "list", taskId: "" };
+    return { view: "list", taskId: "", tab: "overview" };
   }
-  return { view: "detail", taskId };
+  const params = new URLSearchParams(String(resolvedSearch || ""));
+  return { view: "detail", taskId, tab: normalizeTaskDetailTab(params.get("tab") || "") };
+}
+
+export function getTaskPath({ taskId = "", tab = "overview" }: TaskPathInput = {}): string {
+  const resolvedTaskId = String(taskId || "").trim();
+  if (!resolvedTaskId) {
+    return "/tasks";
+  }
+  const params = new URLSearchParams();
+  params.set("tab", normalizeTaskDetailTab(tab));
+  return `/tasks/${resolvedTaskId}?${params.toString()}`;
 }
 
 export function getGitSkillPackagesRouteFromPathname(pathname: string = window.location.pathname): DetailRoute & { packageId: string } {

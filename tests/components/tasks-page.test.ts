@@ -78,10 +78,11 @@ function renderTasksPageMarkup(taskOverrides: Partial<TaskItem> = {}, agents: Ag
       onBatchExecuteTasks: () => true,
       onOpenTaskThread: () => {},
       activeTaskId: "task-1",
+      activeTab: "overview",
+      onTabChange: () => {},
       visibleDepth: "3",
       onVisibleDepthChange: () => {},
       onOpenTask: () => {},
-      onBackToTasks: () => {},
     }),
   );
 }

@@ -62,8 +62,9 @@ interface TasksPageProps {
   onBatchExecuteTasks: (taskIds: string[], fallbackAgentId?: string) => Promise<boolean> | boolean;
   onOpenTaskThread: (threadId: string) => Promise<void> | void;
   activeTaskId: string;
+  activeTab: TaskDetailTab;
+  onTabChange: (tab: TaskDetailTab) => void;
   onOpenTask: (taskId: string) => void;
-  onBackToTasks: () => void;
 }
 
 function toCountLabel(count: number, singularLabel: string, pluralLabel?: string) {
@@ -115,13 +116,13 @@ export function TasksPage({
   onBatchExecuteTasks,
   onOpenTaskThread,
   activeTaskId,
+  activeTab = "overview",
+  onTabChange,
   onOpenTask,
-  onBackToTasks,
 }: TasksPageProps) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState("");
-  const [activeTab, setActiveTab] = useState<TaskDetailTab>("overview");
   const [isExecuteFallbackModalOpen, setIsExecuteFallbackModalOpen] = useState(false);
   const [executeFallbackAgentId, setExecuteFallbackAgentId] = useState("");
   const [isExecutingTask, setIsExecutingTask] = useState(false);
@@ -131,6 +132,13 @@ export function TasksPage({
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
   const [descriptionDraft, setDescriptionDraft] = useState("");
+  const resolvedActiveTab = activeTab === "runs"
+    ? "runs"
+    : activeTab === "graph"
+      ? "graph"
+      : activeTab === "table"
+        ? "table"
+        : "overview";
 
   const visibleTaskById = useMemo(() => {
     return tasks.reduce((map, task) => {
@@ -248,7 +256,6 @@ export function TasksPage({
   );
 
   useEffect(() => {
-    setActiveTab("overview");
     setIsExecuteFallbackModalOpen(false);
     setOverviewCommentDraft("");
     setIsEditModalOpen(false);
@@ -418,9 +425,6 @@ export function TasksPage({
     if (activeTaskId && !activeTask) {
       return (
         <>
-          <button type="button" className="secondary-btn" onClick={onBackToTasks}>
-            All tasks
-          </button>
           <button
             type="button"
             className="chat-minimal-header-icon-btn"
@@ -450,9 +454,6 @@ export function TasksPage({
               Parent: {currentParentTask.name || "Untitled task"}
             </button>
           ) : null}
-          <button type="button" className="secondary-btn" onClick={onBackToTasks}>
-            All tasks
-          </button>
           <button
             type="button"
             className="chat-minimal-header-icon-btn"
@@ -491,7 +492,6 @@ export function TasksPage({
     activeTaskId,
     currentParentTask,
     detailTaskCountLabel,
-    onBackToTasks,
     onOpenTask,
     openCreateModal,
     topLevelTaskCountLabel,
@@ -534,9 +534,6 @@ export function TasksPage({
         {!isLoadingTasks && activeTaskId && !activeTask ? (
           <section className="panel task-empty-panel">
             <p className="empty-hint">This task could not be found.</p>
-            <button type="button" className="secondary-btn" onClick={onBackToTasks}>
-              Back to tasks
-            </button>
           </section>
         ) : null}
 
@@ -547,29 +544,29 @@ export function TasksPage({
                 <div className="task-view-tabs">
                   <button
                     type="button"
-                    className={`task-view-tab${activeTab === "overview" ? " task-view-tab-active" : ""}`}
-                    onClick={() => setActiveTab("overview")}
+                    className={`task-view-tab${resolvedActiveTab === "overview" ? " task-view-tab-active" : ""}`}
+                    onClick={() => onTabChange("overview")}
                   >
                     Overview
                   </button>
                   <button
                     type="button"
-                    className={`task-view-tab${activeTab === "runs" ? " task-view-tab-active" : ""}`}
-                    onClick={() => setActiveTab("runs")}
+                    className={`task-view-tab${resolvedActiveTab === "runs" ? " task-view-tab-active" : ""}`}
+                    onClick={() => onTabChange("runs")}
                   >
                     Runs
                   </button>
                   <button
                     type="button"
-                    className={`task-view-tab${activeTab === "graph" ? " task-view-tab-active" : ""}`}
-                    onClick={() => setActiveTab("graph")}
+                    className={`task-view-tab${resolvedActiveTab === "graph" ? " task-view-tab-active" : ""}`}
+                    onClick={() => onTabChange("graph")}
                   >
                     Graph
                   </button>
                   <button
                     type="button"
-                    className={`task-view-tab${activeTab === "table" ? " task-view-tab-active" : ""}`}
-                    onClick={() => setActiveTab("table")}
+                    className={`task-view-tab${resolvedActiveTab === "table" ? " task-view-tab-active" : ""}`}
+                    onClick={() => onTabChange("table")}
                   >
                     Sub tasks
                   </button>
@@ -578,17 +575,10 @@ export function TasksPage({
 
               {/* ── Tab content ── */}
               <div className="task-view-container">
-                {activeTab === "overview" ? (
+                {resolvedActiveTab === "overview" ? (
                   <div className="task-overview-scroll">
                     {/* ── Hero section ── */}
                     <div className="task-detail-hero">
-                      <div className="role-detail-hero-top">
-                        <button type="button" className="role-detail-hero-back" onClick={onBackToTasks}>
-                          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5" /><path d="M12 19l-7-7 7-7" /></svg>
-                          Back to tasks
-                        </button>
-                      </div>
-
                       {isEditingName ? (
                         <div className="role-detail-hero-edit-form">
                           <input
@@ -865,7 +855,7 @@ export function TasksPage({
                   </div>
                 ) : null}
 
-                {activeTab === "runs" ? (
+                {resolvedActiveTab === "runs" ? (
                   activeTaskRuns.length > 0 ? (
                     <div className="task-overview-scroll">
                       <div className="task-overview-grid task-overview-grid-2col">
@@ -939,7 +929,7 @@ export function TasksPage({
                   )
                 ) : null}
 
-                {activeTab === "graph" ? (
+                {resolvedActiveTab === "graph" ? (
                   <TaskGraphView
                     tasks={graphTasks}
                     onTaskClick={onOpenTask}
@@ -947,7 +937,7 @@ export function TasksPage({
                   />
                 ) : null}
 
-                {activeTab === "table" ? (
+                {resolvedActiveTab === "table" ? (
                   visibleDescendantTasks.length > 0 ? (
                     <TaskTableView
                       tasks={visibleDescendantTasks}

@@ -255,6 +255,7 @@ import {
   getPageFromPathname,
   getAgentsRouteFromPathname,
   getAgentPath,
+  getTaskPath,
   getSkillsRouteFromPathname,
   getRolesRouteFromPathname,
   getGitSkillPackagesRouteFromPathname,
@@ -3842,7 +3843,7 @@ function App() {
         { label: "Tasks", href: "/tasks" },
         {
           label: String(matchingTask?.name || "").trim() || "Untitled task",
-          href: `/tasks/${tasksRoute.taskId}`,
+          href: getTaskPath({ taskId: tasksRoute.taskId, tab: tasksRoute.tab }),
         },
       ];
     }
@@ -10504,8 +10505,14 @@ function App() {
           <Suspense fallback={<div className="page-empty-panel"><p>Loading tasks...</p></div>}>
             <RelayTasksRoute
               activeTaskId={tasksRoute.view === "detail" ? tasksRoute.taskId : ""}
-              onOpenTask={(taskId: string) => setBrowserPath(`/tasks/${taskId}`)}
-              onBackToTasks={() => setBrowserPath("/tasks")}
+              activeTab={tasksRoute.tab}
+              onTabChange={(tab: "overview" | "runs" | "graph" | "table") => {
+                if (!tasksRoute.taskId) {
+                  return;
+                }
+                setBrowserPath(getTaskPath({ taskId: tasksRoute.taskId, tab }));
+              }}
+              onOpenTask={(taskId: string) => setBrowserPath(getTaskPath({ taskId, tab: "overview" }))}
               onOpenTaskThread={handleOpenTaskThread}
               onRequestConfirmation={requestConfirmation}
             />
