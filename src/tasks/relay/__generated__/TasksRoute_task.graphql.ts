@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3184e6dcb913cab5f87172561fee0e71>>
+ * @generated SignedSource<<dc3c86c44cc21ded2a8cd1b4d681ee11>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -78,6 +78,7 @@ export type TasksRoute_task$data = ReadonlyArray<{
   } | null | undefined;
   readonly name: string;
   readonly parentTaskId: string | null | undefined;
+  readonly runningThreadId: string | null | undefined;
   readonly runs: ReadonlyArray<{
     readonly agentId: string | null | undefined;
     readonly createdAt: string;
@@ -331,6 +332,13 @@ return {
     {
       "alias": null,
       "args": null,
+      "kind": "ScalarField",
+      "name": "runningThreadId",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
       "concreteType": "TaskRun",
       "kind": "LinkedField",
       "name": "runs",
@@ -390,6 +398,6 @@ return {
 };
 })();
 
-(node as any).hash = "260b6a12c1fe393a3881f52c687302ee";
+(node as any).hash = "f631ebebe0a97ca7345082133d3545d6";
 
 export default node;

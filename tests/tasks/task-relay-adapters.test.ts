@@ -56,6 +56,7 @@ test("toTaskRouteViewModel adapts Relay task route data into legacy TasksPage pr
           updatedAt: "2026-03-12T10:11:00.000Z",
         },
         activeRun: null,
+        runningThreadId: null,
         has_running_threads: false,
         attemptCount: 1,
         lastRunStatus: "failed",
@@ -120,6 +121,7 @@ test("toTaskRouteViewModel adapts Relay task route data into legacy TasksPage pr
   assert.equal(viewModel.tasks[0]?.latestRun?.status, "failed");
   assert.equal(viewModel.tasks[0]?.hasRunningThreads, false);
   assert.equal(viewModel.tasks[0]?.attemptCount, 1);
+  assert.equal(viewModel.tasks[0]?.runningThreadId, null);
   assert.equal(viewModel.tasks[0]?.threadId, "thread-1");
   assert.equal(viewModel.tasks[0]?.assigneeActor?.displayName, "Jane Doe");
   assert.equal(viewModel.taskOptions[1]?.parentTaskId, "task-1");

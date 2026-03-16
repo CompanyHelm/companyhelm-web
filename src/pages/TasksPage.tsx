@@ -656,6 +656,7 @@ export function TasksPage({
                 onDeleteTask={handleDeleteTask}
                 onBatchDeleteTasks={onBatchDeleteTasks}
                 onBatchExecuteTasks={onBatchExecuteTasks}
+                onOpenTaskThread={onOpenTaskThread}
                 collapsibleHierarchy
               />
             ) : (
@@ -1102,6 +1103,7 @@ export function TasksPage({
                       onDeleteTask={handleDeleteTask}
                       onBatchDeleteTasks={onBatchDeleteTasks}
                       onBatchExecuteTasks={onBatchExecuteTasks}
+                      onOpenTaskThread={onOpenTaskThread}
                       taskDepthById={visibleTaskDepthById}
                     />
                   ) : (

@@ -23,6 +23,7 @@ interface TaskTableTask {
   parentTaskId?: string | number | null;
   status?: string;
   lastRunStatus?: string | null;
+  runningThreadId?: string | null;
   hasRunningThreads?: boolean;
   activeRun?: {
     status?: string | null;
@@ -47,6 +48,7 @@ interface TaskTableViewProps {
   onDeleteTask: (taskId: string, taskName?: string) => void;
   onBatchDeleteTasks: (taskIds: string[]) => Promise<boolean> | boolean;
   onBatchExecuteTasks: (taskIds: string[], fallbackAgentId?: string) => Promise<boolean> | boolean;
+  onOpenTaskThread: (threadId: string) => Promise<void> | void;
   taskDepthById?: Map<string, number>;
   collapsibleHierarchy?: boolean;
 }
@@ -54,6 +56,7 @@ interface TaskTableViewProps {
 type TaskTableOptionalColumnId =
   | "status"
   | "run"
+  | "thread"
   | "description"
   | "blocking"
   | "blockedBy"
@@ -63,6 +66,7 @@ type TaskTableOptionalColumnId =
 interface TaskTableColumnRenderContext {
   blocksMap: Map<string, string[]>;
   nameById: Map<string, string>;
+  onOpenTaskThread: (threadId: string) => Promise<void> | void;
 }
 
 interface TaskTableOptionalColumnDefinition {
@@ -97,6 +101,30 @@ const TASK_TABLE_OPTIONAL_COLUMNS: TaskTableOptionalColumnDefinition[] = [
         <span className={`task-status-pill task-status-pill-${runStatus}`}>
           {runStatus}
         </span>
+      );
+    },
+  },
+  {
+    id: "thread",
+    label: "Thread",
+    defaultVisible: true,
+    className: "task-table-thread",
+    renderCell: (task, context) => {
+      const runningThreadId = String(task.runningThreadId || "").trim();
+      if (!runningThreadId) {
+        return "\u2014";
+      }
+      return (
+        <button
+          type="button"
+          className="task-table-thread-link"
+          onClick={(event) => {
+            event.stopPropagation();
+            void context.onOpenTaskThread(runningThreadId);
+          }}
+        >
+          Open thread
+        </button>
       );
     },
   },
@@ -187,6 +215,7 @@ export function TaskTableView({
   onDeleteTask,
   onBatchDeleteTasks,
   onBatchExecuteTasks,
+  onOpenTaskThread,
   taskDepthById,
   collapsibleHierarchy = false,
 }: TaskTableViewProps) {
@@ -586,7 +615,7 @@ export function TaskTableView({
                   </td>
                   {visibleOptionalColumns.map((column) => (
                     <td key={`${taskId}-${column.id}`} className={column.className}>
-                      {column.renderCell(task, { nameById, blocksMap }, taskId)}
+                      {column.renderCell(task, { nameById, blocksMap, onOpenTaskThread }, taskId)}
                     </td>
                   ))}
                   <td className="task-table-action">
