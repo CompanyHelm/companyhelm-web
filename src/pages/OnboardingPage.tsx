@@ -344,7 +344,7 @@ export function OnboardingPage({
                       <code>--server-url</code> and <code>--agent-api-url</code> values that point to
                       your deployment. If the runner is running on the same machine as Company Helm,
                       use <code>--server-url http://localhost:50051</code> and{" "}
-                      <code>--agent-api-url http://localhost:50052</code>.
+                      <code>--agent-api-url http://localhost:4000/agent/v1</code>.
                     </p>
                   ) : null}
                 </div>
@@ -383,7 +383,7 @@ export function OnboardingPage({
                       <code>--server-url</code> and <code>--agent-api-url</code> values that point to
                       your deployment. If the runner is running on the same machine as Company Helm,
                       use <code>--server-url http://localhost:50051</code> and{" "}
-                      <code>--agent-api-url http://localhost:50052</code>.
+                      <code>--agent-api-url http://localhost:4000/agent/v1</code>.
                     </p>
                   ) : null}
                 </div>
