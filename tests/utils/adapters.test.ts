@@ -4,6 +4,7 @@ import {
   toLegacyAgentPayload,
   toLegacyQueuedUserMessagePayload,
   toLegacyRunnerPayload,
+  toLegacyTurnPayload,
   toLegacyThreadPayload,
 } from "../../src/utils/adapters.ts";
 
@@ -132,6 +133,72 @@ test("toLegacyThreadPayload preserves missing titles instead of synthesizing thr
   });
 
   assert.equal(payload.title, "");
+});
+
+test("toLegacyThreadPayload maps token and context usage metadata", () => {
+  const payload = toLegacyThreadPayload({
+    id: "thread-4",
+    title: "Token thread",
+    company: { id: "company-1" },
+    agent: { id: "agent-1" },
+    tokenUsage: {
+      inputTokens: 400,
+      cachedInputTokens: 40,
+      outputTokens: 140,
+      reasoningOutputTokens: 20,
+      totalTokens: 600,
+    },
+    contextUsage: {
+      inputTokens: 250,
+      cachedInputTokens: 25,
+      outputTokens: 100,
+      reasoningOutputTokens: 10,
+      totalTokens: 385,
+    },
+    modelContextWindow: 200000,
+  });
+
+  assert.deepEqual(payload.tokenUsage, {
+    inputTokens: 400,
+    cachedInputTokens: 40,
+    outputTokens: 140,
+    reasoningOutputTokens: 20,
+    totalTokens: 600,
+  });
+  assert.deepEqual(payload.contextUsage, {
+    inputTokens: 250,
+    cachedInputTokens: 25,
+    outputTokens: 100,
+    reasoningOutputTokens: 10,
+    totalTokens: 385,
+  });
+  assert.equal(payload.modelContextWindow, 200000);
+});
+
+test("toLegacyTurnPayload maps per-turn token usage", () => {
+  const payload = toLegacyTurnPayload({
+    id: "turn-1",
+    status: "completed",
+    tokenUsage: {
+      inputTokens: 120,
+      cachedInputTokens: 15,
+      outputTokens: 40,
+      reasoningOutputTokens: 5,
+      totalTokens: 180,
+    },
+    company: { id: "company-1" },
+    thread: { id: "thread-1" },
+    agent: { id: "agent-1" },
+    items: [],
+  });
+
+  assert.deepEqual(payload.tokenUsage, {
+    inputTokens: 120,
+    cachedInputTokens: 15,
+    outputTokens: 40,
+    reasoningOutputTokens: 5,
+    totalTokens: 180,
+  });
 });
 
 test("toLegacyAgentPayload preserves heartbeat schedule metadata", () => {

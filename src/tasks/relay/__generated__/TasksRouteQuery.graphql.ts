@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<feefb67c5af7623d8508b490a9a222d8>>
+ * @generated SignedSource<<bb50b7183fddf4f791ae3e004e54a283>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -255,6 +255,53 @@ v16 = {
   "storageKey": null
 },
 v17 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "inputTokens",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "cachedInputTokens",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "outputTokens",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "reasoningOutputTokens",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "totalTokens",
+    "storageKey": null
+  }
+],
+v18 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "TokenUsageBreakdown",
+  "kind": "LinkedField",
+  "name": "tokenUsage",
+  "plural": false,
+  "selections": (v17/*: any*/),
+  "storageKey": null
+},
+v19 = [
   (v4/*: any*/),
   (v16/*: any*/),
   (v15/*: any*/),
@@ -295,7 +342,8 @@ v17 = [
     "storageKey": null
   },
   (v8/*: any*/),
-  (v9/*: any*/)
+  (v9/*: any*/),
+  (v18/*: any*/)
 ];
 return {
   "fragment": {
@@ -434,7 +482,7 @@ return {
             "kind": "LinkedField",
             "name": "latestRun",
             "plural": false,
-            "selections": (v17/*: any*/),
+            "selections": (v19/*: any*/),
             "storageKey": null
           },
           {
@@ -444,7 +492,7 @@ return {
             "kind": "LinkedField",
             "name": "activeRun",
             "plural": false,
-            "selections": (v17/*: any*/),
+            "selections": (v19/*: any*/),
             "storageKey": null
           },
           {
@@ -461,6 +509,17 @@ return {
             "kind": "LinkedField",
             "name": "runs",
             "plural": true,
+            "selections": (v19/*: any*/),
+            "storageKey": null
+          },
+          (v18/*: any*/),
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "TokenUsageBreakdown",
+            "kind": "LinkedField",
+            "name": "aggregateTokenUsage",
+            "plural": false,
             "selections": (v17/*: any*/),
             "storageKey": null
           },
@@ -520,12 +579,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "19aa270d17023018b4dd83025fa4c104",
+    "cacheID": "60bb88e1b112973b6315035c56e503ae",
     "id": null,
     "metadata": {},
     "name": "TasksRouteQuery",
     "operationKind": "query",
-    "text": "query TasksRouteQuery(\n  $topLevelOnly: Boolean\n  $rootTaskId: ID\n  $maxDepth: Int\n) {\n  tasks(topLevelOnly: $topLevelOnly, rootTaskId: $rootTaskId, maxDepth: $maxDepth) {\n    ...TasksRoute_task\n    id\n  }\n  taskOptions {\n    id\n    name\n    parentTaskId\n  }\n  taskCategories {\n    id\n    name\n    createdAt\n    updatedAt\n  }\n  taskAssignableActors {\n    id\n    kind\n    displayName\n    agentId\n    userId\n    email\n  }\n  agents(first: 200) {\n    edges {\n      node {\n        id\n        name\n      }\n    }\n  }\n}\n\nfragment TasksRoute_task on Task {\n  id\n  company {\n    id\n  }\n  name\n  category\n  description\n  acceptanceCriteria\n  assigneeActorId\n  assigneeActor {\n    id\n    kind\n    displayName\n    agentId\n    userId\n    email\n  }\n  parentTaskId\n  status\n  createdAt\n  updatedAt\n  attemptCount\n  lastRunStatus\n  has_running_threads\n  latestRun {\n    id\n    taskId\n    status\n    threadId\n    agentId\n    triggeredByActorId\n    failureMessage\n    startedAt\n    finishedAt\n    createdAt\n    updatedAt\n  }\n  activeRun {\n    id\n    taskId\n    status\n    threadId\n    agentId\n    triggeredByActorId\n    failureMessage\n    startedAt\n    finishedAt\n    createdAt\n    updatedAt\n  }\n  runningThreadId\n  runs {\n    id\n    taskId\n    status\n    threadId\n    agentId\n    triggeredByActorId\n    failureMessage\n    startedAt\n    finishedAt\n    createdAt\n    updatedAt\n  }\n  dependencyTaskIds\n  comments {\n    id\n    taskId\n    comment\n    authorActorId\n    authorActor {\n      id\n      kind\n      displayName\n      agentId\n      userId\n      email\n    }\n    createdAt\n    updatedAt\n  }\n}\n"
+    "text": "query TasksRouteQuery(\n  $topLevelOnly: Boolean\n  $rootTaskId: ID\n  $maxDepth: Int\n) {\n  tasks(topLevelOnly: $topLevelOnly, rootTaskId: $rootTaskId, maxDepth: $maxDepth) {\n    ...TasksRoute_task\n    id\n  }\n  taskOptions {\n    id\n    name\n    parentTaskId\n  }\n  taskCategories {\n    id\n    name\n    createdAt\n    updatedAt\n  }\n  taskAssignableActors {\n    id\n    kind\n    displayName\n    agentId\n    userId\n    email\n  }\n  agents(first: 200) {\n    edges {\n      node {\n        id\n        name\n      }\n    }\n  }\n}\n\nfragment TasksRoute_task on Task {\n  id\n  company {\n    id\n  }\n  name\n  category\n  description\n  acceptanceCriteria\n  assigneeActorId\n  assigneeActor {\n    id\n    kind\n    displayName\n    agentId\n    userId\n    email\n  }\n  parentTaskId\n  status\n  createdAt\n  updatedAt\n  attemptCount\n  lastRunStatus\n  has_running_threads\n  latestRun {\n    id\n    taskId\n    status\n    threadId\n    agentId\n    triggeredByActorId\n    failureMessage\n    startedAt\n    finishedAt\n    createdAt\n    updatedAt\n    tokenUsage {\n      ...TasksRoute_tokenUsage\n    }\n  }\n  activeRun {\n    id\n    taskId\n    status\n    threadId\n    agentId\n    triggeredByActorId\n    failureMessage\n    startedAt\n    finishedAt\n    createdAt\n    updatedAt\n    tokenUsage {\n      ...TasksRoute_tokenUsage\n    }\n  }\n  runningThreadId\n  runs {\n    id\n    taskId\n    status\n    threadId\n    agentId\n    triggeredByActorId\n    failureMessage\n    startedAt\n    finishedAt\n    createdAt\n    updatedAt\n    tokenUsage {\n      ...TasksRoute_tokenUsage\n    }\n  }\n  tokenUsage {\n    ...TasksRoute_tokenUsage\n  }\n  aggregateTokenUsage {\n    ...TasksRoute_tokenUsage\n  }\n  dependencyTaskIds\n  comments {\n    id\n    taskId\n    comment\n    authorActorId\n    authorActor {\n      id\n      kind\n      displayName\n      agentId\n      userId\n      email\n    }\n    createdAt\n    updatedAt\n  }\n}\n\nfragment TasksRoute_tokenUsage on TokenUsageBreakdown {\n  inputTokens\n  cachedInputTokens\n  outputTokens\n  reasoningOutputTokens\n  totalTokens\n}\n"
   }
 };
 })();

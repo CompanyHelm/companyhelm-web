@@ -156,6 +156,30 @@ function clampThreadTitle(value: any) {
   return String(value || "").slice(0, THREAD_TITLE_MAX_LENGTH);
 }
 
+function normalizeTokenCount(value: any) {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue) || numericValue < 0) {
+    return 0;
+  }
+  return Math.floor(numericValue);
+}
+
+function buildContextUsageTooltip(session: any) {
+  const contextUsage = session?.contextUsage || {};
+  const used = normalizeTokenCount(contextUsage.totalTokens);
+  const max = normalizeTokenCount(session?.modelContextWindow);
+  const remaining = Math.max(0, max - used);
+  return [
+    `Used: ${used}`,
+    `Max: ${max}`,
+    `Remaining: ${remaining}`,
+    `Input: ${normalizeTokenCount(contextUsage.inputTokens)}`,
+    `Cached input: ${normalizeTokenCount(contextUsage.cachedInputTokens)}`,
+    `Output: ${normalizeTokenCount(contextUsage.outputTokens)}`,
+    `Reasoning: ${normalizeTokenCount(contextUsage.reasoningOutputTokens)}`,
+  ].join("\n");
+}
+
 function normalizeChatListStatusFilter(value: any) {
   return String(value || "").trim().toLowerCase() === "archived" ? "archived" : "active";
 }
@@ -249,6 +273,27 @@ function SidebarChatSessionItem({
           <p className="chat-card-title chat-sidebar-chat-title">
             <strong>{session?.title || "Untitled chat"}</strong>
           </p>
+          {normalizeTokenCount(session?.modelContextWindow) > 0 ? (
+            <span
+              className="chat-context-meter"
+              aria-label={`Context ${normalizeTokenCount(session?.contextUsage?.totalTokens)} / ${normalizeTokenCount(session?.modelContextWindow)}`}
+              title={buildContextUsageTooltip(session)}
+            >
+              <span
+                className="chat-context-meter-fill"
+                style={{
+                  transform: `scaleY(${Math.max(
+                    0,
+                    Math.min(
+                      1,
+                      normalizeTokenCount(session?.contextUsage?.totalTokens)
+                        / Math.max(1, normalizeTokenCount(session?.modelContextWindow)),
+                    ),
+                  )})`,
+                }}
+              />
+            </span>
+          ) : null}
           {statusBadge ? <div className="chat-card-status">{statusBadge}</div> : null}
         </div>
         {isArchivedSession || isArchivingSession ? (
@@ -483,6 +528,9 @@ export function AgentChatPage({
     && !hasTranscriptContent
     && !isSessionDeleting
     && !isSessionReadOnly;
+  const sessionTokenTotal = normalizeTokenCount(session?.tokenUsage?.totalTokens);
+  const sessionContextTotal = normalizeTokenCount(session?.contextUsage?.totalTokens);
+  const sessionContextWindow = normalizeTokenCount(session?.modelContextWindow);
 
   const isMobileViewport = useMemo(() => matchesMediaQuery(MOBILE_MEDIA_QUERY), []);
   const pageActionVisibility = useMemo(
@@ -1142,6 +1190,14 @@ export function AgentChatPage({
         {isSessionPending ? (
           <p className="empty-hint">Thread is pending. Messages sent now will queue until it is ready.</p>
         ) : null}
+        {session && (sessionTokenTotal > 0 || sessionContextWindow > 0) ? (
+          <div className="chat-thread-usage-summary">
+            <span className="chat-thread-usage-text">Tokens {sessionTokenTotal}</span>
+            {sessionContextWindow > 0 ? (
+              <span className="chat-thread-usage-text">Context {sessionContextTotal} / {sessionContextWindow}</span>
+            ) : null}
+          </div>
+        ) : null}
         {hasRouteNotFoundMessage ? <p className="empty-hint">{normalizedRouteNotFoundMessage}</p> : null}
         {!hasRouteNotFoundMessage && !agent ? <p className="empty-hint">Agent not found.</p> : null}
         {!hasRouteNotFoundMessage && agent && !session && hasKnownChatsForAgent ? (
@@ -1215,6 +1271,9 @@ export function AgentChatPage({
                             aria-label="Turn is running"
                             title="Turn in progress"
                           />
+                        ) : null}
+                        {normalizeTokenCount(turn?.tokenUsage?.totalTokens) > 0 ? (
+                          <span className="chat-turn-token-usage">Tokens {normalizeTokenCount(turn?.tokenUsage?.totalTokens)}</span>
                         ) : null}
                         <span>{formatTimestamp(turn.createdAt)}</span>
                       </div>
