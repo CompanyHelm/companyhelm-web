@@ -4252,6 +4252,34 @@ button:disabled {
   background: transparent;
   box-sizing: border-box;
   animation: task-table-running-spin 0.72s linear infinite;
+  padding: 0;
+}
+
+.task-table-status-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.task-table-thread-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.4rem;
+  height: 1.4rem;
+  padding: 0;
+  border: 1px solid rgba(26, 32, 38, 0.12);
+  border-radius: 0.32rem;
+  background: transparent;
+  color: var(--brand-700);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.task-table-thread-btn:hover {
+  background: var(--brand-50, rgba(99, 102, 241, 0.08));
+  color: var(--brand-800);
 }
 
 @keyframes task-table-running-spin {
@@ -4268,6 +4296,7 @@ button:disabled {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
 
 .task-table-tree-branch {
   width: 0.75rem;

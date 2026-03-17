@@ -82,11 +82,41 @@ const TASK_TABLE_OPTIONAL_COLUMNS: TaskTableOptionalColumnDefinition[] = [
     id: "status",
     label: "Status",
     defaultVisible: true,
-    renderCell: (task) => (
-      <span className={`task-status-pill task-status-pill-${task.status || "draft"}`}>
-        {task.status || "draft"}
-      </span>
-    ),
+    className: "task-table-status",
+    renderCell: (task, context) => {
+      const hasRunning = Boolean(task.hasRunningThreads);
+      const threadId = String(task.runningThreadId || "").trim();
+      return (
+        <span className="task-table-status-cell">
+          <span className={`task-status-pill task-status-pill-${task.status || "draft"}`}>
+            {task.status || "draft"}
+          </span>
+          {hasRunning ? (
+            <span
+              className="task-table-running-indicator"
+              aria-label="Task run in progress"
+              title="Task run in progress"
+            />
+          ) : null}
+          {threadId ? (
+            <button
+              type="button"
+              className="task-table-thread-btn"
+              aria-label="Open thread"
+              title="Open thread"
+              onClick={(event) => {
+                event.stopPropagation();
+                void context.onOpenTaskThread(threadId);
+              }}
+            >
+              <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" width="14" height="14">
+                <path d="M2 2h12v8H5l-3 3V2z" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+              </svg>
+            </button>
+          ) : null}
+        </span>
+      );
+    },
   },
   {
     id: "run",
@@ -107,7 +137,7 @@ const TASK_TABLE_OPTIONAL_COLUMNS: TaskTableOptionalColumnDefinition[] = [
   {
     id: "thread",
     label: "Thread",
-    defaultVisible: true,
+    defaultVisible: false,
     className: "task-table-thread",
     renderCell: (task, context) => {
       const runningThreadId = String(task.runningThreadId || "").trim();
@@ -586,13 +616,6 @@ export function TaskTableView({
                       className="task-table-name-cell"
                       style={{ "--task-depth": taskDepth } as CSSProperties}
                     >
-                      {hasRunningTaskRun ? (
-                        <span
-                          className="task-table-running-indicator"
-                          aria-label="Task run in progress"
-                          title="Task run in progress"
-                        />
-                      ) : null}
                       {taskDepth > 0 ? <span className="task-table-tree-branch" aria-hidden="true" /> : null}
                       {row.hasChildren ? (
                         <button
