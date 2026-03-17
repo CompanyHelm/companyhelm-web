@@ -1,4 +1,5 @@
 import { useEffect, type MouseEvent, type ReactNode } from "react";
+import { ModalCloseButton } from "./ModalCloseButton.tsx";
 
 interface CreationModalProps {
   modalId: string;
@@ -8,7 +9,6 @@ interface CreationModalProps {
   onClose: () => void;
   children: ReactNode;
   cardClassName?: string;
-  closeOnOverlayClick?: boolean;
 }
 
 export function CreationModal({
@@ -19,7 +19,6 @@ export function CreationModal({
   onClose,
   children,
   cardClassName = "",
-  closeOnOverlayClick = true,
 }: CreationModalProps) {
   useEffect(() => {
     if (!isOpen) {
@@ -41,11 +40,7 @@ export function CreationModal({
   }
 
   return (
-    <div
-      className="modal-overlay"
-      role="presentation"
-      onClick={closeOnOverlayClick ? onClose : undefined}
-    >
+    <div className="modal-overlay" role="presentation">
       <section
         className={["panel", "modal-card", cardClassName].filter(Boolean).join(" ")}
         role="dialog"
@@ -63,9 +58,7 @@ export function CreationModal({
               </p>
             ) : null}
           </div>
-          <button type="button" className="secondary-btn modal-close-btn" onClick={onClose}>
-            Close
-          </button>
+          <ModalCloseButton onClick={onClose} />
         </header>
         {children}
       </section>
