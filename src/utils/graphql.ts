@@ -711,6 +711,45 @@ export const CREATE_GIT_SKILL_PACKAGE_MUTATION = `
   }
 `;
 
+export const UPDATE_GIT_SKILL_PACKAGE_MUTATION = `
+  mutation UpdateGitSkillPackage(
+    $id: ID!
+    $gitReference: String!
+  ) {
+    updateGitSkillPackage(
+      id: $id
+      gitReference: $gitReference
+    ) {
+      ok
+      error
+      warnings
+      packageId
+      gitSkillPackage {
+        id
+        packageName
+        gitRepositoryUrl
+        hostingProvider
+        currentCommitHash
+        currentReference
+        company {
+          id
+        }
+      }
+      skills {
+        id
+        name
+        description
+        content
+        fileList
+        gitSkillPackagePath
+        company {
+          id
+        }
+      }
+    }
+  }
+`;
+
 export const DELETE_GIT_SKILL_PACKAGE_MUTATION = `
   mutation DeleteGitSkillPackage($id: ID!) {
     deleteGitSkillPackage(id: $id) {
@@ -2623,6 +2662,54 @@ export const COMPANY_API_CREATE_GIT_SKILL_PACKAGE_MUTATION = `
   ) {
     createGitSkillPackage(
       gitRepositoryUrl: $gitRepositoryUrl
+      gitReference: $gitReference
+    ) {
+      ok
+      error
+      warnings
+      packageId
+      gitSkillPackage {
+        id
+        packageName
+        gitRepositoryUrl
+        hostingProvider
+        currentCommitHash
+        currentReference
+        company {
+          id
+        }
+      }
+      skills {
+        id
+        name
+        description
+        content
+        fileList
+        gitSkillPackagePath
+        company {
+          id
+        }
+        roles {
+          id
+          name
+        }
+        gitSkillPackage {
+          id
+          packageName
+          gitRepositoryUrl
+        }
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_UPDATE_GIT_SKILL_PACKAGE_MUTATION = `
+  mutation CompanyApiUpdateGitSkillPackage(
+    $id: ID!
+    $gitReference: String!
+  ) {
+    updateGitSkillPackage(
+      id: $id
       gitReference: $gitReference
     ) {
       ok

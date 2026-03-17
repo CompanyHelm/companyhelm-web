@@ -531,6 +531,7 @@ type Mutation {
   removeSkillGroupFromRole(roleId: ID!, skillGroupId: ID!): RoleMutationPayload!
   removeTaskDependency(dependencyTaskId: ID!, taskId: ID!): TaskMutationPayload!
   retryQueuedUserMessage(queuedMessageId: ID!): QueuedUserMessage!
+  scheduleAgentHeartbeatNow(heartbeatId: ID!): AgentHeartbeat!
   setActorDescription(actorId: ID!, description: String): ActorMutationPayload!
   setActorManager(managerActorId: ID, reporteeActorId: ID!): ReporteeMutationPayload!
   setTaskAssigneeActor(assigneeActorId: ID, taskId: ID!): TaskMutationPayload!
@@ -545,6 +546,7 @@ type Mutation {
   steerQueuedUserMessage(queuedMessageId: ID!): QueuedUserMessage!
   updateAgent(agentId: ID!, agentRunnerId: ID!, agentRunnerSdkId: ID!, defaultAdditionalModelInstructions: String, defaultModelId: ID!, defaultReasoningLevel: String, mcpServerIds: [ID!], name: String!, roleIds: [ID!], skillIds: [ID!]): Agent!
   updateAgentHeartbeat(enabled: Boolean, heartbeatId: ID!, intervalSeconds: Int, name: String, prompt: String): AgentHeartbeat!
+  updateGitSkillPackage(gitReference: String!, id: ID!): UpdateGitSkillPackagePayload!
   updateMcpServer(args: [String!], authType: String, bearerTokenSecretId: ID, command: String, customHeaders: [McpHeaderInput!], enabled: Boolean, envVars: [McpEnvVarInput!], id: ID!, name: String!, transportType: String, url: String): McpServerMutationPayload!
   updateProfile(firstName: String!, lastName: String): AuthUser!
   updateRole(id: ID!, name: String!, parentRoleId: ID): RoleMutationPayload!
@@ -971,4 +973,13 @@ enum TurnItemType {
   unknown
   user_message
   web_search
+}
+
+type UpdateGitSkillPackagePayload {
+  error: String
+  gitSkillPackage: GitSkillPackage
+  ok: Boolean!
+  packageId: ID
+  skills: [Skill!]!
+  warnings: [String!]!
 }

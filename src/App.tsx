@@ -78,6 +78,7 @@ import {
   DELETE_SKILL_MUTATION,
   PREVIEW_GIT_SKILL_PACKAGE_MUTATION,
   CREATE_GIT_SKILL_PACKAGE_MUTATION,
+  UPDATE_GIT_SKILL_PACKAGE_MUTATION,
   DELETE_GIT_SKILL_PACKAGE_MUTATION,
   CREATE_SKILL_GROUP_MUTATION,
   UPDATE_SKILL_GROUP_MUTATION,
@@ -160,6 +161,7 @@ import {
   COMPANY_API_DELETE_APPROVAL_MUTATION,
   COMPANY_API_PREVIEW_GIT_SKILL_PACKAGE_MUTATION,
   COMPANY_API_CREATE_GIT_SKILL_PACKAGE_MUTATION,
+  COMPANY_API_UPDATE_GIT_SKILL_PACKAGE_MUTATION,
   COMPANY_API_DELETE_GIT_SKILL_PACKAGE_MUTATION,
   COMPANY_API_CREATE_SKILL_GROUP_MUTATION,
   COMPANY_API_UPDATE_SKILL_GROUP_MUTATION,
@@ -2253,6 +2255,30 @@ async function executeGraphQL(query: any, variables: any = {}) {
     const payload = data?.createGitSkillPackage;
     return {
       createGitSkillPackage: {
+        ok: Boolean(payload?.ok),
+        error: payload?.error ? String(payload.error) : null,
+        warnings: Array.isArray(payload?.warnings)
+          ? payload.warnings.map((warning: any) => String(warning || "")).filter(Boolean)
+          : [],
+        packageId: resolveLegacyId(payload?.packageId) || null,
+        gitSkillPackage: payload?.gitSkillPackage
+          ? toGitSkillPackagePayload(payload.gitSkillPackage)
+          : null,
+        skills: Array.isArray(payload?.skills)
+          ? payload.skills.map((skill: any) => toSkillPayload(skill))
+          : [],
+      },
+    };
+  }
+
+  if (query === UPDATE_GIT_SKILL_PACKAGE_MUTATION) {
+    const data = await executeRawGraphQL(COMPANY_API_UPDATE_GIT_SKILL_PACKAGE_MUTATION, {
+      id: resolveLegacyId(variables?.id),
+      gitReference: resolveLegacyId(variables?.gitReference),
+    });
+    const payload = data?.updateGitSkillPackage;
+    return {
+      updateGitSkillPackage: {
         ok: Boolean(payload?.ok),
         error: payload?.error ? String(payload.error) : null,
         warnings: Array.isArray(payload?.warnings)
@@ -7575,6 +7601,33 @@ function App() {
     return payload;
   }
 
+  async function handleUpdateGitSkillPackage({ packageId, gitReference }: any) {
+    if (!selectedCompanyId) {
+      throw new Error("Select a company before updating git skill packages.");
+    }
+
+    const resolvedPackageId = String(packageId || "").trim();
+    const reference = String(gitReference || "").trim();
+    if (!resolvedPackageId) {
+      throw new Error("Package id is required.");
+    }
+    if (!reference) {
+      throw new Error("Select a branch or tag before updating.");
+    }
+
+    const data = await executeGraphQL(UPDATE_GIT_SKILL_PACKAGE_MUTATION, {
+      id: resolvedPackageId,
+      gitReference: reference,
+    });
+    const payload = data.updateGitSkillPackage;
+    if (!payload?.ok) {
+      throw new Error(payload?.error || "Failed to update git skill package.");
+    }
+
+    await Promise.all([loadSkills(), loadRoles(), loadSkillGroups(), loadGitSkillPackages()]);
+    return payload;
+  }
+
   async function handleDeleteGitSkillPackage(gitSkillPackageId: any, packageName: any) {
     if (!selectedCompanyId) {
       setSkillError("Select a company before deleting git skill packages.");
@@ -10826,6 +10879,7 @@ function App() {
             onBackToGitSkillPackages={() => setBrowserPath("/gitSkillPackages")}
             onPreviewGitSkillPackage={handlePreviewGitSkillPackage}
             onCreateGitSkillPackage={handleCreateGitSkillPackage}
+            onUpdateGitSkillPackage={handleUpdateGitSkillPackage}
             onDeleteGitSkillPackage={handleDeleteGitSkillPackage}
             onOpenSkill={(skillId: any) => setBrowserPath(`/skills/${skillId}`)}
           />
