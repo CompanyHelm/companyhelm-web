@@ -219,6 +219,37 @@ test("AgentChatPage shows thread token and context summaries plus per-turn token
   assert.match(markup, /Tokens 180/);
 });
 
+test("AgentChatPage shows N\\/A for unknown token usage values", () => {
+  const markup = renderAgentChatPageMarkup({
+    session: {
+      id: "thread-usage-na",
+      title: "Usage unknown",
+      status: "ready",
+      tokenUsage: {
+        totalTokens: null,
+      },
+      contextUsage: {
+        totalTokens: null,
+      },
+      modelContextWindow: null,
+    },
+    chatTurns: [
+      {
+        id: "turn-unknown",
+        status: "completed",
+        tokenUsage: {
+          totalTokens: null,
+        },
+        createdAt: "2026-03-17T12:00:00.000Z",
+        items: [],
+      },
+    ],
+  });
+
+  assert.match(markup, /Tokens N\/A/);
+  assert.match(markup, /Context N\/A \/ N\/A/);
+});
+
 test("AgentChatPage shows archived chats as read-only and hides the composer", () => {
   const markup = renderAgentChatPageMarkup({
     session: {

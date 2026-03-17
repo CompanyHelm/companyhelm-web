@@ -38,12 +38,22 @@ function toRecord(value: unknown): LooseRecord {
 
 function toTokenUsageBreakdown(value: unknown) {
   const record = toRecord(value);
+  const toOptionalTokenCount = (tokenValue: unknown) => {
+    if (tokenValue === null || tokenValue === undefined || tokenValue === "") {
+      return null;
+    }
+    const numericValue = Number(tokenValue);
+    if (!Number.isFinite(numericValue) || numericValue < 0) {
+      return null;
+    }
+    return Math.floor(numericValue);
+  };
   return {
-    inputTokens: Number(record.inputTokens) || 0,
-    cachedInputTokens: Number(record.cachedInputTokens) || 0,
-    outputTokens: Number(record.outputTokens) || 0,
-    reasoningOutputTokens: Number(record.reasoningOutputTokens) || 0,
-    totalTokens: Number(record.totalTokens) || 0,
+    inputTokens: toOptionalTokenCount(record.inputTokens),
+    cachedInputTokens: toOptionalTokenCount(record.cachedInputTokens),
+    outputTokens: toOptionalTokenCount(record.outputTokens),
+    reasoningOutputTokens: toOptionalTokenCount(record.reasoningOutputTokens),
+    totalTokens: toOptionalTokenCount(record.totalTokens),
   };
 }
 

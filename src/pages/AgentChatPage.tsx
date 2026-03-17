@@ -157,26 +157,34 @@ function clampThreadTitle(value: any) {
 }
 
 function normalizeTokenCount(value: any) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
   const numericValue = Number(value);
   if (!Number.isFinite(numericValue) || numericValue < 0) {
-    return 0;
+    return null;
   }
   return Math.floor(numericValue);
+}
+
+function formatTokenCount(value: any) {
+  const normalizedValue = normalizeTokenCount(value);
+  return normalizedValue === null ? "N/A" : String(normalizedValue);
 }
 
 function buildContextUsageTooltip(session: any) {
   const contextUsage = session?.contextUsage || {};
   const used = normalizeTokenCount(contextUsage.totalTokens);
   const max = normalizeTokenCount(session?.modelContextWindow);
-  const remaining = Math.max(0, max - used);
+  const remaining = used === null || max === null ? null : Math.max(0, max - used);
   return [
-    `Used: ${used}`,
-    `Max: ${max}`,
-    `Remaining: ${remaining}`,
-    `Input: ${normalizeTokenCount(contextUsage.inputTokens)}`,
-    `Cached input: ${normalizeTokenCount(contextUsage.cachedInputTokens)}`,
-    `Output: ${normalizeTokenCount(contextUsage.outputTokens)}`,
-    `Reasoning: ${normalizeTokenCount(contextUsage.reasoningOutputTokens)}`,
+    `Used: ${formatTokenCount(used)}`,
+    `Max: ${formatTokenCount(max)}`,
+    `Remaining: ${remaining === null ? "N/A" : remaining}`,
+    `Input: ${formatTokenCount(contextUsage.inputTokens)}`,
+    `Cached input: ${formatTokenCount(contextUsage.cachedInputTokens)}`,
+    `Output: ${formatTokenCount(contextUsage.outputTokens)}`,
+    `Reasoning: ${formatTokenCount(contextUsage.reasoningOutputTokens)}`,
   ].join("\n");
 }
 
@@ -273,10 +281,10 @@ function SidebarChatSessionItem({
           <p className="chat-card-title chat-sidebar-chat-title">
             <strong>{session?.title || "Untitled chat"}</strong>
           </p>
-          {normalizeTokenCount(session?.modelContextWindow) > 0 ? (
+          {(normalizeTokenCount(session?.modelContextWindow) ?? 0) > 0 ? (
             <span
               className="chat-context-meter"
-              aria-label={`Context ${normalizeTokenCount(session?.contextUsage?.totalTokens)} / ${normalizeTokenCount(session?.modelContextWindow)}`}
+              aria-label={`Context ${formatTokenCount(session?.contextUsage?.totalTokens)} / ${formatTokenCount(session?.modelContextWindow)}`}
               title={buildContextUsageTooltip(session)}
             >
               <span
@@ -286,8 +294,8 @@ function SidebarChatSessionItem({
                     0,
                     Math.min(
                       1,
-                      normalizeTokenCount(session?.contextUsage?.totalTokens)
-                        / Math.max(1, normalizeTokenCount(session?.modelContextWindow)),
+                      (normalizeTokenCount(session?.contextUsage?.totalTokens) ?? 0)
+                        / Math.max(1, normalizeTokenCount(session?.modelContextWindow) ?? 0),
                     ),
                   )})`,
                 }}
@@ -531,6 +539,14 @@ export function AgentChatPage({
   const sessionTokenTotal = normalizeTokenCount(session?.tokenUsage?.totalTokens);
   const sessionContextTotal = normalizeTokenCount(session?.contextUsage?.totalTokens);
   const sessionContextWindow = normalizeTokenCount(session?.modelContextWindow);
+  const showSessionUsageSummary = Boolean(
+    session
+    && (
+      session?.tokenUsage !== undefined
+      || session?.contextUsage !== undefined
+      || session?.modelContextWindow !== undefined
+    ),
+  );
 
   const isMobileViewport = useMemo(() => matchesMediaQuery(MOBILE_MEDIA_QUERY), []);
   const pageActionVisibility = useMemo(
@@ -1190,12 +1206,10 @@ export function AgentChatPage({
         {isSessionPending ? (
           <p className="empty-hint">Thread is pending. Messages sent now will queue until it is ready.</p>
         ) : null}
-        {session && (sessionTokenTotal > 0 || sessionContextWindow > 0) ? (
+        {showSessionUsageSummary ? (
           <div className="chat-thread-usage-summary">
-            <span className="chat-thread-usage-text">Tokens {sessionTokenTotal}</span>
-            {sessionContextWindow > 0 ? (
-              <span className="chat-thread-usage-text">Context {sessionContextTotal} / {sessionContextWindow}</span>
-            ) : null}
+            <span className="chat-thread-usage-text">Tokens {formatTokenCount(sessionTokenTotal)}</span>
+            <span className="chat-thread-usage-text">Context {formatTokenCount(sessionContextTotal)} / {formatTokenCount(sessionContextWindow)}</span>
           </div>
         ) : null}
         {hasRouteNotFoundMessage ? <p className="empty-hint">{normalizedRouteNotFoundMessage}</p> : null}
@@ -1272,8 +1286,8 @@ export function AgentChatPage({
                             title="Turn in progress"
                           />
                         ) : null}
-                        {normalizeTokenCount(turn?.tokenUsage?.totalTokens) > 0 ? (
-                          <span className="chat-turn-token-usage">Tokens {normalizeTokenCount(turn?.tokenUsage?.totalTokens)}</span>
+                        {turn?.tokenUsage?.totalTokens !== undefined ? (
+                          <span className="chat-turn-token-usage">Tokens {formatTokenCount(turn?.tokenUsage?.totalTokens)}</span>
                         ) : null}
                         <span>{formatTimestamp(turn.createdAt)}</span>
                       </div>

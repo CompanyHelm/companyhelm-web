@@ -117,11 +117,11 @@ export interface McpKeyValueEntry {
 }
 
 export interface TokenUsageBreakdown {
-  inputTokens: number;
-  cachedInputTokens: number;
-  outputTokens: number;
-  reasoningOutputTokens: number;
-  totalTokens: number;
+  inputTokens: number | null;
+  cachedInputTokens: number | null;
+  outputTokens: number | null;
+  reasoningOutputTokens: number | null;
+  totalTokens: number | null;
 }
 
 export interface McpServer extends NamedEntity {

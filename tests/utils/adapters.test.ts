@@ -201,6 +201,46 @@ test("toLegacyTurnPayload maps per-turn token usage", () => {
   });
 });
 
+test("toLegacyThreadPayload preserves unknown token usage as null", () => {
+  const payload = toLegacyThreadPayload({
+    id: "thread-null-usage",
+    title: "Unknown usage",
+    company: { id: "company-1" },
+    agent: { id: "agent-1" },
+    tokenUsage: {
+      inputTokens: null,
+      cachedInputTokens: null,
+      outputTokens: null,
+      reasoningOutputTokens: null,
+      totalTokens: null,
+    },
+    contextUsage: {
+      inputTokens: null,
+      cachedInputTokens: null,
+      outputTokens: null,
+      reasoningOutputTokens: null,
+      totalTokens: null,
+    },
+    modelContextWindow: null,
+  });
+
+  assert.deepEqual(payload.tokenUsage, {
+    inputTokens: null,
+    cachedInputTokens: null,
+    outputTokens: null,
+    reasoningOutputTokens: null,
+    totalTokens: null,
+  });
+  assert.deepEqual(payload.contextUsage, {
+    inputTokens: null,
+    cachedInputTokens: null,
+    outputTokens: null,
+    reasoningOutputTokens: null,
+    totalTokens: null,
+  });
+  assert.equal(payload.modelContextWindow, null);
+});
+
 test("toLegacyAgentPayload preserves heartbeat schedule metadata", () => {
   const payload = toLegacyAgentPayload({
     id: "agent-1",
