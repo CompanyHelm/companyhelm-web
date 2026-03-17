@@ -212,7 +212,6 @@ import {
   COMPANY_API_LIST_THREADS_CONNECTION_QUERY,
   COMPANY_API_CREATE_THREAD_MUTATION,
   COMPANY_API_UPDATE_THREAD_TITLE_MUTATION,
-  COMPANY_API_REGENERATE_THREAD_SECRET_MUTATION,
   COMPANY_API_DELETE_THREAD_MUTATION,
   COMPANY_API_ARCHIVE_THREAD_MUTATION,
   COMPANY_API_THREAD_QUERY,
@@ -1440,21 +1439,6 @@ function toLegacyThreadPayload(thread: any, {
     explicitArchivedAt === undefined
       ? resolveLegacyId(currentMetadata.archivedAt) || null
       : resolveLegacyId(explicitArchivedAt) || null;
-  const overrideProvidesAgentSecret = Boolean(
-    metadataOverride && Object.prototype.hasOwnProperty.call(metadataOverride, "agentSecret"),
-  );
-  const threadProvidesAgentSecret = Boolean(
-    thread && Object.prototype.hasOwnProperty.call(thread, "agentSecret"),
-  );
-  const explicitAgentSecret = overrideProvidesAgentSecret
-    ? metadataOverride.agentSecret
-    : threadProvidesAgentSecret
-      ? thread.agentSecret
-      : undefined;
-  const resolvedAgentSecret =
-    explicitAgentSecret === undefined
-      ? resolveLegacyId(currentMetadata.agentSecret) || null
-      : resolveLegacyId(explicitAgentSecret) || null;
   const nextMetadata = {
     createdAt: currentMetadata.createdAt || nowIso,
     updatedAt: nowIso,
@@ -1468,7 +1452,6 @@ function toLegacyThreadPayload(thread: any, {
     errorMessage: resolvedErrorMessage,
     tasks: resolvedTasks,
     archivedAt: resolvedArchivedAt,
-    agentSecret: resolvedAgentSecret,
     tokenUsage: toTokenUsageBreakdown(metadataOverride?.tokenUsage || thread?.tokenUsage || currentMetadata.tokenUsage),
     contextUsage: toTokenUsageBreakdown(metadataOverride?.contextUsage || thread?.contextUsage || currentMetadata.contextUsage),
     modelContextWindow: Number(
@@ -1497,7 +1480,6 @@ function toLegacyThreadPayload(thread: any, {
     modelContextWindow: nextMetadata.modelContextWindow,
     tasks: nextMetadata.tasks,
     archivedAt: nextMetadata.archivedAt,
-    agentSecret: nextMetadata.agentSecret,
     createdAt: nextMetadata.createdAt,
     updatedAt: nextMetadata.updatedAt,
   };
@@ -3580,7 +3562,6 @@ function App() {
   const [isSendingChatMessage, setIsSendingChatMessage] = useState<any>(false);
   const [isInterruptingChatTurn, setIsInterruptingChatTurn] = useState<any>(false);
   const [isUpdatingChatTitle, setIsUpdatingChatTitle] = useState<any>(false);
-  const [regeneratingChatSessionSecretId, setRegeneratingChatSessionSecretId] = useState<any>("");
   const [steeringQueuedMessageId, setSteeringQueuedMessageId] = useState<any>(null);
   const [retryingQueuedMessageId, setRetryingQueuedMessageId] = useState<any>(null);
   const [deletingQueuedMessageId, setDeletingQueuedMessageId] = useState<any>(null);
@@ -3894,7 +3875,6 @@ function App() {
       currentReasoningLevel: resolveLegacyId(metadata.currentReasoningLevel) || null,
       additionalModelInstructions:
         normalizeOptionalInstructions(metadata.additionalModelInstructions) || null,
-      agentSecret: resolveLegacyId(metadata.agentSecret) || null,
       archivedAt: resolveLegacyId(metadata.archivedAt) || null,
       createdAt: resolveLegacyId(metadata.createdAt) || nowIso,
       updatedAt: resolveLegacyId(metadata.updatedAt) || nowIso,
@@ -10158,80 +10138,6 @@ function App() {
     }
   }
 
-  async function handleRegenerateChatSessionSecret(sessionId: any = resolvedChatSessionId) {
-    const targetSessionId = String(sessionId || "").trim();
-    if (!selectedCompanyId) {
-      setChatError("Select a company before regenerating a chat secret.");
-      return null;
-    }
-    if (!targetSessionId) {
-      setChatError("Select a chat before regenerating its secret.");
-      return null;
-    }
-
-    try {
-      setRegeneratingChatSessionSecretId(targetSessionId);
-      setChatError("");
-      const data = await executeRawGraphQL(COMPANY_API_REGENERATE_THREAD_SECRET_MUTATION, {
-        threadId: targetSessionId,
-      });
-      const payload = data?.regenerateThreadSecret;
-      const secret = resolveLegacyId(payload?.secret);
-      if (!secret) {
-        throw new Error("Failed to regenerate thread secret.");
-      }
-
-      const updatedSession = payload?.thread
-        ? toLegacyThreadPayload(payload.thread, { metadataOverride: { agentSecret: secret } })
-        : null;
-
-      if (updatedSession) {
-        const upsertSessionList = (sessions: any) => {
-          let matched = false;
-          const nextSessions = (Array.isArray(sessions) ? sessions : []).map((session: any) => {
-            const currentSessionId = String(session?.id || "").trim();
-            if (currentSessionId !== targetSessionId) {
-              return session;
-            }
-            matched = true;
-            return {
-              ...session,
-              ...updatedSession,
-            };
-          });
-
-          if (!matched) {
-            nextSessions.unshift(updatedSession);
-          }
-          return nextSessions;
-        };
-
-        setChatSessions((currentSessions: any) => upsertSessionList(currentSessions));
-        const targetAgentId = resolveLegacyId(updatedSession?.agentId, chatAgentId);
-        if (targetAgentId) {
-          setChatSessionsByAgent((currentSessionsByAgent: any) => ({
-            ...currentSessionsByAgent,
-            [targetAgentId]: upsertSessionList(currentSessionsByAgent[targetAgentId]),
-          }));
-        }
-      } else {
-        const currentMetadata = companyApiThreadMetadataById.get(targetSessionId) || {};
-        companyApiThreadMetadataById.set(targetSessionId, {
-          ...currentMetadata,
-          agentSecret: secret,
-          updatedAt: new Date().toISOString(),
-        });
-      }
-
-      return secret;
-    } catch (regenerateError: any) {
-      setChatError(regenerateError.message || "Failed to regenerate thread secret.");
-      return null;
-    } finally {
-      setRegeneratingChatSessionSecretId("");
-    }
-  }
-
   function handleOpenChatFromList({ agentId, sessionId, sessionsForAgent = [] }: any) {
     const resolvedAgentId = String(agentId || "").trim();
     const resolvedSessionId = String(sessionId || "").trim();
@@ -11486,7 +11392,6 @@ function App() {
             isSendingChatMessage={isSendingChatMessage}
             isInterruptingChatTurn={isInterruptingChatTurn}
             isUpdatingChatTitle={isUpdatingChatTitle}
-            regeneratingChatSessionSecretId={regeneratingChatSessionSecretId}
             archivingChatSessionKey={archivingChatSessionKey}
             deletingChatSessionKey={deletingChatSessionKey}
             steeringQueuedMessageId={steeringQueuedMessageId}
@@ -11503,7 +11408,6 @@ function App() {
             onBatchDeleteChats={handleBatchDeleteChats}
             isBatchDeletingChats={isBatchDeletingChats}
             onSaveChatSessionTitle={handleUpdateChatSessionTitle}
-            onRegenerateChatSessionSecret={handleRegenerateChatSessionSecret}
             onSendChatMessage={handleSendChatMessage}
             onInterruptChatTurn={handleInterruptChatTurn}
             onSteerQueuedMessage={handleSteerQueuedChatMessage}
@@ -11599,7 +11503,6 @@ function App() {
               isSendingChatMessage={isSendingChatMessage}
               isInterruptingChatTurn={isInterruptingChatTurn}
               isUpdatingChatTitle={isUpdatingChatTitle}
-              regeneratingChatSessionSecretId={regeneratingChatSessionSecretId}
               archivingChatSessionKey={archivingChatSessionKey}
               deletingChatSessionKey={deletingChatSessionKey}
               steeringQueuedMessageId={steeringQueuedMessageId}
@@ -11620,7 +11523,6 @@ function App() {
               onArchiveChat={handleArchiveChatSession}
               onDeleteChat={handleDeleteChatSession}
               onSaveChatSessionTitle={handleUpdateChatSessionTitle}
-              onRegenerateChatSessionSecret={handleRegenerateChatSessionSecret}
               onSendChatMessage={handleSendChatMessage}
               onInterruptChatTurn={handleInterruptChatTurn}
               onSteerQueuedMessage={handleSteerQueuedChatMessage}
