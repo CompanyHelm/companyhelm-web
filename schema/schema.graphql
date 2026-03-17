@@ -500,7 +500,8 @@ type Mutation {
   createRole(name: String!, parentRoleId: ID): RoleMutationPayload!
   createSecret(description: String!, name: String!, value: String!): SecretMutationPayload!
   createSkillGroup(name: String!, parentSkillGroupId: ID): SkillGroupMutationPayload!
-  createTask(acceptanceCriteria: String, assigneeActorId: ID, dependencyTaskIds: [ID!], description: String, name: String!, parentTaskId: ID, status: TaskStatus): TaskMutationPayload!
+  createTask(acceptanceCriteria: String, assigneeActorId: ID, category: String, dependencyTaskIds: [ID!], description: String, name: String!, parentTaskId: ID, status: TaskStatus): TaskMutationPayload!
+  createTaskCategory(name: String!): TaskCategoryMutationPayload!
   createTaskComment(comment: String!, taskId: ID!): TaskCommentMutationPayload!
   createThread(additionalModelInstructions: String, agentId: ID!, title: String): Thread!
   deleteAgent(input: DeleteAgentInput!): DeleteAgentPayload!
@@ -516,6 +517,7 @@ type Mutation {
   deleteSecret(id: ID!): DeleteSecretPayload!
   deleteSkillGroup(id: ID!): DeleteSkillGroupPayload!
   deleteTask(id: ID!): DeleteTaskPayload!
+  deleteTaskCategory(id: ID!): TaskCategoryMutationPayload!
   deleteThread(threadId: ID!): Thread!
   disconnectMcpServerOAuth(mcpServerId: ID!): McpOAuthConnectionMutationPayload!
   executeTask(agentId: ID!, taskId: ID!): TaskMutationPayload!
@@ -531,9 +533,11 @@ type Mutation {
   removeSkillGroupFromRole(roleId: ID!, skillGroupId: ID!): RoleMutationPayload!
   removeTaskDependency(dependencyTaskId: ID!, taskId: ID!): TaskMutationPayload!
   retryQueuedUserMessage(queuedMessageId: ID!): QueuedUserMessage!
+  scheduleAgentHeartbeatNow(heartbeatId: ID!): AgentHeartbeat!
   setActorDescription(actorId: ID!, description: String): ActorMutationPayload!
   setActorManager(managerActorId: ID, reporteeActorId: ID!): ReporteeMutationPayload!
   setTaskAssigneeActor(assigneeActorId: ID, taskId: ID!): TaskMutationPayload!
+  setTaskCategory(category: String, taskId: ID!): TaskMutationPayload!
   setTaskDescription(description: String, taskId: ID!): TaskMutationPayload!
   setTaskName(name: String!, taskId: ID!): TaskMutationPayload!
   setTaskParent(parentTaskId: ID, taskId: ID!): TaskMutationPayload!
@@ -550,6 +554,7 @@ type Mutation {
   updateRole(id: ID!, name: String!, parentRoleId: ID): RoleMutationPayload!
   updateSecret(description: String!, id: ID!, name: String!, value: String): SecretMutationPayload!
   updateSkillGroup(id: ID!, name: String!, parentSkillGroupId: ID): SkillGroupMutationPayload!
+  updateTaskCategory(id: ID!, name: String!): TaskCategoryMutationPayload!
   updateThreadTitle(threadId: ID!, title: String): Thread!
 }
 
@@ -598,6 +603,7 @@ type Query {
   skillGroups: [SkillGroup!]!
   skills: [Skill!]!
   taskAssignableActors: [Actor!]!
+  taskCategories: [TaskCategory!]!
   taskOptions: [TaskOption!]!
   tasks(maxDepth: Int, rootTaskId: ID, topLevelOnly: Boolean): [Task!]!
   thread(id: ID!): Thread
@@ -792,6 +798,7 @@ type Task {
   assigneeActor: Actor
   assigneeActorId: ID
   attemptCount: Int!
+  category: String
   comments: [TaskComment!]!
   company: Company!
   createdAt: String!
@@ -807,6 +814,19 @@ type Task {
   runs: [TaskRun!]!
   status: TaskStatus!
   updatedAt: String!
+}
+
+type TaskCategory {
+  createdAt: String!
+  id: ID!
+  name: String!
+  updatedAt: String!
+}
+
+type TaskCategoryMutationPayload {
+  error: String
+  ok: Boolean!
+  taskCategory: TaskCategory
 }
 
 type TaskComment {

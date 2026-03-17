@@ -6,8 +6,13 @@ import { TaskCreateModal } from "../../src/components/TaskCreateModal.tsx";
 
 function renderTaskCreateModalMarkup({
   assigneeActorId = "",
+  categories = [
+    { id: "task-category-1", name: "Backlog" },
+    { id: "task-category-2", name: "Shipping" },
+  ],
 }: {
   assigneeActorId?: string;
+  categories?: Array<{ id: string; name: string }>;
 } = {}) {
   return renderToStaticMarkup(
     React.createElement(TaskCreateModal, {
@@ -29,6 +34,8 @@ function renderTaskCreateModalMarkup({
       ],
       name: "Ship task modal cleanup",
       description: "",
+      category: "Shipping",
+      taskCategories: categories,
       assigneeActorId,
       status: "draft",
       parentTaskId: "",
@@ -36,6 +43,7 @@ function renderTaskCreateModalMarkup({
       isSubmittingTask: false,
       onNameChange: () => {},
       onDescriptionChange: () => {},
+      onCategoryChange: () => {},
       onAssigneeActorIdChange: () => {},
       onStatusChange: () => {},
       onParentTaskIdChange: () => {},
@@ -59,4 +67,12 @@ test("TaskCreateModal disables create-and-execute when the assignee is not an ag
 
   assert.match(markup, /title="Assign the task to an agent to execute it\."/);
   assert.match(markup, /<button type="button" disabled="" title="Assign the task to an agent to execute it\.">Create &amp; Execute<\/button>/);
+});
+
+test("TaskCreateModal renders category selection from task settings", () => {
+  const markup = renderTaskCreateModalMarkup();
+
+  assert.match(markup, />Category</);
+  assert.match(markup, /<option value="">Uncategorized<\/option>/);
+  assert.match(markup, /<option value="Shipping" selected="">Shipping<\/option>/);
 });

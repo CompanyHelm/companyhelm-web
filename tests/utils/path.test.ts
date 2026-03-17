@@ -8,6 +8,8 @@ import {
   getAgentsRouteFromPathname,
   getActorsRouteFromPathname,
   getPageFromPathname,
+  getSettingsPath,
+  getSettingsTabFromPathname,
   getTaskPath,
   getTasksRouteFromPathname,
   resolveAdminTableNameForRoute,
@@ -112,6 +114,14 @@ test("getAgentsRouteFromPathname reads the tab query from the detail URL", () =>
 
 test("getAgentPath always includes the normalized tab query", () => {
   assert.equal(getAgentPath({ agentId: "agent-123", tab: "Chats" }), "/agents/agent-123?tab=chats");
+});
+
+test("getSettingsTabFromPathname reads the tab query from /settings", () => {
+  assert.equal(getSettingsTabFromPathname("/settings", "?tab=tasks"), "tasks");
+});
+
+test("getSettingsPath always includes the normalized tab query", () => {
+  assert.equal(getSettingsPath({ tab: "Tasks" }), "/settings?tab=tasks");
 });
 
 test("getAdminRouteFromPathname returns table view for /admin/tables/:tableName", () => {

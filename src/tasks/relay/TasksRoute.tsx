@@ -1,10 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import ReactRelay from "react-relay";
-import { authProvider } from "../../auth/runtime.ts";
 import { TasksPage } from "../../pages/TasksPage.tsx";
 import type { TaskRelationshipDraftById } from "../../types/domain.ts";
-import { getActiveCompanyId } from "../../utils/company-context.ts";
-import { GRAPHQL_URL } from "../../utils/constants.ts";
 import { normalizeUniqueStringList } from "../../utils/normalization.ts";
 import { buildTaskExecutionPlan } from "../../utils/task-execution.ts";
 import {
@@ -29,6 +26,7 @@ const tasksRouteTaskFragment = graphql`
       id
     }
     name
+    category
     description
     acceptanceCriteria
     assigneeActorId
@@ -112,6 +110,17 @@ const tasksRouteQuery = graphql`
     tasks(topLevelOnly: $topLevelOnly, rootTaskId: $rootTaskId, maxDepth: $maxDepth) {
       ...TasksRoute_task
     }
+    taskOptions {
+      id
+      name
+      parentTaskId
+    }
+    taskCategories {
+      id
+      name
+      createdAt
+      updatedAt
+    }
     taskAssignableActors {
       id
       kind
@@ -150,6 +159,7 @@ const tasksUpdatedSubscription = graphql`
 const createTaskMutation = graphql`
   mutation TasksRouteCreateTaskMutation(
     $name: String!
+    $category: String
     $description: String
     $status: TaskStatus
     $assigneeActorId: ID
@@ -158,12 +168,25 @@ const createTaskMutation = graphql`
   ) {
     createTask(
       name: $name
+      category: $category
       description: $description
       status: $status
       assigneeActorId: $assigneeActorId
       parentTaskId: $parentTaskId
       dependencyTaskIds: $dependencyTaskIds
     ) {
+      ok
+      error
+      task {
+        id
+      }
+    }
+  }
+`;
+
+const setTaskCategoryMutation = graphql`
+  mutation TasksRouteSetTaskCategoryMutation($taskId: ID!, $category: String) {
+    setTaskCategory(taskId: $taskId, category: $category) {
       ok
       error
       task {
@@ -338,32 +361,6 @@ function commitRelayMutation(environment: ReturnType<typeof useRelayEnvironment>
   });
 }
 
-const TASK_OPTIONS_QUERY = `query TaskOptionsQuery { taskOptions { id name parentTaskId } }`;
-
-type TaskOptionRecord = { id: string; name: string; parentTaskId: string | null };
-
-async function fetchTaskOptions(): Promise<TaskOptionRecord[]> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  const authorization = authProvider.getAuthorizationHeaderValue();
-  if (authorization) {
-    headers.Authorization = authorization;
-  }
-  const activeCompanyId = getActiveCompanyId();
-  if (activeCompanyId) {
-    headers["x-company-id"] = activeCompanyId;
-  }
-  const response = await fetch(GRAPHQL_URL, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ query: TASK_OPTIONS_QUERY }),
-  });
-  if (!response.ok) {
-    return [];
-  }
-  const payload = await response.json();
-  return Array.isArray(payload?.data?.taskOptions) ? payload.data.taskOptions : [];
-}
-
 function getQueryVariables(params: { activeTaskId: string }) {
   const normalizedActiveTaskId = String(params.activeTaskId || "").trim();
   const isTaskDetailRoute = Boolean(normalizedActiveTaskId);
@@ -394,23 +391,12 @@ export function TasksRoute({
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [taskAssigneeActorId, setTaskAssigneeActorId] = useState("");
+  const [taskCategory, setTaskCategory] = useState("");
   const [taskStatus, setTaskStatus] = useState("draft");
   const [parentTaskId, setParentTaskId] = useState("");
   const [dependencyTaskIds, setDependencyTaskIds] = useState<string[]>([]);
   const [relationshipDrafts, setRelationshipDrafts] = useState<TaskRelationshipDraftById>({});
   const [fetchKey, setFetchKey] = useState(0);
-  const [taskOptions, setTaskOptions] = useState<TaskOptionRecord[]>([]);
-  const taskOptionsFetchKeyRef = useRef(0);
-
-  useEffect(() => {
-    taskOptionsFetchKeyRef.current += 1;
-    const currentFetchKey = taskOptionsFetchKeyRef.current;
-    void fetchTaskOptions().then((options) => {
-      if (currentFetchKey === taskOptionsFetchKeyRef.current) {
-        setTaskOptions(options);
-      }
-    });
-  }, [fetchKey]);
 
   const queryVariables = useMemo(
     () => getQueryVariables({ activeTaskId }),
@@ -425,15 +411,15 @@ export function TasksRoute({
     if (pageId !== "my-tasks") {
       return {
         tasks: taskNodes,
-        taskOptions,
+        taskOptions: queryData.taskOptions,
       };
     }
     return filterTasksForAssigneeUserId({
       tasks: taskNodes,
-      taskOptions,
+      taskOptions: queryData.taskOptions,
       assigneeUserId,
     });
-  }, [assigneeUserId, pageId, taskNodes, taskOptions]);
+  }, [assigneeUserId, pageId, queryData.taskOptions, taskNodes]);
   const viewModel = useMemo(
     () =>
       toTaskRouteViewModel({
@@ -486,6 +472,7 @@ export function TasksRoute({
   const resetCreateTaskForm = useCallback(() => {
     setName("");
     setDescription("");
+    setTaskCategory("");
     setTaskAssigneeActorId("");
     setTaskStatus("draft");
     setParentTaskId("");
@@ -511,6 +498,7 @@ export function TasksRoute({
         mutation: createTaskMutation,
         variables: {
           name: name.trim(),
+          category: String(taskCategory || "").trim() || null,
           description: description.trim() || null,
           status: String(taskStatus || "").trim() || "draft",
           assigneeActorId: String(taskAssigneeActorId || "").trim() || null,
@@ -540,6 +528,7 @@ export function TasksRoute({
     refetchTasks,
     resetCreateTaskForm,
     taskAssigneeActorId,
+    taskCategory,
     taskStatus,
   ]);
 
@@ -566,6 +555,7 @@ export function TasksRoute({
         mutation: createTaskMutation,
         variables: {
           name: name.trim(),
+          category: String(taskCategory || "").trim() || null,
           description: description.trim() || null,
           status: String(taskStatus || "").trim() || "draft",
           assigneeActorId: String(taskAssigneeActorId || "").trim() || null,
@@ -612,6 +602,7 @@ export function TasksRoute({
     refetchTasks,
     resetCreateTaskForm,
     taskAssigneeActorId,
+    taskCategory,
     taskStatus,
     viewModel.actors,
   ]);
@@ -783,6 +774,7 @@ export function TasksRoute({
       childTaskIds: [],
       assigneeActorId: String(currentTask.assigneeActorId || "").trim(),
       status: String(currentTask.status || "").trim() || "draft",
+      category: String(currentTask.category || "").trim(),
     };
 
     try {
@@ -818,6 +810,8 @@ export function TasksRoute({
       const nextAssigneeActorId = String(draft.assigneeActorId || "").trim();
       const currentStatus = String(currentTask.status || "").trim() || "draft";
       const nextStatus = String(draft.status || "").trim() || "draft";
+      const currentCategory = String(currentTask.category || "").trim();
+      const nextCategory = String(draft.category || "").trim();
 
       if (currentAssigneeActorId !== nextAssigneeActorId) {
         const response = await commitRouteMutation({
@@ -844,6 +838,20 @@ export function TasksRoute({
         const result = response?.setTaskStatus;
         if (!result?.ok) {
           throw new Error(result?.error || "Task status update failed.");
+        }
+      }
+
+      if (currentCategory !== nextCategory) {
+        const response = await commitRouteMutation({
+          mutation: setTaskCategoryMutation,
+          variables: {
+            taskId,
+            category: nextCategory || null,
+          },
+        });
+        const result = response?.setTaskCategory;
+        if (!result?.ok) {
+          throw new Error(result?.error || "Task category update failed.");
         }
       }
 
@@ -1029,7 +1037,7 @@ export function TasksRoute({
 
   const handleDraftChange = useCallback((
     taskId: string,
-    field: "dependencyTaskIds" | "parentTaskId" | "childTaskIds" | "assigneeActorId" | "status",
+    field: "dependencyTaskIds" | "parentTaskId" | "childTaskIds" | "assigneeActorId" | "status" | "category",
     value: string | string[],
   ) => {
     setRelationshipDrafts((currentDrafts) => {
@@ -1040,6 +1048,7 @@ export function TasksRoute({
           childTaskIds: [],
           assigneeActorId: "",
           status: "draft",
+          category: "",
         }),
       };
       if (field === "dependencyTaskIds" || field === "childTaskIds") {
@@ -1048,6 +1057,8 @@ export function TasksRoute({
         nextDraft.status = String(value || "").trim() || "draft";
       } else if (field === "assigneeActorId") {
         nextDraft.assigneeActorId = String(value || "").trim();
+      } else if (field === "category") {
+        nextDraft.category = String(value || "").trim();
       } else {
         nextDraft.parentTaskId = String(value || "").trim();
       }
@@ -1107,10 +1118,33 @@ export function TasksRoute({
     }
   }, [commitRouteMutation, refetchTasks]);
 
+  const handleSetTaskCategory = useCallback(async (taskId: string, nextCategory: string) => {
+    try {
+      setSavingTaskId(taskId);
+      setTaskError("");
+      const response = await commitRouteMutation({
+        mutation: setTaskCategoryMutation,
+        variables: { taskId, category: nextCategory.trim() || null },
+      });
+      const result = response?.setTaskCategory;
+      if (!result?.ok) {
+        throw new Error(result?.error || "Task category update failed.");
+      }
+      refetchTasks();
+      return true;
+    } catch (error: any) {
+      setTaskError(error.message);
+      return false;
+    } finally {
+      setSavingTaskId(null);
+    }
+  }, [commitRouteMutation, refetchTasks]);
+
   return (
     <TasksPage
       tasks={viewModel.tasks}
       taskOptions={viewModel.taskOptions}
+      taskCategories={viewModel.taskCategories}
       agents={viewModel.agents}
       actors={viewModel.actors}
       isLoadingTasks={false}
@@ -1120,6 +1154,7 @@ export function TasksRoute({
       commentingTaskId={commentingTaskId}
       deletingTaskId={deletingTaskId}
       name={name}
+      category={taskCategory}
       description={description}
       assigneeActorId={taskAssigneeActorId}
       status={taskStatus}
@@ -1127,6 +1162,7 @@ export function TasksRoute({
       dependencyTaskIds={dependencyTaskIds}
       relationshipDrafts={relationshipDrafts}
       onNameChange={setName}
+      onCategoryChange={setTaskCategory}
       onDescriptionChange={setDescription}
       onAssigneeActorIdChange={setTaskAssigneeActorId}
       onStatusChange={setTaskStatus}
@@ -1138,6 +1174,7 @@ export function TasksRoute({
       onSaveRelationships={handleRelationshipSave}
       onSetTaskName={handleSetTaskName}
       onSetTaskDescription={handleSetTaskDescription}
+      onSetTaskCategory={handleSetTaskCategory}
       onExecuteTask={handleExecuteTask}
       onAddDependency={handleAddTaskDependency}
       onRemoveDependency={handleRemoveTaskDependency}

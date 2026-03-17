@@ -32,6 +32,7 @@ test("createRelationshipDrafts normalizes dependencyTaskIds and parent/child rel
       childTaskIds: ["task-2", "task-3"],
       assigneeActorId: "actor-user-1",
       status: "pending",
+      category: "",
     },
     "task-2": {
       dependencyTaskIds: [],
@@ -39,6 +40,7 @@ test("createRelationshipDrafts normalizes dependencyTaskIds and parent/child rel
       childTaskIds: [],
       assigneeActorId: "",
       status: "draft",
+      category: "",
     },
     "task-3": {
       dependencyTaskIds: [],
@@ -46,6 +48,7 @@ test("createRelationshipDrafts normalizes dependencyTaskIds and parent/child rel
       childTaskIds: [],
       assigneeActorId: "",
       status: "draft",
+      category: "",
     },
   });
 });

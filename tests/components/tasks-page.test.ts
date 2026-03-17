@@ -39,6 +39,10 @@ function renderTasksPageMarkup(taskOverrides: Partial<TaskItem> = {}, agents: Ag
     React.createElement(TasksPage, {
       tasks: [rootTask, childTask],
       taskOptions: [rootTask, childTask],
+      taskCategories: [
+        { id: "task-category-1", name: "Backlog" },
+        { id: "task-category-2", name: "Shipping" },
+      ],
       agents,
       actors: [
         {
@@ -54,6 +58,7 @@ function renderTasksPageMarkup(taskOverrides: Partial<TaskItem> = {}, agents: Ag
       commentingTaskId: null,
       deletingTaskId: null,
       name: "",
+      category: "",
       description: "",
       assigneeActorId: "",
       status: "draft",
@@ -61,6 +66,7 @@ function renderTasksPageMarkup(taskOverrides: Partial<TaskItem> = {}, agents: Ag
       dependencyTaskIds: [],
       relationshipDrafts: {},
       onNameChange: () => {},
+      onCategoryChange: () => {},
       onDescriptionChange: () => {},
       onAssigneeActorIdChange: () => {},
       onStatusChange: () => {},
@@ -70,8 +76,12 @@ function renderTasksPageMarkup(taskOverrides: Partial<TaskItem> = {}, agents: Ag
       onCreateAndExecuteTask: () => true,
       onDraftChange: () => {},
       onSaveRelationships: () => true,
+      onSetTaskName: () => true,
+      onSetTaskDescription: () => true,
+      onSetTaskCategory: () => true,
       onExecuteTask: () => true,
       onAddDependency: () => {},
+      onRemoveDependency: () => {},
       onCreateTaskComment: () => true,
       onDeleteTask: () => {},
       onBatchDeleteTasks: () => true,
@@ -80,8 +90,6 @@ function renderTasksPageMarkup(taskOverrides: Partial<TaskItem> = {}, agents: Ag
       activeTaskId: "task-1",
       activeTab: "overview",
       onTabChange: () => {},
-      visibleDepth: "3",
-      onVisibleDepthChange: () => {},
       onOpenTask: () => {},
     }),
   );

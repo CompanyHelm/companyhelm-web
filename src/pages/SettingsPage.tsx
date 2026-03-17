@@ -1,10 +1,10 @@
-import { useMemo, useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import { Page } from "../components/Page.tsx";
 import { CreationModal } from "../components/CreationModal.tsx";
 import { useSetPageActions } from "../components/PageActionsContext.tsx";
-import type { Company } from "../types/domain.ts";
+import type { Company, TaskCategory } from "../types/domain.ts";
 
-type SettingsTabId = "general" | "companies";
+type SettingsTabId = "general" | "tasks" | "companies";
 
 export type SettingsExportSectionId =
   | "companyProfile"
@@ -110,16 +110,30 @@ interface SettingsPageProps {
   newCompanyName: string;
   isCreatingCompany: boolean;
   isDeletingCompany: boolean;
+  taskCategories: TaskCategory[];
+  newTaskCategoryName: string;
+  isCreatingTaskCategory: boolean;
+  deletingTaskCategoryId: string | null;
+  editingTaskCategoryId: string | null;
+  taskCategoryDraftName: string;
   selectedExportSections: SettingsExportSectionId[];
   isExportingCompanyData: boolean;
   exportError: string;
   onNewCompanyNameChange: (name: string) => void;
   onCreateCompany: (event: FormEvent<HTMLFormElement>) => Promise<boolean> | boolean;
   onDeleteCompany: (company: Company) => Promise<boolean> | boolean;
+  onNewTaskCategoryNameChange: (name: string) => void;
+  onCreateTaskCategory: (event: FormEvent<HTMLFormElement>) => Promise<boolean> | boolean;
+  onDeleteTaskCategory: (taskCategory: TaskCategory) => Promise<boolean> | boolean;
+  onStartTaskCategoryRename: (taskCategory: TaskCategory) => void;
+  onTaskCategoryDraftNameChange: (name: string) => void;
+  onSaveTaskCategoryRename: () => Promise<boolean> | boolean;
+  onCancelTaskCategoryRename: () => void;
   onExportSectionsChange: (nextSections: SettingsExportSectionId[]) => void;
   onApplyExportPreset: (presetSections: SettingsExportSectionId[]) => void;
   onExportCompanyData: () => void;
   initialActiveTab?: SettingsTabId;
+  onTabChange?: (tab: SettingsTabId) => void;
   initialDeleteCompanyId?: string;
   initialDeleteConfirmationValue?: string;
   initialExportModalOpen?: boolean;
@@ -133,16 +147,30 @@ export function SettingsPage({
   newCompanyName,
   isCreatingCompany,
   isDeletingCompany,
+  taskCategories,
+  newTaskCategoryName,
+  isCreatingTaskCategory,
+  deletingTaskCategoryId,
+  editingTaskCategoryId,
+  taskCategoryDraftName,
   selectedExportSections,
   isExportingCompanyData,
   exportError,
   onNewCompanyNameChange,
   onCreateCompany,
   onDeleteCompany,
+  onNewTaskCategoryNameChange,
+  onCreateTaskCategory,
+  onDeleteTaskCategory,
+  onStartTaskCategoryRename,
+  onTaskCategoryDraftNameChange,
+  onSaveTaskCategoryRename,
+  onCancelTaskCategoryRename,
   onExportSectionsChange,
   onApplyExportPreset,
   onExportCompanyData,
   initialActiveTab = "general",
+  onTabChange,
   initialDeleteCompanyId = "",
   initialDeleteConfirmationValue = "",
   initialExportModalOpen = false,
@@ -161,6 +189,10 @@ export function SettingsPage({
     [companies, deleteTargetCompanyId],
   );
   const isDeleteConfirmationMatched = deleteConfirmationValue === (deleteTargetCompany?.name ?? "");
+
+  useEffect(() => {
+    setActiveTab(initialActiveTab);
+  }, [initialActiveTab]);
 
   async function handleCreateCompanySubmit(event: FormEvent<HTMLFormElement>) {
     const didCreate = await onCreateCompany(event);
@@ -192,6 +224,16 @@ export function SettingsPage({
       setDeleteTargetCompanyId("");
       setDeleteConfirmationValue("");
     }
+  }
+
+  async function handleCreateTaskCategorySubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await onCreateTaskCategory(event);
+  }
+
+  function handleSelectTab(tab: SettingsTabId) {
+    setActiveTab(tab);
+    onTabChange?.(tab);
   }
 
   function openDeleteCompanyModal(company: Company) {
@@ -283,16 +325,25 @@ export function SettingsPage({
           role="tab"
           aria-selected={activeTab === "general"}
           className={`task-view-tab${activeTab === "general" ? " task-view-tab-active" : ""}`}
-          onClick={() => setActiveTab("general")}
+          onClick={() => handleSelectTab("general")}
         >
           General
         </button>
         <button
           type="button"
           role="tab"
+          aria-selected={activeTab === "tasks"}
+          className={`task-view-tab${activeTab === "tasks" ? " task-view-tab-active" : ""}`}
+          onClick={() => handleSelectTab("tasks")}
+        >
+          Tasks
+        </button>
+        <button
+          type="button"
+          role="tab"
           aria-selected={activeTab === "companies"}
           className={`task-view-tab${activeTab === "companies" ? " task-view-tab-active" : ""}`}
-          onClick={() => setActiveTab("companies")}
+          onClick={() => handleSelectTab("companies")}
         >
           Companies
         </button>
@@ -421,6 +472,115 @@ export function SettingsPage({
             </div>
           ) : (
             <p className="empty-hint">You do not have access to any companies yet.</p>
+          )}
+        </section>
+      ) : null}
+
+      {activeTab === "tasks" ? (
+        <section className="panel">
+          <header className="panel-header">
+            <h2>Task categories</h2>
+          </header>
+          <p className="subcopy">
+            Manage the category lanes available on the tasks page. Dragging tasks across the board updates this field.
+          </p>
+          <form className="chat-settings-form" onSubmit={handleCreateTaskCategorySubmit}>
+            <div className="chat-settings-field">
+              <label className="chat-settings-label" htmlFor="settings-task-category-name">
+                Add category
+              </label>
+              <input
+                className="chat-settings-input"
+                id="settings-task-category-name"
+                value={newTaskCategoryName}
+                onChange={(event: ChangeEvent<HTMLInputElement>) => onNewTaskCategoryNameChange(event.target.value)}
+                placeholder="e.g. Backlog"
+                disabled={isCreatingTaskCategory}
+              />
+            </div>
+            <div className="hero-actions">
+              <button type="submit" disabled={isCreatingTaskCategory}>
+                {isCreatingTaskCategory ? "Adding..." : "Add category"}
+              </button>
+            </div>
+          </form>
+          {taskCategories.length > 0 ? (
+            <ul className="chat-card-list">
+              {taskCategories.map((taskCategory) => {
+                const isDeletingTaskCategory = deletingTaskCategoryId === taskCategory.id;
+                const isEditingTaskCategory = editingTaskCategoryId === taskCategory.id;
+                return (
+                  <li key={taskCategory.id} className="chat-card">
+                    <div className="chat-card-main">
+                      {isEditingTaskCategory ? (
+                        <div className="chat-settings-field">
+                          <label className="chat-settings-label" htmlFor={`settings-task-category-rename-${taskCategory.id}`}>
+                            Rename category
+                          </label>
+                          <input
+                            className="chat-settings-input"
+                            id={`settings-task-category-rename-${taskCategory.id}`}
+                            value={taskCategoryDraftName}
+                            onChange={(event: ChangeEvent<HTMLInputElement>) => onTaskCategoryDraftNameChange(event.target.value)}
+                            disabled={isDeletingTaskCategory}
+                          />
+                        </div>
+                      ) : (
+                        <div className="chat-card-title-row">
+                          <span className="chat-card-title">
+                            <strong>{taskCategory.name}</strong>
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="hero-actions">
+                      {isEditingTaskCategory ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void onSaveTaskCategoryRename();
+                            }}
+                            disabled={isDeletingTaskCategory}
+                          >
+                            Save rename
+                          </button>
+                          <button
+                            type="button"
+                            className="secondary-btn"
+                            onClick={onCancelTaskCategoryRename}
+                            disabled={isDeletingTaskCategory}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          className="secondary-btn"
+                          onClick={() => onStartTaskCategoryRename(taskCategory)}
+                          disabled={isDeletingTaskCategory}
+                        >
+                          Rename category
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="danger-btn"
+                        disabled={isDeletingTaskCategory}
+                        onClick={() => {
+                          void onDeleteTaskCategory(taskCategory);
+                        }}
+                      >
+                        {isDeletingTaskCategory ? "Deleting..." : "Delete category"}
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="empty-hint">No task categories yet.</p>
           )}
         </section>
       ) : null}

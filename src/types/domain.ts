@@ -208,6 +208,7 @@ export interface ReporteeRelation {
 
 export interface TaskItem extends NamedEntity {
   companyId?: string;
+  category?: string | null;
   description?: string;
   acceptanceCriteria?: string;
   assigneeActorId?: string | null;
@@ -235,6 +236,14 @@ export interface TaskRelationshipDraft {
   childTaskIds: string[];
   assigneeActorId: string;
   status: string;
+  category: string;
+}
+
+export interface TaskCategory {
+  id: string;
+  name: string;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 }
 
 export interface AgentDraft {

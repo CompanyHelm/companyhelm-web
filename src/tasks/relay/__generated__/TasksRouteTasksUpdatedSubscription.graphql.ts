@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c5171160c9bbafa57a4e2027dd6b35aa>>
+ * @generated SignedSource<<fec54cf49f3fa57644a72c31e2aa3238>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -289,6 +289,13 @@ return {
                 "alias": null,
                 "args": null,
                 "kind": "ScalarField",
+                "name": "category",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
                 "name": "description",
                 "storageKey": null
               },
@@ -439,12 +446,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "3ac4339e3c7c0de5de8e8e9e0e538a1a",
+    "cacheID": "e3758e5b773d1095b87cb1f7878bd7bd",
     "id": null,
     "metadata": {},
     "name": "TasksRouteTasksUpdatedSubscription",
     "operationKind": "subscription",
-    "text": "subscription TasksRouteTasksUpdatedSubscription(\n  $topLevelOnly: Boolean\n  $rootTaskId: ID\n  $maxDepth: Int\n) {\n  tasksUpdated(topLevelOnly: $topLevelOnly, rootTaskId: $rootTaskId, maxDepth: $maxDepth) {\n    membershipChanged\n    deletedTaskIds\n    tasks {\n      ...TasksRoute_task\n      id\n    }\n  }\n}\n\nfragment TasksRoute_task on Task {\n  id\n  company {\n    id\n  }\n  name\n  description\n  acceptanceCriteria\n  assigneeActorId\n  assigneeActor {\n    id\n    kind\n    displayName\n    agentId\n    userId\n    email\n  }\n  parentTaskId\n  status\n  createdAt\n  updatedAt\n  attemptCount\n  lastRunStatus\n  has_running_threads\n  latestRun {\n    id\n    taskId\n    status\n    threadId\n    agentId\n    triggeredByActorId\n    failureMessage\n    startedAt\n    finishedAt\n    createdAt\n    updatedAt\n  }\n  activeRun {\n    id\n    taskId\n    status\n    threadId\n    agentId\n    triggeredByActorId\n    failureMessage\n    startedAt\n    finishedAt\n    createdAt\n    updatedAt\n  }\n  runningThreadId\n  runs {\n    id\n    taskId\n    status\n    threadId\n    agentId\n    triggeredByActorId\n    failureMessage\n    startedAt\n    finishedAt\n    createdAt\n    updatedAt\n  }\n  dependencyTaskIds\n  comments {\n    id\n    taskId\n    comment\n    authorActorId\n    authorActor {\n      id\n      kind\n      displayName\n      agentId\n      userId\n      email\n    }\n    createdAt\n    updatedAt\n  }\n}\n"
+    "text": "subscription TasksRouteTasksUpdatedSubscription(\n  $topLevelOnly: Boolean\n  $rootTaskId: ID\n  $maxDepth: Int\n) {\n  tasksUpdated(topLevelOnly: $topLevelOnly, rootTaskId: $rootTaskId, maxDepth: $maxDepth) {\n    membershipChanged\n    deletedTaskIds\n    tasks {\n      ...TasksRoute_task\n      id\n    }\n  }\n}\n\nfragment TasksRoute_task on Task {\n  id\n  company {\n    id\n  }\n  name\n  category\n  description\n  acceptanceCriteria\n  assigneeActorId\n  assigneeActor {\n    id\n    kind\n    displayName\n    agentId\n    userId\n    email\n  }\n  parentTaskId\n  status\n  createdAt\n  updatedAt\n  attemptCount\n  lastRunStatus\n  has_running_threads\n  latestRun {\n    id\n    taskId\n    status\n    threadId\n    agentId\n    triggeredByActorId\n    failureMessage\n    startedAt\n    finishedAt\n    createdAt\n    updatedAt\n  }\n  activeRun {\n    id\n    taskId\n    status\n    threadId\n    agentId\n    triggeredByActorId\n    failureMessage\n    startedAt\n    finishedAt\n    createdAt\n    updatedAt\n  }\n  runningThreadId\n  runs {\n    id\n    taskId\n    status\n    threadId\n    agentId\n    triggeredByActorId\n    failureMessage\n    startedAt\n    finishedAt\n    createdAt\n    updatedAt\n  }\n  dependencyTaskIds\n  comments {\n    id\n    taskId\n    comment\n    authorActorId\n    authorActor {\n      id\n      kind\n      displayName\n      agentId\n      userId\n      email\n    }\n    createdAt\n    updatedAt\n  }\n}\n"
   }
 };
 })();

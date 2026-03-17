@@ -6,6 +6,11 @@ interface TaskOption {
   name: string;
 }
 
+interface TaskCategoryOption {
+  id: string | number;
+  name: string;
+}
+
 interface ActorOption {
   id: string | number;
   kind: "agent" | "user";
@@ -17,8 +22,10 @@ interface TaskCreateModalProps {
   isOpen: boolean;
   onClose: () => void;
   tasks: TaskOption[];
+  taskCategories: TaskCategoryOption[];
   actors: ActorOption[];
   name: string;
+  category: string;
   description: string;
   assigneeActorId: string;
   status: string;
@@ -26,6 +33,7 @@ interface TaskCreateModalProps {
   dependencyTaskIds: string[];
   isSubmittingTask: boolean;
   onNameChange: (value: string) => void;
+  onCategoryChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
   onAssigneeActorIdChange: (value: string) => void;
   onStatusChange: (value: string) => void;
@@ -39,8 +47,10 @@ export function TaskCreateModal({
   isOpen,
   onClose,
   tasks,
+  taskCategories,
   actors,
   name,
+  category,
   description,
   assigneeActorId,
   status,
@@ -48,6 +58,7 @@ export function TaskCreateModal({
   dependencyTaskIds,
   isSubmittingTask,
   onNameChange,
+  onCategoryChange,
   onDescriptionChange,
   onAssigneeActorIdChange,
   onStatusChange,
@@ -97,6 +108,21 @@ export function TaskCreateModal({
           required
           autoFocus
         />
+
+        <label htmlFor="task-category">Category</label>
+        <select
+          id="task-category"
+          name="category"
+          value={category}
+          onChange={(event: ChangeEvent<HTMLSelectElement>) => onCategoryChange(event.target.value)}
+        >
+          <option value="">Uncategorized</option>
+          {taskCategories.map((taskCategory) => (
+            <option key={`create-category-${taskCategory.id}`} value={String(taskCategory.name || "").trim()}>
+              {taskCategory.name}
+            </option>
+          ))}
+        </select>
 
         <label htmlFor="task-description">Description</label>
         <textarea

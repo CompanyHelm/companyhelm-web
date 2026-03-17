@@ -5,6 +5,7 @@ import { Page } from "../components/Page.tsx";
 import { CreationModal } from "../components/CreationModal.tsx";
 import { useSetPageActions } from "../components/PageActionsContext.tsx";
 import { TaskGraphView } from "../components/TaskGraphView.tsx";
+import { TaskBoardView } from "../components/TaskBoardView.tsx";
 import { TaskTableView } from "../components/TaskTableView.tsx";
 import { TaskCreateModal } from "../components/TaskCreateModal.tsx";
 import { TaskEditModal } from "../components/TaskEditModal.tsx";
@@ -16,9 +17,11 @@ import {
   getTaskSubtree,
   getTopLevelTasks,
 } from "../utils/task-hierarchy.ts";
+import { filterTasksByCategories } from "../utils/task-board.ts";
 import type {
   Agent,
   Actor,
+  TaskCategory,
   TaskItem,
   TaskRelationshipDraftById,
 } from "../types/domain.ts";
@@ -34,6 +37,7 @@ interface OverviewPropertyOption {
 interface TasksPageProps {
   tasks: TaskItem[];
   taskOptions: TaskItem[];
+  taskCategories: TaskCategory[];
   agents: Agent[];
   actors: Actor[];
   isLoadingTasks: boolean;
@@ -43,6 +47,7 @@ interface TasksPageProps {
   commentingTaskId: string | null;
   deletingTaskId: string | null;
   name: string;
+  category: string;
   description: string;
   assigneeActorId: string;
   status: string;
@@ -50,6 +55,7 @@ interface TasksPageProps {
   dependencyTaskIds: string[];
   relationshipDrafts: TaskRelationshipDraftById;
   onNameChange: (value: string) => void;
+  onCategoryChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
   onAssigneeActorIdChange: (value: string) => void;
   onStatusChange: (value: string) => void;
@@ -61,6 +67,7 @@ interface TasksPageProps {
   onSaveRelationships: (taskId: string) => Promise<boolean> | boolean;
   onSetTaskName: (taskId: string, name: string) => Promise<boolean> | boolean;
   onSetTaskDescription: (taskId: string, description: string) => Promise<boolean> | boolean;
+  onSetTaskCategory: (taskId: string, category: string) => Promise<boolean> | boolean;
   onExecuteTask: (taskId: string, agentId: string) => Promise<boolean> | boolean;
   onAddDependency?: (taskId: string, dependencyTaskId: string) => void;
   onRemoveDependency?: (taskId: string, dependencyTaskId: string) => void;
@@ -192,6 +199,7 @@ function OverviewPropertyDropdown({
 export function TasksPage({
   tasks,
   taskOptions,
+  taskCategories,
   agents,
   actors,
   isLoadingTasks,
@@ -201,6 +209,7 @@ export function TasksPage({
   commentingTaskId,
   deletingTaskId,
   name,
+  category,
   description,
   assigneeActorId,
   status,
@@ -208,6 +217,7 @@ export function TasksPage({
   dependencyTaskIds,
   relationshipDrafts,
   onNameChange,
+  onCategoryChange,
   onDescriptionChange,
   onAssigneeActorIdChange,
   onStatusChange,
@@ -219,6 +229,7 @@ export function TasksPage({
   onSaveRelationships,
   onSetTaskName,
   onSetTaskDescription,
+  onSetTaskCategory,
   onExecuteTask,
   onAddDependency,
   onRemoveDependency,
@@ -244,6 +255,8 @@ export function TasksPage({
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
   const [descriptionDraft, setDescriptionDraft] = useState("");
+  const [taskListViewMode, setTaskListViewMode] = useState<"table" | "board">("table");
+  const [selectedCategoryFilters, setSelectedCategoryFilters] = useState<string[]>([]);
   const resolvedActiveTab = activeTab === "runs"
     ? "runs"
     : activeTab === "graph"
@@ -281,6 +294,10 @@ export function TasksPage({
   }, [taskOptions, tasks]);
 
   const topLevelTasks = useMemo(() => getTopLevelTasks(taskOptions), [taskOptions]);
+  const filteredListTasks = useMemo(
+    () => filterTasksByCategories(tasks, selectedCategoryFilters),
+    [selectedCategoryFilters, tasks],
+  );
   const activeTask = useMemo(() => {
     const normalizedTaskId = String(activeTaskId || "").trim();
     return normalizedTaskId ? visibleTaskById.get(normalizedTaskId) || null : null;
@@ -341,6 +358,7 @@ export function TasksPage({
       childTaskIds: directChildTasks.map((task) => String(task.id || "").trim()),
       assigneeActorId: String(activeTask.assigneeActorId || "").trim(),
       status: String(activeTask.status || "").trim() || "draft",
+      category: String(activeTask.category || "").trim(),
     };
   }, [activeTask, directChildTasks, relationshipDrafts]);
 
@@ -449,6 +467,18 @@ export function TasksPage({
     }
   }
 
+  function toggleCategoryFilter(categoryValue: string) {
+    setSelectedCategoryFilters((currentFilters) => (
+      currentFilters.includes(categoryValue)
+        ? currentFilters.filter((filterValue) => filterValue !== categoryValue)
+        : [...currentFilters, categoryValue]
+    ));
+  }
+
+  async function handleTaskCategoryDrop(taskId: string, nextCategory: string) {
+    await onSetTaskCategory(taskId, nextCategory);
+  }
+
   function handleUnlinkDependency(depId: string) {
     if (!activeTask || !onRemoveDependency) return;
     onRemoveDependency(activeTask.id, depId);
@@ -545,6 +575,28 @@ export function TasksPage({
       { value: "completed", label: "Completed", description: "Finished work" },
     ],
     [],
+  );
+  const categoryOptions = useMemo(
+    () => [
+      {
+        value: "",
+        label: "Uncategorized",
+        description: "No category assigned",
+      },
+      ...taskCategories.map((taskCategory) => ({
+        value: taskCategory.name,
+        label: taskCategory.name,
+        description: "Task lane",
+      })),
+    ],
+    [taskCategories],
+  );
+  const categoryFilterOptions = useMemo(
+    () => [
+      ...taskCategories.map((taskCategory) => taskCategory.name),
+      "uncategorized",
+    ],
+    [taskCategories],
   );
   const isOverviewSavePending = activeTask ? savingTaskId === activeTask.id : false;
   const isOverviewCommentPending = activeTask ? commentingTaskId === activeTask.id : false;
@@ -649,16 +701,61 @@ export function TasksPage({
         {!isLoadingTasks && !activeTaskId ? (
           <section className="panel task-list-panel">
             {tasks.length > 0 ? (
-              <TaskTableView
-                tasks={tasks}
-                agents={agents}
-                onTaskClick={onOpenTask}
-                onDeleteTask={handleDeleteTask}
-                onBatchDeleteTasks={onBatchDeleteTasks}
-                onBatchExecuteTasks={onBatchExecuteTasks}
-                onOpenTaskThread={onOpenTaskThread}
-                collapsibleHierarchy
-              />
+              <>
+                <div className="task-detail-header">
+                  <div className="task-view-tabs" role="tablist" aria-label="Task list views">
+                    <button
+                      type="button"
+                      className={`task-view-tab${taskListViewMode === "table" ? " task-view-tab-active" : ""}`}
+                      onClick={() => setTaskListViewMode("table")}
+                    >
+                      Table
+                    </button>
+                    <button
+                      type="button"
+                      className={`task-view-tab${taskListViewMode === "board" ? " task-view-tab-active" : ""}`}
+                      onClick={() => setTaskListViewMode("board")}
+                    >
+                      Kanban
+                    </button>
+                  </div>
+                </div>
+                <div className="task-category-filter-bar">
+                  {categoryFilterOptions.map((categoryValue) => {
+                    const label = categoryValue === "uncategorized" ? "Uncategorized" : categoryValue;
+                    const isSelected = selectedCategoryFilters.includes(categoryValue);
+                    return (
+                      <button
+                        key={`task-category-filter-${categoryValue}`}
+                        type="button"
+                        className={`task-category-filter-chip${isSelected ? " task-category-filter-chip-active" : ""}`}
+                        onClick={() => toggleCategoryFilter(categoryValue)}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {taskListViewMode === "table" ? (
+                  <TaskTableView
+                    tasks={filteredListTasks}
+                    agents={agents}
+                    onTaskClick={onOpenTask}
+                    onDeleteTask={handleDeleteTask}
+                    onBatchDeleteTasks={onBatchDeleteTasks}
+                    onBatchExecuteTasks={onBatchExecuteTasks}
+                    onOpenTaskThread={onOpenTaskThread}
+                    collapsibleHierarchy
+                  />
+                ) : (
+                  <TaskBoardView
+                    tasks={filteredListTasks}
+                    taskCategories={taskCategories}
+                    onTaskClick={onOpenTask}
+                    onTaskCategoryDrop={handleTaskCategoryDrop}
+                  />
+                )}
+              </>
             ) : (
               <div className="task-empty-panel">
                 <p className="empty-hint">Create your first task.</p>
@@ -859,6 +956,15 @@ export function TasksPage({
                         value={String(activeTaskDraft?.status || "draft")}
                         placeholder={formatTaskStatusLabel(String(activeTaskDraft?.status || "draft"))}
                         onChange={(nextValue) => onDraftChange(activeTask.id, "status", nextValue)}
+                      />
+
+                      <OverviewPropertyDropdown
+                        buttonId="overview-task-category"
+                        label="Category"
+                        options={categoryOptions}
+                        value={String(activeTaskDraft?.category || "")}
+                        placeholder="Uncategorized"
+                        onChange={(nextValue) => onDraftChange(activeTask.id, "category", nextValue)}
                       />
 
                       <div className="task-form-actions task-overview-property-actions">
@@ -1121,8 +1227,10 @@ export function TasksPage({
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         tasks={taskOptions}
+        taskCategories={taskCategories}
         actors={actors}
         name={name}
+        category={category}
         description={description}
         assigneeActorId={assigneeActorId}
         status={status}
@@ -1130,6 +1238,7 @@ export function TasksPage({
         dependencyTaskIds={dependencyTaskIds}
         isSubmittingTask={isSubmittingTask}
         onNameChange={onNameChange}
+        onCategoryChange={onCategoryChange}
         onDescriptionChange={onDescriptionChange}
         onAssigneeActorIdChange={onAssigneeActorIdChange}
         onStatusChange={onStatusChange}
@@ -1144,6 +1253,7 @@ export function TasksPage({
         tasks={taskOptions}
         agents={agents}
         actors={actors}
+        taskCategories={taskCategories}
         relationshipDraft={editingTaskId ? relationshipDrafts[editingTaskId] : undefined}
         savingTaskId={savingTaskId}
         commentingTaskId={commentingTaskId}

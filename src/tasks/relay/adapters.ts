@@ -2,6 +2,7 @@ import { createRelationshipDrafts } from "../../utils/drafts.ts";
 import type {
   Agent,
   Actor,
+  TaskCategory,
   TaskComment,
   TaskItem,
   TaskRun,
@@ -14,6 +15,7 @@ interface TaskRouteViewModel {
   agents: Agent[];
   actors: Actor[];
   relationshipDrafts: TaskRelationshipDraftById;
+  taskCategories: TaskCategory[];
   taskOptions: TaskItem[];
   tasks: TaskItem[];
 }
@@ -102,6 +104,7 @@ function toTaskItem(value: unknown): TaskItem | null {
     id,
     companyId: String(toRecord(record.company).id || "").trim() || undefined,
     name,
+    category: String(record.category || "").trim() || null,
     description: String(record.description || "").trim() || "",
     acceptanceCriteria: String(record.acceptanceCriteria || "").trim() || "",
     assigneeActorId: String(record.assigneeActorId || "").trim() || null,
@@ -125,6 +128,21 @@ function toTaskItem(value: unknown): TaskItem | null {
     comments: Array.isArray(record.comments)
       ? record.comments.map((entry) => toTaskComment(entry)).filter((entry): entry is TaskComment => Boolean(entry))
       : [],
+  };
+}
+
+function toTaskCategory(value: unknown): TaskCategory | null {
+  const record = toRecord(value);
+  const id = String(record.id || "").trim();
+  const name = String(record.name || "").trim();
+  if (!id || !name) {
+    return null;
+  }
+  return {
+    id,
+    name,
+    createdAt: String(record.createdAt || "").trim() || null,
+    updatedAt: String(record.updatedAt || "").trim() || null,
   };
 }
 
@@ -160,6 +178,11 @@ export function toTaskRouteViewModel(value: unknown): TaskRouteViewModel {
   const taskOptions = Array.isArray(record.taskOptions)
     ? record.taskOptions.map((entry) => toTaskOption(entry)).filter((entry): entry is TaskItem => Boolean(entry))
     : [];
+  const taskCategories = Array.isArray(record.taskCategories)
+    ? record.taskCategories
+      .map((entry) => toTaskCategory(entry))
+      .filter((entry): entry is TaskCategory => Boolean(entry))
+    : [];
   const actors = Array.isArray(record.taskAssignableActors)
     ? record.taskAssignableActors
       .map((entry) => toActor(entry))
@@ -173,6 +196,7 @@ export function toTaskRouteViewModel(value: unknown): TaskRouteViewModel {
   return {
     tasks,
     taskOptions,
+    taskCategories,
     actors,
     agents,
     relationshipDrafts: createRelationshipDrafts(tasks, taskOptions) as TaskRelationshipDraftById,
