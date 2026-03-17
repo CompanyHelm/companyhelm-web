@@ -8,8 +8,8 @@ import {
   AGENT_TURNS_SUBSCRIPTION,
 } from "../../src/utils/graphql.ts";
 
-test("agent runners subscription omits company selection", () => {
-  assert.doesNotMatch(AGENT_RUNNERS_SUBSCRIPTION, /company\s*\{/);
+test("agent runners subscription includes company selection for company-scoped filtering", () => {
+  assert.match(AGENT_RUNNERS_SUBSCRIPTION, /company\s*\{\s*id\s*\}/);
   assert.doesNotMatch(AGENT_RUNNERS_SUBSCRIPTION, /\n\s+status\s+\n\s+isConnected/);
   assert.match(AGENT_RUNNERS_SUBSCRIPTION, /agentSdks\s*\{\s*id\s*isAvailable\s*name\s*status\s*codexAuthStatus\s*codexAuthType\s*errorMessage/s);
 });
