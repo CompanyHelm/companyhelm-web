@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bb50b7183fddf4f791ae3e004e54a283>>
+ * @generated SignedSource<<08264ae3f7966545c4fa7584acbc4cc8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -108,11 +108,11 @@ v6 = {
   "storageKey": null
 },
 v7 = {
-  "alias": null,
+  "alias": "taskOptions",
   "args": null,
-  "concreteType": "TaskOption",
+  "concreteType": "Task",
   "kind": "LinkedField",
-  "name": "taskOptions",
+  "name": "tasks",
   "plural": true,
   "selections": [
     (v4/*: any*/),
@@ -579,16 +579,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "60bb88e1b112973b6315035c56e503ae",
+    "cacheID": "ba0aca3651286c90c04dd2115c813021",
     "id": null,
     "metadata": {},
     "name": "TasksRouteQuery",
     "operationKind": "query",
-    "text": "query TasksRouteQuery(\n  $topLevelOnly: Boolean\n  $rootTaskId: ID\n  $maxDepth: Int\n) {\n  tasks(topLevelOnly: $topLevelOnly, rootTaskId: $rootTaskId, maxDepth: $maxDepth) {\n    ...TasksRoute_task\n    id\n  }\n  taskOptions {\n    id\n    name\n    parentTaskId\n  }\n  taskCategories {\n    id\n    name\n    createdAt\n    updatedAt\n  }\n  taskAssignableActors {\n    id\n    kind\n    displayName\n    agentId\n    userId\n    email\n  }\n  agents(first: 200) {\n    edges {\n      node {\n        id\n        name\n      }\n    }\n  }\n}\n\nfragment TasksRoute_task on Task {\n  id\n  company {\n    id\n  }\n  name\n  category\n  description\n  acceptanceCriteria\n  assigneeActorId\n  assigneeActor {\n    id\n    kind\n    displayName\n    agentId\n    userId\n    email\n  }\n  parentTaskId\n  status\n  createdAt\n  updatedAt\n  attemptCount\n  lastRunStatus\n  has_running_threads\n  latestRun {\n    id\n    taskId\n    status\n    threadId\n    agentId\n    triggeredByActorId\n    failureMessage\n    startedAt\n    finishedAt\n    createdAt\n    updatedAt\n    tokenUsage {\n      ...TasksRoute_tokenUsage\n    }\n  }\n  activeRun {\n    id\n    taskId\n    status\n    threadId\n    agentId\n    triggeredByActorId\n    failureMessage\n    startedAt\n    finishedAt\n    createdAt\n    updatedAt\n    tokenUsage {\n      ...TasksRoute_tokenUsage\n    }\n  }\n  runningThreadId\n  runs {\n    id\n    taskId\n    status\n    threadId\n    agentId\n    triggeredByActorId\n    failureMessage\n    startedAt\n    finishedAt\n    createdAt\n    updatedAt\n    tokenUsage {\n      ...TasksRoute_tokenUsage\n    }\n  }\n  tokenUsage {\n    ...TasksRoute_tokenUsage\n  }\n  aggregateTokenUsage {\n    ...TasksRoute_tokenUsage\n  }\n  dependencyTaskIds\n  comments {\n    id\n    taskId\n    comment\n    authorActorId\n    authorActor {\n      id\n      kind\n      displayName\n      agentId\n      userId\n      email\n    }\n    createdAt\n    updatedAt\n  }\n}\n\nfragment TasksRoute_tokenUsage on TokenUsageBreakdown {\n  inputTokens\n  cachedInputTokens\n  outputTokens\n  reasoningOutputTokens\n  totalTokens\n}\n"
+    "text": "query TasksRouteQuery(\n  $topLevelOnly: Boolean\n  $rootTaskId: ID\n  $maxDepth: Int\n) {\n  tasks(topLevelOnly: $topLevelOnly, rootTaskId: $rootTaskId, maxDepth: $maxDepth) {\n    ...TasksRoute_task\n    id\n  }\n  taskOptions: tasks {\n    id\n    name\n    parentTaskId\n  }\n  taskCategories {\n    id\n    name\n    createdAt\n    updatedAt\n  }\n  taskAssignableActors {\n    id\n    kind\n    displayName\n    agentId\n    userId\n    email\n  }\n  agents(first: 200) {\n    edges {\n      node {\n        id\n        name\n      }\n    }\n  }\n}\n\nfragment TasksRoute_task on Task {\n  id\n  company {\n    id\n  }\n  name\n  category\n  description\n  acceptanceCriteria\n  assigneeActorId\n  assigneeActor {\n    id\n    kind\n    displayName\n    agentId\n    userId\n    email\n  }\n  parentTaskId\n  status\n  createdAt\n  updatedAt\n  attemptCount\n  lastRunStatus\n  has_running_threads\n  latestRun {\n    id\n    taskId\n    status\n    threadId\n    agentId\n    triggeredByActorId\n    failureMessage\n    startedAt\n    finishedAt\n    createdAt\n    updatedAt\n    tokenUsage {\n      ...TasksRoute_tokenUsage\n    }\n  }\n  activeRun {\n    id\n    taskId\n    status\n    threadId\n    agentId\n    triggeredByActorId\n    failureMessage\n    startedAt\n    finishedAt\n    createdAt\n    updatedAt\n    tokenUsage {\n      ...TasksRoute_tokenUsage\n    }\n  }\n  runningThreadId\n  runs {\n    id\n    taskId\n    status\n    threadId\n    agentId\n    triggeredByActorId\n    failureMessage\n    startedAt\n    finishedAt\n    createdAt\n    updatedAt\n    tokenUsage {\n      ...TasksRoute_tokenUsage\n    }\n  }\n  tokenUsage {\n    ...TasksRoute_tokenUsage\n  }\n  aggregateTokenUsage {\n    ...TasksRoute_tokenUsage\n  }\n  dependencyTaskIds\n  comments {\n    id\n    taskId\n    comment\n    authorActorId\n    authorActor {\n      id\n      kind\n      displayName\n      agentId\n      userId\n      email\n    }\n    createdAt\n    updatedAt\n  }\n}\n\nfragment TasksRoute_tokenUsage on TokenUsageBreakdown {\n  inputTokens\n  cachedInputTokens\n  outputTokens\n  reasoningOutputTokens\n  totalTokens\n}\n"
   }
 };
 })();
 
-(node as any).hash = "79dda9e3b7311083341549e3c5c875e5";
+(node as any).hash = "72311ca9478d99b0a77fa873223b32fb";
 
 export default node;

@@ -605,7 +605,6 @@ type Query {
   skills: [Skill!]!
   taskAssignableActors: [Actor!]!
   taskCategories: [TaskCategory!]!
-  taskOptions: [TaskOption!]!
   tasks(maxDepth: Int, rootTaskId: ID, topLevelOnly: Boolean): [Task!]!
   thread(id: ID!): Thread
   threadTurns(after: String, first: Int = 20, threadId: ID!): ThreadTurnConnection!
@@ -852,12 +851,6 @@ type TaskMutationPayload {
   error: String
   ok: Boolean!
   task: Task
-}
-
-type TaskOption {
-  id: ID!
-  name: String!
-  parentTaskId: ID
 }
 
 type TaskRun {

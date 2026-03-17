@@ -135,7 +135,7 @@ const tasksRouteQuery = graphql`
     tasks(topLevelOnly: $topLevelOnly, rootTaskId: $rootTaskId, maxDepth: $maxDepth) {
       ...TasksRoute_task
     }
-    taskOptions {
+    taskOptions: tasks {
       id
       name
       parentTaskId

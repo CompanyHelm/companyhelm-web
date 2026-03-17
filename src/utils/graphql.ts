@@ -240,7 +240,7 @@ ${TASK_FIELDS}
 
 export const LIST_TASK_OPTIONS_QUERY = `
   query ListTaskOptions {
-    taskOptions {
+    taskOptions: tasks {
       id
       name
       parentTaskId
@@ -2392,7 +2392,7 @@ ${TASK_FIELDS}
 
 export const COMPANY_API_LIST_TASK_OPTIONS_QUERY = `
   query CompanyApiListTaskOptions {
-    taskOptions {
+    taskOptions: tasks {
       id
       name
       parentTaskId
