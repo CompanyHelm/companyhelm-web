@@ -3028,6 +3028,19 @@ button:disabled {
   overflow-wrap: anywhere;
 }
 
+.chat-settings-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--ink-1);
+}
+
+.chat-settings-secret-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
 .chat-settings-info {
   display: flex;
   flex-direction: column;

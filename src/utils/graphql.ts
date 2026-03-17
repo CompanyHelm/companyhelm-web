@@ -1924,6 +1924,28 @@ export const UPDATE_AGENT_THREAD_MUTATION = `
   }
 `;
 
+export const REGENERATE_THREAD_SECRET_MUTATION = `
+  mutation RegenerateThreadSecret($threadId: String!) {
+    regenerateThreadSecret(threadId: $threadId) {
+      ok
+      error
+      secret
+      thread {
+        id
+        threadId
+        agentId
+        runnerId
+        title
+        additionalModelInstructions
+        archivedAt
+        status
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`;
+
 export const DELETE_AGENT_THREAD_MUTATION = `
   mutation DeleteAgentThread($agentId: String!, $threadId: String!) {
     deleteAgentThread(agentId: $agentId, threadId: $threadId) {
@@ -4267,6 +4289,33 @@ export const COMPANY_API_UPDATE_THREAD_TITLE_MUTATION = `
       currentModel {
         id
         name
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_REGENERATE_THREAD_SECRET_MUTATION = `
+  mutation CompanyApiRegenerateThreadSecret($threadId: ID!) {
+    regenerateThreadSecret(threadId: $threadId) {
+      secret
+      thread {
+        id
+        title
+        additionalModelInstructions
+        archivedAt
+        status
+        errorMessage
+        currentReasoningLevel
+        company {
+          id
+        }
+        agent {
+          id
+        }
+        currentModel {
+          id
+          name
+        }
       }
     }
   }

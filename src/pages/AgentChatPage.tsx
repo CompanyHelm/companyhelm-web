@@ -16,10 +16,12 @@ import {
 } from "../utils/chat.ts";
 import {
   CHAT_MESSAGE_BATCH_SIZE,
+  GRAPHQL_URL,
   THREAD_TITLE_MAX_LENGTH,
   TRANSCRIPT_TOP_LOAD_THRESHOLD_PX,
   TRANSCRIPT_BOTTOM_STICKY_THRESHOLD_PX,
 } from "../utils/constants.ts";
+import { getIgnoredSecretInputProps } from "../utils/autofill.ts";
 
 const MOBILE_MEDIA_QUERY = "(max-width: 1080px)";
 
@@ -117,6 +119,39 @@ function resolveChatItemBodyText(item: any, itemType: any) {
   }
 
   return toItemTypePlaceholder(itemType);
+}
+
+function SecretVisibilityIcon({ isVisible }: { isVisible: boolean }) {
+  if (isVisible) {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M3 3l18 18" />
+        <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
+        <path d="M9.9 4.2A10.3 10.3 0 0 1 12 4c5 0 8.8 3.3 10 8-0.5 1.8-1.4 3.3-2.6 4.5" />
+        <path d="M6.3 6.3C4.7 7.8 3.5 9.8 3 12c1.2 4.7 5 8 10 8 1.4 0 2.7-0.3 3.9-0.8" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+function resolveAgentApiDocsUrl() {
+  try {
+    const baseUrl = typeof window !== "undefined" ? window.location.href : "http://localhost";
+    const parsed = new URL(GRAPHQL_URL || "/graphql", baseUrl);
+    parsed.pathname = "/agent/v1/docs";
+    parsed.search = "";
+    parsed.hash = "";
+    return parsed.toString();
+  } catch {
+    return "/agent/v1/docs";
+  }
 }
 
 function isLongTranscriptItemBodyText(rawText: any) {
@@ -390,6 +425,7 @@ export function AgentChatPage({
   isSendingChatMessage,
   isInterruptingChatTurn,
   isUpdatingChatTitle,
+  regeneratingChatSessionSecretId,
   archivingChatSessionKey,
   deletingChatSessionKey,
   steeringQueuedMessageId,
@@ -406,6 +442,7 @@ export function AgentChatPage({
   onBatchDeleteChats,
   isBatchDeletingChats = false,
   onSaveChatSessionTitle,
+  onRegenerateChatSessionSecret,
   onSendChatMessage,
   onInterruptChatTurn,
   onSteerQueuedMessage,
@@ -449,8 +486,11 @@ export function AgentChatPage({
   const hasKnownChatsForAgent = selectedAgentSessions.length > 0;
   const canInteractWithSession = canChat && !isSessionDeleting && !isSessionReadOnly;
   const canSendMessages = canInteractWithSession && !normalizedSendDisabledReason;
+  const isRegeneratingChatSecret = String(regeneratingChatSessionSecretId || "").trim() === selectedSessionId;
+  const agentApiDocsUrl = useMemo(() => resolveAgentApiDocsUrl(), []);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<any>(false);
   const [isInstructionsExpanded, setIsInstructionsExpanded] = useState<any>(false);
+  const [isThreadSecretVisible, setIsThreadSecretVisible] = useState<any>(false);
   const [selectedCommandOutputItem, setSelectedCommandOutputItem] = useState<any>(null);
   const [selectedQueuedMessage, setSelectedQueuedMessage] = useState<any>(null);
   const [isComposerExpanded, setIsComposerExpanded] = useState<any>(false);
@@ -667,11 +707,13 @@ export function AgentChatPage({
       return;
     }
     onChatSessionRenameDraftChange(clampThreadTitle(session.title));
+    setIsThreadSecretVisible(false);
     setIsSettingsModalOpen(true);
   }, [onChatSessionRenameDraftChange, session]);
 
   const handleCloseSettingsModal = useCallback(() => {
     onChatSessionRenameDraftChange(clampThreadTitle(session?.title));
+    setIsThreadSecretVisible(false);
     setIsSettingsModalOpen(false);
   }, [onChatSessionRenameDraftChange, session?.title]);
 
@@ -681,6 +723,16 @@ export function AgentChatPage({
       setIsSettingsModalOpen(false);
     }
   }, [onSaveChatSessionTitle]);
+
+  const handleRegenerateSecret = useCallback(async () => {
+    if (!selectedSessionId || typeof onRegenerateChatSessionSecret !== "function") {
+      return;
+    }
+    const secret = await onRegenerateChatSessionSecret(selectedSessionId);
+    if (secret) {
+      setIsThreadSecretVisible(true);
+    }
+  }, [onRegenerateChatSessionSecret, selectedSessionId]);
 
   const handleSidebarResizeStart = useCallback((event: any) => {
     if (event.button !== 0) {
@@ -1560,6 +1612,50 @@ export function AgentChatPage({
             ) : (
               <p className="chat-settings-readonly">none</p>
             )}
+          </div>
+          <div className="chat-settings-field">
+            <label htmlFor="chat-settings-thread-secret" className="chat-settings-label">Thread agent secret</label>
+            <div className="secret-input-row">
+              <input
+                id="chat-settings-thread-secret"
+                className="chat-settings-input"
+                type={isThreadSecretVisible ? "text" : "password"}
+                value={String(session?.agentSecret || "")}
+                placeholder="Regenerate to reveal a thread secret"
+                readOnly
+                {...getIgnoredSecretInputProps("threadAgentSecret")}
+                disabled={!session || isRegeneratingChatSecret}
+              />
+              <button
+                type="button"
+                className="secret-visibility-toggle-btn"
+                onClick={() => setIsThreadSecretVisible((current: any) => !current)}
+                disabled={!session?.agentSecret || isRegeneratingChatSecret}
+                aria-label={isThreadSecretVisible ? "Hide thread secret" : "Show thread secret"}
+                title={isThreadSecretVisible ? "Hide thread secret" : "Show thread secret"}
+              >
+                <SecretVisibilityIcon isVisible={Boolean(isThreadSecretVisible)} />
+              </button>
+            </div>
+            <p className="chat-settings-hint">
+              Secret values are only shown when freshly generated. Regenerating rotates the token used for agent API
+              calls.
+            </p>
+            <div className="chat-settings-secret-actions">
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={() => {
+                  void handleRegenerateSecret();
+                }}
+                disabled={!session || !canInteractWithSession || isRegeneratingChatSecret}
+              >
+                {isRegeneratingChatSecret ? "Regenerating..." : "Regenerate secret"}
+              </button>
+              <a className="codex-auth-link" href={agentApiDocsUrl} target="_blank" rel="noreferrer">
+                Open agent API docs
+              </a>
+            </div>
           </div>
           <div className="chat-settings-info">
             <p className="chat-settings-info-row">
