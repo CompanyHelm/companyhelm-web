@@ -2054,6 +2054,9 @@ export const AGENT_RUNNERS_SUBSCRIPTION = `
       edges {
         node {
           id
+          company {
+            id
+          }
           agentSdks {
             id
             isAvailable
