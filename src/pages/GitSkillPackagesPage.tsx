@@ -30,6 +30,11 @@ interface CreateGitSkillPackagePayload {
   warnings?: string[];
 }
 
+interface UpdateGitSkillPackagePayload {
+  packageId?: string;
+  warnings?: string[];
+}
+
 interface GitSkillPackagesPageProps {
   selectedCompanyId: string;
   gitSkillPackages: GitSkillPackage[];
@@ -40,6 +45,7 @@ interface GitSkillPackagesPageProps {
   onBackToGitSkillPackages: () => void;
   onPreviewGitSkillPackage: (gitRepositoryUrl: string) => Promise<GitSkillPackagePreview>;
   onCreateGitSkillPackage: (input: { gitRepositoryUrl: string; gitReference: string }) => Promise<CreateGitSkillPackagePayload>;
+  onUpdateGitSkillPackage: (input: { packageId: string; gitReference: string }) => Promise<UpdateGitSkillPackagePayload>;
   onDeleteGitSkillPackage: (packageId: string, packageName: string) => void;
   onOpenSkill: (skillId: string) => void;
 }
@@ -54,6 +60,7 @@ export function GitSkillPackagesPage({
   onBackToGitSkillPackages,
   onPreviewGitSkillPackage,
   onCreateGitSkillPackage,
+  onUpdateGitSkillPackage,
   onDeleteGitSkillPackage,
   onOpenSkill,
 }: GitSkillPackagesPageProps) {
@@ -65,8 +72,16 @@ export function GitSkillPackagesPage({
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [updatePreview, setUpdatePreview] = useState<GitSkillPackagePreview | null>(null);
+  const [updateSelectedReference, setUpdateSelectedReference] = useState("");
+  const [updateError, setUpdateError] = useState("");
+  const [updateWarnings, setUpdateWarnings] = useState<string[]>([]);
+  const [isPreviewingUpdate, setIsPreviewingUpdate] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
 
   const combinedReferences = useMemo(() => splitGitReferences(preview), [preview]);
+  const updateCombinedReferences = useMemo(() => splitGitReferences(updatePreview), [updatePreview]);
 
   const pageActions = useMemo(() => (
     <>
@@ -124,11 +139,72 @@ export function GitSkillPackagesPage({
     }
   }
 
+  async function handlePreviewUpdate() {
+    if (!activeGitSkillPackage) {
+      return;
+    }
+
+    try {
+      setIsPreviewingUpdate(true);
+      setUpdateError("");
+      const payload = await onPreviewGitSkillPackage(activeGitSkillPackage.gitRepositoryUrl);
+      setUpdatePreview(payload);
+      const hasCurrentReference = splitGitReferences(payload).some(
+        (reference: GitReference) => reference.fullRef === updateSelectedReference,
+      );
+      if (!hasCurrentReference && activeGitSkillPackage.currentReference) {
+        setUpdateSelectedReference(activeGitSkillPackage.currentReference);
+      }
+    } catch (error: unknown) {
+      setUpdatePreview(null);
+      setUpdateError(error instanceof Error ? error.message : "Failed to preview package refs.");
+    } finally {
+      setIsPreviewingUpdate(false);
+    }
+  }
+
+  async function handleUpdate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!activeGitSkillPackage) {
+      return;
+    }
+
+    try {
+      setIsUpdating(true);
+      setUpdateError("");
+      const payload = await onUpdateGitSkillPackage({
+        packageId: activeGitSkillPackage.id,
+        gitReference: updateSelectedReference,
+      });
+      const warnings = Array.isArray(payload?.warnings) ? payload.warnings : [];
+      setUpdateWarnings(warnings);
+      if (warnings.length === 0) {
+        setIsUpdateModalOpen(false);
+      }
+    } catch (error: unknown) {
+      setUpdateError(error instanceof Error ? error.message : "Failed to update package.");
+    } finally {
+      setIsUpdating(false);
+    }
+  }
+
+  function openUpdateModal() {
+    if (!activeGitSkillPackage) {
+      return;
+    }
+
+    setUpdatePreview(null);
+    setUpdateSelectedReference(String(activeGitSkillPackage.currentReference || "").trim());
+    setUpdateError("");
+    setUpdateWarnings([]);
+    setIsUpdateModalOpen(true);
+  }
+
   if (activeGitSkillPackage) {
     return (
       <Page><div className="page-stack">
         <section className="panel list-panel">
-          {skillError ? <p className="error-banner">{skillError}</p> : null}
+          {skillError || updateError ? <p className="error-banner">{skillError || updateError}</p> : null}
 
           <p className="chat-card-meta" style={{ padding: "0.2rem 0" }}>
             {activeGitSkillPackage.gitRepositoryUrl}
@@ -140,6 +216,18 @@ export function GitSkillPackagesPage({
               {" · "}Ref: {activeGitSkillPackage.currentReference}
               {" · "}Commit: {activeGitSkillPackage.currentCommitHash}
             </p>
+            <button
+              type="button"
+              className="chat-card-icon-btn"
+              onClick={openUpdateModal}
+              aria-label="Update package"
+              title="Update package"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M21 12a9 9 0 1 1-3-6.708" />
+                <polyline points="21 3 21 9 15 9" />
+              </svg>
+            </button>
             <button
               type="button"
               className="chat-card-icon-btn chat-card-icon-btn-danger"
@@ -189,6 +277,74 @@ export function GitSkillPackagesPage({
             )}
           </section>
         </section>
+
+        <CreationModal
+          modalId="update-git-skill-package-modal"
+          title="Update git skill package"
+          description="Refresh the current tracked ref or preview available refs to switch to a different branch or tag."
+          isOpen={isUpdateModalOpen}
+          onClose={() => setIsUpdateModalOpen(false)}
+        >
+          {updateWarnings.length > 0 ? (
+            <div className="chat-settings-modal-form">
+              <div className="chat-settings-field">
+                <label className="chat-settings-label">Update warnings</label>
+                <ul>
+                  {updateWarnings.map((warning, index) => (
+                    <li key={`update-warning-${index}`}>{warning}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          ) : null}
+
+          <form className="chat-settings-modal-form" onSubmit={handleUpdate}>
+            <div className="chat-settings-field">
+              <label className="chat-settings-label">Git repository URL</label>
+              <input
+                className="chat-settings-input"
+                value={activeGitSkillPackage.gitRepositoryUrl}
+                readOnly
+                aria-readonly="true"
+              />
+            </div>
+            <div className="chat-settings-field">
+              <label htmlFor="git-skill-update-reference" className="chat-settings-label">Tracked branch or tag</label>
+              {updateCombinedReferences.length > 0 ? (
+                <select
+                  id="git-skill-update-reference"
+                  className="chat-settings-input"
+                  value={updateSelectedReference}
+                  onChange={(event: ChangeEvent<HTMLSelectElement>) => setUpdateSelectedReference(event.target.value)}
+                  required
+                >
+                  <option value="">Select branch or tag</option>
+                  {updateCombinedReferences.map((reference: GitReference) => (
+                    <option key={`${reference.kind}:${reference.fullRef}`} value={reference.fullRef}>
+                      {reference.name} ({reference.kind})
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  id="git-skill-update-reference"
+                  className="chat-settings-input"
+                  value={updateSelectedReference}
+                  readOnly
+                  aria-readonly="true"
+                />
+              )}
+            </div>
+            <div className="chat-settings-actions">
+              <button type="button" onClick={() => void handlePreviewUpdate()} disabled={isPreviewingUpdate || isUpdating}>
+                {isPreviewingUpdate ? "Loading refs..." : "Preview refs"}
+              </button>
+              <button type="submit" disabled={isUpdating || !updateSelectedReference}>
+                {isUpdating ? "Updating package..." : "Update package"}
+              </button>
+            </div>
+          </form>
+        </CreationModal>
       </div></Page>
     );
   }
