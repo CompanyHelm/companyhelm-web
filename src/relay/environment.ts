@@ -475,7 +475,7 @@ class GraphQLSubscriptionService {
       ) {
         return;
       }
-      this.closeSocket({ closeCode: 1012 });
+      this.closeSocket();
     }
 
     this.closedByClient = false;
