@@ -1204,7 +1204,6 @@ export function TasksPage({
         description="Write the task brief in markdown. This editor stays open until you save or cancel."
         isOpen={isDescriptionModalOpen}
         onClose={() => setIsDescriptionModalOpen(false)}
-        closeOnOverlayClick={false}
         cardClassName="modal-card-fullscreen task-description-modal-card"
       >
         <div className="task-description-modal-body">

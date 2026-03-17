@@ -2,6 +2,7 @@ import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } fr
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CreationModal } from "../components/CreationModal.tsx";
+import { ModalCloseButton } from "../components/ModalCloseButton.tsx";
 import { ChatSessionRunningBadge } from "../components/ChatSessionRunningBadge.tsx";
 import { ThreadTaskSummary } from "../components/ThreadTaskSummary.tsx";
 import { useSetPageActions } from "../components/PageActionsContext.tsx";
@@ -1626,7 +1627,7 @@ export function AgentChatPage({
       </CreationModal>
 
       {isComposerExpanded ? (
-        <div className="modal-overlay" role="presentation" onClick={() => setIsComposerExpanded(false)}>
+        <div className="modal-overlay" role="presentation">
           <section
             className="panel modal-card chat-composer-fullscreen-modal"
             role="dialog"
@@ -1636,13 +1637,7 @@ export function AgentChatPage({
           >
             <header className="panel-header panel-header-row modal-header">
               <h2>Compose message</h2>
-              <button
-                type="button"
-                className="secondary-btn modal-close-btn"
-                onClick={() => setIsComposerExpanded(false)}
-              >
-                Close
-              </button>
+              <ModalCloseButton onClick={() => setIsComposerExpanded(false)} />
             </header>
             <div className="chat-composer-fullscreen-body">
               <textarea
