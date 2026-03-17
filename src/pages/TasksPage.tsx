@@ -728,38 +728,41 @@ export function TasksPage({
                     </button>
                   </div>
                 </div>
-                <div className="task-category-filter-bar">
-                  {categoryFilterOptions.map((categoryValue) => {
-                    const label = categoryValue === "uncategorized" ? "Uncategorized" : categoryValue;
-                    const isSelected = selectedCategoryFilters.includes(categoryValue);
-                    return (
-                      <button
-                        key={`task-category-filter-${categoryValue}`}
-                        type="button"
-                        className={`task-category-filter-chip${isSelected ? " task-category-filter-chip-active" : ""}`}
-                        onClick={() => toggleCategoryFilter(categoryValue)}
-                      >
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
                 {taskListViewMode === "table" ? (
-                  <TaskTableView
-                    tasks={filteredListTasks}
-                    agents={agents}
-                    onTaskClick={onOpenTask}
-                    onDeleteTask={handleDeleteTask}
-                    onBatchDeleteTasks={onBatchDeleteTasks}
-                    onBatchExecuteTasks={onBatchExecuteTasks}
-                    onOpenTaskThread={onOpenTaskThread}
-                    collapsibleHierarchy
-                  />
+                  <>
+                    <div className="task-category-filter-bar">
+                      {categoryFilterOptions.map((categoryValue) => {
+                        const label = categoryValue === "uncategorized" ? "Uncategorized" : categoryValue;
+                        const isSelected = selectedCategoryFilters.includes(categoryValue);
+                        return (
+                          <button
+                            key={`task-category-filter-${categoryValue}`}
+                            type="button"
+                            className={`task-category-filter-chip${isSelected ? " task-category-filter-chip-active" : ""}`}
+                            onClick={() => toggleCategoryFilter(categoryValue)}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <TaskTableView
+                      tasks={filteredListTasks}
+                      agents={agents}
+                      onTaskClick={onOpenTask}
+                      onDeleteTask={handleDeleteTask}
+                      onBatchDeleteTasks={onBatchDeleteTasks}
+                      onBatchExecuteTasks={onBatchExecuteTasks}
+                      onOpenTaskThread={onOpenTaskThread}
+                      collapsibleHierarchy
+                    />
+                  </>
                 ) : (
                   <TaskBoardView
-                    tasks={filteredListTasks}
+                    tasks={tasks}
                     taskCategories={taskCategories}
                     onTaskClick={onOpenTask}
+                    onOpenTaskThread={onOpenTaskThread}
                     onTaskCategoryDrop={handleTaskCategoryDrop}
                   />
                 )}

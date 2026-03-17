@@ -4254,6 +4254,25 @@ button:disabled {
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
 }
 
+.task-board-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.task-board-card-header strong {
+  line-height: 1.35;
+}
+
+.task-board-card-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
 .task-board-card-copy {
   margin: 0.45rem 0 0;
   color: #475569;
