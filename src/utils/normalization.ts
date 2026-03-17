@@ -466,6 +466,20 @@ export function replaceAgentRunnerPayloadList(
   });
 }
 
+export function applyAgentRunnerSubscriptionSnapshot(
+  currentRunners: Array<Record<string, unknown>> | null | undefined,
+  incomingRunners: Array<Record<string, unknown>> | null | undefined,
+  selectedCompanyId: string,
+) {
+  const normalizedSelectedCompanyId = String(selectedCompanyId || "").trim();
+  const filteredIncomingRunners = (Array.isArray(incomingRunners) ? incomingRunners : []).filter((runner) => {
+    const runnerCompanyId = String(runner?.companyId || "").trim();
+    return !normalizedSelectedCompanyId || runnerCompanyId === normalizedSelectedCompanyId;
+  });
+
+  return replaceAgentRunnerPayloadList(currentRunners, filteredIncomingRunners);
+}
+
 export function getRunnerModelNames(codexModelEntries: RunnerCodexModelEntry[]) {
   return codexModelEntries
     .filter((entry) => entry.isAvailable)

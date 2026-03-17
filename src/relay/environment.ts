@@ -50,13 +50,27 @@ const SUBSCRIPTION_RECONNECT_BASE_DELAY_MS = 300;
 const SUBSCRIPTION_RECONNECT_MAX_DELAY_MS = 5000;
 const SUBSCRIPTION_IDLE_CLOSE_DELAY_MS = 250;
 
-function resolveOperationCacheKey(params: RequestParameters) {
-  const cacheID = "cacheID" in params ? params.cacheID : "";
-  return String(params.id || cacheID || params.text || params.name || "anonymous");
+function resolveActiveCompanyCacheScope(params: RequestParameters, operationKind: OperationKind) {
+  const queryText = typeof params?.text === "string" ? params.text : "";
+  if (!shouldAttachCompanyHeader(operationKind, queryText)) {
+    return "";
+  }
+  return String(getActiveCompanyId() || "").trim();
 }
 
-function resolveInFlightQueryKey(params: RequestParameters, variables: Variables) {
-  return `${resolveOperationCacheKey(params)}::${JSON.stringify(variables || {})}`;
+function resolveOperationCacheKey(params: RequestParameters, operationKind: OperationKind) {
+  const cacheID = "cacheID" in params ? params.cacheID : "";
+  const baseKey = String(params.id || cacheID || params.text || params.name || "anonymous");
+  const activeCompanyScope = resolveActiveCompanyCacheScope(params, operationKind);
+  return activeCompanyScope ? `${baseKey}::company:${activeCompanyScope}` : baseKey;
+}
+
+function resolveInFlightQueryKey(
+  params: RequestParameters,
+  variables: Variables,
+  operationKind: OperationKind,
+) {
+  return `${resolveOperationCacheKey(params, operationKind)}::${JSON.stringify(variables || {})}`;
 }
 
 function toGraphQLErrorMessage(payload: GraphQLPayload | null, fallbackMessage: string) {
@@ -189,7 +203,7 @@ function fetchGraphQL(
   const operationKind = normalizeOperationKind(params?.operationKind);
   const isQuery = operationKind === "query";
   const forceFetch = Boolean(cacheConfig?.force);
-  const cacheKey = resolveOperationCacheKey(params);
+  const cacheKey = resolveOperationCacheKey(params, operationKind);
 
   if (isQuery && !forceFetch) {
     const cachedResponse = queryResponseCache.get(cacheKey, variables || {});
@@ -197,7 +211,7 @@ function fetchGraphQL(
       return Promise.resolve(cachedResponse);
     }
 
-    const inFlightKey = resolveInFlightQueryKey(params, variables || {});
+    const inFlightKey = resolveInFlightQueryKey(params, variables || {}, operationKind);
     const existingInFlightRequest = inFlightQueryRequests.get(inFlightKey);
     if (existingInFlightRequest) {
       return existingInFlightRequest;
@@ -255,6 +269,10 @@ function buildConnectionInitPayload() {
         headers,
       };
 }
+
+function resolveConnectionScopeKey() {
+  return JSON.stringify(buildConnectionInitPayload() || {});
+}
 let graphQLSubscriptionServiceSingleton: GraphQLSubscriptionService | null = null;
 
 class GraphQLSubscriptionService {
@@ -267,6 +285,7 @@ class GraphQLSubscriptionService {
   socket: WebSocket | null;
   socketAcked: boolean;
   socketEndpoint: string;
+  socketScopeKey: string;
 
   static getInstance(): GraphQLSubscriptionService {
     if (!graphQLSubscriptionServiceSingleton) {
@@ -278,6 +297,7 @@ class GraphQLSubscriptionService {
   constructor() {
     this.socket = null;
     this.socketEndpoint = "";
+    this.socketScopeKey = "";
     this.socketAcked = false;
     this.reconnectAttempt = 0;
     this.reconnectTimerId = null;
@@ -322,6 +342,7 @@ class GraphQLSubscriptionService {
     const socket = this.socket;
     this.socket = null;
     this.socketEndpoint = "";
+    this.socketScopeKey = "";
     if (!socket) {
       return;
     }
@@ -441,9 +462,12 @@ class GraphQLSubscriptionService {
       return;
     }
 
+    const connectionScopeKey = resolveConnectionScopeKey();
+
     if (this.socket) {
       if (
         this.socketEndpoint === endpoint
+        && this.socketScopeKey === connectionScopeKey
         && (
           this.socket.readyState === WebSocket.CONNECTING
           || this.socket.readyState === WebSocket.OPEN
@@ -456,6 +480,7 @@ class GraphQLSubscriptionService {
 
     this.closedByClient = false;
     this.socketEndpoint = endpoint;
+    this.socketScopeKey = connectionScopeKey;
     this.socketAcked = false;
 
     const socket = new WebSocket(endpoint, "graphql-transport-ws");
