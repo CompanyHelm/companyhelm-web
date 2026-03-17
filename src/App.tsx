@@ -42,8 +42,11 @@ import {
   LIST_TASK_CATEGORIES_QUERY,
   LIST_TASK_ASSIGNABLE_ACTORS_QUERY,
   LIST_AGENT_RUNNERS_QUERY,
+  LIST_EXTERNAL_AGENTS_QUERY,
   CREATE_AGENT_RUNNER_MUTATION,
+  CREATE_EXTERNAL_AGENT_MUTATION,
   REGENERATE_AGENT_RUNNER_SECRET_MUTATION,
+  REGENERATE_EXTERNAL_AGENT_SECRET_MUTATION,
   LIST_AGENTS_QUERY,
   LIST_AGENTS_WITH_RUNNERS_QUERY,
   LIST_SKILLS_QUERY,
@@ -74,6 +77,7 @@ import {
   BATCH_EXECUTE_TASKS_MUTATION,
   CREATE_TASK_COMMENT_MUTATION,
   DELETE_AGENT_RUNNER_MUTATION,
+  DELETE_EXTERNAL_AGENT_MUTATION,
   CREATE_AGENT_MUTATION,
   UPDATE_AGENT_MUTATION,
   DELETE_AGENT_MUTATION,
@@ -194,9 +198,13 @@ import {
   COMPANY_API_UPDATE_SECRET_MUTATION,
   COMPANY_API_DELETE_SECRET_MUTATION,
   COMPANY_API_LIST_AGENT_RUNNERS_CONNECTION_QUERY,
+  COMPANY_API_LIST_EXTERNAL_AGENTS_CONNECTION_QUERY,
   COMPANY_API_CREATE_AGENT_RUNNER_MUTATION,
+  COMPANY_API_CREATE_EXTERNAL_AGENT_MUTATION,
   COMPANY_API_REGENERATE_AGENT_RUNNER_SECRET_MUTATION,
+  COMPANY_API_REGENERATE_EXTERNAL_AGENT_SECRET_MUTATION,
   COMPANY_API_DELETE_AGENT_RUNNER_MUTATION,
+  COMPANY_API_DELETE_EXTERNAL_AGENT_MUTATION,
   COMPANY_API_LIST_ADMIN_TABLES_QUERY,
   COMPANY_API_ADMIN_TABLE_QUERY,
   COMPANY_API_LIST_AGENTS_CONNECTION_QUERY,
@@ -280,6 +288,8 @@ import {
   getRolesRouteFromPathname,
   getGitSkillPackagesRouteFromPathname,
   getRunnersRouteFromPathname,
+  getExternalAgentsRouteFromPathname,
+  getExternalAgentPath,
   getTasksRouteFromPathname,
   getActorsRouteFromPathname,
   getChatsRouteFromLocation,
@@ -350,6 +360,8 @@ import { AdminPage } from "./pages/AdminPage.tsx";
 import { DashboardPage } from "./pages/DashboardPage.tsx";
 import { AgentRunnerPage } from "./pages/AgentRunnerPage.tsx";
 import { AgentRunnerDetailPage } from "./pages/AgentRunnerDetailPage.tsx";
+import { ExternalAgentsPage } from "./pages/ExternalAgentsPage.tsx";
+import { ExternalAgentDetailPage } from "./pages/ExternalAgentDetailPage.tsx";
 import { AgentsPage } from "./pages/AgentsPage.tsx";
 import { SkillsPage } from "./pages/SkillsPage.tsx";
 import { SkillGroupsPage } from "./pages/SkillGroupsPage.tsx";
@@ -853,6 +865,15 @@ function toLegacyRunnerPayload(agentRunner: any) {
   };
 }
 
+function toExternalAgentPayload(externalAgent: any) {
+  return {
+    id: resolveLegacyId(externalAgent?.id),
+    companyId: resolveLegacyId(externalAgent?.company?.id, externalAgent?.companyId),
+    name: resolveLegacyId(externalAgent?.name),
+    actorId: resolveLegacyId(externalAgent?.actor?.id, externalAgent?.actorId) || null,
+  };
+}
+
 function toAgentPayload(agent: any) {
   const resolvedSdkValue = resolveLegacyId(agent?.agentSdk, agent?.agentRunnerSdk?.name);
   const resolvedSdk = isAvailableAgentSdk(resolvedSdkValue)
@@ -1256,12 +1277,17 @@ function toActorPayload(actor: any) {
     return null;
   }
   const normalizedKind = String(actor?.kind || "").trim().toLowerCase();
-  const kind = normalizedKind === "agent" ? "agent" : "user";
+  const kind = normalizedKind === "agent"
+    ? "agent"
+    : normalizedKind === "external_agent"
+      ? "external_agent"
+      : "user";
   return {
     id: actorId,
     kind,
     displayName: String(actor?.displayName || "").trim() || actorId,
     agentId: resolveLegacyId(actor?.agentId) || null,
+    externalAgentId: resolveLegacyId(actor?.externalAgentId) || null,
     userId: resolveLegacyId(actor?.userId) || null,
     email: resolveLegacyId(actor?.email) || null,
   };
@@ -1732,6 +1758,18 @@ async function executeGraphQL(query: any, variables: any = {}) {
     };
   }
 
+  if (query === LIST_EXTERNAL_AGENTS_QUERY) {
+    const companyId = resolveLegacyId(variables?.companyId) || null;
+    const externalAgents = await fetchCompanyApiConnectionNodes({
+      query: COMPANY_API_LIST_EXTERNAL_AGENTS_CONNECTION_QUERY,
+      rootField: "externalAgents",
+      variables: { companyId },
+    });
+    return {
+      externalAgents: externalAgents.map((externalAgent: any) => toExternalAgentPayload(externalAgent)),
+    };
+  }
+
   if (query === CREATE_AGENT_RUNNER_MUTATION) {
     const data = await executeRawGraphQL(COMPANY_API_CREATE_AGENT_RUNNER_MUTATION, {
       companyId: resolveLegacyId(variables?.companyId),
@@ -1752,6 +1790,22 @@ async function executeGraphQL(query: any, variables: any = {}) {
             })
           : null,
         agentRunner: legacyRunner,
+      },
+    };
+  }
+
+  if (query === CREATE_EXTERNAL_AGENT_MUTATION) {
+    const data = await executeRawGraphQL(COMPANY_API_CREATE_EXTERNAL_AGENT_MUTATION, {
+      companyId: resolveLegacyId(variables?.companyId),
+      name: resolveLegacyId(variables?.name),
+    });
+    const payload = data?.createExternalAgent;
+    return {
+      createExternalAgent: {
+        ok: true,
+        error: null,
+        secret: resolveLegacyId(payload?.secret),
+        externalAgent: toExternalAgentPayload(payload?.externalAgent),
       },
     };
   }
@@ -1779,6 +1833,22 @@ async function executeGraphQL(query: any, variables: any = {}) {
     };
   }
 
+  if (query === REGENERATE_EXTERNAL_AGENT_SECRET_MUTATION) {
+    const externalAgentId = resolveLegacyId(variables?.id, variables?.externalAgentId);
+    const data = await executeRawGraphQL(COMPANY_API_REGENERATE_EXTERNAL_AGENT_SECRET_MUTATION, {
+      externalAgentId,
+    });
+    const payload = data?.regenerateExternalAgentSecret;
+    return {
+      regenerateExternalAgentSecret: {
+        ok: true,
+        error: null,
+        secret: resolveLegacyId(payload?.secret),
+        externalAgent: toExternalAgentPayload(payload?.externalAgent),
+      },
+    };
+  }
+
   if (query === DELETE_AGENT_RUNNER_MUTATION) {
     const agentRunnerId = resolveLegacyId(variables?.id, variables?.agentRunnerId);
     const data = await executeRawGraphQL(COMPANY_API_DELETE_AGENT_RUNNER_MUTATION, {
@@ -1789,6 +1859,20 @@ async function executeGraphQL(query: any, variables: any = {}) {
         ok: Boolean(data?.deleteAgentRunner),
         error: data?.deleteAgentRunner ? null : "Runner deletion failed.",
         deletedAgentRunnerId: agentRunnerId,
+      },
+    };
+  }
+
+  if (query === DELETE_EXTERNAL_AGENT_MUTATION) {
+    const externalAgentId = resolveLegacyId(variables?.id, variables?.externalAgentId);
+    const data = await executeRawGraphQL(COMPANY_API_DELETE_EXTERNAL_AGENT_MUTATION, {
+      externalAgentId,
+    });
+    return {
+      deleteExternalAgent: {
+        ok: Boolean(data?.deleteExternalAgent),
+        error: data?.deleteExternalAgent ? null : "External agent deletion failed.",
+        deletedExternalAgentId: externalAgentId,
       },
     };
   }
@@ -3352,6 +3436,7 @@ function App() {
     () => getGitSkillPackagesRouteFromPathname(),
   );
   const [runnersRoute, setRunnersRoute] = useState<any>(() => getRunnersRouteFromPathname());
+  const [externalAgentsRoute, setExternalAgentsRoute] = useState<any>(() => getExternalAgentsRouteFromPathname());
   const [chatsRoute, setChatsRoute] = useState<any>(() => getChatsRouteFromLocation());
   const [adminRoute, setAdminRoute] = useState<any>(() => getAdminRouteFromPathname());
   const [companies, setCompanies] = useState<any>([]);
@@ -3408,7 +3493,9 @@ function App() {
   const [adminTables, setAdminTables] = useState<any>([]);
   const [adminTableData, setAdminTableData] = useState<any>(null);
   const [agentRunners, setAgentRunners] = useState<any>([]);
+  const [externalAgents, setExternalAgents] = useState<any>([]);
   const [hasLoadedAgentRunners, setHasLoadedAgentRunners] = useState<any>(false);
+  const [hasLoadedExternalAgents, setHasLoadedExternalAgents] = useState<any>(false);
   const [hasLoadedSkills, setHasLoadedSkills] = useState<any>(false);
   const [hasLoadedRoles, setHasLoadedRoles] = useState<any>(false);
   const [hasLoadedSkillGroups, setHasLoadedSkillGroups] = useState<any>(false);
@@ -3434,6 +3521,7 @@ function App() {
   const [isLoadingAdminTables, setIsLoadingAdminTables] = useState<any>(false);
   const [isLoadingAdminTable, setIsLoadingAdminTable] = useState<any>(false);
   const [isLoadingRunners, setIsLoadingRunners] = useState<any>(false);
+  const [isLoadingExternalAgents, setIsLoadingExternalAgents] = useState<any>(false);
   const [isLoadingAgents, setIsLoadingAgents] = useState<any>(false);
   const [taskError, setTaskError] = useState<any>("");
   const [orgError, setOrgError] = useState<any>("");
@@ -3444,6 +3532,7 @@ function App() {
   const [mcpServerError, setMcpServerError] = useState<any>("");
   const [adminError, setAdminError] = useState<any>("");
   const [runnerError, setRunnerError] = useState<any>("");
+  const [externalAgentError, setExternalAgentError] = useState<any>("");
   const [agentError, setAgentError] = useState<any>("");
   const [adminLimit, setAdminLimit] = useState<any>(100);
   const [adminStatus, setAdminStatus] = useState<any>("");
@@ -3472,6 +3561,11 @@ function App() {
   const [isCreatingRunner, setIsCreatingRunner] = useState<any>(false);
   const [runnerNameDraft, setRunnerNameDraft] = useState<any>("");
   const [runnerSecretsById, setRunnerSecretsById] = useState<any>({});
+  const [deletingExternalAgentId, setDeletingExternalAgentId] = useState<any>(null);
+  const [regeneratingExternalAgentId, setRegeneratingExternalAgentId] = useState<any>(null);
+  const [isCreatingExternalAgent, setIsCreatingExternalAgent] = useState<any>(false);
+  const [externalAgentNameDraft, setExternalAgentNameDraft] = useState<any>("");
+  const [externalAgentSecretsById, setExternalAgentSecretsById] = useState<any>({});
   const [onboardingPhase, setOnboardingPhase] = useState<OnboardingPhase>(() => getPersistedOnboarding().phase);
   const [onboardingRunnerSecret, setOnboardingRunnerSecret] = useState<any>(() => getPersistedOnboarding().runnerSecret);
   const [onboardingRunnerId, setOnboardingRunnerId] = useState<any>(() => getPersistedOnboarding().runnerId);
@@ -3586,6 +3680,9 @@ function App() {
     // changes cannot render the previous company's onboarding step.
     setAgentRunners([]);
     setHasLoadedAgentRunners(false);
+    setExternalAgents([]);
+    setHasLoadedExternalAgents(false);
+    setExternalAgentSecretsById({});
     setAgents([]);
     setAgentDrafts({});
     setOnboardingPhase(null);
@@ -3662,6 +3759,13 @@ function App() {
     return authKey ? runnerSdkCodexAuthEventsByKey[authKey] || null : null;
   }, [onboardingCodexSdk?.id, onboardingRunner?.id, runnerSdkCodexAuthEventsByKey]);
 
+  const externalAgentLookup = useMemo(() => {
+    return externalAgents.reduce((map: any, externalAgent: any) => {
+      map.set(externalAgent.id, externalAgent);
+      return map;
+    }, new Map<any, any>());
+  }, [externalAgents]);
+
   const detailRunner = useMemo(() => {
     const normalizedRunnerId = activePage === "agent-runner" && runnersRoute.view === "detail"
       ? String(runnersRoute.runnerId || "").trim()
@@ -3684,6 +3788,16 @@ function App() {
     const authKey = getRunnerSdkAuthKey(detailRunner?.id, detailCodexSdk?.id);
     return authKey ? runnerSdkCodexAuthEventsByKey[authKey] || null : null;
   }, [detailCodexSdk?.id, detailRunner?.id, runnerSdkCodexAuthEventsByKey]);
+
+  const detailExternalAgent = useMemo(() => {
+    const normalizedExternalAgentId = activePage === "external_agents" && externalAgentsRoute.view === "detail"
+      ? String(externalAgentsRoute.externalAgentId || "").trim()
+      : "";
+    if (!normalizedExternalAgentId) {
+      return null;
+    }
+    return externalAgentLookup.get(normalizedExternalAgentId) || null;
+  }, [activePage, externalAgentLookup, externalAgentsRoute.externalAgentId, externalAgentsRoute.view]);
 
   const subscribedRunnerSdkAuthTarget = useMemo(() => {
     if (activePage === "agent-runner" && detailRunner?.id && detailCodexSdk?.id) {
@@ -4139,6 +4253,23 @@ function App() {
       ];
     }
 
+    if (
+      activePage === "external_agents"
+      && externalAgentsRoute.view === "detail"
+      && externalAgentsRoute.externalAgentId
+    ) {
+      const matchingExternalAgent = externalAgents.find(
+        (entry: any) => entry.id === externalAgentsRoute.externalAgentId,
+      );
+      return [
+        { label: "External Agents", href: "/external_agents" },
+        {
+          label: String(matchingExternalAgent?.name || "").trim() || "Unnamed external agent",
+          href: `/external_agents/${externalAgentsRoute.externalAgentId}`,
+        },
+      ];
+    }
+
     if (activePage === "admin") {
       if (adminRoute.view === "table" && resolvedAdminTableName) {
         return [
@@ -4256,6 +4387,7 @@ function App() {
     activePage === "dashboard" ||
     activePage === "agent-runner" ||
     !appFlags.skipOnboarding;
+  const shouldLoadExternalAgentData = activePage === "external_agents";
   const shouldLoadAgentData =
     activePage === "agents" ||
     activePage === "profile" ||
@@ -5096,6 +5228,46 @@ function App() {
     } finally {
       if (!silently && String(selectedCompanyIdRef.current || "").trim() === requestCompanyId) {
         setIsLoadingRunners(false);
+      }
+    }
+  }, [selectedCompanyId]);
+
+  const loadExternalAgents = useCallback(async ({ silently = false }: any = {}) => {
+    const requestCompanyId = String(selectedCompanyId || "").trim();
+    if (!requestCompanyId) {
+      setExternalAgents([]);
+      setHasLoadedExternalAgents(false);
+      setExternalAgentSecretsById({});
+      if (!silently) {
+        setExternalAgentError("");
+        setIsLoadingExternalAgents(false);
+      }
+      return;
+    }
+
+    try {
+      if (!silently) {
+        setExternalAgentError("");
+        setIsLoadingExternalAgents(true);
+      }
+      const data = await executeGraphQL(LIST_EXTERNAL_AGENTS_QUERY, {
+        companyId: requestCompanyId,
+      });
+      if (String(selectedCompanyIdRef.current || "").trim() !== requestCompanyId) {
+        return;
+      }
+      setExternalAgents(data.externalAgents || []);
+      setHasLoadedExternalAgents(true);
+    } catch (loadError: any) {
+      if (String(selectedCompanyIdRef.current || "").trim() !== requestCompanyId) {
+        return;
+      }
+      if (!silently) {
+        setExternalAgentError(loadError.message);
+      }
+    } finally {
+      if (!silently && String(selectedCompanyIdRef.current || "").trim() === requestCompanyId) {
+        setIsLoadingExternalAgents(false);
       }
     }
   }, [selectedCompanyId]);
@@ -6167,6 +6339,13 @@ function App() {
   }, [loadAgentRunners, selectedCompanyId, shouldLoadRunnerData]);
 
   useEffect(() => {
+    if (!selectedCompanyId || !shouldLoadExternalAgentData) {
+      return;
+    }
+    loadExternalAgents();
+  }, [loadExternalAgents, selectedCompanyId, shouldLoadExternalAgentData]);
+
+  useEffect(() => {
     if (!selectedCompanyId || !shouldLoadAgentData) {
       return;
     }
@@ -6640,6 +6819,7 @@ function App() {
       setActorsRoute(getActorsRouteFromPathname());
       setGitSkillPackagesRoute(getGitSkillPackagesRouteFromPathname());
       setRunnersRoute(getRunnersRouteFromPathname());
+      setExternalAgentsRoute(getExternalAgentsRouteFromPathname());
       setChatsRoute(getChatsRouteFromLocation());
       setAdminRoute(getAdminRouteFromPathname());
     };
@@ -6940,6 +7120,9 @@ function App() {
         setAgents([]);
         setAgentDrafts({});
         setAgentRunners([]);
+        setExternalAgents([]);
+        setHasLoadedExternalAgents(false);
+        setExternalAgentSecretsById({});
       }
       await loadCompanies();
       return true;
@@ -9092,6 +9275,145 @@ function App() {
     }
   }
 
+  async function handleRegenerateExternalAgentSecret(externalAgentId: any) {
+    if (!selectedCompanyId) {
+      setExternalAgentError("Select a company before rotating external agent secrets.");
+      return;
+    }
+
+    const confirmed = await requestConfirmation({
+      title: "Rotate external agent secret",
+      message: `Rotate the API secret for external agent ${externalAgentId}? Existing callers using the old secret will stop working.`,
+      confirmLabel: "Rotate secret",
+    });
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setRegeneratingExternalAgentId(externalAgentId);
+      setExternalAgentError("");
+      const data = await executeGraphQL(REGENERATE_EXTERNAL_AGENT_SECRET_MUTATION, {
+        companyId: selectedCompanyId,
+        externalAgentId,
+      });
+      const result = data.regenerateExternalAgentSecret;
+      if (!result.ok) {
+        throw new Error(result.error || "External agent secret rotation failed.");
+      }
+
+      const nextSecret = result.secret || "";
+      if (!nextSecret) {
+        throw new Error("External agent secret rotation failed: missing secret.");
+      }
+      setExternalAgentSecretsById((currentSecrets: any) => ({
+        ...currentSecrets,
+        [externalAgentId]: nextSecret,
+      }));
+      await loadExternalAgents({ silently: true });
+    } catch (rotationError: any) {
+      setExternalAgentError(rotationError.message);
+    } finally {
+      setRegeneratingExternalAgentId(null);
+    }
+  }
+
+  async function handleDeleteExternalAgent(externalAgentId: any) {
+    if (!selectedCompanyId) {
+      setExternalAgentError("Select a company before deleting external agents.");
+      return;
+    }
+
+    const confirmed = await requestConfirmation({
+      title: "Delete external agent",
+      message: `Delete external agent ${externalAgentId}?`,
+      confirmLabel: "Delete external agent",
+    });
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setDeletingExternalAgentId(externalAgentId);
+      setExternalAgentError("");
+      const data = await executeGraphQL(DELETE_EXTERNAL_AGENT_MUTATION, {
+        companyId: selectedCompanyId,
+        externalAgentId,
+      });
+      const result = data.deleteExternalAgent;
+      if (!result.ok) {
+        throw new Error(result.error || "External agent deletion failed.");
+      }
+      setExternalAgentSecretsById((currentSecrets: any) => {
+        if (!(externalAgentId in currentSecrets)) {
+          return currentSecrets;
+        }
+        const nextSecrets = { ...currentSecrets };
+        delete nextSecrets[externalAgentId];
+        return nextSecrets;
+      });
+      await loadExternalAgents();
+      if (
+        activePage === "external_agents"
+        && externalAgentsRoute.view === "detail"
+        && String(externalAgentsRoute.externalAgentId || "").trim() === String(externalAgentId || "").trim()
+      ) {
+        setBrowserPath("/external_agents");
+      }
+    } catch (deleteError: any) {
+      setExternalAgentError(deleteError.message);
+    } finally {
+      setDeletingExternalAgentId(null);
+    }
+  }
+
+  async function handleCreateExternalAgent(event: any) {
+    event.preventDefault();
+    if (!selectedCompanyId) {
+      setExternalAgentError("Select a company before creating external agents.");
+      return false;
+    }
+    const requestedExternalAgentName = externalAgentNameDraft.trim();
+    if (!requestedExternalAgentName) {
+      setExternalAgentError("External agent name is required.");
+      return false;
+    }
+
+    try {
+      setIsCreatingExternalAgent(true);
+      setExternalAgentError("");
+      const data = await executeGraphQL(CREATE_EXTERNAL_AGENT_MUTATION, {
+        companyId: selectedCompanyId,
+        name: requestedExternalAgentName,
+      });
+      const result = data.createExternalAgent;
+      if (!result.ok) {
+        throw new Error(result.error || "External agent creation failed.");
+      }
+
+      const createdExternalAgentId = result.externalAgent?.id;
+      const provisionedSecret = result.secret || "";
+      if (createdExternalAgentId && provisionedSecret) {
+        setExternalAgentSecretsById((currentSecrets: any) => ({
+          ...currentSecrets,
+          [createdExternalAgentId]: provisionedSecret,
+        }));
+      }
+
+      setExternalAgentNameDraft("");
+      await loadExternalAgents();
+      if (createdExternalAgentId) {
+        setBrowserPath(getExternalAgentPath(createdExternalAgentId));
+      }
+      return true;
+    } catch (createError: any) {
+      setExternalAgentError(createError.message);
+      return false;
+    } finally {
+      setIsCreatingExternalAgent(false);
+    }
+  }
+
   async function handleCreateRunner(event: any) {
     event.preventDefault();
     if (!selectedCompanyId) {
@@ -10814,6 +11136,16 @@ function App() {
     return `${agentRunners.length} runners`;
   }, [agentRunners.length]);
 
+  const externalAgentCountLabel = useMemo(() => {
+    if (externalAgents.length === 0) {
+      return "No external agents";
+    }
+    if (externalAgents.length === 1) {
+      return "1 external agent";
+    }
+    return `${externalAgents.length} external agents`;
+  }, [externalAgents.length]);
+
   const agentCountLabel = useMemo(() => {
     if (agents.length === 0) {
       return "No agents";
@@ -11366,6 +11698,42 @@ function App() {
               onRunnerNameChange={setRunnerNameDraft}
               onCreateRunner={handleCreateRunner}
               onDeleteRunner={handleDeleteRunner}
+            />
+          )
+        ) : null}
+
+        {selectedCompanyId && activePage === "external_agents" ? (
+          externalAgentsRoute.view === "detail" && externalAgentsRoute.externalAgentId ? (
+            detailExternalAgent ? (
+              <ExternalAgentDetailPage
+                externalAgent={detailExternalAgent}
+                agentSecret={externalAgentSecretsById[detailExternalAgent.id] || ""}
+                regeneratingExternalAgentId={regeneratingExternalAgentId}
+                deletingExternalAgentId={deletingExternalAgentId}
+                onAgentSecretChange={(externalAgentId: any, value: any) =>
+                  setExternalAgentSecretsById((currentSecrets: any) => ({
+                    ...currentSecrets,
+                    [externalAgentId]: value,
+                  }))
+                }
+                onRegenerateExternalAgentSecret={handleRegenerateExternalAgentSecret}
+                onDeleteExternalAgent={handleDeleteExternalAgent}
+              />
+            ) : (
+              <p className="empty-hint">External agent not found.</p>
+            )
+          ) : (
+            <ExternalAgentsPage
+              externalAgents={externalAgents}
+              isLoadingExternalAgents={isLoadingExternalAgents}
+              externalAgentError={externalAgentError}
+              isCreatingExternalAgent={isCreatingExternalAgent}
+              externalAgentNameDraft={externalAgentNameDraft}
+              deletingExternalAgentId={deletingExternalAgentId}
+              externalAgentCountLabel={externalAgentCountLabel}
+              onExternalAgentNameChange={setExternalAgentNameDraft}
+              onCreateExternalAgent={handleCreateExternalAgent}
+              onDeleteExternalAgent={handleDeleteExternalAgent}
             />
           )
         ) : null}

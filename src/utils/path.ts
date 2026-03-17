@@ -280,6 +280,27 @@ export function getRunnersRouteFromPathname(pathname: string = window.location.p
   return { view: "detail", runnerId: secondSegment };
 }
 
+export function getExternalAgentsRouteFromPathname(
+  pathname: string = window.location.pathname,
+): { view: "list" | "detail"; externalAgentId: string } {
+  const segments = normalizePathname(pathname).split("/").filter(Boolean);
+  if (String(segments[0] || "").toLowerCase() !== "external_agents") {
+    return { view: "list", externalAgentId: "" };
+  }
+
+  const externalAgentId = String(segments[1] || "").trim();
+  if (!externalAgentId) {
+    return { view: "list", externalAgentId: "" };
+  }
+
+  return { view: "detail", externalAgentId };
+}
+
+export function getExternalAgentPath(externalAgentId: string = ""): string {
+  const normalizedExternalAgentId = String(externalAgentId || "").trim();
+  return normalizedExternalAgentId ? `/external_agents/${normalizedExternalAgentId}` : "/external_agents";
+}
+
 export function getActorsRouteFromPathname(
   pathnameOrLocation: string | ActorsRouteLocationInput = typeof window !== "undefined" ? window.location.pathname : "/",
   search?: string,

@@ -400,6 +400,21 @@ export const LIST_AGENT_RUNNERS_QUERY = `
   }
 `;
 
+export const LIST_EXTERNAL_AGENTS_QUERY = `
+  query ListExternalAgents {
+    externalAgents {
+      id
+      name
+      actor {
+        id
+      }
+      company {
+        id
+      }
+    }
+  }
+`;
+
 export const CREATE_AGENT_RUNNER_MUTATION = `
   mutation CreateAgentRunner(
     $name: String!
@@ -441,6 +456,26 @@ export const CREATE_AGENT_RUNNER_MUTATION = `
   }
 `;
 
+export const CREATE_EXTERNAL_AGENT_MUTATION = `
+  mutation CreateExternalAgent($name: String!) {
+    createExternalAgent(name: $name) {
+      ok
+      error
+      secret
+      externalAgent {
+        id
+        name
+        actor {
+          id
+        }
+        company {
+          id
+        }
+      }
+    }
+  }
+`;
+
 export const REGENERATE_AGENT_RUNNER_SECRET_MUTATION = `
   mutation RegenerateAgentRunnerSecret($id: String!) {
     regenerateAgentRunnerSecret(id: $id) {
@@ -473,6 +508,26 @@ export const REGENERATE_AGENT_RUNNER_SECRET_MUTATION = `
         lastSeenAt
         createdAt
         updatedAt
+      }
+    }
+  }
+`;
+
+export const REGENERATE_EXTERNAL_AGENT_SECRET_MUTATION = `
+  mutation RegenerateExternalAgentSecret($externalAgentId: String!) {
+    regenerateExternalAgentSecret(externalAgentId: $externalAgentId) {
+      ok
+      error
+      secret
+      externalAgent {
+        id
+        name
+        actor {
+          id
+        }
+        company {
+          id
+        }
       }
     }
   }
@@ -1456,6 +1511,16 @@ export const DELETE_AGENT_RUNNER_MUTATION = `
       ok
       error
       deletedAgentRunnerId
+    }
+  }
+`;
+
+export const DELETE_EXTERNAL_AGENT_MUTATION = `
+  mutation DeleteExternalAgent($externalAgentId: String!) {
+    deleteExternalAgent(externalAgentId: $externalAgentId) {
+      ok
+      error
+      deletedExternalAgentId
     }
   }
 `;
@@ -3499,6 +3564,29 @@ export const COMPANY_API_LIST_AGENT_RUNNERS_CONNECTION_QUERY = `
   }
 `;
 
+export const COMPANY_API_LIST_EXTERNAL_AGENTS_CONNECTION_QUERY = `
+  query CompanyApiListExternalAgents($first: Int!, $after: String) {
+    externalAgents(first: $first, after: $after) {
+      edges {
+        node {
+          id
+          name
+          actor {
+            id
+          }
+          company {
+            id
+          }
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+`;
+
 export const COMPANY_API_CREATE_AGENT_RUNNER_MUTATION = `
   mutation CompanyApiCreateAgentRunner($name: String!) {
     createAgentRunner(name: $name) {
@@ -3536,6 +3624,24 @@ export const COMPANY_API_CREATE_AGENT_RUNNER_MUTATION = `
           }
         }
         isConnected
+        company {
+          id
+        }
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_CREATE_EXTERNAL_AGENT_MUTATION = `
+  mutation CompanyApiCreateExternalAgent($name: String!) {
+    createExternalAgent(name: $name) {
+      secret
+      externalAgent {
+        id
+        name
+        actor {
+          id
+        }
         company {
           id
         }
@@ -3589,9 +3695,33 @@ export const COMPANY_API_REGENERATE_AGENT_RUNNER_SECRET_MUTATION = `
   }
 `;
 
+export const COMPANY_API_REGENERATE_EXTERNAL_AGENT_SECRET_MUTATION = `
+  mutation CompanyApiRegenerateExternalAgentSecret($externalAgentId: ID!) {
+    regenerateExternalAgentSecret(externalAgentId: $externalAgentId) {
+      secret
+      externalAgent {
+        id
+        name
+        actor {
+          id
+        }
+        company {
+          id
+        }
+      }
+    }
+  }
+`;
+
 export const COMPANY_API_DELETE_AGENT_RUNNER_MUTATION = `
   mutation CompanyApiDeleteAgentRunner($agentRunnerId: ID!) {
     deleteAgentRunner(agentRunnerId: $agentRunnerId)
+  }
+`;
+
+export const COMPANY_API_DELETE_EXTERNAL_AGENT_MUTATION = `
+  mutation CompanyApiDeleteExternalAgent($externalAgentId: ID!) {
+    deleteExternalAgent(externalAgentId: $externalAgentId)
   }
 `;
 

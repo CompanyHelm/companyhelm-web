@@ -6,7 +6,13 @@ interface ActorKindBadgeProps {
 }
 
 function getActorKindLabel(kind: Actor["kind"]) {
-  return kind === "user" ? "Human" : "AI";
+  if (kind === "user") {
+    return "Human";
+  }
+  if (kind === "external_agent") {
+    return "External AI";
+  }
+  return "AI";
 }
 
 function ActorKindIcon({ kind }: { kind: Actor["kind"] }) {

@@ -52,6 +52,11 @@ export interface AgentRunner extends NamedEntity {
   updatedAt?: string;
 }
 
+export interface ExternalAgent extends NamedEntity {
+  companyId?: string;
+  actorId?: string | null;
+}
+
 export interface RunnerSdkCodexAuthEvent {
   runnerId: string;
   sdkId: string;
@@ -196,10 +201,11 @@ export interface TaskRun {
 
 export interface Actor {
   id: string;
-  kind: "agent" | "user";
+  kind: "agent" | "external_agent" | "user";
   displayName: string;
   description?: string | null;
   agentId?: string | null;
+  externalAgentId?: string | null;
   userId?: string | null;
   email?: string | null;
 }

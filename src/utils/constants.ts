@@ -90,6 +90,7 @@ const ROUTABLE_NAV_SECTIONS: NavigationSection[] = [
     label: "Platform",
     items: [
       { id: "agent-runner", label: "Agent Runner", href: "/agent-runner", requiresCompany: true },
+      { id: "external_agents", label: "External Agents", href: "/external_agents", requiresCompany: true },
       { id: "mcp-servers", label: "MCP Servers", href: "/mcp-servers", requiresCompany: true },
       {
         id: "gitskillpackages",

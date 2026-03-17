@@ -16,7 +16,6 @@ import {
 } from "../utils/chat.ts";
 import {
   CHAT_MESSAGE_BATCH_SIZE,
-  GRAPHQL_URL,
   THREAD_TITLE_MAX_LENGTH,
   TRANSCRIPT_TOP_LOAD_THRESHOLD_PX,
   TRANSCRIPT_BOTTOM_STICKY_THRESHOLD_PX,
@@ -118,19 +117,6 @@ function resolveChatItemBodyText(item: any, itemType: any) {
   }
 
   return toItemTypePlaceholder(itemType);
-}
-
-function resolveAgentApiDocsUrl() {
-  try {
-    const baseUrl = typeof window !== "undefined" ? window.location.href : "http://localhost";
-    const parsed = new URL(GRAPHQL_URL || "/graphql", baseUrl);
-    parsed.pathname = "/agent/v1/docs";
-    parsed.search = "";
-    parsed.hash = "";
-    return parsed.toString();
-  } catch {
-    return "/agent/v1/docs";
-  }
 }
 
 function isLongTranscriptItemBodyText(rawText: any) {
@@ -463,7 +449,6 @@ export function AgentChatPage({
   const hasKnownChatsForAgent = selectedAgentSessions.length > 0;
   const canInteractWithSession = canChat && !isSessionDeleting && !isSessionReadOnly;
   const canSendMessages = canInteractWithSession && !normalizedSendDisabledReason;
-  const agentApiDocsUrl = useMemo(() => resolveAgentApiDocsUrl(), []);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<any>(false);
   const [isInstructionsExpanded, setIsInstructionsExpanded] = useState<any>(false);
   const [selectedCommandOutputItem, setSelectedCommandOutputItem] = useState<any>(null);
@@ -1575,23 +1560,6 @@ export function AgentChatPage({
             ) : (
               <p className="chat-settings-readonly">none</p>
             )}
-          </div>
-          <div className="chat-settings-field">
-            <label htmlFor="chat-settings-thread-secret" className="chat-settings-label">Thread agent secret</label>
-            <input
-              id="chat-settings-thread-secret"
-              className="chat-settings-input"
-              type="text"
-              value={String(session?.agentSecret || "")}
-              placeholder="Thread secret is not shown after chat creation"
-              readOnly
-            />
-            <p className="chat-settings-hint">
-              This value is read-only. Use the existing thread secret with the agent API docs below.
-            </p>
-            <a className="codex-auth-link" href={agentApiDocsUrl} target="_blank" rel="noreferrer">
-              Open Swagger UI
-            </a>
           </div>
           <div className="chat-settings-info">
             <p className="chat-settings-info-row">
