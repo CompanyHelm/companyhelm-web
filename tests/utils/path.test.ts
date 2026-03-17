@@ -6,7 +6,9 @@ import {
   getAdminRouteFromPathname,
   getAgentPath,
   getAgentsRouteFromPathname,
+  getActorPath,
   getActorsRouteFromPathname,
+  getOrgPath,
   getPageFromPathname,
   getSettingsPath,
   getSettingsTabFromPathname,
@@ -84,14 +86,39 @@ test("getPageFromPathname resolves the Questions page from /questions", () => {
 });
 
 test("getActorsRouteFromPathname returns list view for /actors", () => {
-  assert.deepEqual(getActorsRouteFromPathname("/actors"), { view: "list", actorId: "" });
+  assert.deepEqual(getActorsRouteFromPathname("/actors"), { view: "list", actorId: "", tab: "table" });
+});
+
+test("getActorsRouteFromPathname reads the tab query from the org URL", () => {
+  assert.deepEqual(getActorsRouteFromPathname("/actors", "?tab=graph"), {
+    view: "list",
+    actorId: "",
+    tab: "graph",
+  });
 });
 
 test("getActorsRouteFromPathname returns detail view for /actors/:actorId", () => {
   assert.deepEqual(getActorsRouteFromPathname("/actors/actor-123"), {
     view: "detail",
     actorId: "actor-123",
+    tab: "overview",
   });
+});
+
+test("getActorsRouteFromPathname reads the tab query from the actor detail URL", () => {
+  assert.deepEqual(getActorsRouteFromPathname("/actors/actor-123", "?tab=reportees"), {
+    view: "detail",
+    actorId: "actor-123",
+    tab: "reportees",
+  });
+});
+
+test("getActorPath always includes the normalized tab query", () => {
+  assert.equal(getActorPath({ actorId: "actor-123", tab: "Reportees" }), "/actors/actor-123?tab=reportees");
+});
+
+test("getOrgPath always includes the normalized tab query", () => {
+  assert.equal(getOrgPath({ tab: "Graph" }), "/actors?tab=graph");
 });
 
 test("getAgentsRouteFromPathname returns overview tab by default for /agents/:agentId", () => {

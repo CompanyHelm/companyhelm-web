@@ -271,6 +271,8 @@ import {
   getPageFromPathname,
   getAgentsRouteFromPathname,
   getAgentPath,
+  getActorPath,
+  getOrgPath,
   getTaskPath,
   getSettingsPath,
   getSettingsTabFromPathname,
@@ -11103,9 +11105,11 @@ function App() {
               isSaving={isSavingActorDescription}
               isAddingReportee={isSavingActorManager}
               error={orgError}
+              activeTab={actorsRoute.tab}
               onSaveDescription={(description: string) => handleSaveActorDescription(actorsRoute.actorId, description)}
               onAddReportee={(reporteeActorId: string) => handleAddActorReportee(actorsRoute.actorId, reporteeActorId)}
-              onOpenActor={(actorId: string) => setBrowserPath(`/actors/${actorId}`)}
+              onTabChange={(tab: "overview" | "reportees") => setBrowserPath(getActorPath({ actorId: actorsRoute.actorId, tab }))}
+              onOpenActor={(actorId: string) => setBrowserPath(getActorPath({ actorId, tab: "overview" }))}
             />
           ) : (
             <OrgPage
@@ -11113,7 +11117,9 @@ function App() {
               reportees={orgReportees}
               isLoading={isLoadingOrg}
               error={orgError}
-              onOpenActor={(actorId: string) => setBrowserPath(`/actors/${actorId}`)}
+              activeTab={actorsRoute.tab}
+              onTabChange={(tab: "table" | "graph") => setBrowserPath(getOrgPath({ tab }))}
+              onOpenActor={(actorId: string) => setBrowserPath(getActorPath({ actorId, tab: "overview" }))}
             />
           )
         ) : null}

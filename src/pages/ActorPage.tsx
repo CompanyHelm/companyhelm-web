@@ -16,8 +16,10 @@ interface ActorPageProps {
   isSaving: boolean;
   isAddingReportee?: boolean;
   error: string;
+  activeTab?: ActorTab;
   onSaveDescription: (description: string) => void | Promise<void>;
   onAddReportee?: (reporteeActorId: string) => Promise<boolean> | boolean;
+  onTabChange?: (tab: ActorTab) => void;
   onOpenActor?: (actorId: string) => void;
 }
 
@@ -38,17 +40,23 @@ export function ActorPage({
   isSaving,
   isAddingReportee = false,
   error,
+  activeTab = "overview",
   onSaveDescription,
   onAddReportee,
+  onTabChange,
   onOpenActor,
 }: ActorPageProps) {
-  const [activeTab, setActiveTab] = useState<ActorTab>("overview");
+  const [selectedTab, setSelectedTab] = useState<ActorTab>(activeTab);
   const [draftDescription, setDraftDescription] = useState(() => String(actor?.description || ""));
   const [selectedReporteeActorId, setSelectedReporteeActorId] = useState("");
 
   useEffect(() => {
     setDraftDescription(String(actor?.description || ""));
   }, [actor?.description, actor?.id]);
+
+  useEffect(() => {
+    setSelectedTab(activeTab);
+  }, [activeTab]);
 
   useEffect(() => {
     setSelectedReporteeActorId("");
@@ -123,6 +131,11 @@ export function ActorPage({
     }
   };
 
+  function handleSelectTab(tab: ActorTab) {
+    setSelectedTab(tab);
+    onTabChange?.(tab);
+  }
+
   if (!actor) {
     return (
       <Page className="org-page">
@@ -154,15 +167,15 @@ export function ActorPage({
         <div className="task-view-tabs org-view-tabs" role="tablist" aria-label="Actor views">
           <button
             type="button"
-            className={`task-view-tab${activeTab === "overview" ? " task-view-tab-active" : ""}`}
-            onClick={() => setActiveTab("overview")}
+            className={`task-view-tab${selectedTab === "overview" ? " task-view-tab-active" : ""}`}
+            onClick={() => handleSelectTab("overview")}
           >
             Overview
           </button>
           <button
             type="button"
-            className={`task-view-tab${activeTab === "reportees" ? " task-view-tab-active" : ""}`}
-            onClick={() => setActiveTab("reportees")}
+            className={`task-view-tab${selectedTab === "reportees" ? " task-view-tab-active" : ""}`}
+            onClick={() => handleSelectTab("reportees")}
           >
             Reportees
           </button>
@@ -170,7 +183,7 @@ export function ActorPage({
 
         {error ? <p className="error-banner">{error}</p> : null}
 
-        {activeTab === "reportees" ? (
+        {selectedTab === "reportees" ? (
           <div className="actor-reportees-stack">
             <section className="actor-overview-card actor-reportee-manager-card">
               <div>

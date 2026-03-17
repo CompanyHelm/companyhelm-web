@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Page } from "../components/Page.tsx";
 import { useSetPageActions } from "../components/PageActionsContext.tsx";
 import { OrgGraphView } from "../components/OrgGraphView.tsx";
@@ -12,13 +12,32 @@ interface OrgPageProps {
   reportees: ReporteeRelation[];
   isLoading: boolean;
   error: string;
+  activeTab?: OrgTab;
+  onTabChange?: (tab: OrgTab) => void;
   onOpenActor?: (actorId: string) => void;
 }
 
-export function OrgPage({ actors, reportees, isLoading, error, onOpenActor }: OrgPageProps) {
-  const [activeTab, setActiveTab] = useState<OrgTab>("table");
+export function OrgPage({
+  actors,
+  reportees,
+  isLoading,
+  error,
+  activeTab = "table",
+  onTabChange,
+  onOpenActor,
+}: OrgPageProps) {
+  const [selectedTab, setSelectedTab] = useState<OrgTab>(activeTab);
+
+  useEffect(() => {
+    setSelectedTab(activeTab);
+  }, [activeTab]);
 
   useSetPageActions(null);
+
+  function handleSelectTab(tab: OrgTab) {
+    setSelectedTab(tab);
+    onTabChange?.(tab);
+  }
 
   return (
     <Page className="page-container-full">
@@ -27,15 +46,15 @@ export function OrgPage({ actors, reportees, isLoading, error, onOpenActor }: Or
           <div className="task-view-tabs org-view-tabs" role="tablist" aria-label="Organization views">
             <button
               type="button"
-              className={`task-view-tab${activeTab === "table" ? " task-view-tab-active" : ""}`}
-              onClick={() => setActiveTab("table")}
+              className={`task-view-tab${selectedTab === "table" ? " task-view-tab-active" : ""}`}
+              onClick={() => handleSelectTab("table")}
             >
               Table
             </button>
             <button
               type="button"
-              className={`task-view-tab${activeTab === "graph" ? " task-view-tab-active" : ""}`}
-              onClick={() => setActiveTab("graph")}
+              className={`task-view-tab${selectedTab === "graph" ? " task-view-tab-active" : ""}`}
+              onClick={() => handleSelectTab("graph")}
             >
               Graph
             </button>
@@ -46,7 +65,7 @@ export function OrgPage({ actors, reportees, isLoading, error, onOpenActor }: Or
             <div className="task-empty-panel">
               <p className="empty-hint">Loading organization structure...</p>
             </div>
-          ) : activeTab === "graph" ? (
+          ) : selectedTab === "graph" ? (
             <OrgGraphView actors={actors} reportees={reportees} onOpenActor={onOpenActor} />
           ) : (
             <OrgTableView actors={actors} reportees={reportees} onOpenActor={onOpenActor} />

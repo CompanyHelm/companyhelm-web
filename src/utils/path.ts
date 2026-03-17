@@ -15,9 +15,23 @@ interface TasksRouteLocationInput {
   search?: string;
 }
 
+interface ActorsRouteLocationInput {
+  pathname?: string;
+  search?: string;
+}
+
 interface ChatsPathInput {
   agentId?: string;
   threadId?: string;
+}
+
+interface ActorPathInput {
+  actorId?: string;
+  tab?: string;
+}
+
+interface OrgPathInput {
+  tab?: string;
 }
 
 interface AgentPathInput {
@@ -53,6 +67,12 @@ type AgentRoute = {
 
 type DetailRoute = {
   view: "list" | "detail";
+};
+
+type ActorRoute = {
+  view: "list" | "detail";
+  actorId: string;
+  tab: "table" | "graph" | "overview" | "reportees";
 };
 
 type TaskRoute = {
@@ -102,6 +122,14 @@ export function normalizeSettingsTab(value: string = ""): "general" | "tasks" | 
     return "companies";
   }
   return "general";
+}
+
+export function normalizeOrgTab(value: string = ""): "table" | "graph" {
+  return String(value || "").trim().toLowerCase() === "graph" ? "graph" : "table";
+}
+
+export function normalizeActorDetailTab(value: string = ""): "overview" | "reportees" {
+  return String(value || "").trim().toLowerCase() === "reportees" ? "reportees" : "overview";
 }
 
 export function normalizePathname(rawPathname: string): string {
@@ -252,18 +280,46 @@ export function getRunnersRouteFromPathname(pathname: string = window.location.p
   return { view: "detail", runnerId: secondSegment };
 }
 
-export function getActorsRouteFromPathname(pathname: string = window.location.pathname): DetailRoute & { actorId: string } {
+export function getActorsRouteFromPathname(
+  pathnameOrLocation: string | ActorsRouteLocationInput = typeof window !== "undefined" ? window.location.pathname : "/",
+  search?: string,
+): ActorRoute {
+  const fallbackPathname = typeof window !== "undefined" ? window.location.pathname : "/";
+  const fallbackSearch = typeof window !== "undefined" ? window.location.search : "";
+  const pathname = typeof pathnameOrLocation === "string"
+    ? pathnameOrLocation
+    : pathnameOrLocation.pathname || fallbackPathname;
+  const resolvedSearch = typeof pathnameOrLocation === "string"
+    ? (typeof search === "string" ? search : fallbackSearch)
+    : pathnameOrLocation.search || fallbackSearch;
   const segments = normalizePathname(pathname).split("/").filter(Boolean);
   const topLevelSegment = String(segments[0] || "").toLowerCase();
   if (topLevelSegment !== "actors" && topLevelSegment !== "org") {
-    return { view: "list", actorId: "" };
+    return { view: "list", actorId: "", tab: "table" };
   }
 
+  const params = new URLSearchParams(String(resolvedSearch || ""));
   const actorId = String(segments[1] || "").trim();
   if (!actorId) {
-    return { view: "list", actorId: "" };
+    return { view: "list", actorId: "", tab: normalizeOrgTab(params.get("tab") || "") };
   }
-  return { view: "detail", actorId };
+  return { view: "detail", actorId, tab: normalizeActorDetailTab(params.get("tab") || "") };
+}
+
+export function getActorPath({ actorId = "", tab = "overview" }: ActorPathInput = {}): string {
+  const resolvedActorId = String(actorId || "").trim();
+  if (!resolvedActorId) {
+    return getOrgPath();
+  }
+  const params = new URLSearchParams();
+  params.set("tab", normalizeActorDetailTab(tab));
+  return `/actors/${resolvedActorId}?${params.toString()}`;
+}
+
+export function getOrgPath({ tab = "table" }: OrgPathInput = {}): string {
+  const params = new URLSearchParams();
+  params.set("tab", normalizeOrgTab(tab));
+  return `/actors?${params.toString()}`;
 }
 
 export function getTasksRouteFromPathname(
