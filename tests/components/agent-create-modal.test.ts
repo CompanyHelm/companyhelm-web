@@ -71,7 +71,7 @@ function renderAgentCreateModalMarkup(overrides: Record<string, unknown> = {}) {
       createdAgent: null,
       isCreatingPostCreateChat: false,
       onClose: () => {},
-      onCreateAgent: async () => false,
+      onCreateAgent: async () => {},
       onAgentRunnerChange: () => {},
       onAgentRoleIdsChange: () => {},
       onAgentSkillIdsChange: () => {},

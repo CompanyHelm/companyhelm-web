@@ -249,7 +249,11 @@ test("getAgentCreationFormStatus can allow onboarding submission when the select
 });
 
 test("createAgentRecord can allow onboarding submission when the selected model has no reasoning levels", async () => {
-  let submittedVariables: Record<string, unknown> | null = null;
+  let submittedVariables: {
+    skillIds?: string[];
+    modelReasoningLevel?: string;
+    defaultReasoningLevel?: string;
+  } | undefined;
 
   const result = await createAgentRecord({
     selectedCompanyId: "company-1",
@@ -319,7 +323,7 @@ test("createAgentRecord can allow onboarding submission when the selected model 
     allowEmptyReasoningWhenUnavailable: true,
     agentDefaultAdditionalModelInstructions: "",
     executeCreateAgent: async (variables) => {
-      submittedVariables = variables;
+      submittedVariables = variables as typeof submittedVariables;
       return {
         createAgent: {
           ok: true,

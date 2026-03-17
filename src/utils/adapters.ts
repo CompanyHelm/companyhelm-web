@@ -22,7 +22,6 @@ type RunnerSdkEntry = {
 type RunnerLike = {
   availableAgentSdks?: unknown;
   agentSdks?: unknown;
-  [key: string]: unknown;
 };
 
 const companyApiRunnerMetadataById = new Map<string, LooseRecord>();

@@ -40,7 +40,7 @@ function createBaseProps(overrides: Record<string, unknown> = {}) {
     isStartingCodexAuth: false,
     githubAppInstallUrl: "https://github.com/apps/companyhelm/installations/new?state=company-1",
     onStartCodexDeviceAuth: () => {},
-    onCreateChatForAgent: async () => {},
+    onSkipPostCreate: () => {},
     setOnboardingPhase: () => {},
     setOnboardingRunnerId: () => {},
     setOnboardingRunnerSecret: () => {},

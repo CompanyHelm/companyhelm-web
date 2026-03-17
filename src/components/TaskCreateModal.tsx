@@ -13,7 +13,7 @@ interface TaskCategoryOption {
 
 interface ActorOption {
   id: string | number;
-  kind: "agent" | "user";
+  kind: "agent" | "user" | "external_agent";
   displayName: string;
   agentId?: string | null;
 }

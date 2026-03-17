@@ -8,7 +8,7 @@ import type { AgentRunner, RunnerCodexModelEntry } from "../types/domain.ts";
 
 function formatAvailabilityOptionLabel(
   name: string,
-  availabilityState: "available" | "unavailable" | "not-reported",
+  availabilityState: string,
 ) {
   if (availabilityState === "available") {
     return `${name} (available)`;
@@ -41,7 +41,7 @@ interface AgentCreateModalProps {
   agentModel: string;
   agentModelReasoningLevel: string;
   agentDefaultAdditionalModelInstructions: string;
-  sdkAvailabilityByName: Map<string, "available" | "unavailable">;
+  sdkAvailabilityByName: Map<string, "available" | "unavailable" | "not-reported" | string>;
   runnerModelEntries: RunnerCodexModelEntry[];
   runnerModelNames: string[];
   runnerReasoningLevels: string[];
@@ -49,7 +49,7 @@ interface AgentCreateModalProps {
   createdAgent: CreatedAgentSummary | null;
   isCreatingPostCreateChat: boolean;
   onClose: () => void;
-  onCreateAgent: (event: FormEvent<HTMLFormElement>) => Promise<boolean> | boolean;
+  onCreateAgent: (event: FormEvent<HTMLFormElement>) => Promise<void> | void;
   onAgentRunnerChange: (runnerId: string) => void;
   onAgentRoleIdsChange: (roleIds: string[]) => void;
   onAgentSkillIdsChange: (skillIds: string[]) => void;

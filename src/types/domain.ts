@@ -41,7 +41,9 @@ export interface RunnerCodexModelEntry {
 export type RunnerCodexModelEntriesById = Map<string, RunnerCodexModelEntry[]>;
 
 export interface AgentRunner extends NamedEntity {
+  [key: string]: unknown;
   companyId?: string;
+  status?: string;
   callbackUrl?: string | null;
   hasAuthSecret?: boolean;
   availableAgentSdks?: RunnerSdkEntry[];
@@ -175,13 +177,13 @@ export interface AgentHeartbeat {
 
 export interface TaskComment {
   id: string;
-  taskId?: string;
+  taskId?: string | null;
   companyId?: string;
   comment: string;
   authorActorId?: string | null;
   authorActor?: Actor | null;
-  createdAt?: string;
-  updatedAt?: string;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 }
 
 export interface TaskRun {
@@ -233,8 +235,8 @@ export interface TaskItem extends NamedEntity {
   threadId?: string | null;
   parentTaskId?: string | null;
   status?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  createdAt?: string | null;
+  updatedAt?: string | null;
   runs?: TaskRun[];
   latestRun?: TaskRun | null;
   activeRun?: TaskRun | null;

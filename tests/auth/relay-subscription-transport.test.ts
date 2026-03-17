@@ -45,7 +45,7 @@ test("switching company-scoped subscriptions does not throw when rotating the we
   let unsubscribeSecond = () => {};
 
   try {
-    testGlobal.window = {};
+    testGlobal.window = {} as unknown as Window & typeof globalThis;
     testGlobal.WebSocket = MockWebSocket as unknown as typeof WebSocket;
 
     setActiveCompanyId("company-1");

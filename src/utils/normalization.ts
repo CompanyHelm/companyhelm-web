@@ -10,6 +10,7 @@ import {
   AVAILABLE_AGENT_SDKS,
   DEFAULT_AGENT_SDK,
 } from "./constants.ts";
+import type { RunnerCodexModelEntry, RunnerSdkEntry } from "../types/domain.ts";
 
 type KeyValueEntry = {
   key: string;
@@ -238,25 +239,9 @@ type RunnerModelEntry = {
   isAvailable: boolean;
 };
 
-type RunnerCodexModelEntry = {
-  id: string;
-  sdkId: string;
-  name: string;
-  reasoning: string[];
-  isAvailable: boolean;
-};
-
-type RunnerSdkEntry = {
-  id: string;
-  name: string;
-  isAvailable: boolean;
-  availableModels: RunnerModelEntry[];
-};
-
 type RunnerLike = {
   availableAgentSdks?: unknown;
   agentSdks?: unknown;
-  [key: string]: unknown;
 };
 
 function toRecord(value: unknown): Record<string, unknown> {
@@ -403,7 +388,7 @@ export function resolveRunnerSdkAndModelIds({
 export function mergeAgentRunnerPayloadEntry(
   currentRunner: Record<string, unknown> | null | undefined,
   incomingRunner: Record<string, unknown> | null | undefined,
-) {
+): Record<string, unknown> {
   const fallbackSdks = Array.isArray(currentRunner?.availableAgentSdks)
     ? currentRunner.availableAgentSdks
     : [];
@@ -426,7 +411,7 @@ export function mergeAgentRunnerPayloadEntry(
 export function mergeAgentRunnerPayloadList(
   currentRunners: Array<Record<string, unknown>> | null | undefined,
   incomingRunners: Array<Record<string, unknown>> | null | undefined,
-) {
+): Array<Record<string, unknown>> {
   if (!Array.isArray(incomingRunners)) {
     return Array.isArray(currentRunners) ? currentRunners : [];
   }
@@ -450,7 +435,7 @@ export function mergeAgentRunnerPayloadList(
 export function replaceAgentRunnerPayloadList(
   currentRunners: Array<Record<string, unknown>> | null | undefined,
   incomingRunners: Array<Record<string, unknown>> | null | undefined,
-) {
+): Array<Record<string, unknown>> {
   if (!Array.isArray(incomingRunners)) {
     return Array.isArray(currentRunners) ? currentRunners : [];
   }
@@ -470,7 +455,7 @@ export function applyAgentRunnerSubscriptionSnapshot(
   currentRunners: Array<Record<string, unknown>> | null | undefined,
   incomingRunners: Array<Record<string, unknown>> | null | undefined,
   selectedCompanyId: string,
-) {
+): Array<Record<string, unknown>> {
   const normalizedSelectedCompanyId = String(selectedCompanyId || "").trim();
   const filteredIncomingRunners = (Array.isArray(incomingRunners) ? incomingRunners : []).filter((runner) => {
     const runnerCompanyId = String(runner?.companyId || "").trim();

@@ -34,7 +34,7 @@ interface TaskTableTask {
   assigneeAgentId?: string | null;
   dependencyTaskIds?: Array<string | number>;
   comments?: unknown[];
-  createdAt?: string;
+  createdAt?: string | null;
 }
 
 interface TaskTableAgent {

@@ -172,7 +172,7 @@ function buildOrgGraph(actors: Actor[], reportees: ReporteeRelation[]) {
     nextRootLeftX += (subtreeWidthById.get(rootActor.id) || NODE_WIDTH) + HORIZONTAL_GAP * 2;
   }
 
-  function getDepth(actorId: string, visiting: Set<string> = new Set<string>()) {
+  function getDepth(actorId: string, visiting: Set<string> = new Set<string>()): number {
     if (visiting.has(actorId)) {
       return 0;
     }

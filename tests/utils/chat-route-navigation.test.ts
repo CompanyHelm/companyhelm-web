@@ -5,7 +5,7 @@ async function loadChatRouteNavigationModule() {
   try {
     return await import("../../src/utils/chat-route-navigation.ts");
   } catch {
-    return {};
+    return {} as any;
   }
 }
 

@@ -46,7 +46,7 @@ function createMockWindow(initialHref: string): Window & typeof globalThis {
       },
     } as History,
     dispatchEvent: () => true,
-  } as Window & typeof globalThis;
+  } as unknown as Window & typeof globalThis;
 }
 
 test("getTasksRouteFromPathname returns list view for /tasks", () => {
