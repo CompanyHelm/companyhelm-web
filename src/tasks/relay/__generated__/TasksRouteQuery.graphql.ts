@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bb50b7183fddf4f791ae3e004e54a283>>
+ * @generated SignedSource<<e304b2f00cbe86232eb3849ee6a36c9e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -43,6 +43,7 @@ export type TasksRouteQuery$data = {
     readonly id: string;
     readonly name: string;
     readonly parentTaskId: string | null | undefined;
+    readonly taskId: string;
   }>;
   readonly tasks: ReadonlyArray<{
     readonly " $fragmentSpreads": FragmentRefs<"TasksRoute_task">;
@@ -97,17 +98,24 @@ v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "name",
+  "name": "taskId",
   "storageKey": null
 },
 v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "parentTaskId",
+  "name": "name",
   "storageKey": null
 },
 v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "parentTaskId",
+  "storageKey": null
+},
+v8 = {
   "alias": null,
   "args": null,
   "concreteType": "TaskOption",
@@ -117,25 +125,26 @@ v7 = {
   "selections": [
     (v4/*: any*/),
     (v5/*: any*/),
-    (v6/*: any*/)
+    (v6/*: any*/),
+    (v7/*: any*/)
   ],
-  "storageKey": null
-},
-v8 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "createdAt",
   "storageKey": null
 },
 v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "updatedAt",
+  "name": "createdAt",
   "storageKey": null
 },
 v10 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "updatedAt",
+  "storageKey": null
+},
+v11 = {
   "alias": null,
   "args": null,
   "concreteType": "TaskCategory",
@@ -144,20 +153,20 @@ v10 = {
   "plural": true,
   "selections": [
     (v4/*: any*/),
-    (v5/*: any*/),
-    (v8/*: any*/),
-    (v9/*: any*/)
+    (v6/*: any*/),
+    (v9/*: any*/),
+    (v10/*: any*/)
   ],
   "storageKey": null
 },
-v11 = {
+v12 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "agentId",
   "storageKey": null
 },
-v12 = [
+v13 = [
   (v4/*: any*/),
   {
     "alias": null,
@@ -173,7 +182,7 @@ v12 = [
     "name": "displayName",
     "storageKey": null
   },
-  (v11/*: any*/),
+  (v12/*: any*/),
   {
     "alias": null,
     "args": null,
@@ -189,17 +198,17 @@ v12 = [
     "storageKey": null
   }
 ],
-v13 = {
+v14 = {
   "alias": null,
   "args": null,
   "concreteType": "Actor",
   "kind": "LinkedField",
   "name": "taskAssignableActors",
   "plural": true,
-  "selections": (v12/*: any*/),
+  "selections": (v13/*: any*/),
   "storageKey": null
 },
-v14 = {
+v15 = {
   "alias": null,
   "args": [
     {
@@ -230,7 +239,7 @@ v14 = {
           "plural": false,
           "selections": [
             (v4/*: any*/),
-            (v5/*: any*/)
+            (v6/*: any*/)
           ],
           "storageKey": null
         }
@@ -240,18 +249,11 @@ v14 = {
   ],
   "storageKey": "agents(first:200)"
 },
-v15 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "status",
-  "storageKey": null
-},
 v16 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "taskId",
+  "name": "status",
   "storageKey": null
 },
 v17 = [
@@ -303,8 +305,8 @@ v18 = {
 },
 v19 = [
   (v4/*: any*/),
+  (v5/*: any*/),
   (v16/*: any*/),
-  (v15/*: any*/),
   {
     "alias": null,
     "args": null,
@@ -312,7 +314,7 @@ v19 = [
     "name": "threadId",
     "storageKey": null
   },
-  (v11/*: any*/),
+  (v12/*: any*/),
   {
     "alias": null,
     "args": null,
@@ -341,8 +343,8 @@ v19 = [
     "name": "finishedAt",
     "storageKey": null
   },
-  (v8/*: any*/),
   (v9/*: any*/),
+  (v10/*: any*/),
   (v18/*: any*/)
 ];
 return {
@@ -372,10 +374,10 @@ return {
         ],
         "storageKey": null
       },
-      (v7/*: any*/),
-      (v10/*: any*/),
-      (v13/*: any*/),
-      (v14/*: any*/)
+      (v8/*: any*/),
+      (v11/*: any*/),
+      (v14/*: any*/),
+      (v15/*: any*/)
     ],
     "type": "Query",
     "abstractKey": null
@@ -411,7 +413,7 @@ return {
             ],
             "storageKey": null
           },
-          (v5/*: any*/),
+          (v6/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -447,13 +449,13 @@ return {
             "kind": "LinkedField",
             "name": "assigneeActor",
             "plural": false,
-            "selections": (v12/*: any*/),
+            "selections": (v13/*: any*/),
             "storageKey": null
           },
-          (v6/*: any*/),
-          (v15/*: any*/),
-          (v8/*: any*/),
+          (v7/*: any*/),
+          (v16/*: any*/),
           (v9/*: any*/),
+          (v10/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -539,7 +541,7 @@ return {
             "plural": true,
             "selections": [
               (v4/*: any*/),
-              (v16/*: any*/),
+              (v5/*: any*/),
               {
                 "alias": null,
                 "args": null,
@@ -561,34 +563,34 @@ return {
                 "kind": "LinkedField",
                 "name": "authorActor",
                 "plural": false,
-                "selections": (v12/*: any*/),
+                "selections": (v13/*: any*/),
                 "storageKey": null
               },
-              (v8/*: any*/),
-              (v9/*: any*/)
+              (v9/*: any*/),
+              (v10/*: any*/)
             ],
             "storageKey": null
           }
         ],
         "storageKey": null
       },
-      (v7/*: any*/),
-      (v10/*: any*/),
-      (v13/*: any*/),
-      (v14/*: any*/)
+      (v8/*: any*/),
+      (v11/*: any*/),
+      (v14/*: any*/),
+      (v15/*: any*/)
     ]
   },
   "params": {
-    "cacheID": "60bb88e1b112973b6315035c56e503ae",
+    "cacheID": "36a0bcf590e2ce734e3b4dc5b63b8c0a",
     "id": null,
     "metadata": {},
     "name": "TasksRouteQuery",
     "operationKind": "query",
-    "text": "query TasksRouteQuery(\n  $topLevelOnly: Boolean\n  $rootTaskId: ID\n  $maxDepth: Int\n) {\n  tasks(topLevelOnly: $topLevelOnly, rootTaskId: $rootTaskId, maxDepth: $maxDepth) {\n    ...TasksRoute_task\n    id\n  }\n  taskOptions {\n    id\n    name\n    parentTaskId\n  }\n  taskCategories {\n    id\n    name\n    createdAt\n    updatedAt\n  }\n  taskAssignableActors {\n    id\n    kind\n    displayName\n    agentId\n    userId\n    email\n  }\n  agents(first: 200) {\n    edges {\n      node {\n        id\n        name\n      }\n    }\n  }\n}\n\nfragment TasksRoute_task on Task {\n  id\n  company {\n    id\n  }\n  name\n  category\n  description\n  acceptanceCriteria\n  assigneeActorId\n  assigneeActor {\n    id\n    kind\n    displayName\n    agentId\n    userId\n    email\n  }\n  parentTaskId\n  status\n  createdAt\n  updatedAt\n  attemptCount\n  lastRunStatus\n  has_running_threads\n  latestRun {\n    id\n    taskId\n    status\n    threadId\n    agentId\n    triggeredByActorId\n    failureMessage\n    startedAt\n    finishedAt\n    createdAt\n    updatedAt\n    tokenUsage {\n      ...TasksRoute_tokenUsage\n    }\n  }\n  activeRun {\n    id\n    taskId\n    status\n    threadId\n    agentId\n    triggeredByActorId\n    failureMessage\n    startedAt\n    finishedAt\n    createdAt\n    updatedAt\n    tokenUsage {\n      ...TasksRoute_tokenUsage\n    }\n  }\n  runningThreadId\n  runs {\n    id\n    taskId\n    status\n    threadId\n    agentId\n    triggeredByActorId\n    failureMessage\n    startedAt\n    finishedAt\n    createdAt\n    updatedAt\n    tokenUsage {\n      ...TasksRoute_tokenUsage\n    }\n  }\n  tokenUsage {\n    ...TasksRoute_tokenUsage\n  }\n  aggregateTokenUsage {\n    ...TasksRoute_tokenUsage\n  }\n  dependencyTaskIds\n  comments {\n    id\n    taskId\n    comment\n    authorActorId\n    authorActor {\n      id\n      kind\n      displayName\n      agentId\n      userId\n      email\n    }\n    createdAt\n    updatedAt\n  }\n}\n\nfragment TasksRoute_tokenUsage on TokenUsageBreakdown {\n  inputTokens\n  cachedInputTokens\n  outputTokens\n  reasoningOutputTokens\n  totalTokens\n}\n"
+    "text": "query TasksRouteQuery(\n  $topLevelOnly: Boolean\n  $rootTaskId: ID\n  $maxDepth: Int\n) {\n  tasks(topLevelOnly: $topLevelOnly, rootTaskId: $rootTaskId, maxDepth: $maxDepth) {\n    ...TasksRoute_task\n    id\n  }\n  taskOptions {\n    id\n    taskId\n    name\n    parentTaskId\n  }\n  taskCategories {\n    id\n    name\n    createdAt\n    updatedAt\n  }\n  taskAssignableActors {\n    id\n    kind\n    displayName\n    agentId\n    userId\n    email\n  }\n  agents(first: 200) {\n    edges {\n      node {\n        id\n        name\n      }\n    }\n  }\n}\n\nfragment TasksRoute_task on Task {\n  id\n  company {\n    id\n  }\n  name\n  category\n  description\n  acceptanceCriteria\n  assigneeActorId\n  assigneeActor {\n    id\n    kind\n    displayName\n    agentId\n    userId\n    email\n  }\n  parentTaskId\n  status\n  createdAt\n  updatedAt\n  attemptCount\n  lastRunStatus\n  has_running_threads\n  latestRun {\n    id\n    taskId\n    status\n    threadId\n    agentId\n    triggeredByActorId\n    failureMessage\n    startedAt\n    finishedAt\n    createdAt\n    updatedAt\n    tokenUsage {\n      ...TasksRoute_tokenUsage\n    }\n  }\n  activeRun {\n    id\n    taskId\n    status\n    threadId\n    agentId\n    triggeredByActorId\n    failureMessage\n    startedAt\n    finishedAt\n    createdAt\n    updatedAt\n    tokenUsage {\n      ...TasksRoute_tokenUsage\n    }\n  }\n  runningThreadId\n  runs {\n    id\n    taskId\n    status\n    threadId\n    agentId\n    triggeredByActorId\n    failureMessage\n    startedAt\n    finishedAt\n    createdAt\n    updatedAt\n    tokenUsage {\n      ...TasksRoute_tokenUsage\n    }\n  }\n  tokenUsage {\n    ...TasksRoute_tokenUsage\n  }\n  aggregateTokenUsage {\n    ...TasksRoute_tokenUsage\n  }\n  dependencyTaskIds\n  comments {\n    id\n    taskId\n    comment\n    authorActorId\n    authorActor {\n      id\n      kind\n      displayName\n      agentId\n      userId\n      email\n    }\n    createdAt\n    updatedAt\n  }\n}\n\nfragment TasksRoute_tokenUsage on TokenUsageBreakdown {\n  inputTokens\n  cachedInputTokens\n  outputTokens\n  reasoningOutputTokens\n  totalTokens\n}\n"
   }
 };
 })();
 
-(node as any).hash = "79dda9e3b7311083341549e3c5c875e5";
+(node as any).hash = "d5fdb22e6160aa2b74f251610d64e0d3";
 
 export default node;

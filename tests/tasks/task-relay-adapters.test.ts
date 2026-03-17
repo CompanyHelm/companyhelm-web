@@ -111,12 +111,14 @@ test("toTaskRouteViewModel adapts Relay task route data into legacy TasksPage pr
     ],
     taskOptions: [
       {
-        id: "task-1",
+        id: "TaskOption:task-1",
+        taskId: "task-1",
         name: "Ship Relay route",
         parentTaskId: null,
       },
       {
-        id: "task-2",
+        id: "TaskOption:task-2",
+        taskId: "task-2",
         name: "Refactor tasks App branch",
         parentTaskId: "task-1",
       },
@@ -155,6 +157,7 @@ test("toTaskRouteViewModel adapts Relay task route data into legacy TasksPage pr
   assert.equal(viewModel.tasks[0]?.tokenUsage?.totalTokens, 300);
   assert.equal(viewModel.tasks[0]?.aggregateTokenUsage?.totalTokens, 300);
   assert.equal(viewModel.tasks[0]?.latestRun?.tokenUsage?.totalTokens, 300);
+  assert.equal(viewModel.taskOptions[0]?.id, "task-1");
   assert.equal(viewModel.taskOptions[1]?.parentTaskId, "task-1");
   assert.equal(viewModel.actors[0]?.email, "jane@example.com");
   assert.equal(viewModel.agents[0]?.name, "Build Agent");

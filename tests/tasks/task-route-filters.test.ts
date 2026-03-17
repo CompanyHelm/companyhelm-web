@@ -40,9 +40,9 @@ test("filterTasksForAssigneeUserId keeps only tasks assigned to the selected hum
       },
     ],
     taskOptions: [
-      { id: "task-parent", name: "Parent task", parentTaskId: null },
-      { id: "task-child", name: "Child task", parentTaskId: "task-parent" },
-      { id: "task-other", name: "Other task", parentTaskId: null },
+      { id: "TaskOption:task-parent", taskId: "task-parent", name: "Parent task", parentTaskId: null },
+      { id: "TaskOption:task-child", taskId: "task-child", name: "Child task", parentTaskId: "task-parent" },
+      { id: "TaskOption:task-other", taskId: "task-other", name: "Other task", parentTaskId: null },
     ],
     assigneeUserId: "user-1",
   });
@@ -87,8 +87,8 @@ test("filterTasksForAssigneeUserId drops non-matching parents from the filtered 
       },
     ],
     taskOptions: [
-      { id: "task-parent", name: "Parent task", parentTaskId: null },
-      { id: "task-child", name: "Child task", parentTaskId: "task-parent" },
+      { id: "TaskOption:task-parent", taskId: "task-parent", name: "Parent task", parentTaskId: null },
+      { id: "TaskOption:task-child", taskId: "task-child", name: "Child task", parentTaskId: "task-parent" },
     ],
     assigneeUserId: "user-1",
   });

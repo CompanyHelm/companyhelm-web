@@ -7,6 +7,7 @@ type TaskRecord = {
 
 type TaskOptionRecord = {
   id?: string;
+  taskId?: string;
   parentTaskId?: string | null;
 };
 
@@ -33,14 +34,18 @@ export function filterTasksForAssigneeUserId<TTask extends TaskRecord, TTaskOpti
     filteredTasks.map((task) => String(task?.id || "").trim()).filter(Boolean),
   );
   const filteredTaskOptions = (Array.isArray(taskOptions) ? taskOptions : [])
-    .filter((task) => visibleTaskIds.has(String(task?.id || "").trim()))
+    .filter((task) => visibleTaskIds.has(String(task?.taskId || task?.id || "").trim()))
     .map((task) => {
       const parentTaskId = String(task?.parentTaskId || "").trim();
       if (!parentTaskId || visibleTaskIds.has(parentTaskId)) {
-        return task;
+        return {
+          ...task,
+          id: String(task?.taskId || task?.id || "").trim(),
+        };
       }
       return {
         ...task,
+        id: String(task?.taskId || task?.id || "").trim(),
         parentTaskId: null,
       };
     });

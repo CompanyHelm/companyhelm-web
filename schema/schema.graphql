@@ -858,6 +858,7 @@ type TaskOption {
   id: ID!
   name: String!
   parentTaskId: ID
+  taskId: ID!
 }
 
 type TaskRun {

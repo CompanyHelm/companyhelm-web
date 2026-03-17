@@ -137,6 +137,7 @@ const tasksRouteQuery = graphql`
     }
     taskOptions {
       id
+      taskId
       name
       parentTaskId
     }

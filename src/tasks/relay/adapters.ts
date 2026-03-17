@@ -162,7 +162,7 @@ function toTaskCategory(value: unknown): TaskCategory | null {
 
 function toTaskOption(value: unknown): TaskItem | null {
   const record = toRecord(value);
-  const id = String(record.id || "").trim();
+  const id = String(record.taskId || record.id || "").trim();
   const name = String(record.name || "").trim();
   if (!id || !name) {
     return null;
