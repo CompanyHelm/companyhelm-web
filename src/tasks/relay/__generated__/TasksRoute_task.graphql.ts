@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a2159a5d938c114014da200ad135f366>>
+ * @generated SignedSource<<25cd8643abbdd4969a91f6e420163a17>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -25,9 +25,15 @@ export type TasksRoute_task$data = ReadonlyArray<{
     readonly status: TaskRunStatus;
     readonly taskId: string;
     readonly threadId: string | null | undefined;
+    readonly tokenUsage: {
+      readonly " $fragmentSpreads": FragmentRefs<"TasksRoute_tokenUsage">;
+    };
     readonly triggeredByActorId: string | null | undefined;
     readonly updatedAt: string;
   } | null | undefined;
+  readonly aggregateTokenUsage: {
+    readonly " $fragmentSpreads": FragmentRefs<"TasksRoute_tokenUsage">;
+  };
   readonly assigneeActor: {
     readonly agentId: string | null | undefined;
     readonly displayName: string;
@@ -74,6 +80,9 @@ export type TasksRoute_task$data = ReadonlyArray<{
     readonly status: TaskRunStatus;
     readonly taskId: string;
     readonly threadId: string | null | undefined;
+    readonly tokenUsage: {
+      readonly " $fragmentSpreads": FragmentRefs<"TasksRoute_tokenUsage">;
+    };
     readonly triggeredByActorId: string | null | undefined;
     readonly updatedAt: string;
   } | null | undefined;
@@ -90,10 +99,16 @@ export type TasksRoute_task$data = ReadonlyArray<{
     readonly status: TaskRunStatus;
     readonly taskId: string;
     readonly threadId: string | null | undefined;
+    readonly tokenUsage: {
+      readonly " $fragmentSpreads": FragmentRefs<"TasksRoute_tokenUsage">;
+    };
     readonly triggeredByActorId: string | null | undefined;
     readonly updatedAt: string;
   }>;
   readonly status: TaskStatus;
+  readonly tokenUsage: {
+    readonly " $fragmentSpreads": FragmentRefs<"TasksRoute_tokenUsage">;
+  };
   readonly updatedAt: string;
   readonly " $fragmentType": "TasksRoute_task";
 }>;
@@ -178,6 +193,23 @@ v6 = {
   "storageKey": null
 },
 v7 = [
+  {
+    "args": null,
+    "kind": "FragmentSpread",
+    "name": "TasksRoute_tokenUsage"
+  }
+],
+v8 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "TokenUsageBreakdown",
+  "kind": "LinkedField",
+  "name": "tokenUsage",
+  "plural": false,
+  "selections": (v7/*: any*/),
+  "storageKey": null
+},
+v9 = [
   (v0/*: any*/),
   (v6/*: any*/),
   (v3/*: any*/),
@@ -218,7 +250,8 @@ v7 = [
     "storageKey": null
   },
   (v4/*: any*/),
-  (v5/*: any*/)
+  (v5/*: any*/),
+  (v8/*: any*/)
 ];
 return {
   "argumentDefinitions": [],
@@ -324,7 +357,7 @@ return {
       "kind": "LinkedField",
       "name": "latestRun",
       "plural": false,
-      "selections": (v7/*: any*/),
+      "selections": (v9/*: any*/),
       "storageKey": null
     },
     {
@@ -334,7 +367,7 @@ return {
       "kind": "LinkedField",
       "name": "activeRun",
       "plural": false,
-      "selections": (v7/*: any*/),
+      "selections": (v9/*: any*/),
       "storageKey": null
     },
     {
@@ -351,6 +384,17 @@ return {
       "kind": "LinkedField",
       "name": "runs",
       "plural": true,
+      "selections": (v9/*: any*/),
+      "storageKey": null
+    },
+    (v8/*: any*/),
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "TokenUsageBreakdown",
+      "kind": "LinkedField",
+      "name": "aggregateTokenUsage",
+      "plural": false,
       "selections": (v7/*: any*/),
       "storageKey": null
     },
@@ -406,6 +450,6 @@ return {
 };
 })();
 
-(node as any).hash = "5c6703a7d71e9717c71259e4928ae6b5";
+(node as any).hash = "645b5ec9e9fb6f8f5cb02679b53d2bc0";
 
 export default node;

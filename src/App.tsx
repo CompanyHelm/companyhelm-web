@@ -502,6 +502,17 @@ function resolveLegacyId(...values: any) {
   return "";
 }
 
+function toTokenUsageBreakdown(value: any) {
+  const record = value && typeof value === "object" ? value : {};
+  return {
+    inputTokens: Number(record.inputTokens) || 0,
+    cachedInputTokens: Number(record.cachedInputTokens) || 0,
+    outputTokens: Number(record.outputTokens) || 0,
+    reasoningOutputTokens: Number(record.reasoningOutputTokens) || 0,
+    totalTokens: Number(record.totalTokens) || 0,
+  };
+}
+
 export function getChatCreateBlockedReason(agent: any, agentRunnerLookup: any) {
   const assignedRunnerId = resolveLegacyId(agent?.agentRunnerId);
   if (!assignedRunnerId) {
@@ -1437,6 +1448,11 @@ function toLegacyThreadPayload(thread: any, {
     errorMessage: resolvedErrorMessage,
     tasks: resolvedTasks,
     archivedAt: resolvedArchivedAt,
+    tokenUsage: toTokenUsageBreakdown(metadataOverride?.tokenUsage || thread?.tokenUsage || currentMetadata.tokenUsage),
+    contextUsage: toTokenUsageBreakdown(metadataOverride?.contextUsage || thread?.contextUsage || currentMetadata.contextUsage),
+    modelContextWindow: Number(
+      metadataOverride?.modelContextWindow ?? thread?.modelContextWindow ?? currentMetadata.modelContextWindow ?? 0,
+    ) || null,
   };
   if (threadId) {
     companyApiThreadMetadataById.set(threadId, nextMetadata);
@@ -1455,6 +1471,9 @@ function toLegacyThreadPayload(thread: any, {
     currentModelName: nextMetadata.currentModelName,
     currentReasoningLevel: nextMetadata.currentReasoningLevel,
     additionalModelInstructions: nextMetadata.additionalModelInstructions,
+    tokenUsage: nextMetadata.tokenUsage,
+    contextUsage: nextMetadata.contextUsage,
+    modelContextWindow: nextMetadata.modelContextWindow,
     tasks: nextMetadata.tasks,
     archivedAt: nextMetadata.archivedAt,
     createdAt: nextMetadata.createdAt,
@@ -1521,6 +1540,7 @@ function toLegacyTurnPayload(turn: any, {
     runnerId: resolvedRunnerId,
     status: resolveLegacyId(turn?.status) || "running",
     reasoningText: resolveLegacyId(turn?.reasoningText),
+    tokenUsage: toTokenUsageBreakdown(turn?.tokenUsage),
     startedAt: resolvedStartedAt,
     endedAt: resolvedEndedAt,
     createdAt: fallbackTimestamp,
