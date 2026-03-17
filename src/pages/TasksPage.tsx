@@ -95,6 +95,11 @@ function formatTaskStatusLabel(status: string) {
   return `${status.charAt(0).toUpperCase()}${status.slice(1)}`;
 }
 
+function formatTokenCount(value: number | null | undefined) {
+  const normalizedValue = Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : 0;
+  return new Intl.NumberFormat("en-US").format(normalizedValue);
+}
+
 function OverviewPropertyDropdown({
   buttonId,
   label,
@@ -331,6 +336,9 @@ export function TasksPage({
   const activeTaskComments = Array.isArray(activeTask?.comments) ? activeTask.comments : [];
   const activeTaskRuns = Array.isArray(activeTask?.runs) ? activeTask.runs : [];
   const activeTaskLatestRun = activeTask?.latestRun || null;
+  const activeTaskTokenUsage = activeTask?.tokenUsage || null;
+  const activeTaskAggregateTokenUsage = activeTask?.aggregateTokenUsage || null;
+  const activeTaskLatestRunTokenUsage = activeTaskLatestRun?.tokenUsage || null;
   const activeTaskDraft = useMemo(() => {
     if (!activeTask) {
       return null;
@@ -873,6 +881,37 @@ export function TasksPage({
                       </div>
                     </section>
 
+                    <section className="task-overview-card">
+                      <div className="task-overview-card-header">
+                        <h3>Token usage</h3>
+                        <p className="task-overview-card-subtitle">Direct totals are this task only. Aggregate includes descendants.</p>
+                      </div>
+
+                      <div className="task-overview-stats">
+                        <div className="task-overview-stat">
+                          <span className="task-overview-stat-label">Direct tokens</span>
+                          <strong>{formatTokenCount(activeTaskTokenUsage?.totalTokens)}</strong>
+                        </div>
+                        <div className="task-overview-stat">
+                          <span className="task-overview-stat-label">Aggregate tokens</span>
+                          <strong>{formatTokenCount(activeTaskAggregateTokenUsage?.totalTokens)}</strong>
+                        </div>
+                        <div className="task-overview-stat">
+                          <span className="task-overview-stat-label">Latest run tokens</span>
+                          <strong>{formatTokenCount(activeTaskLatestRunTokenUsage?.totalTokens)}</strong>
+                        </div>
+                      </div>
+
+                      <div className="task-token-breakdown">
+                        <span className="chat-card-meta">
+                          Direct: in {formatTokenCount(activeTaskTokenUsage?.inputTokens)}, cached {formatTokenCount(activeTaskTokenUsage?.cachedInputTokens)}, out {formatTokenCount(activeTaskTokenUsage?.outputTokens)}, reasoning {formatTokenCount(activeTaskTokenUsage?.reasoningOutputTokens)}
+                        </span>
+                        <span className="chat-card-meta">
+                          Aggregate: in {formatTokenCount(activeTaskAggregateTokenUsage?.inputTokens)}, cached {formatTokenCount(activeTaskAggregateTokenUsage?.cachedInputTokens)}, out {formatTokenCount(activeTaskAggregateTokenUsage?.outputTokens)}, reasoning {formatTokenCount(activeTaskAggregateTokenUsage?.reasoningOutputTokens)}
+                        </span>
+                      </div>
+                    </section>
+
                     {/* Relationships card */}
                     <section className="task-overview-card">
                       <div className="task-overview-card-header">
@@ -1030,6 +1069,14 @@ export function TasksPage({
                               {String(activeTask.lastRunStatus || activeTaskLatestRun?.status || "unknown").trim()}
                             </span>
                           </div>
+                          <div className="task-overview-field">
+                            <span className="task-overview-field-label">Direct tokens</span>
+                            <strong>{formatTokenCount(activeTaskTokenUsage?.totalTokens)}</strong>
+                          </div>
+                          <div className="task-overview-field">
+                            <span className="task-overview-field-label">Aggregate tokens</span>
+                            <strong>{formatTokenCount(activeTaskAggregateTokenUsage?.totalTokens)}</strong>
+                          </div>
                           {activeTaskLatestRun?.failureMessage ? (
                             <div className="task-overview-field">
                               <span className="task-overview-field-label">Latest failure</span>
@@ -1068,6 +1115,7 @@ export function TasksPage({
                                     <span className="chat-card-meta">Agent: {runAgentName}</span>
                                     <span className="chat-card-meta">Started: {run.startedAt ? new Date(run.startedAt).toLocaleString() : "Not started"}</span>
                                     <span className="chat-card-meta">Finished: {run.finishedAt ? new Date(run.finishedAt).toLocaleString() : "Not finished"}</span>
+                                    <span className="chat-card-meta">Tokens: {formatTokenCount(run.tokenUsage?.totalTokens)}</span>
                                     {run.failureMessage ? (
                                       <p className="error-banner task-run-failure">{run.failureMessage}</p>
                                     ) : null}

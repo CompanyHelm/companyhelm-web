@@ -25,6 +25,17 @@ function toRecord(value: unknown): LooseRecord {
   return value as LooseRecord;
 }
 
+function toTokenUsageBreakdown(value: unknown) {
+  const record = toRecord(value);
+  return {
+    inputTokens: Number(record.inputTokens) || 0,
+    cachedInputTokens: Number(record.cachedInputTokens) || 0,
+    outputTokens: Number(record.outputTokens) || 0,
+    reasoningOutputTokens: Number(record.reasoningOutputTokens) || 0,
+    totalTokens: Number(record.totalTokens) || 0,
+  };
+}
+
 function toActor(value: unknown): Actor | null {
   const record = toRecord(value);
   const id = String(record.id || "").trim();
@@ -80,6 +91,7 @@ function toTaskRun(value: unknown): TaskRun | null {
     finishedAt: String(record.finishedAt || "").trim() || null,
     createdAt: String(record.createdAt || "").trim() || null,
     updatedAt: String(record.updatedAt || "").trim() || null,
+    tokenUsage: toTokenUsageBreakdown(record.tokenUsage),
   };
 }
 
@@ -119,6 +131,8 @@ function toTaskItem(value: unknown): TaskItem | null {
     hasRunningThreads: Boolean(record.has_running_threads),
     attemptCount: Number.isInteger(record.attemptCount) ? Number(record.attemptCount) : runs.length,
     lastRunStatus: String(record.lastRunStatus || "").trim() || latestRun?.status || null,
+    tokenUsage: toTokenUsageBreakdown(record.tokenUsage),
+    aggregateTokenUsage: toTokenUsageBreakdown(record.aggregateTokenUsage),
     dependencyTaskIds: Array.isArray(record.dependencyTaskIds)
       ? record.dependencyTaskIds.map((entry) => String(entry || "").trim()).filter(Boolean)
       : [],

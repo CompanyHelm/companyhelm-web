@@ -36,6 +36,17 @@ function toRecord(value: unknown): LooseRecord {
   return value as LooseRecord;
 }
 
+function toTokenUsageBreakdown(value: unknown) {
+  const record = toRecord(value);
+  return {
+    inputTokens: Number(record.inputTokens) || 0,
+    cachedInputTokens: Number(record.cachedInputTokens) || 0,
+    outputTokens: Number(record.outputTokens) || 0,
+    reasoningOutputTokens: Number(record.reasoningOutputTokens) || 0,
+    totalTokens: Number(record.totalTokens) || 0,
+  };
+}
+
 function normalizeAvailabilityFlag(...values: unknown[]): boolean {
   for (const value of values) {
     if (typeof value === "boolean") {
@@ -390,6 +401,11 @@ export function toLegacyThreadPayload(thread: LooseRecord | null | undefined, {
     currentReasoningLevel: resolvedCurrentReasoningLevel,
     additionalModelInstructions: resolvedAdditionalModelInstructions,
     errorMessage: resolvedErrorMessage,
+    tokenUsage: toTokenUsageBreakdown(overrideRecord.tokenUsage || threadRecord.tokenUsage || currentMetadata.tokenUsage),
+    contextUsage: toTokenUsageBreakdown(overrideRecord.contextUsage || threadRecord.contextUsage || currentMetadata.contextUsage),
+    modelContextWindow: Number(
+      overrideRecord.modelContextWindow ?? threadRecord.modelContextWindow ?? currentMetadata.modelContextWindow ?? 0,
+    ) || null,
   };
   if (threadId) {
     companyApiThreadMetadataById.set(threadId, nextMetadata);
@@ -408,6 +424,9 @@ export function toLegacyThreadPayload(thread: LooseRecord | null | undefined, {
     currentModelName: nextMetadata.currentModelName,
     currentReasoningLevel: nextMetadata.currentReasoningLevel,
     additionalModelInstructions: nextMetadata.additionalModelInstructions,
+    tokenUsage: nextMetadata.tokenUsage,
+    contextUsage: nextMetadata.contextUsage,
+    modelContextWindow: nextMetadata.modelContextWindow,
     createdAt: nextMetadata.createdAt,
     updatedAt: nextMetadata.updatedAt,
   };
@@ -478,6 +497,7 @@ export function toLegacyTurnPayload(turn: LooseRecord | null | undefined, {
     runnerId: resolvedRunnerId,
     status: resolveLegacyId(turnRecord.status) || "running",
     reasoningText: resolveLegacyId(turnRecord.reasoningText),
+    tokenUsage: toTokenUsageBreakdown(turnRecord.tokenUsage),
     startedAt: resolvedStartedAt,
     endedAt: resolvedEndedAt,
     createdAt: fallbackTimestamp,

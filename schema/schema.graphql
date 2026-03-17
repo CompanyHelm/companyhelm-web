@@ -531,6 +531,7 @@ type Mutation {
   removeSkillGroupFromRole(roleId: ID!, skillGroupId: ID!): RoleMutationPayload!
   removeTaskDependency(dependencyTaskId: ID!, taskId: ID!): TaskMutationPayload!
   retryQueuedUserMessage(queuedMessageId: ID!): QueuedUserMessage!
+  scheduleAgentHeartbeatNow(heartbeatId: ID!): AgentHeartbeat!
   setActorDescription(actorId: ID!, description: String): ActorMutationPayload!
   setActorManager(managerActorId: ID, reporteeActorId: ID!): ReporteeMutationPayload!
   setTaskAssigneeActor(assigneeActorId: ID, taskId: ID!): TaskMutationPayload!
@@ -789,6 +790,7 @@ type Task {
   acceptanceCriteria: String
   activeRun: TaskRun
   agentId: ID
+  aggregateTokenUsage: TokenUsageBreakdown!
   assigneeActor: Actor
   assigneeActorId: ID
   attemptCount: Int!
@@ -806,6 +808,7 @@ type Task {
   runningThreadId: ID
   runs: [TaskRun!]!
   status: TaskStatus!
+  tokenUsage: TokenUsageBreakdown!
   updatedAt: String!
 }
 
@@ -847,6 +850,7 @@ type TaskRun {
   status: TaskRunStatus!
   taskId: ID!
   threadId: ID
+  tokenUsage: TokenUsageBreakdown!
   triggeredByActorId: ID
   updatedAt: String!
 }
@@ -877,13 +881,16 @@ type Thread {
   agent: Agent!
   archivedAt: String
   company: Company!
+  contextUsage: TokenUsageBreakdown!
   currentModel: AgentRunnerSdkModel!
   currentReasoningLevel: String
   errorMessage: String
   id: ID!
+  modelContextWindow: Int
   status: ThreadStatus!
   tasks: [Task!]!
   title: String
+  tokenUsage: TokenUsageBreakdown!
 }
 
 type ThreadConnection {
@@ -917,6 +924,7 @@ type ThreadTurn {
   startedAt: String
   status: ThreadTurnStatus!
   thread: Thread!
+  tokenUsage: TokenUsageBreakdown!
 }
 
 type ThreadTurnConnection {
@@ -933,6 +941,14 @@ enum ThreadTurnStatus {
   cancelled
   completed
   running
+}
+
+type TokenUsageBreakdown {
+  cachedInputTokens: Int!
+  inputTokens: Int!
+  outputTokens: Int!
+  reasoningOutputTokens: Int!
+  totalTokens: Int!
 }
 
 type TurnItem {

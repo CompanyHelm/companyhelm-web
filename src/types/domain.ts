@@ -111,6 +111,14 @@ export interface McpKeyValueEntry {
   value: string;
 }
 
+export interface TokenUsageBreakdown {
+  inputTokens: number;
+  cachedInputTokens: number;
+  outputTokens: number;
+  reasoningOutputTokens: number;
+  totalTokens: number;
+}
+
 export interface McpServer extends NamedEntity {
   companyId?: string;
   transportType?: string;
@@ -183,6 +191,7 @@ export interface TaskRun {
   finishedAt?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
+  tokenUsage?: TokenUsageBreakdown | null;
 }
 
 export interface Actor {
@@ -225,6 +234,8 @@ export interface TaskItem extends NamedEntity {
   hasRunningThreads?: boolean;
   attemptCount?: number;
   lastRunStatus?: string | null;
+  tokenUsage?: TokenUsageBreakdown | null;
+  aggregateTokenUsage?: TokenUsageBreakdown | null;
   dependencyTaskIds?: string[];
   comments?: TaskComment[];
 }

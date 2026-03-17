@@ -5124,6 +5124,12 @@ button:disabled {
   gap: 0.3rem;
 }
 
+.task-token-breakdown {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.85rem;
+}
+
 .task-run-failure {
   margin: 0.35rem 0 0;
 }

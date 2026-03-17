@@ -40,6 +40,13 @@ test("toTaskRouteViewModel adapts Relay task route data into legacy TasksPage pr
             finishedAt: "2026-03-12T10:11:00.000Z",
             createdAt: "2026-03-12T10:10:00.000Z",
             updatedAt: "2026-03-12T10:11:00.000Z",
+            tokenUsage: {
+              inputTokens: 200,
+              cachedInputTokens: 20,
+              outputTokens: 70,
+              reasoningOutputTokens: 10,
+              totalTokens: 300,
+            },
           },
         ],
         latestRun: {
@@ -54,12 +61,33 @@ test("toTaskRouteViewModel adapts Relay task route data into legacy TasksPage pr
           finishedAt: "2026-03-12T10:11:00.000Z",
           createdAt: "2026-03-12T10:10:00.000Z",
           updatedAt: "2026-03-12T10:11:00.000Z",
+          tokenUsage: {
+            inputTokens: 200,
+            cachedInputTokens: 20,
+            outputTokens: 70,
+            reasoningOutputTokens: 10,
+            totalTokens: 300,
+          },
         },
         activeRun: null,
         runningThreadId: null,
         has_running_threads: false,
         attemptCount: 1,
         lastRunStatus: "failed",
+        tokenUsage: {
+          inputTokens: 200,
+          cachedInputTokens: 20,
+          outputTokens: 70,
+          reasoningOutputTokens: 10,
+          totalTokens: 300,
+        },
+        aggregateTokenUsage: {
+          inputTokens: 200,
+          cachedInputTokens: 20,
+          outputTokens: 70,
+          reasoningOutputTokens: 10,
+          totalTokens: 300,
+        },
         dependencyTaskIds: [],
         comments: [
           {
@@ -124,6 +152,9 @@ test("toTaskRouteViewModel adapts Relay task route data into legacy TasksPage pr
   assert.equal(viewModel.tasks[0]?.runningThreadId, null);
   assert.equal(viewModel.tasks[0]?.threadId, "thread-1");
   assert.equal(viewModel.tasks[0]?.assigneeActor?.displayName, "Jane Doe");
+  assert.equal(viewModel.tasks[0]?.tokenUsage?.totalTokens, 300);
+  assert.equal(viewModel.tasks[0]?.aggregateTokenUsage?.totalTokens, 300);
+  assert.equal(viewModel.tasks[0]?.latestRun?.tokenUsage?.totalTokens, 300);
   assert.equal(viewModel.taskOptions[1]?.parentTaskId, "task-1");
   assert.equal(viewModel.actors[0]?.email, "jane@example.com");
   assert.equal(viewModel.agents[0]?.name, "Build Agent");

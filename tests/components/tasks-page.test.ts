@@ -5,12 +5,30 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { TasksPage } from "../../src/pages/TasksPage.tsx";
 import type { Agent, TaskItem } from "../../src/types/domain.ts";
 
-function renderTasksPageMarkup(taskOverrides: Partial<TaskItem> = {}, agents: Agent[] = []) {
+function renderTasksPageMarkup(
+  taskOverrides: Partial<TaskItem> = {},
+  agents: Agent[] = [],
+  pageOverrides: Record<string, unknown> = {},
+) {
   const rootTask: TaskItem = {
     id: "task-1",
     name: "Fix graph rendering",
     description: "Repair the task graph page.",
     status: "in_progress",
+    tokenUsage: {
+      inputTokens: 1000,
+      cachedInputTokens: 100,
+      outputTokens: 300,
+      reasoningOutputTokens: 50,
+      totalTokens: 1450,
+    },
+    aggregateTokenUsage: {
+      inputTokens: 1600,
+      cachedInputTokens: 200,
+      outputTokens: 500,
+      reasoningOutputTokens: 80,
+      totalTokens: 2380,
+    },
     dependencyTaskIds: [],
     comments: [
       {
@@ -83,6 +101,7 @@ function renderTasksPageMarkup(taskOverrides: Partial<TaskItem> = {}, agents: Ag
       visibleDepth: "3",
       onVisibleDepthChange: () => {},
       onOpenTask: () => {},
+      ...pageOverrides,
     }),
   );
 }
@@ -111,6 +130,17 @@ test("TasksPage detail actions show a visible create subtask action", () => {
   assert.match(markup, />Execute task</);
   assert.match(markup, />Runs</);
   assert.doesNotMatch(markup, /<section class="task-overview-card">.*?<h3>Actions<\/h3>.*?>Open thread</s);
+});
+
+test("TasksPage overview shows direct and aggregate task token usage", () => {
+  const markup = renderTasksPageMarkup();
+
+  assert.match(markup, />Token usage</);
+  assert.match(markup, /Direct tokens/);
+  assert.match(markup, /1,450/);
+  assert.match(markup, /Aggregate tokens/);
+  assert.match(markup, /2,380/);
+  assert.match(markup, /Latest run tokens/);
 });
 
 test("TasksPage keeps run history hidden until the Runs tab is selected", () => {
@@ -146,4 +176,57 @@ test("TasksPage keeps run history hidden until the Runs tab is selected", () => 
   assert.match(markup, />Runs</);
   assert.doesNotMatch(markup, /Agent: AI eng/);
   assert.doesNotMatch(markup, /Agent: agent-1/);
+});
+
+test("TasksPage runs tab shows per-run token totals", () => {
+  const markup = renderTasksPageMarkup(
+    {
+      runs: [
+        {
+          id: "run-1",
+          taskId: "task-1",
+          status: "queued",
+          agentId: "agent-1",
+          createdAt: "2026-03-14T14:21:33.000Z",
+          tokenUsage: {
+            inputTokens: 200,
+            cachedInputTokens: 20,
+            outputTokens: 70,
+            reasoningOutputTokens: 10,
+            totalTokens: 300,
+          },
+        },
+      ],
+      latestRun: {
+        id: "run-1",
+        taskId: "task-1",
+        status: "queued",
+        agentId: "agent-1",
+        createdAt: "2026-03-14T14:21:33.000Z",
+        tokenUsage: {
+          inputTokens: 200,
+          cachedInputTokens: 20,
+          outputTokens: 70,
+          reasoningOutputTokens: 10,
+          totalTokens: 300,
+        },
+      },
+      attemptCount: 1,
+      lastRunStatus: "queued",
+    },
+    [
+      {
+        id: "agent-1",
+        name: "AI eng",
+      },
+    ],
+    {
+      activeTab: "runs",
+    },
+  );
+
+  assert.match(markup, /Agent: AI eng/);
+  assert.match(markup, /Tokens: 300/);
+  assert.match(markup, /Direct tokens/);
+  assert.match(markup, /Aggregate tokens/);
 });

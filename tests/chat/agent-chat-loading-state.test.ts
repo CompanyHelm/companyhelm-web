@@ -158,6 +158,67 @@ test("AgentChatPage shows pending thread copy while the thread is still provisio
   assert.match(markup, /pending/);
 });
 
+test("AgentChatPage shows thread token and context summaries plus per-turn token usage", () => {
+  const markup = renderAgentChatPageMarkup({
+    session: {
+      id: "thread-usage",
+      title: "Usage thread",
+      status: "ready",
+      tokenUsage: {
+        totalTokens: 900,
+      },
+      contextUsage: {
+        totalTokens: 385,
+        inputTokens: 250,
+        cachedInputTokens: 25,
+        outputTokens: 100,
+        reasoningOutputTokens: 10,
+      },
+      modelContextWindow: 200000,
+    },
+    chatSessionsByAgent: {
+      "agent-1": [
+        {
+          id: "thread-usage",
+          title: "Usage thread",
+          status: "ready",
+          contextUsage: {
+            totalTokens: 385,
+            inputTokens: 250,
+            cachedInputTokens: 25,
+            outputTokens: 100,
+            reasoningOutputTokens: 10,
+          },
+          modelContextWindow: 200000,
+        },
+      ],
+    },
+    chatTurns: [
+      {
+        id: "turn-1",
+        status: "completed",
+        tokenUsage: {
+          totalTokens: 180,
+        },
+        createdAt: "2026-03-17T12:00:00.000Z",
+        items: [
+          {
+            id: "item-1",
+            itemType: "agent_message",
+            role: "assistant",
+            text: "Done.",
+            createdAt: "2026-03-17T12:00:01.000Z",
+          },
+        ],
+      },
+    ],
+  });
+
+  assert.match(markup, /Tokens 900/);
+  assert.match(markup, /Context 385 \/ 200000/);
+  assert.match(markup, /Tokens 180/);
+});
+
 test("AgentChatPage shows archived chats as read-only and hides the composer", () => {
   const markup = renderAgentChatPageMarkup({
     session: {
