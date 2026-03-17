@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7d4a59bb33709c7a76282deb72532d87>>
+ * @generated SignedSource<<9c74fdc7fd9590f17f56ace1d771cdca>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,6 +12,7 @@ import { ConcreteRequest } from 'relay-runtime';
 export type TaskStatus = "completed" | "draft" | "in_progress" | "pending" | "%future added value";
 export type TasksRouteCreateTaskMutation$variables = {
   assigneeActorId?: string | null | undefined;
+  category?: string | null | undefined;
   dependencyTaskIds?: ReadonlyArray<string> | null | undefined;
   description?: string | null | undefined;
   name: string;
@@ -41,29 +42,34 @@ var v0 = {
 v1 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "dependencyTaskIds"
+  "name": "category"
 },
 v2 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "description"
+  "name": "dependencyTaskIds"
 },
 v3 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "name"
+  "name": "description"
 },
 v4 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "parentTaskId"
+  "name": "name"
 },
 v5 = {
   "defaultValue": null,
   "kind": "LocalArgument",
+  "name": "parentTaskId"
+},
+v6 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
   "name": "status"
 },
-v6 = [
+v7 = [
   {
     "alias": null,
     "args": [
@@ -71,6 +77,11 @@ v6 = [
         "kind": "Variable",
         "name": "assigneeActorId",
         "variableName": "assigneeActorId"
+      },
+      {
+        "kind": "Variable",
+        "name": "category",
+        "variableName": "category"
       },
       {
         "kind": "Variable",
@@ -147,40 +158,42 @@ return {
       (v2/*: any*/),
       (v3/*: any*/),
       (v4/*: any*/),
-      (v5/*: any*/)
+      (v5/*: any*/),
+      (v6/*: any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
     "name": "TasksRouteCreateTaskMutation",
-    "selections": (v6/*: any*/),
+    "selections": (v7/*: any*/),
     "type": "Mutation",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v3/*: any*/),
-      (v2/*: any*/),
-      (v5/*: any*/),
-      (v0/*: any*/),
       (v4/*: any*/),
-      (v1/*: any*/)
+      (v1/*: any*/),
+      (v3/*: any*/),
+      (v6/*: any*/),
+      (v0/*: any*/),
+      (v5/*: any*/),
+      (v2/*: any*/)
     ],
     "kind": "Operation",
     "name": "TasksRouteCreateTaskMutation",
-    "selections": (v6/*: any*/)
+    "selections": (v7/*: any*/)
   },
   "params": {
-    "cacheID": "4b5a8c3902b824d08ecde129e42412a1",
+    "cacheID": "bd246b504f5da5ff00ce66628a86ace5",
     "id": null,
     "metadata": {},
     "name": "TasksRouteCreateTaskMutation",
     "operationKind": "mutation",
-    "text": "mutation TasksRouteCreateTaskMutation(\n  $name: String!\n  $description: String\n  $status: TaskStatus\n  $assigneeActorId: ID\n  $parentTaskId: ID\n  $dependencyTaskIds: [ID!]\n) {\n  createTask(name: $name, description: $description, status: $status, assigneeActorId: $assigneeActorId, parentTaskId: $parentTaskId, dependencyTaskIds: $dependencyTaskIds) {\n    ok\n    error\n    task {\n      id\n    }\n  }\n}\n"
+    "text": "mutation TasksRouteCreateTaskMutation(\n  $name: String!\n  $category: String\n  $description: String\n  $status: TaskStatus\n  $assigneeActorId: ID\n  $parentTaskId: ID\n  $dependencyTaskIds: [ID!]\n) {\n  createTask(name: $name, category: $category, description: $description, status: $status, assigneeActorId: $assigneeActorId, parentTaskId: $parentTaskId, dependencyTaskIds: $dependencyTaskIds) {\n    ok\n    error\n    task {\n      id\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "4422838ae321901303ad260c781d9e9d";
+(node as any).hash = "d4377d671e4e991b62cf579ccfbfa292";
 
 export default node;

@@ -15,13 +15,17 @@ interface TaskEditModalProps {
     displayName: string;
     agentId?: string | null;
   }>;
+  taskCategories?: Array<{
+    id: string;
+    name: string;
+  }>;
   relationshipDraft?: TaskRelationshipDraft;
   savingTaskId: string | null;
   commentingTaskId: string | null;
   deletingTaskId: string | null;
   onDraftChange: (
     taskId: string,
-    field: "dependencyTaskIds" | "parentTaskId" | "childTaskIds" | "assigneeActorId" | "status",
+    field: "dependencyTaskIds" | "parentTaskId" | "childTaskIds" | "assigneeActorId" | "status" | "category",
     value: string | string[],
   ) => void;
   onSaveRelationships: (taskId: string) => Promise<boolean> | boolean;
@@ -37,6 +41,7 @@ export function TaskEditModal({
   tasks,
   agents,
   actors,
+  taskCategories = [],
   relationshipDraft,
   savingTaskId,
   commentingTaskId,
@@ -73,12 +78,14 @@ export function TaskEditModal({
     childTaskIds: currentChildTaskIds,
     assigneeActorId: String(task?.assigneeActorId || "").trim(),
     status: String(task?.status || "").trim() || "draft",
+    category: String(task?.category || "").trim(),
   };
   const selectedChildTaskIds = Array.isArray(draft?.childTaskIds) ? draft.childTaskIds : [];
   const draftDependencyTaskIds = Array.isArray(draft?.dependencyTaskIds) ? draft.dependencyTaskIds : [];
   const parentTaskId = String(draft?.parentTaskId || "").trim();
   const assigneeActorId = String(draft?.assigneeActorId || "").trim();
   const status = String(draft?.status || "").trim() || "draft";
+  const category = String(draft?.category || "").trim();
   const taskThreadId = String(task?.threadId || "").trim();
   const isBusy = savingTaskId === taskId || deletingTaskId === taskId;
   const currentAssigneeActorId = String(task?.assigneeActorId || "").trim();
@@ -106,7 +113,8 @@ export function TaskEditModal({
     || parentTaskId !== String(task?.parentTaskId || "").trim()
     || JSON.stringify(normalizedCurrentChildTaskIds) !== JSON.stringify(normalizedDraftChildTaskIds)
     || assigneeActorId !== currentAssigneeActorId
-    || status !== (String(task?.status || "").trim() || "draft");
+    || status !== (String(task?.status || "").trim() || "draft")
+    || category !== String(task?.category || "").trim();
 
   function removeDependency(depId: string) {
     onDraftChange(taskId, "dependencyTaskIds", draftDependencyTaskIds.filter((id) => id !== depId));
@@ -223,6 +231,20 @@ export function TaskEditModal({
           <option value="pending">pending</option>
           <option value="in_progress">in_progress</option>
           <option value="completed">completed</option>
+        </select>
+
+        <label htmlFor="edit-task-category">Category</label>
+        <select
+          id="edit-task-category"
+          value={category}
+          onChange={(event: ChangeEvent<HTMLSelectElement>) => onDraftChange(taskId, "category", event.target.value)}
+        >
+          <option value="">Uncategorized</option>
+          {taskCategories.map((taskCategory) => (
+            <option key={`edit-category-${taskCategory.id}`} value={taskCategory.name}>
+              {taskCategory.name}
+            </option>
+          ))}
         </select>
 
         <label>Thread</label>

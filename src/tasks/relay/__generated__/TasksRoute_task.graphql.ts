@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dc3c86c44cc21ded2a8cd1b4d681ee11>>
+ * @generated SignedSource<<a2159a5d938c114014da200ad135f366>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -38,6 +38,7 @@ export type TasksRoute_task$data = ReadonlyArray<{
   } | null | undefined;
   readonly assigneeActorId: string | null | undefined;
   readonly attemptCount: number;
+  readonly category: string | null | undefined;
   readonly comments: ReadonlyArray<{
     readonly authorActor: {
       readonly agentId: string | null | undefined;
@@ -251,6 +252,13 @@ return {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
+      "name": "category",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
       "name": "description",
       "storageKey": null
     },
@@ -398,6 +406,6 @@ return {
 };
 })();
 
-(node as any).hash = "f631ebebe0a97ca7345082133d3545d6";
+(node as any).hash = "5c6703a7d71e9717c71259e4928ae6b5";
 
 export default node;

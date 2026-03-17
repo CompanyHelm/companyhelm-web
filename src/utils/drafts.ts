@@ -24,6 +24,7 @@ export function createRelationshipDrafts(tasks: unknown, hierarchyTasks: unknown
   childTaskIds: string[];
   assigneeActorId: string;
   status: string;
+  category: string;
 }> {
   const taskList = Array.isArray(tasks) ? tasks.map(toRecord) : [];
   const hierarchyTaskList = Array.isArray(hierarchyTasks) ? hierarchyTasks.map(toRecord) : taskList;
@@ -49,6 +50,7 @@ export function createRelationshipDrafts(tasks: unknown, hierarchyTasks: unknown
     childTaskIds: string[];
     assigneeActorId: string;
     status: string;
+    category: string;
   }>>((drafts, task) => {
     const taskId = String(task?.id || "").trim();
     if (!taskId) {
@@ -62,6 +64,7 @@ export function createRelationshipDrafts(tasks: unknown, hierarchyTasks: unknown
       childTaskIds: normalizeUniqueStringList(childTaskIdsByParentTaskId.get(taskId) || []),
       assigneeActorId: String(task?.assigneeActorId || "").trim(),
       status: String(task?.status || "").trim() || "draft",
+      category: String(task?.category || "").trim(),
     };
     return drafts;
   }, {});

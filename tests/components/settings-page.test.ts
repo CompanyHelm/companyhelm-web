@@ -31,12 +31,34 @@ function renderSettingsPageMarkup(overrides: Record<string, unknown> = {}) {
       newCompanyName: "",
       isCreatingCompany: false,
       isDeletingCompany: false,
+      taskCategories: [
+        {
+          id: "task-category-1",
+          name: "Backlog",
+        },
+        {
+          id: "task-category-2",
+          name: "Shipping",
+        },
+      ],
+      newTaskCategoryName: "",
+      isCreatingTaskCategory: false,
+      deletingTaskCategoryId: null,
+      editingTaskCategoryId: null,
+      taskCategoryDraftName: "",
       selectedExportSections: SETTINGS_EXPORT_PRESETS.sharable,
       isExportingCompanyData: false,
       exportError: "",
       onNewCompanyNameChange: () => {},
       onCreateCompany: () => true,
       onDeleteCompany: () => {},
+      onNewTaskCategoryNameChange: () => {},
+      onCreateTaskCategory: () => true,
+      onDeleteTaskCategory: () => {},
+      onStartTaskCategoryRename: () => {},
+      onTaskCategoryDraftNameChange: () => {},
+      onSaveTaskCategoryRename: () => true,
+      onCancelTaskCategoryRename: () => {},
       onExportSectionsChange: () => {},
       onApplyExportPreset: () => {},
       onExportCompanyData: () => {},
@@ -73,6 +95,7 @@ test("SettingsPage renders export controls and inline validation state", () => {
   });
 
   assert.match(markup, />General</);
+  assert.match(markup, />Tasks</);
   assert.match(markup, />Companies</);
   assert.doesNotMatch(markup, /aria-label="Create company"/);
   assert.match(markup, />Export company data</);
@@ -120,6 +143,31 @@ test("SettingsPage renders company management inside the Companies tab", () => {
   assert.match(markup, />Beta Works</);
   assert.match(markup, />Delete company</);
   assert.doesNotMatch(markup, />Export company data</);
+});
+
+test("SettingsPage renders task category management inside the Tasks tab", () => {
+  const markup = renderSettingsPageMarkup({
+    initialActiveTab: "tasks",
+  });
+
+  assert.match(markup, />Task categories</);
+  assert.match(markup, />Backlog</);
+  assert.match(markup, />Shipping</);
+  assert.match(markup, />Add category</);
+  assert.match(markup, />Delete category</);
+  assert.doesNotMatch(markup, />Export company data</);
+});
+
+test("SettingsPage renders task category rename controls inside the Tasks tab", () => {
+  const markup = renderSettingsPageMarkup({
+    initialActiveTab: "tasks",
+    editingTaskCategoryId: "task-category-1",
+    taskCategoryDraftName: "Planned",
+  });
+
+  assert.match(markup, /value="Planned"/);
+  assert.match(markup, />Save rename</);
+  assert.match(markup, />Cancel</);
 });
 
 test("SettingsPage requires typing the company name before delete can proceed", () => {

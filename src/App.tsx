@@ -39,6 +39,7 @@ import {
   LIST_TASKS_QUERY,
   LIST_TASK_PAGE_TASKS_QUERY,
   LIST_TASK_OPTIONS_QUERY,
+  LIST_TASK_CATEGORIES_QUERY,
   LIST_TASK_ASSIGNABLE_ACTORS_QUERY,
   LIST_AGENT_RUNNERS_QUERY,
   CREATE_AGENT_RUNNER_MUTATION,
@@ -60,6 +61,9 @@ import {
   REJECT_APPROVAL_MUTATION,
   DELETE_APPROVAL_MUTATION,
   CREATE_TASK_MUTATION,
+  CREATE_TASK_CATEGORY_MUTATION,
+  DELETE_TASK_CATEGORY_MUTATION,
+  UPDATE_TASK_CATEGORY_MUTATION,
   ADD_TASK_DEPENDENCY_MUTATION,
   REMOVE_TASK_DEPENDENCY_MUTATION,
   SET_TASK_PARENT_MUTATION,
@@ -134,8 +138,12 @@ import {
   COMPANY_API_REFRESH_GITHUB_INSTALLATION_REPOSITORIES_MUTATION,
   COMPANY_API_LIST_TASKS_QUERY,
   COMPANY_API_LIST_TASK_OPTIONS_QUERY,
+  COMPANY_API_LIST_TASK_CATEGORIES_QUERY,
   COMPANY_API_LIST_TASK_ASSIGNABLE_ACTORS_QUERY,
   COMPANY_API_CREATE_TASK_MUTATION,
+  COMPANY_API_CREATE_TASK_CATEGORY_MUTATION,
+  COMPANY_API_DELETE_TASK_CATEGORY_MUTATION,
+  COMPANY_API_UPDATE_TASK_CATEGORY_MUTATION,
   COMPANY_API_ADD_TASK_DEPENDENCY_MUTATION,
   COMPANY_API_REMOVE_TASK_DEPENDENCY_MUTATION,
   COMPANY_API_SET_TASK_PARENT_MUTATION,
@@ -263,6 +271,8 @@ import {
   getAgentsRouteFromPathname,
   getAgentPath,
   getTaskPath,
+  getSettingsPath,
+  getSettingsTabFromPathname,
   getSkillsRouteFromPathname,
   getRolesRouteFromPathname,
   getGitSkillPackagesRouteFromPathname,
@@ -1261,6 +1271,7 @@ function toTaskPayload(task: any) {
     id: resolveLegacyId(task?.id),
     companyId: resolveLegacyId(task?.company?.id, task?.companyId),
     name: resolveLegacyId(task?.name),
+    category: resolveLegacyId(task?.category) || null,
     description: String(task?.description || ""),
     acceptanceCriteria: String(task?.acceptanceCriteria || ""),
     assigneeActorId: resolveLegacyId(task?.assigneeActorId) || null,
@@ -2569,6 +2580,22 @@ async function executeGraphQL(query: any, variables: any = {}) {
     };
   }
 
+  if (query === LIST_TASK_CATEGORIES_QUERY) {
+    const data = await executeRawGraphQL(COMPANY_API_LIST_TASK_CATEGORIES_QUERY, {
+      companyId: resolveLegacyId(variables?.companyId),
+    });
+    return {
+      taskCategories: Array.isArray(data?.taskCategories)
+        ? data.taskCategories.map((taskCategory: any) => ({
+          id: resolveLegacyId(taskCategory?.id),
+          name: resolveLegacyId(taskCategory?.name),
+          createdAt: resolveLegacyId(taskCategory?.createdAt) || null,
+          updatedAt: resolveLegacyId(taskCategory?.updatedAt) || null,
+        }))
+        : [],
+    };
+  }
+
   if (query === LIST_TASK_ASSIGNABLE_ACTORS_QUERY) {
     const data = await executeRawGraphQL(COMPANY_API_LIST_TASK_ASSIGNABLE_ACTORS_QUERY, {
       companyId: resolveLegacyId(variables?.companyId),
@@ -2760,6 +2787,7 @@ async function executeGraphQL(query: any, variables: any = {}) {
     const data = await executeRawGraphQL(COMPANY_API_CREATE_TASK_MUTATION, {
       companyId: resolveLegacyId(variables?.companyId),
       name: String(variables?.name || "").trim(),
+      category: String(variables?.category || "").trim() || null,
       description: String(variables?.description || "").trim() || null,
       acceptanceCriteria: String(variables?.acceptanceCriteria || "").trim() || null,
       status: resolveLegacyId(variables?.status) || null,
@@ -2773,6 +2801,67 @@ async function executeGraphQL(query: any, variables: any = {}) {
         ok: Boolean(payload?.ok),
         error: payload?.error ? String(payload.error) : null,
         task: payload?.task ? toTaskPayload(payload.task) : null,
+      },
+    };
+  }
+
+  if (query === CREATE_TASK_CATEGORY_MUTATION) {
+    const data = await executeRawGraphQL(COMPANY_API_CREATE_TASK_CATEGORY_MUTATION, {
+      companyId: resolveLegacyId(variables?.companyId),
+      name: String(variables?.name || "").trim(),
+    });
+    const payload = data?.createTaskCategory;
+    return {
+      createTaskCategory: {
+        ok: Boolean(payload?.ok),
+        error: payload?.error ? String(payload.error) : null,
+        taskCategory: payload?.taskCategory ? {
+          id: resolveLegacyId(payload.taskCategory?.id),
+          name: resolveLegacyId(payload.taskCategory?.name),
+          createdAt: resolveLegacyId(payload.taskCategory?.createdAt) || null,
+          updatedAt: resolveLegacyId(payload.taskCategory?.updatedAt) || null,
+        } : null,
+      },
+    };
+  }
+
+  if (query === UPDATE_TASK_CATEGORY_MUTATION) {
+    const data = await executeRawGraphQL(COMPANY_API_UPDATE_TASK_CATEGORY_MUTATION, {
+      companyId: resolveLegacyId(variables?.companyId),
+      id: resolveLegacyId(variables?.id),
+      name: String(variables?.name || "").trim(),
+    });
+    const payload = data?.updateTaskCategory;
+    return {
+      updateTaskCategory: {
+        ok: Boolean(payload?.ok),
+        error: payload?.error ? String(payload.error) : null,
+        taskCategory: payload?.taskCategory ? {
+          id: resolveLegacyId(payload.taskCategory?.id),
+          name: resolveLegacyId(payload.taskCategory?.name),
+          createdAt: resolveLegacyId(payload.taskCategory?.createdAt) || null,
+          updatedAt: resolveLegacyId(payload.taskCategory?.updatedAt) || null,
+        } : null,
+      },
+    };
+  }
+
+  if (query === DELETE_TASK_CATEGORY_MUTATION) {
+    const data = await executeRawGraphQL(COMPANY_API_DELETE_TASK_CATEGORY_MUTATION, {
+      companyId: resolveLegacyId(variables?.companyId),
+      id: resolveLegacyId(variables?.id),
+    });
+    const payload = data?.deleteTaskCategory;
+    return {
+      deleteTaskCategory: {
+        ok: Boolean(payload?.ok),
+        error: payload?.error ? String(payload.error) : null,
+        taskCategory: payload?.taskCategory ? {
+          id: resolveLegacyId(payload.taskCategory?.id),
+          name: resolveLegacyId(payload.taskCategory?.name),
+          createdAt: resolveLegacyId(payload.taskCategory?.createdAt) || null,
+          updatedAt: resolveLegacyId(payload.taskCategory?.updatedAt) || null,
+        } : null,
       },
     };
   }
@@ -3233,6 +3322,7 @@ function App() {
   const [skillsRoute, setSkillsRoute] = useState<any>(() => getSkillsRouteFromPathname());
   const [rolesRoute, setRolesRoute] = useState<any>(() => getRolesRouteFromPathname());
   const [tasksRoute, setTasksRoute] = useState<any>(() => getTasksRouteFromPathname());
+  const [settingsTab, setSettingsTab] = useState<any>(() => getSettingsTabFromPathname());
   const [actorsRoute, setActorsRoute] = useState<any>(() => getActorsRouteFromPathname());
   const [gitSkillPackagesRoute, setGitSkillPackagesRoute] = useState<any>(
     () => getGitSkillPackagesRouteFromPathname(),
@@ -3247,6 +3337,11 @@ function App() {
   const [newCompanyName, setNewCompanyName] = useState<any>("");
   const [isCreatingCompany, setIsCreatingCompany] = useState<any>(false);
   const [isDeletingCompany, setIsDeletingCompany] = useState<any>(false);
+  const [newTaskCategoryName, setNewTaskCategoryName] = useState<any>("");
+  const [isCreatingTaskCategory, setIsCreatingTaskCategory] = useState<any>(false);
+  const [deletingTaskCategoryId, setDeletingTaskCategoryId] = useState<any>(null);
+  const [editingTaskCategoryId, setEditingTaskCategoryId] = useState<any>(null);
+  const [taskCategoryDraftName, setTaskCategoryDraftName] = useState<any>("");
   const [selectedExportSections, setSelectedExportSections] = useState<any>(
     () => [...SETTINGS_EXPORT_PRESETS.sharable],
   );
@@ -3277,6 +3372,7 @@ function App() {
   const [tasks, setTasks] = useState<any>([]);
   const [taskPageTasks, setTaskPageTasks] = useState<any>([]);
   const [taskOptions, setTaskOptions] = useState<any>([]);
+  const [taskCategories, setTaskCategories] = useState<any>([]);
   const [skills, setSkills] = useState<any>([]);
   const [roles, setRoles] = useState<any>([]);
   const [skillGroups, setSkillGroups] = useState<any>([]);
@@ -4337,6 +4433,18 @@ function App() {
     return nextTaskOptions;
   }, [selectedCompanyId]);
 
+  const loadTaskCategories = useCallback(async () => {
+    if (!selectedCompanyId) {
+      setTaskCategories([]);
+      return [];
+    }
+
+    const data = await executeGraphQL(LIST_TASK_CATEGORIES_QUERY, { companyId: selectedCompanyId });
+    const nextTaskCategories = Array.isArray(data?.taskCategories) ? data.taskCategories : [];
+    setTaskCategories(nextTaskCategories);
+    return nextTaskCategories;
+  }, [selectedCompanyId]);
+
   const loadTaskPageTasks = useCallback(async () => {
     if (!selectedCompanyId) {
       setTaskError("");
@@ -4392,6 +4500,13 @@ function App() {
       setTaskError(loadError.message);
     }
   }, [selectedCompanyId]);
+
+  useEffect(() => {
+    if (activePage !== "settings") {
+      return;
+    }
+    void loadTaskCategories();
+  }, [activePage, loadTaskCategories]);
 
   const loadOrg = useCallback(async () => {
     if (!selectedCompanyId) {
@@ -6449,6 +6564,7 @@ function App() {
       setSkillsRoute(getSkillsRouteFromPathname());
       setRolesRoute(getRolesRouteFromPathname());
       setTasksRoute(getTasksRouteFromPathname());
+      setSettingsTab(getSettingsTabFromPathname());
       setActorsRoute(getActorsRouteFromPathname());
       setGitSkillPackagesRoute(getGitSkillPackagesRouteFromPathname());
       setRunnersRoute(getRunnersRouteFromPathname());
@@ -6735,6 +6851,7 @@ function App() {
         setTasks([]);
         setTaskPageTasks([]);
         setTaskOptions([]);
+        setTaskCategories([]);
         setTaskAssignableActors([]);
         setRelationshipDrafts({});
         setSkills([]);
@@ -6759,6 +6876,123 @@ function App() {
       return false;
     } finally {
       setIsDeletingCompany(false);
+    }
+  }
+
+  function handleStartTaskCategoryRename(taskCategory: any) {
+    setEditingTaskCategoryId(String(taskCategory?.id || "").trim() || null);
+    setTaskCategoryDraftName(String(taskCategory?.name || "").trim());
+    setCompanyError("");
+  }
+
+  function handleCancelTaskCategoryRename() {
+    setEditingTaskCategoryId(null);
+    setTaskCategoryDraftName("");
+    setCompanyError("");
+  }
+
+  async function handleCreateTaskCategory(event: any) {
+    event.preventDefault();
+    if (!selectedCompanyId) {
+      setCompanyError("Select a company before creating task categories.");
+      return false;
+    }
+    if (!newTaskCategoryName.trim()) {
+      setCompanyError("Task category name is required.");
+      return false;
+    }
+
+    try {
+      setIsCreatingTaskCategory(true);
+      setCompanyError("");
+      const data = await executeGraphQL(CREATE_TASK_CATEGORY_MUTATION, {
+        companyId: selectedCompanyId,
+        name: newTaskCategoryName.trim(),
+      });
+      const result = data.createTaskCategory;
+      if (!result.ok) {
+        throw new Error(result.error || "Task category creation failed.");
+      }
+      setNewTaskCategoryName("");
+      await Promise.all([loadTaskCategories(), refreshVisibleTaskData()]);
+      return true;
+    } catch (taskCategoryError: any) {
+      setCompanyError(taskCategoryError.message);
+      return false;
+    } finally {
+      setIsCreatingTaskCategory(false);
+    }
+  }
+
+  async function handleSaveTaskCategoryRename() {
+    if (!selectedCompanyId) {
+      setCompanyError("Select a company before renaming task categories.");
+      return false;
+    }
+    const normalizedTaskCategoryId = String(editingTaskCategoryId || "").trim();
+    const normalizedTaskCategoryName = String(taskCategoryDraftName || "").trim();
+    if (!normalizedTaskCategoryId) {
+      setCompanyError("Select a task category before renaming.");
+      return false;
+    }
+    if (!normalizedTaskCategoryName) {
+      setCompanyError("Task category name is required.");
+      return false;
+    }
+
+    try {
+      setCompanyError("");
+      const data = await executeGraphQL(UPDATE_TASK_CATEGORY_MUTATION, {
+        companyId: selectedCompanyId,
+        id: normalizedTaskCategoryId,
+        name: normalizedTaskCategoryName,
+      });
+      const result = data.updateTaskCategory;
+      if (!result.ok) {
+        throw new Error(result.error || "Task category rename failed.");
+      }
+      setEditingTaskCategoryId(null);
+      setTaskCategoryDraftName("");
+      await Promise.all([loadTaskCategories(), refreshVisibleTaskData()]);
+      return true;
+    } catch (taskCategoryError: any) {
+      setCompanyError(taskCategoryError.message);
+      return false;
+    }
+  }
+
+  async function handleDeleteTaskCategory(taskCategory: any) {
+    const resolvedTaskCategoryId = String(taskCategory?.id || "").trim();
+    if (!selectedCompanyId) {
+      setCompanyError("Select a company before deleting task categories.");
+      return false;
+    }
+    if (!resolvedTaskCategoryId) {
+      setCompanyError("Select a task category before deleting.");
+      return false;
+    }
+
+    try {
+      setDeletingTaskCategoryId(resolvedTaskCategoryId);
+      setCompanyError("");
+      const data = await executeGraphQL(DELETE_TASK_CATEGORY_MUTATION, {
+        companyId: selectedCompanyId,
+        id: resolvedTaskCategoryId,
+      });
+      const result = data.deleteTaskCategory;
+      if (!result.ok) {
+        throw new Error(result.error || "Task category deletion failed.");
+      }
+      if (resolvedTaskCategoryId === String(editingTaskCategoryId || "").trim()) {
+        handleCancelTaskCategoryRename();
+      }
+      await Promise.all([loadTaskCategories(), refreshVisibleTaskData()]);
+      return true;
+    } catch (taskCategoryError: any) {
+      setCompanyError(taskCategoryError.message);
+      return false;
+    } finally {
+      setDeletingTaskCategoryId(null);
     }
   }
 
@@ -11287,15 +11521,30 @@ function App() {
             newCompanyName={newCompanyName}
             isCreatingCompany={isCreatingCompany}
             isDeletingCompany={isDeletingCompany}
+            taskCategories={taskCategories}
+            newTaskCategoryName={newTaskCategoryName}
+            isCreatingTaskCategory={isCreatingTaskCategory}
+            deletingTaskCategoryId={deletingTaskCategoryId}
+            editingTaskCategoryId={editingTaskCategoryId}
+            taskCategoryDraftName={taskCategoryDraftName}
             selectedExportSections={selectedExportSections}
             isExportingCompanyData={isExportingCompanyData}
             exportError={exportCompanyDataError}
             onNewCompanyNameChange={setNewCompanyName}
             onCreateCompany={handleCreateCompany}
             onDeleteCompany={handleDeleteCompany}
+            onNewTaskCategoryNameChange={setNewTaskCategoryName}
+            onCreateTaskCategory={handleCreateTaskCategory}
+            onDeleteTaskCategory={handleDeleteTaskCategory}
+            onStartTaskCategoryRename={handleStartTaskCategoryRename}
+            onTaskCategoryDraftNameChange={setTaskCategoryDraftName}
+            onSaveTaskCategoryRename={handleSaveTaskCategoryRename}
+            onCancelTaskCategoryRename={handleCancelTaskCategoryRename}
             onExportSectionsChange={handleSettingsExportSectionsChange}
             onApplyExportPreset={handleApplySettingsExportPreset}
             onExportCompanyData={handleExportCompanyData}
+            initialActiveTab={settingsTab}
+            onTabChange={(tab: "general" | "tasks" | "companies") => setBrowserPath(getSettingsPath({ tab }))}
           />
         ) : null}
 

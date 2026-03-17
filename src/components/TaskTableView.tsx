@@ -20,6 +20,7 @@ import {
 interface TaskTableTask {
   id: string | number;
   name?: string;
+  category?: string | null;
   parentTaskId?: string | number | null;
   status?: string;
   lastRunStatus?: string | null;
@@ -54,6 +55,7 @@ interface TaskTableViewProps {
 }
 
 type TaskTableOptionalColumnId =
+  | "category"
   | "status"
   | "run"
   | "thread"
@@ -78,6 +80,12 @@ interface TaskTableOptionalColumnDefinition {
 }
 
 const TASK_TABLE_OPTIONAL_COLUMNS: TaskTableOptionalColumnDefinition[] = [
+  {
+    id: "category",
+    label: "Category",
+    defaultVisible: true,
+    renderCell: (task) => String(task.category || "").trim() || "Uncategorized",
+  },
   {
     id: "status",
     label: "Status",

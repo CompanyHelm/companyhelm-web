@@ -31,6 +31,10 @@ interface TaskPathInput {
   tab?: string;
 }
 
+interface SettingsPathInput {
+  tab?: string;
+}
+
 interface SetBrowserPathOptions {
   replace?: boolean;
 }
@@ -87,6 +91,17 @@ export function normalizeTaskDetailTab(value: string = ""): "overview" | "runs" 
     return "table";
   }
   return "overview";
+}
+
+export function normalizeSettingsTab(value: string = ""): "general" | "tasks" | "companies" {
+  const normalizedValue = String(value || "").trim().toLowerCase();
+  if (normalizedValue === "tasks") {
+    return "tasks";
+  }
+  if (normalizedValue === "companies") {
+    return "companies";
+  }
+  return "general";
 }
 
 export function normalizePathname(rawPathname: string): string {
@@ -286,6 +301,33 @@ export function getTaskPath({ pageId = "tasks", taskId = "", tab = "overview" }:
   const params = new URLSearchParams();
   params.set("tab", normalizeTaskDetailTab(tab));
   return `/${normalizedPageId}/${resolvedTaskId}?${params.toString()}`;
+}
+
+export function getSettingsTabFromPathname(
+  pathnameOrLocation: string | TasksRouteLocationInput = typeof window !== "undefined" ? window.location.pathname : "/",
+  search?: string,
+): "general" | "tasks" | "companies" {
+  const fallbackPathname = typeof window !== "undefined" ? window.location.pathname : "/";
+  const fallbackSearch = typeof window !== "undefined" ? window.location.search : "";
+  const pathname = typeof pathnameOrLocation === "string"
+    ? pathnameOrLocation
+    : pathnameOrLocation.pathname || fallbackPathname;
+  const resolvedSearch = typeof pathnameOrLocation === "string"
+    ? (typeof search === "string" ? search : fallbackSearch)
+    : pathnameOrLocation.search || fallbackSearch;
+  const segments = normalizePathname(pathname).split("/").filter(Boolean);
+  if (segments[0] !== "settings") {
+    return "general";
+  }
+
+  const params = new URLSearchParams(String(resolvedSearch || ""));
+  return normalizeSettingsTab(params.get("tab") || "");
+}
+
+export function getSettingsPath({ tab = "general" }: SettingsPathInput = {}): string {
+  const params = new URLSearchParams();
+  params.set("tab", normalizeSettingsTab(tab));
+  return `/settings?${params.toString()}`;
 }
 
 export function getGitSkillPackagesRouteFromPathname(pathname: string = window.location.pathname): DetailRoute & { packageId: string } {

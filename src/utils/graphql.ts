@@ -174,12 +174,20 @@ const TASK_COMMENT_FIELDS = `
   updatedAt
 `;
 
+const TASK_CATEGORY_FIELDS = `
+  id
+  name
+  createdAt
+  updatedAt
+`;
+
 const TASK_FIELDS = `
   id
   company {
     id
   }
   name
+  category
   description
   acceptanceCriteria
   assigneeActorId
@@ -236,6 +244,14 @@ export const LIST_TASK_OPTIONS_QUERY = `
       id
       name
       parentTaskId
+    }
+  }
+`;
+
+export const LIST_TASK_CATEGORIES_QUERY = `
+  query ListTaskCategories {
+    taskCategories {
+${TASK_CATEGORY_FIELDS}
     }
   }
 `;
@@ -1235,6 +1251,7 @@ export const DELETE_SECRET_MUTATION = `
 export const CREATE_TASK_MUTATION = `
   mutation CreateTask(
     $name: String!
+    $category: String
     $description: String
     $acceptanceCriteria: String
     $status: TaskStatus
@@ -1244,6 +1261,7 @@ export const CREATE_TASK_MUTATION = `
   ) {
     createTask(
       name: $name
+      category: $category
       description: $description
       acceptanceCriteria: $acceptanceCriteria
       status: $status
@@ -1255,6 +1273,42 @@ export const CREATE_TASK_MUTATION = `
       error
       task {
 ${TASK_FIELDS}
+      }
+    }
+  }
+`;
+
+export const CREATE_TASK_CATEGORY_MUTATION = `
+  mutation CreateTaskCategory($name: String!) {
+    createTaskCategory(name: $name) {
+      ok
+      error
+      taskCategory {
+${TASK_CATEGORY_FIELDS}
+      }
+    }
+  }
+`;
+
+export const DELETE_TASK_CATEGORY_MUTATION = `
+  mutation DeleteTaskCategory($id: ID!) {
+    deleteTaskCategory(id: $id) {
+      ok
+      error
+      taskCategory {
+${TASK_CATEGORY_FIELDS}
+      }
+    }
+  }
+`;
+
+export const UPDATE_TASK_CATEGORY_MUTATION = `
+  mutation UpdateTaskCategory($id: ID!, $name: String!) {
+    updateTaskCategory(id: $id, name: $name) {
+      ok
+      error
+      taskCategory {
+${TASK_CATEGORY_FIELDS}
       }
     }
   }
@@ -2343,6 +2397,14 @@ export const COMPANY_API_LIST_TASK_OPTIONS_QUERY = `
   }
 `;
 
+export const COMPANY_API_LIST_TASK_CATEGORIES_QUERY = `
+  query CompanyApiListTaskCategories {
+    taskCategories {
+${TASK_CATEGORY_FIELDS}
+    }
+  }
+`;
+
 export const COMPANY_API_LIST_TASK_ASSIGNABLE_ACTORS_QUERY = `
   query CompanyApiListTaskAssignableActors {
     taskAssignableActors {
@@ -2359,6 +2421,7 @@ export const COMPANY_API_LIST_TASK_ASSIGNABLE_ACTORS_QUERY = `
 export const COMPANY_API_CREATE_TASK_MUTATION = `
   mutation CompanyApiCreateTask(
     $name: String!
+    $category: String
     $description: String
     $acceptanceCriteria: String
     $status: TaskStatus
@@ -2368,6 +2431,7 @@ export const COMPANY_API_CREATE_TASK_MUTATION = `
   ) {
     createTask(
       name: $name
+      category: $category
       description: $description
       acceptanceCriteria: $acceptanceCriteria
       status: $status
@@ -2379,6 +2443,42 @@ export const COMPANY_API_CREATE_TASK_MUTATION = `
       error
       task {
 ${TASK_FIELDS}
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_CREATE_TASK_CATEGORY_MUTATION = `
+  mutation CompanyApiCreateTaskCategory($name: String!) {
+    createTaskCategory(name: $name) {
+      ok
+      error
+      taskCategory {
+${TASK_CATEGORY_FIELDS}
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_DELETE_TASK_CATEGORY_MUTATION = `
+  mutation CompanyApiDeleteTaskCategory($id: ID!) {
+    deleteTaskCategory(id: $id) {
+      ok
+      error
+      taskCategory {
+${TASK_CATEGORY_FIELDS}
+      }
+    }
+  }
+`;
+
+export const COMPANY_API_UPDATE_TASK_CATEGORY_MUTATION = `
+  mutation CompanyApiUpdateTaskCategory($id: ID!, $name: String!) {
+    updateTaskCategory(id: $id, name: $name) {
+      ok
+      error
+      taskCategory {
+${TASK_CATEGORY_FIELDS}
       }
     }
   }
