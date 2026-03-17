@@ -242,6 +242,7 @@ import {
   resolveRunnerBackedModelSelection,
   mergeAgentRunnerPayloadList,
   replaceAgentRunnerPayloadList,
+  applyAgentRunnerSubscriptionSnapshot,
   getRunnerModelNames,
   getRunnerReasoningLevels,
   getRunnerCodexModelEntriesForRunner,
@@ -331,6 +332,7 @@ import {
 
 import { useGraphQLSubscription } from "./hooks/useGraphQLSubscription.ts";
 import { executeRelayGraphQL } from "./relay/client.ts";
+import { clearRelayQueryCache } from "./relay/environment.ts";
 import { authProvider } from "./auth/runtime.ts";
 
 import { Breadcrumbs } from "./components/Breadcrumbs.tsx";
@@ -3565,11 +3567,34 @@ function App() {
     matchesMediaQuery(SIDEBAR_COLLAPSE_MEDIA_QUERY),
   );
   const activeConfirmationResolverRef = useRef<any>(null);
+  const selectedCompanyIdRef = useRef<any>(selectedCompanyId);
   const turnLifecycleSignatureBySessionIdRef = useRef<any>(new Map<any, any>());
   const runCreateChatSessionSingleFlight = useMemo(() => createSingleFlightByKey(), []);
   const hasCompanies = companies.length > 0;
   const handleChatSessionRenameDraftChange = useCallback((nextTitle: any) => {
     setChatSessionRenameDraft(String(nextTitle || "").slice(0, THREAD_TITLE_MAX_LENGTH));
+  }, []);
+  const handleSelectedCompanyChange = useCallback((nextCompanyId: any) => {
+    const normalizedNextCompanyId = String(nextCompanyId || "").trim();
+    if (normalizedNextCompanyId === String(selectedCompanyIdRef.current || "").trim()) {
+      return;
+    }
+
+    // Clear company-scoped onboarding and runner state immediately so route
+    // changes cannot render the previous company's onboarding step.
+    setAgentRunners([]);
+    setHasLoadedAgentRunners(false);
+    setAgents([]);
+    setAgentDrafts({});
+    setOnboardingPhase(null);
+    setOnboardingRunnerSecret("");
+    setOnboardingRunnerId("");
+    setRunnerSdkCodexAuthEventsByKey({});
+    setStartingRunnerSdkAuthKey("");
+    setActiveCompanyId(normalizedNextCompanyId);
+    persistCompanyId(normalizedNextCompanyId);
+    clearRelayQueryCache();
+    setSelectedCompanyId(normalizedNextCompanyId);
   }, []);
 
   const selectedCompany = useMemo(() => {
@@ -5027,7 +5052,8 @@ function App() {
   }, [selectedCompanyId]);
 
   const loadAgentRunners = useCallback(async ({ silently = false }: any = {}) => {
-    if (!selectedCompanyId) {
+    const requestCompanyId = String(selectedCompanyId || "").trim();
+    if (!requestCompanyId) {
       setAgentRunners([]);
       setHasLoadedAgentRunners(false);
       setOnboardingRunnerSecret("");
@@ -5049,25 +5075,32 @@ function App() {
         setIsLoadingRunners(true);
       }
       const data = await executeGraphQL(LIST_AGENT_RUNNERS_QUERY, {
-        companyId: selectedCompanyId,
+        companyId: requestCompanyId,
       });
+      if (String(selectedCompanyIdRef.current || "").trim() !== requestCompanyId) {
+        return;
+      }
       setAgentRunners((currentRunners: any) =>
         replaceAgentRunnerPayloadList(currentRunners, data.agentRunners || []),
       );
       setHasLoadedAgentRunners(true);
     } catch (loadError: any) {
+      if (String(selectedCompanyIdRef.current || "").trim() !== requestCompanyId) {
+        return;
+      }
       if (!silently) {
         setRunnerError(loadError.message);
       }
     } finally {
-      if (!silently) {
+      if (!silently && String(selectedCompanyIdRef.current || "").trim() === requestCompanyId) {
         setIsLoadingRunners(false);
       }
     }
   }, [selectedCompanyId]);
 
   const loadAgents = useCallback(async () => {
-    if (!selectedCompanyId) {
+    const requestCompanyId = String(selectedCompanyId || "").trim();
+    if (!requestCompanyId) {
       setAgentError("");
       setAgents([]);
       setAgentDrafts({});
@@ -5090,8 +5123,11 @@ function App() {
       const shouldUseAgentsPagePayload = activePage === "agents" || activePage === "profile";
       const data = await executeGraphQL(
         shouldUseAgentsPagePayload ? LIST_AGENTS_WITH_RUNNERS_QUERY : LIST_AGENTS_QUERY,
-        { companyId: selectedCompanyId },
+        { companyId: requestCompanyId },
       );
+      if (String(selectedCompanyIdRef.current || "").trim() !== requestCompanyId) {
+        return [];
+      }
       const nextAgents = data.agents || [];
       const nextRunners = data.agentRunners || [];
       setAgents(nextAgents);
@@ -5108,10 +5144,15 @@ function App() {
       }
       return nextAgents;
     } catch (loadError: any) {
+      if (String(selectedCompanyIdRef.current || "").trim() !== requestCompanyId) {
+        return [];
+      }
       setAgentError(loadError.message);
       return [];
     } finally {
-      setIsLoadingAgents(false);
+      if (String(selectedCompanyIdRef.current || "").trim() === requestCompanyId) {
+        setIsLoadingAgents(false);
+      }
     }
   }, [activePage, selectedCompanyId]);
 
@@ -5444,11 +5485,11 @@ function App() {
       ));
     }
     setAgentRunners((currentRunners: any) =>
-      mergeAgentRunnerPayloadList(currentRunners, nextRunnerPayload),
+      applyAgentRunnerSubscriptionSnapshot(currentRunners, nextRunnerPayload, selectedCompanyId),
     );
     setRunnerError("");
     setIsLoadingRunners(false);
-  }, []);
+  }, [selectedCompanyId]);
 
   const handleAgentRunnersSubscriptionError = useCallback((error: any) => {
     setRunnerError(error.message);
@@ -5589,7 +5630,7 @@ function App() {
   useGraphQLSubscription({
     enabled: Boolean(selectedCompanyId && shouldSubscribeAgentRunners && hasLoadedAgentRunners),
     query: AGENT_RUNNERS_SUBSCRIPTION,
-    variables: selectedCompanyId ? { first: 200 } : undefined,
+    variables: selectedCompanyId ? { companyId: selectedCompanyId, first: 200 } : undefined,
     onData: handleAgentRunnersSubscriptionData,
     onError: handleAgentRunnersSubscriptionError,
   });
@@ -5600,6 +5641,7 @@ function App() {
     variables:
       selectedCompanyId
         ? {
+            companyId: selectedCompanyId,
             first: 500,
             ...(companyApiThreadStatusFilter ? { status: companyApiThreadStatusFilter } : {}),
             ...(shouldSubscribeChatIndex
@@ -5619,6 +5661,7 @@ function App() {
     variables:
       selectedCompanyId && chatAgentId && resolvedChatSessionId
         ? {
+            companyId: selectedCompanyId,
             agentId: chatAgentId,
             threadId: resolvedChatSessionId,
             first: 100,
@@ -5634,6 +5677,7 @@ function App() {
     variables:
       selectedCompanyId && chatAgentId && resolvedChatSessionId
         ? {
+            companyId: selectedCompanyId,
             agentId: chatAgentId,
             threadId: resolvedChatSessionId,
             first: 200,
@@ -5650,7 +5694,12 @@ function App() {
       && subscribedRunnerSdkAuthTarget?.sdkId,
     ),
     query: CODEX_AUTH_EVENTS_SUBSCRIPTION,
-    variables: subscribedRunnerSdkAuthTarget || undefined,
+    variables: selectedCompanyId && subscribedRunnerSdkAuthTarget
+      ? {
+          companyId: selectedCompanyId,
+          ...subscribedRunnerSdkAuthTarget,
+        }
+      : undefined,
     onData: handleRunnerSdkCodexAuthSubscriptionData,
     onError: handleRunnerSdkCodexAuthSubscriptionError,
   });
@@ -5660,6 +5709,7 @@ function App() {
   }, [loadCompanies]);
 
   useEffect(() => {
+    selectedCompanyIdRef.current = selectedCompanyId;
     setActiveCompanyId(selectedCompanyId);
     persistCompanyId(selectedCompanyId);
     turnLifecycleSignatureBySessionIdRef.current.clear();
@@ -10855,7 +10905,7 @@ function App() {
               <select
                 className="side-company-select"
                 value={selectedCompanyId}
-                onChange={(event: any) => setSelectedCompanyId(event.target.value)}
+                onChange={(event: any) => handleSelectedCompanyChange(event.target.value)}
                 disabled={isLoadingCompanies}
               >
                 <option value="">

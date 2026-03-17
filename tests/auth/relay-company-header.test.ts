@@ -152,3 +152,72 @@ test("relay sends x-company-id for scoped queries", async () => {
     }
   }
 });
+
+test("relay query cache is scoped by active company id for company-scoped queries", async () => {
+  const originalFetch = testGlobal.fetch;
+  const fetchCalls: Array<{ url: RequestInfo | URL; options?: RequestInit }> = [];
+
+  try {
+    testGlobal.fetch = (async (url: RequestInfo | URL, options?: RequestInit) => {
+      fetchCalls.push({ url, options });
+      const headers = options?.headers as Record<string, string> | undefined;
+      const scopedCompanyId = headers?.["x-company-id"] || "";
+      return createMockResponse({
+        data: {
+          me: {
+            id: scopedCompanyId || "missing-company",
+          },
+        },
+      });
+    }) as typeof fetch;
+
+    setActiveCompanyId("company-1");
+    const firstPayload = await executeRelayGraphQL({
+      query: `
+        query RelayScopedCacheMe {
+          me {
+            id
+          }
+        }
+      `,
+    });
+
+    setActiveCompanyId("company-2");
+    const secondPayload = await executeRelayGraphQL({
+      query: `
+        query RelayScopedCacheMe {
+          me {
+            id
+          }
+        }
+      `,
+    });
+
+    assert.equal(fetchCalls.length, 2);
+    assert.equal(
+      (fetchCalls[0]?.options?.headers as Record<string, string> | undefined)?.["x-company-id"],
+      "company-1",
+    );
+    assert.equal(
+      (fetchCalls[1]?.options?.headers as Record<string, string> | undefined)?.["x-company-id"],
+      "company-2",
+    );
+    assert.deepEqual(firstPayload, {
+      me: {
+        id: "company-1",
+      },
+    });
+    assert.deepEqual(secondPayload, {
+      me: {
+        id: "company-2",
+      },
+    });
+  } finally {
+    setActiveCompanyId("");
+    if (typeof originalFetch === "undefined") {
+      Reflect.deleteProperty(testGlobal, "fetch");
+    } else {
+      testGlobal.fetch = originalFetch;
+    }
+  }
+});
