@@ -387,6 +387,7 @@ import { ActorPage } from "./pages/ActorPage.tsx";
 // --- Module-level mutable state (shared by adapter functions and executeGraphQL) ---
 const companyApiThreadMetadataById = new Map<any, any>();
 const companyApiRunnerMetadataById = new Map<any, any>();
+const DISMISSED_QUESTION_ANSWER = "user didnt' respond to question";
 
 export function shouldSuppressChatsRouteMissingAgentWarning({
   activePage,
@@ -8731,13 +8732,13 @@ function App() {
     }));
   }
 
-  async function handleAnswerQuestion(questionId: any) {
+  async function handleAnswerQuestion(questionId: any, answerOverride: any = null) {
     const normalizedQuestionId = String(questionId || "").trim();
     if (!selectedCompanyId || !normalizedQuestionId) {
       return;
     }
 
-    const answerText = String(answerDraftByQuestionId?.[normalizedQuestionId] || "").trim();
+    const answerText = String((answerOverride ?? answerDraftByQuestionId?.[normalizedQuestionId]) || "").trim();
     if (!answerText) {
       setQuestionError("Answer text is required.");
       return;
@@ -11593,6 +11594,7 @@ function App() {
             answeringQuestionId={answeringQuestionId}
             answerDraftByQuestionId={answerDraftByQuestionId}
             questionCountLabel={questionCountLabel}
+            dismissAnswerText={DISMISSED_QUESTION_ANSWER}
             onAnswerDraftChange={handleQuestionAnswerDraftChange}
             onAnswerQuestion={handleAnswerQuestion}
           />
