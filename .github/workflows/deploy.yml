@@ -2,7 +2,6 @@ name: Build And Push Frontend Image
 
 on:
   push:
-    branches: ["main"]
     tags:
       - "v*"
 
@@ -62,25 +61,15 @@ jobs:
         run: |
           set -euo pipefail
 
-          SHORT_SHA="$(echo "$GITHUB_SHA" | cut -c1-7)"
-          IMAGE_TAGS=()
-
-          if [ "$GITHUB_REF" = "refs/heads/main" ]; then
-            IMAGE_TAGS+=("$ECR_REPOSITORY:main-$SHORT_SHA")
-            IMAGE_TAGS+=("$ECR_REPOSITORY:latest")
-
-            while IFS= read -r release_tag; do
-              [ -n "$release_tag" ] || continue
-              IMAGE_TAGS+=("$ECR_REPOSITORY:${release_tag#v}")
-            done < <(git tag --points-at "$GITHUB_SHA" | grep '^v' || true)
-          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            git fetch origin main --depth=1
-            git merge-base --is-ancestor "$GITHUB_SHA" origin/main
-            IMAGE_TAGS+=("$ECR_REPOSITORY:${GITHUB_REF_NAME#v}")
-          else
+          if [[ "$GITHUB_REF" != refs/tags/v* ]]; then
             echo "Unsupported ref: $GITHUB_REF" >&2
             exit 1
           fi
+
+          git fetch origin main --depth=1
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+
+          IMAGE_TAGS=("$ECR_REPOSITORY:${GITHUB_REF_NAME#v}")
 
           TAG_ARGS=()
           echo "Publishing image tags:"
