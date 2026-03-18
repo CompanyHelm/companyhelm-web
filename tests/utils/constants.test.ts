@@ -47,8 +47,8 @@ test("visible navigation uses the reorganized product-domain sections", () => {
     },
     {
       label: "Platform",
-      itemIds: ["agent-runner", "mcp-servers", "gitskillpackages", "repos", "secrets"],
-      itemHrefs: ["/agent-runner", "/mcp-servers", "/gitSkillPackages", "/repos", "/secrets"],
+      itemIds: ["agent-runner", "external_agents", "mcp-servers", "gitskillpackages", "repos", "secrets"],
+      itemHrefs: ["/agent-runner", "/external_agents", "/mcp-servers", "/gitSkillPackages", "/repos", "/secrets"],
     },
   ]);
   assert.equal(visibleNavItemIds.includes("approvals"), false);
