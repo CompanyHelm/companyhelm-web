@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import {
   DEFAULT_RUNNER_GRPC_TARGET,
@@ -6805,7 +6805,7 @@ function App() {
     resolvedChatSessionId,
   ]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const legacyHashRoute = String(window.location.hash || "")
       .replace(/^#/, "")
       .trim();
