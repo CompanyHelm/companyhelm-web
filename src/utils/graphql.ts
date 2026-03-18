@@ -2171,6 +2171,21 @@ export const AGENT_THREADS_SUBSCRIPTION = `
           status
           currentReasoningLevel
           errorMessage
+          tokenUsage {
+            inputTokens
+            cachedInputTokens
+            outputTokens
+            reasoningOutputTokens
+            totalTokens
+          }
+          contextUsage {
+            inputTokens
+            cachedInputTokens
+            outputTokens
+            reasoningOutputTokens
+            totalTokens
+          }
+          modelContextWindow
           tasks {
             id
             name
@@ -2204,6 +2219,13 @@ export const AGENT_TURNS_SUBSCRIPTION = `
           sdkTurnId
           status
           reasoningText
+          tokenUsage {
+            inputTokens
+            cachedInputTokens
+            outputTokens
+            reasoningOutputTokens
+            totalTokens
+          }
           startedAt
           endedAt
           thread {
@@ -4069,6 +4091,21 @@ export const COMPANY_API_LIST_AGENTS_WITH_THREADS_CONNECTION_QUERY = `
                 status
                 errorMessage
                 currentReasoningLevel
+                tokenUsage {
+                  inputTokens
+                  cachedInputTokens
+                  outputTokens
+                  reasoningOutputTokens
+                  totalTokens
+                }
+                contextUsage {
+                  inputTokens
+                  cachedInputTokens
+                  outputTokens
+                  reasoningOutputTokens
+                  totalTokens
+                }
+                modelContextWindow
                 tasks {
                   id
                   name
@@ -4319,6 +4356,21 @@ export const COMPANY_API_LIST_THREADS_CONNECTION_QUERY = `
           status
           errorMessage
           currentReasoningLevel
+          tokenUsage {
+            inputTokens
+            cachedInputTokens
+            outputTokens
+            reasoningOutputTokens
+            totalTokens
+          }
+          contextUsage {
+            inputTokens
+            cachedInputTokens
+            outputTokens
+            reasoningOutputTokens
+            totalTokens
+          }
+          modelContextWindow
           tasks {
             id
             name
@@ -4456,6 +4508,21 @@ export const COMPANY_API_THREAD_QUERY = `
       status
       errorMessage
       currentReasoningLevel
+      tokenUsage {
+        inputTokens
+        cachedInputTokens
+        outputTokens
+        reasoningOutputTokens
+        totalTokens
+      }
+      contextUsage {
+        inputTokens
+        cachedInputTokens
+        outputTokens
+        reasoningOutputTokens
+        totalTokens
+      }
+      modelContextWindow
       tasks {
         id
         name
@@ -4486,6 +4553,13 @@ export const COMPANY_API_LIST_THREAD_TURNS_CONNECTION_QUERY = `
           sdkTurnId
           status
           reasoningText
+          tokenUsage {
+            inputTokens
+            cachedInputTokens
+            outputTokens
+            reasoningOutputTokens
+            totalTokens
+          }
           startedAt
           endedAt
           company {
@@ -4538,6 +4612,13 @@ export const COMPANY_API_LIST_THREAD_TURNS_WITH_QUEUED_QUERY = `
           sdkTurnId
           status
           reasoningText
+          tokenUsage {
+            inputTokens
+            cachedInputTokens
+            outputTokens
+            reasoningOutputTokens
+            totalTokens
+          }
           startedAt
           endedAt
           company {
