@@ -8767,7 +8767,7 @@ function App() {
 
     const answerText = String((answerOverride ?? answerDraftByQuestionId?.[normalizedQuestionId]) || "").trim();
     const normalizedStatus = String(status || "completed").trim().toLowerCase();
-    if (!answerText) {
+    if (normalizedStatus !== "open" && !answerText) {
       setQuestionError("Answer text is required.");
       return;
     }
@@ -8778,7 +8778,7 @@ function App() {
       const data = await executeGraphQL(ANSWER_AGENT_QUESTION_MUTATION, {
         companyId: selectedCompanyId,
         id: normalizedQuestionId,
-        answerText,
+        answerText: normalizedStatus === "open" ? null : answerText,
         status: normalizedStatus,
       });
       const payload = data?.answerAgentQuestion;

@@ -16,10 +16,12 @@ test("question GraphQL documents expose list and answer operations", () => {
   assert.match(LIST_AGENT_QUESTIONS_QUERY, /rating/);
 
   assert.match(ANSWER_AGENT_QUESTION_MUTATION, /mutation AnswerAgentQuestion/);
+  assert.match(ANSWER_AGENT_QUESTION_MUTATION, /\$answerText: String/);
   assert.match(ANSWER_AGENT_QUESTION_MUTATION, /answerAgentQuestion\(id: \$id, answerText: \$answerText, status: \$status\)/);
   assert.match(ANSWER_AGENT_QUESTION_MUTATION, /ok/);
   assert.match(ANSWER_AGENT_QUESTION_MUTATION, /question \{/);
 
   assert.match(COMPANY_API_LIST_AGENT_QUESTIONS_QUERY, /query CompanyApiListAgentQuestions/);
   assert.match(COMPANY_API_ANSWER_AGENT_QUESTION_MUTATION, /mutation CompanyApiAnswerAgentQuestion/);
+  assert.match(COMPANY_API_ANSWER_AGENT_QUESTION_MUTATION, /\$answerText: String/);
 });

@@ -104,6 +104,7 @@ test("QuestionsPage renders completed questions as read-only history", () => {
   assert.match(markup, />Status: <span>Completed</);
   assert.match(markup, />Answer</);
   assert.match(markup, />Start with the beta cohort</);
+  assert.match(markup, />Reopen</);
   assert.match(markup, /question-response-panel/);
   assert.doesNotMatch(markup, /textarea/);
   assert.doesNotMatch(markup, /Dismiss question/);
@@ -147,6 +148,7 @@ test("QuestionsPage does not show the empty state when loading failed", () => {
 test("QuestionsPage sends canned responses directly from option and dismiss buttons", () => {
   assert.match(questionsPageSource, /onClick=\{\(\) => onAnswerQuestion\(question\.id, option\.text \|\| "", "completed"\)\}/);
   assert.match(questionsPageSource, /onClick=\{\(\) => onAnswerQuestion\(question\.id, dismissAnswerText, "dismissed"\)\}/);
+  assert.match(questionsPageSource, /onClick=\{\(\) => onAnswerQuestion\(question\.id, null, "open"\)\}/);
   assert.match(questionsPageSource, /onClick=\{\(\) => onOpenThread\(agentId, threadId\)\}/);
   assert.match(questionsPageSource, /className="chat-card-icon-btn question-answer-submit-btn"/);
 });
@@ -157,6 +159,8 @@ test("App supports tab deep links and status-aware question responses", () => {
   assert.match(appSource, /async function handleAnswerQuestion\(questionId: any, answerOverride: any = null, status: any = "completed"\)/);
   assert.match(appSource, /const answerText = String\(\(answerOverride \?\? answerDraftByQuestionId\?\.\[normalizedQuestionId\]\) \|\| ""\)\.trim\(\);/);
   assert.match(appSource, /const normalizedStatus = String\(status \|\| "completed"\)\.trim\(\)\.toLowerCase\(\);/);
+  assert.match(appSource, /if \(normalizedStatus !== "open" && !answerText\)/);
+  assert.match(appSource, /answerText: normalizedStatus === "open" \? null : answerText,/);
   assert.match(appSource, /status: normalizedStatus,/);
   assert.match(appSource, /onOpenThread=\{\(agentId: string, threadId: string\) => navigateToChatsConversation\(\{ agentId, threadId \}\)\}/);
   assert.doesNotMatch(appSource, /LIST_AGENT_QUESTIONS_QUERY,\s*\{\s*companyId: selectedCompanyId,\s*status: "open"/);

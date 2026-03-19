@@ -256,6 +256,16 @@ export function QuestionsPage({
                         <p className="question-response-text">
                           {answerText || `No ${getQuestionTabLabel(resolvedStatus).toLowerCase()} response recorded.`}
                         </p>
+                        <div className="question-response-actions">
+                          <button
+                            type="button"
+                            className="secondary-btn"
+                            onClick={() => onAnswerQuestion(question.id, null, "open")}
+                            disabled={isAnswering}
+                          >
+                            Reopen
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>

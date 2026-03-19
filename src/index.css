@@ -5917,7 +5917,7 @@ button:disabled {
 }
 
 .question-option-stars {
-  background: rgba(245, 158, 11, 0.14);
+  background: rgba(26, 32, 38, 0.08);
   color: #d97706;
   letter-spacing: 0.08em;
   font-size: 0.68rem;
@@ -5989,6 +5989,11 @@ button:disabled {
   margin: 0;
   white-space: pre-wrap;
   color: var(--ink-0);
+}
+
+.question-response-actions {
+  display: flex;
+  justify-content: flex-start;
 }
 
 @media (max-width: 720px) {

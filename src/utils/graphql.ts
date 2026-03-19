@@ -1198,7 +1198,7 @@ export const LIST_AGENT_QUESTIONS_QUERY = `
 `;
 
 export const ANSWER_AGENT_QUESTION_MUTATION = `
-  mutation AnswerAgentQuestion($id: String!, $answerText: String!, $status: String) {
+  mutation AnswerAgentQuestion($id: String!, $answerText: String, $status: String) {
     answerAgentQuestion(id: $id, answerText: $answerText, status: $status) {
       ok
       error
@@ -3286,7 +3286,7 @@ export const COMPANY_API_LIST_AGENT_QUESTIONS_QUERY = `
 `;
 
 export const COMPANY_API_ANSWER_AGENT_QUESTION_MUTATION = `
-  mutation CompanyApiAnswerAgentQuestion($id: ID!, $answerText: String!, $status: AgentQuestionStatus) {
+  mutation CompanyApiAnswerAgentQuestion($id: ID!, $answerText: String, $status: AgentQuestionStatus) {
     answerAgentQuestion(id: $id, answerText: $answerText, status: $status) {
       ok
       error
