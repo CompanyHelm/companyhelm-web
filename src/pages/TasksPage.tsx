@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Page } from "../components/Page.tsx";
 import { CreationModal } from "../components/CreationModal.tsx";
 import { useSetPageActions } from "../components/PageActionsContext.tsx";
-import { TaskGraphView } from "../components/TaskGraphView.tsx";
 import { TaskBoardView } from "../components/TaskBoardView.tsx";
 import { TaskTableView } from "../components/TaskTableView.tsx";
 import { TaskCreateModal } from "../components/TaskCreateModal.tsx";
@@ -25,6 +24,11 @@ import type {
   TaskItem,
   TaskRelationshipDraftById,
 } from "../types/domain.ts";
+
+const TaskGraphView = lazy(async () => {
+  const module = await import("../components/TaskGraphView.tsx");
+  return { default: module.TaskGraphView };
+});
 
 type TaskDetailTab = "overview" | "runs" | "graph" | "table";
 
@@ -1248,11 +1252,13 @@ export function TasksPage({
                 ) : null}
 
                 {resolvedActiveTab === "graph" ? (
-                  <TaskGraphView
-                    tasks={graphTasks}
-                    onTaskClick={onOpenTask}
-                    onAddDependency={onAddDependency}
-                  />
+                  <Suspense fallback={<div className="task-empty-panel"><p className="empty-hint">Loading graph...</p></div>}>
+                    <TaskGraphView
+                      tasks={graphTasks}
+                      onTaskClick={onOpenTask}
+                      onAddDependency={onAddDependency}
+                    />
+                  </Suspense>
                 ) : null}
 
                 {resolvedActiveTab === "table" ? (

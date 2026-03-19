@@ -1,9 +1,13 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Page } from "../components/Page.tsx";
 import { useSetPageActions } from "../components/PageActionsContext.tsx";
-import { OrgGraphView } from "../components/OrgGraphView.tsx";
 import { OrgTableView } from "../components/OrgTableView.tsx";
 import type { Actor, ReporteeRelation } from "../types/domain.ts";
+
+const OrgGraphView = lazy(async () => {
+  const module = await import("../components/OrgGraphView.tsx");
+  return { default: module.OrgGraphView };
+});
 
 type OrgTab = "table" | "graph";
 
@@ -66,7 +70,9 @@ export function OrgPage({
               <p className="empty-hint">Loading organization structure...</p>
             </div>
           ) : selectedTab === "graph" ? (
-            <OrgGraphView actors={actors} reportees={reportees} onOpenActor={onOpenActor} />
+            <Suspense fallback={<div className="task-empty-panel"><p className="empty-hint">Loading graph...</p></div>}>
+              <OrgGraphView actors={actors} reportees={reportees} onOpenActor={onOpenActor} />
+            </Suspense>
           ) : (
             <OrgTableView actors={actors} reportees={reportees} onOpenActor={onOpenActor} />
           )}
