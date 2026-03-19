@@ -49,6 +49,10 @@ interface SettingsPathInput {
   tab?: string;
 }
 
+interface QuestionsPathInput {
+  tab?: string;
+}
+
 interface SetBrowserPathOptions {
   replace?: boolean;
 }
@@ -87,6 +91,17 @@ type AdminRoute = {
 };
 
 export const DEFAULT_ADMIN_TABLE_NAME = "runner_requests";
+
+export function normalizeQuestionsTab(value: string = ""): "open" | "completed" | "dismissed" {
+  const normalizedValue = String(value || "").trim().toLowerCase();
+  if (normalizedValue === "completed") {
+    return "completed";
+  }
+  if (normalizedValue === "dismissed") {
+    return "dismissed";
+  }
+  return "open";
+}
 
 export function normalizeAgentDetailTab(value: string = ""): "overview" | "chats" | "heartbeats" {
   const normalizedValue = String(value || "").trim().toLowerCase();
@@ -405,6 +420,33 @@ export function getSettingsPath({ tab = "general" }: SettingsPathInput = {}): st
   const params = new URLSearchParams();
   params.set("tab", normalizeSettingsTab(tab));
   return `/settings?${params.toString()}`;
+}
+
+export function getQuestionsTabFromPathname(
+  pathnameOrLocation: string | TasksRouteLocationInput = typeof window !== "undefined" ? window.location.pathname : "/",
+  search?: string,
+): "open" | "completed" | "dismissed" {
+  const fallbackPathname = typeof window !== "undefined" ? window.location.pathname : "/";
+  const fallbackSearch = typeof window !== "undefined" ? window.location.search : "";
+  const pathname = typeof pathnameOrLocation === "string"
+    ? pathnameOrLocation
+    : pathnameOrLocation.pathname || fallbackPathname;
+  const resolvedSearch = typeof pathnameOrLocation === "string"
+    ? (typeof search === "string" ? search : fallbackSearch)
+    : pathnameOrLocation.search || fallbackSearch;
+  const segments = normalizePathname(pathname).split("/").filter(Boolean);
+  if (segments[0] !== "questions") {
+    return "open";
+  }
+
+  const params = new URLSearchParams(String(resolvedSearch || ""));
+  return normalizeQuestionsTab(params.get("tab") || "");
+}
+
+export function getQuestionsPath({ tab = "open" }: QuestionsPathInput = {}): string {
+  const params = new URLSearchParams();
+  params.set("tab", normalizeQuestionsTab(tab));
+  return `/questions?${params.toString()}`;
 }
 
 export function getGitSkillPackagesRouteFromPathname(pathname: string = window.location.pathname): DetailRoute & { packageId: string } {
