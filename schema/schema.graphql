@@ -3,6 +3,7 @@ type Actor {
   description: String
   displayName: String!
   email: String
+  externalAgentId: ID
   id: ID!
   kind: ActorKind!
   userId: ID
@@ -10,6 +11,7 @@ type Actor {
 
 enum ActorKind {
   agent
+  external_agent
   user
 }
 
@@ -135,7 +137,7 @@ type AgentQuestionOption {
   createdAt: String!
   id: ID!
   isRecommended: Boolean
-  rank: AnswerRank
+  rating: Int
   text: String!
   updatedAt: String!
 }
@@ -203,14 +205,6 @@ enum AgentStatus {
   deleting
   pending
   ready
-}
-
-enum AnswerRank {
-  atrocious
-  average
-  bad
-  excellent
-  good
 }
 
 type Approval {
@@ -392,6 +386,28 @@ enum ExportSection {
   threads
 }
 
+type ExternalAgent {
+  actor: Actor
+  company: Company!
+  id: ID!
+  name: String!
+}
+
+type ExternalAgentConnection {
+  edges: [ExternalAgentEdge!]!
+  pageInfo: PageInfo!
+}
+
+type ExternalAgentEdge {
+  cursor: String!
+  node: ExternalAgent!
+}
+
+type ExternalAgentSecretPayload {
+  externalAgent: ExternalAgent!
+  secret: String!
+}
+
 type GitSkillPackage {
   company: Company!
   currentCommitHash: String!
@@ -495,6 +511,7 @@ type Mutation {
   createAgentHeartbeat(agentId: ID!, enabled: Boolean = true, intervalSeconds: Int!, name: String!, prompt: String!): AgentHeartbeat!
   createAgentRunner(name: String!): AgentRunnerSecretPayload!
   createCompany(name: String!): Company!
+  createExternalAgent(name: String!): ExternalAgentSecretPayload!
   createGitSkillPackage(gitReference: String!, gitRepositoryUrl: String!): CreateGitSkillPackagePayload!
   createMcpServer(args: [String!], authType: String, bearerTokenSecretId: ID, command: String, customHeaders: [McpHeaderInput!], enabled: Boolean, envVars: [McpEnvVarInput!], name: String!, transportType: String, url: String): McpServerMutationPayload!
   createRole(name: String!, parentRoleId: ID): RoleMutationPayload!
@@ -509,6 +526,7 @@ type Mutation {
   deleteAgentRunner(agentRunnerId: ID!): Boolean!
   deleteApproval(id: ID!): DeleteApprovalPayload!
   deleteCompany: Boolean!
+  deleteExternalAgent(externalAgentId: ID!): Boolean!
   deleteGitSkillPackage(id: ID!): DeleteGitSkillPackagePayload!
   deleteGithubInstallation(installationId: ID!): DeleteGithubInstallationPayload!
   deleteMcpServer(id: ID!): DeleteMcpServerPayload!
@@ -526,6 +544,7 @@ type Mutation {
   queueUserMessage(allowSteer: Boolean!, modelId: ID, reasoningLevel: String, text: String!, threadId: ID!): QueuedUserMessage!
   refreshGithubInstallationRepositories(installationId: ID!): RefreshGithubInstallationRepositoriesPayload!
   regenerateAgentRunnerSecret(agentRunnerId: ID!): AgentRunnerSecretPayload!
+  regenerateExternalAgentSecret(externalAgentId: ID!): ExternalAgentSecretPayload!
   rejectApproval(id: ID!, rejectionReason: String): ApprovalMutationPayload!
   removeMcpServerFromRole(mcpServerId: ID!, roleId: ID!): RoleMutationPayload!
   removeSkillFromRole(roleId: ID!, skillId: ID!): RoleMutationPayload!
@@ -586,6 +605,8 @@ type Query {
   companies(after: String, first: Int = 20): CompanyConnection!
   company(id: ID!): Company
   exportCompanyData(sections: [ExportSection!]!): CompanyExportPayload!
+  externalAgent(id: ID!): ExternalAgent
+  externalAgents(after: String, first: Int = 20): ExternalAgentConnection!
   gitSkillPackage(id: ID!): GitSkillPackage
   gitSkillPackages: [GitSkillPackage!]!
   githubAppConfig: GithubAppConfig!
@@ -957,11 +978,11 @@ enum ThreadTurnStatus {
 }
 
 type TokenUsageBreakdown {
-  cachedInputTokens: Int!
-  inputTokens: Int!
-  outputTokens: Int!
-  reasoningOutputTokens: Int!
-  totalTokens: Int!
+  cachedInputTokens: Int
+  inputTokens: Int
+  outputTokens: Int
+  reasoningOutputTokens: Int
+  totalTokens: Int
 }
 
 type TurnItem {

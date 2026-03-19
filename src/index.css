@@ -5755,20 +5755,22 @@ button:disabled {
   flex-wrap: wrap;
 }
 
-.question-option-rank,
+.question-option-stars,
 .question-option-recommended {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   padding: 0.16rem 0.42rem;
   border-radius: 999px;
   font-size: 0.72rem;
   font-weight: 600;
 }
 
-.question-option-rank {
+.question-option-stars {
   background: rgba(26, 32, 38, 0.08);
   color: var(--ink-1);
-  text-transform: lowercase;
+  letter-spacing: 0.08em;
+  font-size: 0.68rem;
 }
 
 .question-option-recommended {

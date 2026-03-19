@@ -1189,7 +1189,7 @@ export const LIST_AGENT_QUESTIONS_QUERY = `
         agentQuestionId
         text
         isRecommended
-        rank
+        rating
         createdAt
         updatedAt
       }
@@ -3277,7 +3277,7 @@ export const COMPANY_API_LIST_AGENT_QUESTIONS_QUERY = `
         agentQuestionId
         text
         isRecommended
-        rank
+        rating
         createdAt
         updatedAt
       }

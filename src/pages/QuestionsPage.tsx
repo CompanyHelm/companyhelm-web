@@ -8,24 +8,35 @@ const QUESTION_TABS = [
   { id: "dismissed", label: "Dismissed" },
 ] as const;
 
-const OPTION_RANK_ORDER = {
-  excellent: 5,
-  good: 4,
-  average: 3,
-  bad: 2,
-  atrocious: 1,
-};
+function normalizeQuestionOptionRating(rating: any) {
+  const parsedRating = Number.parseInt(String(rating ?? ""), 10);
+  if (
+    parsedRating !== 1
+    && parsedRating !== 2
+    && parsedRating !== 3
+    && parsedRating !== 4
+    && parsedRating !== 5
+  ) {
+    return 0;
+  }
 
-function getOptionRankValue(rank: any) {
-  const normalizedRank = String(rank || "").trim().toLowerCase();
-  return OPTION_RANK_ORDER[normalizedRank as keyof typeof OPTION_RANK_ORDER] || 0;
+  return parsedRating;
+}
+
+function renderQuestionOptionRatingStars(rating: any) {
+  const normalizedRating = normalizeQuestionOptionRating(rating);
+  if (normalizedRating === 0) {
+    return null;
+  }
+
+  return `${"★".repeat(normalizedRating)}${"☆".repeat(5 - normalizedRating)}`;
 }
 
 function sortQuestionOptions(options: any[] = []) {
   return [...options].sort((leftOption: any, rightOption: any) => {
-    const rankDelta = getOptionRankValue(rightOption?.rank) - getOptionRankValue(leftOption?.rank);
-    if (rankDelta !== 0) {
-      return rankDelta;
+    const ratingDelta = normalizeQuestionOptionRating(rightOption?.rating) - normalizeQuestionOptionRating(leftOption?.rating);
+    if (ratingDelta !== 0) {
+      return ratingDelta;
     }
     if (Boolean(rightOption?.isRecommended) !== Boolean(leftOption?.isRecommended)) {
       return Number(Boolean(rightOption?.isRecommended)) - Number(Boolean(leftOption?.isRecommended));
@@ -187,7 +198,14 @@ export function QuestionsPage({
                             <div className="question-option-copy">
                               <p className="question-option-text">{option.text || "-"}</p>
                               <div className="question-option-meta">
-                                {option.rank ? <span className="question-option-rank">{option.rank}</span> : null}
+                                {normalizeQuestionOptionRating(option?.rating) ? (
+                                  <span
+                                    className="question-option-stars"
+                                    aria-label={`${normalizeQuestionOptionRating(option?.rating)} out of 5 stars`}
+                                  >
+                                    {renderQuestionOptionRatingStars(option?.rating)}
+                                  </span>
+                                ) : null}
                                 {option.isRecommended ? <span className="question-option-recommended">Recommended</span> : null}
                                   </div>
                                 </div>

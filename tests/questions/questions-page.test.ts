@@ -32,13 +32,13 @@ function renderQuestionsPageMarkup(overrides: Record<string, unknown> = {}) {
             {
               id: "option-1",
               text: "Release to everyone today",
-              rank: "bad",
+              rating: 2,
               isRecommended: false,
             },
             {
               id: "option-2",
               text: "Start with the beta cohort",
-              rank: "excellent",
+              rating: 5,
               isRecommended: true,
             },
           ],
@@ -76,8 +76,8 @@ test("QuestionsPage renders tabs and open-question actions", () => {
   assert.match(markup, /Send custom answer/);
   assert.match(markup, /Dismiss question/);
   assert.match(markup, /Recommended/);
-  assert.match(markup, /excellent/);
-  assert.match(markup, /bad/);
+  assert.match(markup, /★★★★★/);
+  assert.match(markup, /★★☆☆☆/);
   assert.match(markup, /Start with the beta cohort[\s\S]*Release to everyone today/);
   assert.match(markup, /textarea/);
   assert.doesNotMatch(markup, /question-response-panel/);

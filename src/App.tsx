@@ -1187,12 +1187,27 @@ function toQuestionPayload(question: any) {
         agentQuestionId: resolveLegacyId(option?.agentQuestionId),
         text: String(option?.text || "").trim(),
         isRecommended: option?.isRecommended == null ? null : Boolean(option.isRecommended),
-        rank: resolveLegacyId(option?.rank) || null,
+        rating: normalizeQuestionOptionRating(option?.rating),
         createdAt: resolveLegacyId(option?.createdAt),
         updatedAt: resolveLegacyId(option?.updatedAt),
       }))
       : [],
   };
+}
+
+function normalizeQuestionOptionRating(value: any) {
+  const parsedValue = Number.parseInt(String(value ?? ""), 10);
+  if (
+    parsedValue !== 1
+    && parsedValue !== 2
+    && parsedValue !== 3
+    && parsedValue !== 4
+    && parsedValue !== 5
+  ) {
+    return null;
+  }
+
+  return parsedValue;
 }
 
 function toSecretAccessLogPayload(secretAccessLog: any) {
