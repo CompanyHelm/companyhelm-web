@@ -81,6 +81,7 @@ function renderAgentChatPageMarkup(overrides: Record<string, unknown> = {}) {
       onDeleteQueuedMessage: () => {},
       onCreateChatForAgent: async () => {},
       onOpenChatFromList: () => {},
+      showContextUsage: false,
       ...overrides,
     }),
   );
@@ -158,8 +159,41 @@ test("AgentChatPage shows pending thread copy while the thread is still provisio
   assert.match(markup, /pending/);
 });
 
+test("AgentChatPage hides chat context usage by default", () => {
+  const markup = renderAgentChatPageMarkup({
+    session: {
+      id: "thread-usage-default-off",
+      title: "Usage thread",
+      status: "ready",
+      tokenUsage: {
+        totalTokens: 900,
+      },
+      contextUsage: {
+        totalTokens: 385,
+      },
+      modelContextWindow: 200000,
+    },
+    chatTurns: [
+      {
+        id: "turn-1",
+        status: "completed",
+        tokenUsage: {
+          totalTokens: 1800,
+        },
+        createdAt: "2026-03-17T12:00:00.000Z",
+        items: [],
+      },
+    ],
+  });
+
+  assert.doesNotMatch(markup, /chat-transcript-usage-badge/);
+  assert.doesNotMatch(markup, /Tokens used 900/);
+  assert.doesNotMatch(markup, /1\.8k/);
+});
+
 test("AgentChatPage renders compact usage badge hover copy for thread and turn usage", () => {
   const markup = renderAgentChatPageMarkup({
+    showContextUsage: true,
     session: {
       id: "thread-usage",
       title: "Usage thread",
@@ -224,6 +258,7 @@ test("AgentChatPage renders compact usage badge hover copy for thread and turn u
 
 test("AgentChatPage shows N\\/A for turn usage when token totals are unknown", () => {
   const markup = renderAgentChatPageMarkup({
+    showContextUsage: true,
     session: {
       id: "thread-usage-na",
       title: "Usage unknown",

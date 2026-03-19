@@ -25,6 +25,16 @@ const FLAG_DEFINITIONS: { key: keyof AppFlags; label: string; description: strin
     label: "Skip onboarding",
     description: "Skip the onboarding flow when no runners are registered.",
   },
+  {
+    key: "showChatContextUsage",
+    label: "Show chat context usage",
+    description: "Show turn token usage and the transcript context meter in chat.",
+  },
+  {
+    key: "showExternalAgents",
+    label: "Show external agents",
+    description: "Show the external agents navigation and pages.",
+  },
 ];
 
 export function FlagsPage({ flags, onboardingPhase, onFlagChange, onResetOnboarding, onPhaseChange }: FlagsPageProps) {

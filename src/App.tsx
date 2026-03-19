@@ -4417,7 +4417,9 @@ function App() {
     activePage === "dashboard" ||
     activePage === "agent-runner" ||
     !appFlags.skipOnboarding;
-  const shouldLoadExternalAgentData = activePage === "external_agents";
+  const shouldLoadExternalAgentData =
+    appFlags.showExternalAgents
+    && activePage === "external_agents";
   const shouldLoadAgentData =
     activePage === "agents" ||
     activePage === "profile" ||
@@ -6858,6 +6860,12 @@ function App() {
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
+
+  useEffect(() => {
+    if (activePage === "external_agents" && !appFlags.showExternalAgents) {
+      setBrowserPath("/dashboard", { replace: true });
+    }
+  }, [activePage, appFlags.showExternalAgents]);
 
   useEffect(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
@@ -11242,6 +11250,13 @@ function App() {
 
   const activePrimaryNavItemId =
     activePage === "agents" && agentsRoute.view === "chat" ? "chats" : activePage;
+  const visibleNavSections = useMemo(
+    () => NAV_SECTIONS.map((section: any) => ({
+      ...section,
+      items: section.items.filter((item: any) => appFlags.showExternalAgents || item.id !== "external_agents"),
+    })).filter((section: any) => section.items.length > 0),
+    [appFlags.showExternalAgents],
+  );
   const showFirstCompanyOnboarding = !isLoadingCompanies && !hasCompanies;
   const showOnboarding = !showFirstCompanyOnboarding
     && !appFlags.skipOnboarding
@@ -11310,7 +11325,7 @@ function App() {
               {companyError ? <p className="side-error">{companyError}</p> : null}
             </div>
 
-            {NAV_SECTIONS.map((section: any) => (
+            {visibleNavSections.map((section: any) => (
               <div key={section.label} className="side-nav-section">
                 <p className="side-nav-label">{section.label}</p>
                 <nav className="side-nav" aria-label={`${section.label} navigation`}>
@@ -11762,7 +11777,7 @@ function App() {
           )
         ) : null}
 
-        {selectedCompanyId && activePage === "external_agents" ? (
+        {selectedCompanyId && activePage === "external_agents" && appFlags.showExternalAgents ? (
           externalAgentsRoute.view === "detail" && externalAgentsRoute.externalAgentId ? (
             detailExternalAgent ? (
               <ExternalAgentDetailPage
@@ -11845,6 +11860,7 @@ function App() {
             onOpenChatFromList={handleOpenChatFromList}
             onOpenAgentsPage={() => setBrowserPath("/agents")}
             allowArchivedMode={false}
+            showContextUsage={appFlags.showChatContextUsage}
           />
         ) : null}
 
@@ -11959,6 +11975,7 @@ function App() {
               onCreateChatForAgent={handleCreateChatForAgent}
               onOpenChatFromList={handleOpenChatFromList}
               allowArchivedMode
+              showContextUsage={appFlags.showChatContextUsage}
             />
           ) : (
             <AgentsPage

@@ -7,10 +7,14 @@ import {
 
 export interface AppFlags {
   skipOnboarding: boolean;
+  showChatContextUsage: boolean;
+  showExternalAgents: boolean;
 }
 
 const DEFAULT_FLAGS: AppFlags = {
   skipOnboarding: false,
+  showChatContextUsage: false,
+  showExternalAgents: false,
 };
 
 export function getPersistedFlags(): AppFlags {

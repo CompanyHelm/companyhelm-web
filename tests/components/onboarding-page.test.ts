@@ -262,10 +262,10 @@ test("OnboardingPage disables create agent when reasoning level is not selected 
   assert.match(markup, /<button type="submit" disabled="">Create agent<\/button>/);
 });
 
-test("FlagsPage exposes the github onboarding phase option and not chat", () => {
+test("FlagsPage exposes the github onboarding phase option and debug flags", () => {
   const markup = renderToStaticMarkup(
     React.createElement(FlagsPage, {
-      flags: { skipOnboarding: false },
+      flags: { skipOnboarding: false, showChatContextUsage: false, showExternalAgents: false },
       onboardingPhase: "agent",
       onFlagChange: () => {},
       onResetOnboarding: () => {},
@@ -279,4 +279,6 @@ test("FlagsPage exposes the github onboarding phase option and not chat", () => 
   assert.match(markup, />agent</);
   assert.match(markup, />github</);
   assert.match(markup, />done</);
+  assert.match(markup, /Show chat context usage/);
+  assert.match(markup, /Show external agents/);
 });

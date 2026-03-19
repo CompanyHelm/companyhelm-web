@@ -510,6 +510,7 @@ export function AgentChatPage({
   onOpenChatFromList,
   onOpenAgentsPage,
   allowArchivedMode = true,
+  showContextUsage = false,
 }: any) {
   const normalizedRouteNotFoundMessage = String(routeNotFoundMessage || "").trim();
   const hasRouteNotFoundMessage = Boolean(normalizedRouteNotFoundMessage);
@@ -627,7 +628,7 @@ export function AgentChatPage({
   const sessionContextTotal = normalizeTokenCount(session?.contextUsage?.totalTokens);
   const sessionContextWindow = normalizeTokenCount(session?.modelContextWindow);
   const showSessionUsageSummary =
-    sessionTokenTotal !== null || sessionContextTotal !== null || sessionContextWindow !== null;
+    Boolean(showContextUsage) && (sessionTokenTotal !== null || sessionContextTotal !== null || sessionContextWindow !== null);
   const showTranscriptPane =
     showTranscriptLoadingState
     || showTranscriptEmptyState
@@ -1376,7 +1377,7 @@ export function AgentChatPage({
                             title="Turn in progress"
                           />
                         ) : null}
-                        {turn?.tokenUsage?.totalTokens !== undefined ? (
+                        {showContextUsage && turn?.tokenUsage?.totalTokens !== undefined ? (
                           <UsageTextLabel
                             className="chat-turn-token-usage"
                             tokenTotal={turn?.tokenUsage?.totalTokens}
