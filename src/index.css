@@ -2555,6 +2555,9 @@ button:disabled {
 
 .chat-transcript-pane {
   position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
   min-height: 0;
 }
 
