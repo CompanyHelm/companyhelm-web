@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Page } from "../components/Page.tsx";
 import { useSetPageActions } from "../components/PageActionsContext.tsx";
 import { ConversationCreateModal } from "../components/ConversationCreateModal.tsx";
 import { ConversationParticipantsEditor } from "../components/ConversationParticipantsEditor.tsx";
+import { formatTimestamp, toSortableTimestamp } from "../utils/formatting.ts";
 
 function formatParticipantLabel(participant: any, currentUserId: string) {
   const participantUserId = String(participant?.userId || "").trim();
@@ -12,12 +13,28 @@ function formatParticipantLabel(participant: any, currentUserId: string) {
   return String(participant?.displayName || "").trim() || "Unknown participant";
 }
 
-function formatSenderLabel(message: any, participants: any[], currentUserId: string) {
+function formatConversationListLabel(conversation: any, currentUserId: string) {
+  const labels = (Array.isArray(conversation?.participants) ? conversation.participants : [])
+    .map((participant: any) => formatParticipantLabel(participant, currentUserId))
+    .filter(Boolean);
+  return labels.join(", ") || "Untitled conversation";
+}
+
+function resolveSenderParticipant(message: any, participants: any[]) {
   const senderActorInstanceId = String(message?.senderActorInstanceId || "").trim();
-  const matchedParticipant = (Array.isArray(participants) ? participants : []).find(
+  return (Array.isArray(participants) ? participants : []).find(
     (participant: any) => String(participant?.actorInstanceId || "").trim() === senderActorInstanceId,
-  );
+  ) || null;
+}
+
+function formatSenderLabel(message: any, participants: any[], currentUserId: string) {
+  const matchedParticipant = resolveSenderParticipant(message, participants);
   return formatParticipantLabel(matchedParticipant, currentUserId);
+}
+
+function isCurrentUserMessage(message: any, participants: any[], currentUserId: string) {
+  const matchedParticipant = resolveSenderParticipant(message, participants);
+  return String(matchedParticipant?.userId || "").trim() === currentUserId;
 }
 
 export function ConversationsPage({
@@ -39,6 +56,7 @@ export function ConversationsPage({
 }: any) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [messageDraft, setMessageDraft] = useState("");
+  const transcriptScrollRef = useRef<HTMLDivElement | null>(null);
   const currentUserId = String(currentUser?.id || "").trim();
   const currentUserLabel = String(currentUser?.firstName || "").trim()
     || String(currentUser?.email || "").trim()
@@ -48,6 +66,15 @@ export function ConversationsPage({
       (conversation: any) => String(conversation?.id || "").trim() === String(selectedConversationId || "").trim(),
     ) || null,
   [conversations, selectedConversationId]);
+  const orderedMessages = useMemo(() =>
+    [...(Array.isArray(messages) ? messages : [])].sort((left: any, right: any) => {
+      const timestampDifference = toSortableTimestamp(left?.createdAt) - toSortableTimestamp(right?.createdAt);
+      if (timestampDifference !== 0) {
+        return timestampDifference;
+      }
+      return String(left?.id || "").localeCompare(String(right?.id || ""));
+    }),
+  [messages]);
   const pageActions = useMemo(() => (
     <button type="button" className="primary-button" onClick={() => setIsCreateModalOpen(true)}>
       New conversation
@@ -55,8 +82,29 @@ export function ConversationsPage({
   ), []);
   useSetPageActions(pageActions);
 
+  useEffect(() => {
+    setMessageDraft("");
+  }, [selectedConversationId]);
+
+  useEffect(() => {
+    const transcriptNode = transcriptScrollRef.current;
+    if (!transcriptNode) {
+      return;
+    }
+    transcriptNode.scrollTop = transcriptNode.scrollHeight;
+  }, [selectedConversationId, orderedMessages.length]);
+
+  async function handleSendMessage() {
+    const normalizedDraft = String(messageDraft || "").trim();
+    if (!normalizedDraft) {
+      return;
+    }
+    await onSendMessage(normalizedDraft);
+    setMessageDraft("");
+  }
+
   return (
-    <Page className="conversations-page">
+    <Page className="page-container-full page-shell-chat-layout conversations-page-shell">
       <ConversationCreateModal
         isOpen={isCreateModalOpen}
         currentUserLabel={currentUserLabel}
@@ -69,60 +117,63 @@ export function ConversationsPage({
         }}
       />
 
-      <div className="conversations-layout">
-        <section className="panel conversations-sidebar">
-          <div className="panel-header panel-header-row">
-            <div>
-              <h2>Conversations</h2>
-              <p className="subcopy">Canonical multi-agent transcripts.</p>
+      <div className="chat-page-stack chat-page-stack-with-sidebar">
+        <div className="chat-page-main-layout">
+          <aside className="panel list-panel chat-sidebar-panel conversations-sidebar">
+            <div className="chat-sidebar-toolbar">
+              <h2 className="chat-sidebar-title">Conversations</h2>
             </div>
-          </div>
-          {error ? <p className="error-banner">{error}</p> : null}
-          {isLoadingConversations ? <p className="empty-hint">Loading conversations...</p> : null}
-          {!isLoadingConversations && (!Array.isArray(conversations) || conversations.length === 0) ? (
-            <p className="empty-hint">No conversations yet.</p>
-          ) : null}
-          <div className="conversation-list" role="list" aria-label="Conversation list">
-            {(Array.isArray(conversations) ? conversations : []).map((conversation: any) => {
-              const conversationId = String(conversation?.id || "").trim();
-              const isSelected = conversationId === String(selectedConversationId || "").trim();
-              return (
-                <button
-                  key={conversationId}
-                  type="button"
-                  className={`conversation-list-item${isSelected ? " conversation-list-item-active" : ""}`}
-                  onClick={() => onOpenConversation(conversationId)}
-                >
-                  <span className="conversation-list-title">
-                    {(Array.isArray(conversation?.participants) ? conversation.participants : [])
-                      .map((participant: any) => formatParticipantLabel(participant, currentUserId))
-                      .join(", ")}
-                  </span>
-                  <span className="conversation-list-preview">
-                    {String(conversation?.latestMessagePreview || "").trim() || "No messages yet."}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </section>
+            {error ? <p className="error-banner">{error}</p> : null}
+            {isLoadingConversations ? <p className="empty-hint">Loading conversations...</p> : null}
+            {!isLoadingConversations && (!Array.isArray(conversations) || conversations.length === 0) ? (
+              <p className="empty-hint">No conversations yet.</p>
+            ) : null}
+            <ul className="chat-sidebar-agent-list chat-sidebar-chat-list" role="list" aria-label="Conversation list">
+              {(Array.isArray(conversations) ? conversations : []).map((conversation: any) => {
+                const conversationId = String(conversation?.id || "").trim();
+                const isSelected = conversationId === String(selectedConversationId || "").trim();
+                return (
+                  <li
+                    key={conversationId}
+                    className={`chat-card${isSelected ? " chat-card-active" : ""}`}
+                    onClick={() => onOpenConversation(conversationId)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(event: any) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        onOpenConversation(conversationId);
+                      }
+                    }}
+                  >
+                    <div className="chat-card-main">
+                      <p className="chat-card-title conversation-sidebar-participants">
+                        <strong>{formatConversationListLabel(conversation, currentUserId)}</strong>
+                      </p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </aside>
 
-        <section className="conversations-main">
-          {!selectedConversation ? (
-            <section className="panel conversation-empty-state">
-              <h2>Select a conversation</h2>
-              <p className="subcopy">Choose a conversation from the list or start a new one.</p>
-            </section>
-          ) : (
-            <>
-              <section className="panel conversation-header-panel">
-                <div className="panel-header panel-header-row">
-                  <div>
-                    <h2>Participants</h2>
-                    <p className="subcopy">Your user participant is included by default.</p>
+          <section className="panel chat-panel conversation-chat-panel">
+            {!selectedConversation ? (
+              <div className="chat-transcript-state chat-transcript-state-empty">
+                <p className="chat-transcript-state-title">Select a conversation or start a new one.</p>
+              </div>
+            ) : (
+              <>
+                <header className="chat-minimal-header conversation-minimal-header">
+                  <div className="chat-minimal-header-info">
+                    <p className="chat-minimal-header-agent">Conversation</p>
+                    <h2 className="chat-minimal-header-title">
+                      {formatConversationListLabel(selectedConversation, currentUserId)}
+                    </h2>
                   </div>
-                </div>
-                <div className="conversation-participant-list">
+                </header>
+
+                <div className="conversation-chat-participant-strip">
                   {(Array.isArray(selectedConversation?.participants) ? selectedConversation.participants : []).map((participant: any) => (
                     <span
                       key={String(participant?.id || "").trim()}
@@ -136,73 +187,111 @@ export function ConversationsPage({
                     </span>
                   ))}
                 </div>
-              </section>
 
-              <ConversationParticipantsEditor
-                participants={selectedConversation?.participants || []}
-                availableAgents={agents}
-                isSubmitting={isAddingConversationAgents}
-                onSubmit={onAddAgents}
-              />
+                <ConversationParticipantsEditor
+                  participants={selectedConversation?.participants || []}
+                  availableAgents={agents}
+                  isSubmitting={isAddingConversationAgents}
+                  onSubmit={onAddAgents}
+                />
 
-              <section className="panel conversation-transcript-panel">
-                <div className="panel-header panel-header-row">
-                  <div>
-                    <h2>Transcript</h2>
-                    <p className="subcopy">Newest-first canonical message history.</p>
-                  </div>
+                <div className="chat-transcript-pane">
+                  {isLoadingMessages ? (
+                    <div className="chat-transcript-state chat-transcript-state-loading" role="status" aria-live="polite">
+                      <p className="chat-transcript-state-title">Loading messages...</p>
+                    </div>
+                  ) : null}
+                  {!isLoadingMessages && orderedMessages.length === 0 ? (
+                    <div className="chat-transcript-state chat-transcript-state-empty">
+                      <p className="chat-transcript-state-title">
+                        No messages yet. The newest message will appear at the bottom.
+                      </p>
+                    </div>
+                  ) : null}
+                  {orderedMessages.length > 0 ? (
+                    <div ref={transcriptScrollRef} className="chat-transcript-scroll">
+                      <ul className="chat-message-list conversation-chat-message-list" role="list" aria-label="Conversation transcript">
+                        {orderedMessages.map((message: any) => {
+                          const isUserMessage = isCurrentUserMessage(
+                            message,
+                            selectedConversation?.participants || [],
+                            currentUserId,
+                          );
+                          return (
+                            <li
+                              key={String(message?.id || "").trim()}
+                              className={`chat-message ${isUserMessage ? "chat-message-human" : "chat-message-llm"}`}
+                            >
+                              <div className="chat-message-body">
+                                <p className="chat-message-content conversation-chat-message-text">
+                                  {String(message?.text || "").trim()}
+                                </p>
+                                <div className="chat-message-footer">
+                                  <span className="chat-message-kind">
+                                    {formatSenderLabel(message, selectedConversation?.participants || [], currentUserId)}
+                                  </span>
+                                  <span>{formatTimestamp(message?.createdAt)}</span>
+                                </div>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  ) : null}
                 </div>
-                {isLoadingMessages ? <p className="empty-hint">Loading messages...</p> : null}
-                {!isLoadingMessages && (!Array.isArray(messages) || messages.length === 0) ? (
-                  <p className="empty-hint">No messages yet.</p>
-                ) : null}
-                <div className="conversation-message-list" role="list" aria-label="Conversation transcript">
-                  {(Array.isArray(messages) ? messages : []).map((message: any) => (
-                    <article key={String(message?.id || "").trim()} className="conversation-message-card">
-                      <header className="conversation-message-meta">
-                        <strong>{formatSenderLabel(message, selectedConversation?.participants || [], currentUserId)}</strong>
-                        <span>{String(message?.createdAt || "").trim()}</span>
-                      </header>
-                      <p className="conversation-message-text">{String(message?.text || "").trim()}</p>
-                    </article>
-                  ))}
-                </div>
-              </section>
+              </>
+            )}
+          </section>
+        </div>
 
-              <section className="panel conversation-composer-panel">
-                <div className="panel-header panel-header-row">
-                  <div>
-                    <h2>Send message</h2>
-                    <p className="subcopy">Messages are stored canonically, then fan out to the other agents.</p>
-                  </div>
-                </div>
-                <div className="conversation-composer">
+        {selectedConversation ? (
+          <section className="panel composer-panel chat-composer-panel conversation-composer-panel">
+            <p className="conversation-composer-note">
+              Messages are stored canonically, then delivered to the other participants.
+            </p>
+            <form
+              className="chat-composer-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void handleSendMessage();
+              }}
+            >
+              <div className="chat-composer-input-row chat-composer-input-row-idle">
+                <div className="chat-composer-input-wrapper">
                   <textarea
-                    className="conversation-composer-input"
+                    className="chat-composer-input"
                     value={messageDraft}
                     onChange={(event) => setMessageDraft(event.target.value)}
-                    placeholder="Write a message to the conversation."
-                    rows={4}
+                    placeholder="Message the conversation..."
+                    rows={3}
                     disabled={isSendingConversationMessage}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+                        event.preventDefault();
+                        void handleSendMessage();
+                      }
+                    }}
                   />
-                  <div className="conversation-modal-actions">
-                    <button
-                      type="button"
-                      className="primary-button"
-                      disabled={isSendingConversationMessage || !String(messageDraft || "").trim()}
-                      onClick={async () => {
-                        await onSendMessage(messageDraft);
-                        setMessageDraft("");
-                      }}
-                    >
-                      {isSendingConversationMessage ? "Sending..." : "Send message"}
-                    </button>
-                  </div>
                 </div>
-              </section>
-            </>
-          )}
-        </section>
+                <div className="chat-composer-toolbar">
+                  <button
+                    type="submit"
+                    className="chat-composer-send-btn"
+                    disabled={isSendingConversationMessage || !String(messageDraft || "").trim()}
+                    aria-label={isSendingConversationMessage ? "Sending message" : "Send message"}
+                    title={isSendingConversationMessage ? "Sending..." : "Send message"}
+                  >
+                    <svg className="chat-composer-send-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <path d="M22 2L11 13" />
+                      <path d="M22 2L15 22L11 13L2 9L22 2Z" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </form>
+          </section>
+        ) : null}
       </div>
     </Page>
   );

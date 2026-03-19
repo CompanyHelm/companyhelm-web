@@ -8090,6 +8090,10 @@ button:disabled {
   opacity: 0.55;
 }
 
+.conversations-page-shell {
+  max-width: none;
+}
+
 .conversations-layout {
   display: grid;
   grid-template-columns: minmax(17rem, 22rem) minmax(0, 1fr);
@@ -8214,8 +8218,90 @@ button:disabled {
   flex-wrap: wrap;
 }
 
+.conversations-sidebar .chat-sidebar-toolbar {
+  align-items: center;
+}
+
+.conversation-sidebar-participants {
+  margin: 0;
+  line-height: 1.45;
+  white-space: normal;
+}
+
+.conversation-chat-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.72rem;
+  min-height: 0;
+}
+
+.conversation-minimal-header {
+  padding: 0.62rem 0.88rem;
+}
+
+.conversation-chat-participant-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.conversation-chat-panel .conversation-participants-editor {
+  margin: 0;
+}
+
+.conversation-chat-panel .conversation-participants-editor.panel {
+  border: 1px solid rgba(26, 32, 38, 0.1);
+  box-shadow: none;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.conversation-chat-panel .conversation-agent-picker {
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+}
+
+.conversation-chat-message-list {
+  padding: 0 0.1rem 0.25rem;
+}
+
+.conversation-chat-message-text {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.conversation-chat-message-list .chat-message-footer {
+  opacity: 1;
+  max-height: none;
+  overflow: visible;
+  margin-top: 0.45rem;
+}
+
+.conversation-chat-message-list .chat-message-human .chat-message-footer {
+  justify-content: flex-end;
+}
+
+.conversation-composer-panel {
+  margin-top: 0;
+}
+
+.conversation-composer-note {
+  margin: 0;
+  color: var(--ink-1);
+  font-size: 0.82rem;
+}
+
 @media (max-width: 980px) {
   .conversations-layout {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1080px) {
+  .conversations-page-shell .chat-page-stack-with-sidebar .chat-page-main-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .conversations-page-shell .chat-page-stack-with-sidebar .chat-page-main-layout > .chat-sidebar-panel {
+    display: flex;
+    max-height: min(34vh, 320px);
   }
 }

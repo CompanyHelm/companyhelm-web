@@ -52,6 +52,12 @@ function renderConversationsPageMarkup(overrides: Record<string, unknown> = {}) 
       selectedConversationId: "conversation-1",
       messages: [
         {
+          id: "message-2",
+          senderActorInstanceId: "actor-instance-agent-1",
+          text: "latest reply",
+          createdAt: "2026-03-19T11:05:00.000Z",
+        },
+        {
           id: "message-1",
           senderActorInstanceId: "actor-instance-user-1",
           text: "hello team",
@@ -77,18 +83,16 @@ test("ConversationsPage renders list, participants, transcript, and composer", (
   const markup = renderConversationsPageMarkup();
 
   assert.match(markup, />Conversations</);
-  assert.match(markup, />Canonical multi-agent transcripts\./);
   assert.match(markup, />You, Planner Agent</);
   assert.match(markup, />hello team</);
-  assert.match(markup, />Participants</);
+  assert.match(markup, />latest reply</);
   assert.match(markup, />You</);
   assert.match(markup, />Planner Agent</);
   assert.match(markup, />Add agents</);
-  assert.match(markup, />Transcript</);
-  assert.match(markup, />Newest-first canonical message history\./);
-  assert.match(markup, />Send message</);
-  assert.match(markup, /Write a message to the conversation\./);
-  assert.match(markup, />Send message</);
+  assert.match(markup, />Conversation</);
+  assert.match(markup, /Messages are stored canonically, then delivered to the other participants\./);
+  assert.match(markup, /Message the conversation\.\.\./);
+  assert.equal(markup.indexOf("hello team") < markup.indexOf("latest reply"), true);
 });
 
 test("ConversationsPage renders empty selection and loading states", () => {
@@ -98,7 +102,7 @@ test("ConversationsPage renders empty selection and loading states", () => {
     messages: [],
   });
   assert.match(emptyMarkup, /No conversations yet\./);
-  assert.match(emptyMarkup, /Select a conversation/);
+  assert.match(emptyMarkup, /Select a conversation or start a new one\./);
 
   const loadingMarkup = renderConversationsPageMarkup({
     isLoadingConversations: true,
@@ -112,10 +116,12 @@ test("ConversationsPage source keeps creation, add-agents, and send actions on t
   assert.match(conversationsPageSource, /<ConversationCreateModal/);
   assert.match(conversationsPageSource, /<ConversationParticipantsEditor/);
   assert.match(conversationsPageSource, /New conversation/);
+  assert.match(conversationsPageSource, /orderedMessages/);
+  assert.match(conversationsPageSource, /transcriptScrollRef/);
   assert.match(conversationsPageSource, /onOpenConversation\(conversationId\)/);
   assert.match(conversationsPageSource, /await onCreateConversation\(agentIds\);/);
   assert.match(conversationsPageSource, /onSubmit={onAddAgents}/);
-  assert.match(conversationsPageSource, /await onSendMessage\(messageDraft\);/);
+  assert.match(conversationsPageSource, /await onSendMessage\(normalizedDraft\);/);
 });
 
 test("App wires the conversations page to data loaders and mutations", () => {
