@@ -8094,6 +8094,11 @@ button:disabled {
   max-width: none;
 }
 
+.conversations-page-shell .chat-page-stack-with-sidebar .chat-page-main-layout {
+  gap: 0.72rem;
+  grid-template-columns: clamp(11rem, var(--chat-sidebar-width), 30rem) minmax(0, 1fr);
+}
+
 .conversations-layout {
   display: grid;
   grid-template-columns: minmax(17rem, 22rem) minmax(0, 1fr);
