@@ -132,10 +132,12 @@ test("AgentChatsPage overview renders inline editor and assignment sections", ()
   assert.match(markup, />Effective Skills</);
   assert.match(markup, />Effective MCP Servers</);
   assert.match(markup, />Configuration</);
-  assert.match(markup, />API</);
+  assert.match(markup, />Agent API</);
   assert.match(markup, />Swagger docs</);
+  assert.match(markup, /Used by agents to operate on CompanyHelm resources\./);
   assert.match(markup, /href="[^"]*\/agent\/v1\/docs"/);
   assert.match(markup, />Open Swagger UI</);
+  assert.doesNotMatch(markup, /<p class="role-detail-stat-label">Roles<\/p>/);
   assert.match(markup, />Save agent</);
   assert.doesNotMatch(markup, /Back to agents/);
 });

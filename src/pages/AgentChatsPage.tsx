@@ -680,19 +680,15 @@ export function AgentChatsPage({
                     <p className="role-detail-stat-label">Reasoning</p>
                   </div>
                   <div className="role-detail-stat">
-                    <p className="role-detail-stat-value">{agentSummary.assignedRoles.length}</p>
-                    <p className="role-detail-stat-label">Roles</p>
-                  </div>
-                  <div className="role-detail-stat">
                     <p className="role-detail-stat-value">{agentSummary.chatCount}</p>
                     <p className="role-detail-stat-label">Chats</p>
                   </div>
                   <div className="role-detail-stat role-detail-stat-action">
                     <div className="agent-detail-api-card-copy">
-                      <p className="role-detail-stat-value">API</p>
+                      <p className="role-detail-stat-value">Agent API</p>
                       <p className="role-detail-stat-label">Swagger docs</p>
                       <p className="agent-detail-api-card-hint">
-                        Inspect endpoints, auth, and schemas in Swagger UI.
+                        Used by agents to operate on CompanyHelm resources.
                       </p>
                     </div>
                     <a
