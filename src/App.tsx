@@ -59,7 +59,12 @@ import {
   LIST_SECRET_ACCESS_LOGS_QUERY,
   LIST_APPROVALS_QUERY,
   LIST_AGENT_QUESTIONS_QUERY,
+  LIST_CONVERSATIONS_QUERY,
+  LIST_CONVERSATION_MESSAGES_QUERY,
   ANSWER_AGENT_QUESTION_MUTATION,
+  CREATE_CONVERSATION_MUTATION,
+  ADD_CONVERSATION_AGENTS_MUTATION,
+  SEND_CONVERSATION_MESSAGE_MUTATION,
   APPROVE_APPROVAL_MUTATION,
   REJECT_APPROVAL_MUTATION,
   DELETE_APPROVAL_MUTATION,
@@ -294,6 +299,8 @@ import {
   getExternalAgentPath,
   getTasksRouteFromPathname,
   getActorsRouteFromPathname,
+  getConversationsRouteFromLocation,
+  getConversationsPath,
   getChatsRouteFromLocation,
   getChatsPath,
   DEFAULT_ADMIN_TABLE_NAME,
@@ -372,6 +379,7 @@ import { GitSkillPackagesPage } from "./pages/GitSkillPackagesPage.tsx";
 import { SecretsPage } from "./pages/SecretsPage.tsx";
 import { ApprovalsPage } from "./pages/ApprovalsPage.tsx";
 import { QuestionsPage } from "./pages/QuestionsPage.tsx";
+import { ConversationsPage } from "./pages/ConversationsPage.tsx";
 import { McpServersPage } from "./pages/McpServersPage.tsx";
 import { AgentChatsPage } from "./pages/AgentChatsPage.tsx";
 import { AgentChatPage } from "./pages/AgentChatPage.tsx";
@@ -1192,6 +1200,42 @@ function toQuestionPayload(question: any) {
         updatedAt: resolveLegacyId(option?.updatedAt),
       }))
       : [],
+  };
+}
+
+function toConversationPayload(conversation: any) {
+  return {
+    id: resolveLegacyId(conversation?.id),
+    companyId: resolveLegacyId(conversation?.company?.id, conversation?.companyId),
+    createdAt: resolveLegacyId(conversation?.createdAt) || null,
+    lastMessageAt: resolveLegacyId(conversation?.lastMessageAt) || null,
+    latestMessagePreview: String(conversation?.latestMessagePreview || "").trim() || null,
+    participants: Array.isArray(conversation?.participants)
+      ? conversation.participants.map((participant: any) => ({
+        id: resolveLegacyId(participant?.id),
+        conversationId: resolveLegacyId(participant?.conversationId),
+        actorInstanceId: resolveLegacyId(participant?.actorInstanceId),
+        actorId: resolveLegacyId(participant?.actorId),
+        agentId: resolveLegacyId(participant?.agentId) || null,
+        userId: resolveLegacyId(participant?.userId) || null,
+        threadId: resolveLegacyId(participant?.threadId) || null,
+        displayName: String(participant?.displayName || "").trim() || "Unknown participant",
+      }))
+      : [],
+  };
+}
+
+function toConversationMessagePayload(message: any) {
+  return {
+    id: resolveLegacyId(message?.id),
+    companyId: resolveLegacyId(message?.company?.id, message?.companyId),
+    conversationId: resolveLegacyId(message?.conversationId),
+    senderActorInstanceId: resolveLegacyId(message?.senderActorInstanceId),
+    senderActorId: resolveLegacyId(message?.senderActorId),
+    senderAgentId: resolveLegacyId(message?.senderAgentId) || null,
+    senderUserId: resolveLegacyId(message?.senderUserId) || null,
+    text: String(message?.text || "").trim(),
+    createdAt: resolveLegacyId(message?.createdAt),
   };
 }
 
@@ -2865,6 +2909,78 @@ async function executeGraphQL(query: any, variables: any = {}) {
     };
   }
 
+  if (query === LIST_CONVERSATIONS_QUERY) {
+    const data = await executeRawGraphQL(LIST_CONVERSATIONS_QUERY, {
+      first: typeof variables?.first === "number" ? variables.first : null,
+      after: resolveLegacyId(variables?.after) || null,
+    });
+    return {
+      conversations: Array.isArray(data?.conversations?.edges)
+        ? data.conversations.edges
+            .map((edge: any) => edge?.node)
+            .filter(Boolean)
+            .map((conversation: any) => toConversationPayload(conversation))
+        : [],
+      pageInfo: {
+        hasNextPage: Boolean(data?.conversations?.pageInfo?.hasNextPage),
+        endCursor: resolveLegacyId(data?.conversations?.pageInfo?.endCursor) || null,
+      },
+    };
+  }
+
+  if (query === LIST_CONVERSATION_MESSAGES_QUERY) {
+    const data = await executeRawGraphQL(LIST_CONVERSATION_MESSAGES_QUERY, {
+      conversationId: resolveLegacyId(variables?.conversationId),
+      first: typeof variables?.first === "number" ? variables.first : null,
+      after: resolveLegacyId(variables?.after) || null,
+    });
+    return {
+      messages: Array.isArray(data?.conversationMessages?.edges)
+        ? data.conversationMessages.edges
+            .map((edge: any) => edge?.node)
+            .filter(Boolean)
+            .map((message: any) => toConversationMessagePayload(message))
+        : [],
+      pageInfo: {
+        hasNextPage: Boolean(data?.conversationMessages?.pageInfo?.hasNextPage),
+        endCursor: resolveLegacyId(data?.conversationMessages?.pageInfo?.endCursor) || null,
+      },
+    };
+  }
+
+  if (query === CREATE_CONVERSATION_MUTATION) {
+    const data = await executeRawGraphQL(CREATE_CONVERSATION_MUTATION, {
+      agentIds: normalizeUniqueStringList(variables?.agentIds || []),
+    });
+    return {
+      createConversation: data?.createConversation ? toConversationPayload(data.createConversation) : null,
+    };
+  }
+
+  if (query === ADD_CONVERSATION_AGENTS_MUTATION) {
+    const data = await executeRawGraphQL(ADD_CONVERSATION_AGENTS_MUTATION, {
+      conversationId: resolveLegacyId(variables?.conversationId),
+      agentIds: normalizeUniqueStringList(variables?.agentIds || []),
+    });
+    return {
+      addConversationAgents: data?.addConversationAgents
+        ? toConversationPayload(data.addConversationAgents)
+        : null,
+    };
+  }
+
+  if (query === SEND_CONVERSATION_MESSAGE_MUTATION) {
+    const data = await executeRawGraphQL(SEND_CONVERSATION_MESSAGE_MUTATION, {
+      conversationId: resolveLegacyId(variables?.conversationId),
+      text: String(variables?.text || "").trim(),
+    });
+    return {
+      sendConversationMessage: data?.sendConversationMessage
+        ? toConversationMessagePayload(data.sendConversationMessage)
+        : null,
+    };
+  }
+
   if (query === DELETE_GITHUB_INSTALLATION_MUTATION) {
     const data = await executeRawGraphQL(COMPANY_API_DELETE_GITHUB_INSTALLATION_MUTATION, {
       companyId: resolveLegacyId(variables?.companyId),
@@ -3462,6 +3578,7 @@ function App() {
   const [questionsTab, setQuestionsTab] = useState<any>(() => getQuestionsTabFromPathname());
   const [settingsTab, setSettingsTab] = useState<any>(() => getSettingsTabFromPathname());
   const [actorsRoute, setActorsRoute] = useState<any>(() => getActorsRouteFromPathname());
+  const [conversationsRoute, setConversationsRoute] = useState<any>(() => getConversationsRouteFromLocation());
   const [gitSkillPackagesRoute, setGitSkillPackagesRoute] = useState<any>(
     () => getGitSkillPackagesRouteFromPathname(),
   );
@@ -3519,6 +3636,8 @@ function App() {
   const [secrets, setSecrets] = useState<any>([]);
   const [approvals, setApprovals] = useState<any>([]);
   const [questions, setQuestions] = useState<any>([]);
+  const [conversations, setConversations] = useState<any>([]);
+  const [conversationMessages, setConversationMessages] = useState<any>([]);
   const [mcpServers, setMcpServers] = useState<any>([]);
   const [adminTables, setAdminTables] = useState<any>([]);
   const [adminTableData, setAdminTableData] = useState<any>(null);
@@ -3547,6 +3666,8 @@ function App() {
   const [isLoadingSecrets, setIsLoadingSecrets] = useState<any>(false);
   const [isLoadingApprovals, setIsLoadingApprovals] = useState<any>(false);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState<any>(false);
+  const [isLoadingConversations, setIsLoadingConversations] = useState<any>(false);
+  const [isLoadingConversationMessages, setIsLoadingConversationMessages] = useState<any>(false);
   const [isLoadingMcpServers, setIsLoadingMcpServers] = useState<any>(false);
   const [isLoadingAdminTables, setIsLoadingAdminTables] = useState<any>(false);
   const [isLoadingAdminTable, setIsLoadingAdminTable] = useState<any>(false);
@@ -3559,6 +3680,7 @@ function App() {
   const [secretError, setSecretError] = useState<any>("");
   const [approvalError, setApprovalError] = useState<any>("");
   const [questionError, setQuestionError] = useState<any>("");
+  const [conversationError, setConversationError] = useState<any>("");
   const [mcpServerError, setMcpServerError] = useState<any>("");
   const [adminError, setAdminError] = useState<any>("");
   const [runnerError, setRunnerError] = useState<any>("");
@@ -3585,6 +3707,9 @@ function App() {
   const [deletingSecretId, setDeletingSecretId] = useState<any>(null);
   const [deletingApprovalId, setDeletingApprovalId] = useState<any>(null);
   const [answeringQuestionId, setAnsweringQuestionId] = useState<any>(null);
+  const [isCreatingConversation, setIsCreatingConversation] = useState<any>(false);
+  const [isAddingConversationAgents, setIsAddingConversationAgents] = useState<any>(false);
+  const [isSendingConversationMessage, setIsSendingConversationMessage] = useState<any>(false);
   const [deletingMcpServerId, setDeletingMcpServerId] = useState<any>(null);
   const [deletingRunnerId, setDeletingRunnerId] = useState<any>(null);
   const [regeneratingRunnerId, setRegeneratingRunnerId] = useState<any>(null);
@@ -4377,7 +4502,7 @@ function App() {
   const shouldSubscribeChatTurns = isChatConversationRoute;
   const shouldLoadGithubPageData = activePage === "settings" || activePage === "repos" || onboardingPhase === "github" || onboardingPhase === "agent";
   const shouldLoadGithubRepositoryData = activePage === "repos";
-  const shouldLoadCurrentUserData = activePage === "profile" || activePage === "my-tasks";
+  const shouldLoadCurrentUserData = activePage === "profile" || activePage === "my-tasks" || activePage === "conversations";
   const useRelayTasksRoute = activePage === "tasks" || activePage === "my-tasks";
   const shouldLoadAllTaskData = activePage === "dashboard" || activePage === "profile";
   const shouldLoadTaskPageData = (activePage === "tasks" || activePage === "my-tasks") && !useRelayTasksRoute;
@@ -4406,6 +4531,7 @@ function App() {
     activePage === "secrets"
     || activePage === "mcp-servers";
   const shouldLoadApprovalData = activePage === "approvals";
+  const shouldLoadConversationData = activePage === "conversations";
   const shouldLoadAdminData = activePage === "admin";
   const shouldLoadMcpServerData =
     activePage === "mcp-servers"
@@ -4422,6 +4548,7 @@ function App() {
     && activePage === "external_agents";
   const shouldLoadAgentData =
     activePage === "agents" ||
+    activePage === "conversations" ||
     activePage === "profile" ||
     !appFlags.skipOnboarding;
   const shouldSubscribeAgentRunners =
@@ -5037,6 +5164,59 @@ function App() {
       setIsLoadingQuestions(false);
     }
   }, [selectedCompanyId]);
+
+  const loadConversations = useCallback(async () => {
+    if (!selectedCompanyId) {
+      setConversationError("");
+      setConversations([]);
+      setIsLoadingConversations(false);
+      return [];
+    }
+
+    try {
+      setConversationError("");
+      setIsLoadingConversations(true);
+      const data = await executeGraphQL(LIST_CONVERSATIONS_QUERY, {
+        first: 100,
+      });
+      const nextConversations = Array.isArray(data?.conversations) ? data.conversations : [];
+      setConversations(nextConversations);
+      return nextConversations;
+    } catch (loadError: any) {
+      setConversationError(loadError.message);
+      return [];
+    } finally {
+      setIsLoadingConversations(false);
+    }
+  }, [selectedCompanyId]);
+
+  const loadConversationMessages = useCallback(async (conversationId?: string) => {
+    const normalizedConversationId = String(
+      conversationId || conversationsRoute?.conversationId || "",
+    ).trim();
+    if (!selectedCompanyId || !normalizedConversationId) {
+      setConversationMessages([]);
+      setIsLoadingConversationMessages(false);
+      return [];
+    }
+
+    try {
+      setConversationError("");
+      setIsLoadingConversationMessages(true);
+      const data = await executeGraphQL(LIST_CONVERSATION_MESSAGES_QUERY, {
+        conversationId: normalizedConversationId,
+        first: 100,
+      });
+      const nextMessages = Array.isArray(data?.messages) ? data.messages : [];
+      setConversationMessages(nextMessages);
+      return nextMessages;
+    } catch (loadError: any) {
+      setConversationError(loadError.message);
+      return [];
+    } finally {
+      setIsLoadingConversationMessages(false);
+    }
+  }, [conversationsRoute?.conversationId, selectedCompanyId]);
 
   const loadMcpServers = useCallback(async () => {
     if (!selectedCompanyId) {
@@ -6319,6 +6499,30 @@ function App() {
   }, [loadQuestions, selectedCompanyId]);
 
   useEffect(() => {
+    if (!selectedCompanyId || !shouldLoadConversationData) {
+      return;
+    }
+    void loadConversations();
+  }, [loadConversations, selectedCompanyId, shouldLoadConversationData]);
+
+  useEffect(() => {
+    if (!shouldLoadConversationData) {
+      return;
+    }
+    const normalizedConversationId = String(conversationsRoute?.conversationId || "").trim();
+    if (!selectedCompanyId || !normalizedConversationId) {
+      setConversationMessages([]);
+      return;
+    }
+    void loadConversationMessages(normalizedConversationId);
+  }, [
+    conversationsRoute?.conversationId,
+    loadConversationMessages,
+    selectedCompanyId,
+    shouldLoadConversationData,
+  ]);
+
+  useEffect(() => {
     if (!selectedCompanyId || !shouldLoadAdminData) {
       return;
     }
@@ -6849,6 +7053,7 @@ function App() {
       setQuestionsTab(getQuestionsTabFromPathname());
       setSettingsTab(getSettingsTabFromPathname());
       setActorsRoute(getActorsRouteFromPathname());
+      setConversationsRoute(getConversationsRouteFromLocation());
       setGitSkillPackagesRoute(getGitSkillPackagesRouteFromPathname());
       setRunnersRoute(getRunnersRouteFromPathname());
       setExternalAgentsRoute(getExternalAgentsRouteFromPathname());
@@ -8794,6 +8999,80 @@ function App() {
       setQuestionError(error?.message || "Failed to answer question.");
     } finally {
       setAnsweringQuestionId(null);
+    }
+  }
+
+  async function handleCreateConversation(agentIds: string[]) {
+    const normalizedAgentIds = normalizeUniqueStringList(agentIds || []);
+    if (normalizedAgentIds.length === 0) {
+      setConversationError("Select at least one agent.");
+      return;
+    }
+
+    try {
+      setConversationError("");
+      setIsCreatingConversation(true);
+      const data = await executeGraphQL(CREATE_CONVERSATION_MUTATION, {
+        agentIds: normalizedAgentIds,
+      });
+      const conversation = data?.createConversation;
+      const createdConversationId = resolveLegacyId(conversation?.id);
+      await loadConversations();
+      if (createdConversationId) {
+        setBrowserPath(getConversationsPath({ conversationId: createdConversationId }));
+        await loadConversationMessages(createdConversationId);
+      }
+    } catch (error: any) {
+      setConversationError(error?.message || "Failed to create conversation.");
+    } finally {
+      setIsCreatingConversation(false);
+    }
+  }
+
+  async function handleAddConversationAgents(agentIds: string[]) {
+    const normalizedConversationId = String(conversationsRoute?.conversationId || "").trim();
+    const normalizedAgentIds = normalizeUniqueStringList(agentIds || []);
+    if (!normalizedConversationId || normalizedAgentIds.length === 0) {
+      return;
+    }
+
+    try {
+      setConversationError("");
+      setIsAddingConversationAgents(true);
+      await executeGraphQL(ADD_CONVERSATION_AGENTS_MUTATION, {
+        conversationId: normalizedConversationId,
+        agentIds: normalizedAgentIds,
+      });
+      await loadConversations();
+    } catch (error: any) {
+      setConversationError(error?.message || "Failed to add agents.");
+    } finally {
+      setIsAddingConversationAgents(false);
+    }
+  }
+
+  async function handleSendConversationMessage(text: string) {
+    const normalizedConversationId = String(conversationsRoute?.conversationId || "").trim();
+    const normalizedText = String(text || "").trim();
+    if (!normalizedConversationId || !normalizedText) {
+      return;
+    }
+
+    try {
+      setConversationError("");
+      setIsSendingConversationMessage(true);
+      await executeGraphQL(SEND_CONVERSATION_MESSAGE_MUTATION, {
+        conversationId: normalizedConversationId,
+        text: normalizedText,
+      });
+      await Promise.all([
+        loadConversations(),
+        loadConversationMessages(normalizedConversationId),
+      ]);
+    } catch (error: any) {
+      setConversationError(error?.message || "Failed to send conversation message.");
+    } finally {
+      setIsSendingConversationMessage(false);
     }
   }
 
@@ -11660,6 +11939,26 @@ function App() {
             onAnswerDraftChange={handleQuestionAnswerDraftChange}
             onAnswerQuestion={handleAnswerQuestion}
             onOpenThread={(agentId: string, threadId: string) => navigateToChatsConversation({ agentId, threadId })}
+          />
+        ) : null}
+
+        {selectedCompanyId && activePage === "conversations" ? (
+          <ConversationsPage
+            currentUser={currentUser}
+            agents={agents}
+            conversations={conversations}
+            selectedConversationId={String(conversationsRoute?.conversationId || "").trim()}
+            messages={conversationMessages}
+            isLoadingConversations={isLoadingConversations}
+            isLoadingMessages={isLoadingConversationMessages}
+            isCreatingConversation={isCreatingConversation}
+            isAddingConversationAgents={isAddingConversationAgents}
+            isSendingConversationMessage={isSendingConversationMessage}
+            error={conversationError}
+            onOpenConversation={(conversationId: string) => setBrowserPath(getConversationsPath({ conversationId }))}
+            onCreateConversation={handleCreateConversation}
+            onAddAgents={handleAddConversationAgents}
+            onSendMessage={handleSendConversationMessage}
           />
         ) : null}
 

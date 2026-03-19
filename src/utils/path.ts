@@ -5,6 +5,11 @@ interface ChatsRouteLocationInput {
   search?: string;
 }
 
+interface ConversationsRouteLocationInput {
+  pathname?: string;
+  search?: string;
+}
+
 interface AgentsRouteLocationInput {
   pathname?: string;
   search?: string;
@@ -23,6 +28,10 @@ interface ActorsRouteLocationInput {
 interface ChatsPathInput {
   agentId?: string;
   threadId?: string;
+}
+
+interface ConversationsPathInput {
+  conversationId?: string;
 }
 
 interface ActorPathInput {
@@ -489,6 +498,32 @@ export function getChatsPath({ agentId = "", threadId = "" }: ChatsPathInput = {
   }
   const query = params.toString();
   return query ? `/chats?${query}` : "/chats";
+}
+
+export function getConversationsRouteFromLocation({
+  pathname = window.location.pathname,
+  search = window.location.search,
+}: ConversationsRouteLocationInput = {}): { conversationId: string } {
+  const normalizedPath = normalizePathname(pathname);
+  if (normalizedPath !== "/conversations") {
+    return { conversationId: "" };
+  }
+
+  const params = new URLSearchParams(String(search || ""));
+  return {
+    conversationId: String(params.get("conversationId") || "").trim(),
+  };
+}
+
+export function getConversationsPath({ conversationId = "" }: ConversationsPathInput = {}): string {
+  const params = new URLSearchParams();
+  const resolvedConversationId = String(conversationId || "").trim();
+  if (resolvedConversationId) {
+    params.set("conversationId", resolvedConversationId);
+  }
+
+  const query = params.toString();
+  return query ? `/conversations?${query}` : "/conversations";
 }
 
 export function getAdminRouteFromPathname(pathname: string = window.location.pathname): AdminRoute {

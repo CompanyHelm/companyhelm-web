@@ -37,8 +37,8 @@ test("visible navigation uses the reorganized product-domain sections", () => {
   assert.deepEqual(visibleSections, [
     {
       label: "Workspace",
-      itemIds: ["dashboard", "tasks", "my-tasks", "org", "chats", "questions"],
-      itemHrefs: ["/dashboard", "/tasks", "/my-tasks", "/actors", "/chats", "/questions"],
+      itemIds: ["dashboard", "tasks", "my-tasks", "org", "conversations", "chats", "questions"],
+      itemHrefs: ["/dashboard", "/tasks", "/my-tasks", "/actors", "/conversations", "/chats", "/questions"],
     },
     {
       label: "AI Studio",

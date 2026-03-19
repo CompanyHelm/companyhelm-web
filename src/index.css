@@ -8062,3 +8062,160 @@ button:disabled {
     }
   }
 }
+
+.primary-button,
+.secondary-button {
+  border-radius: 999px;
+  padding: 0.7rem 1rem;
+  font: inherit;
+  cursor: pointer;
+  transition: transform 0.15s ease, opacity 0.15s ease, border-color 0.15s ease;
+}
+
+.primary-button {
+  border: 1px solid transparent;
+  background: #111827;
+  color: #f8fafc;
+}
+
+.secondary-button {
+  border: 1px solid rgba(15, 23, 42, 0.18);
+  background: #fff;
+  color: #0f172a;
+}
+
+.primary-button:disabled,
+.secondary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.conversations-layout {
+  display: grid;
+  grid-template-columns: minmax(17rem, 22rem) minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.conversations-main {
+  display: grid;
+  gap: 1rem;
+}
+
+.conversation-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.conversation-list-item {
+  display: grid;
+  gap: 0.35rem;
+  text-align: left;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 1rem;
+  background: #fff;
+  padding: 0.95rem 1rem;
+}
+
+.conversation-list-item-active {
+  border-color: rgba(17, 24, 39, 0.28);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+}
+
+.conversation-list-title {
+  font-weight: 700;
+}
+
+.conversation-list-preview,
+.conversation-message-meta,
+.conversation-participant-note {
+  color: rgba(15, 23, 42, 0.7);
+}
+
+.conversation-participant-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.conversation-participant-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #312e81;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.conversation-participant-pill-user {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.conversation-message-list,
+.conversation-agent-picker {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.conversation-message-card {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 1rem;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  padding: 0.95rem 1rem;
+}
+
+.conversation-message-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.88rem;
+}
+
+.conversation-message-text {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.conversation-composer-input {
+  width: 100%;
+  min-height: 8rem;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 1rem;
+  padding: 0.9rem 1rem;
+  font: inherit;
+  resize: vertical;
+}
+
+.conversation-modal-body,
+.conversation-composer {
+  display: grid;
+  gap: 1rem;
+}
+
+.conversation-agent-option {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 0.9rem;
+  background: #fff;
+  padding: 0.75rem 0.9rem;
+}
+
+.conversation-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 980px) {
+  .conversations-layout {
+    grid-template-columns: 1fr;
+  }
+}

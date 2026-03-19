@@ -72,6 +72,7 @@ const ROUTABLE_NAV_SECTIONS: NavigationSection[] = [
       { id: "tasks", label: "Tasks", href: "/tasks", requiresCompany: true },
       { id: "my-tasks", label: "My Tasks", href: "/my-tasks", requiresCompany: true },
       { id: "org", label: "Organization", href: "/actors", requiresCompany: true },
+      { id: "conversations", label: "Conversations", href: "/conversations", requiresCompany: true },
       { id: "chats", label: "Chats", href: "/chats", requiresCompany: true },
       { id: "questions", label: "Questions", href: "/questions", requiresCompany: true },
     ],

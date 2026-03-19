@@ -1197,6 +1197,98 @@ export const LIST_AGENT_QUESTIONS_QUERY = `
   }
 `;
 
+const CONVERSATION_PARTICIPANT_FIELDS = `
+  id
+  conversationId
+  actorInstanceId
+  actorId
+  agentId
+  userId
+  threadId
+  displayName
+`;
+
+const CONVERSATION_FIELDS = `
+  id
+  companyId
+  createdAt
+  lastMessageAt
+  latestMessagePreview
+  participants {
+${CONVERSATION_PARTICIPANT_FIELDS}
+  }
+`;
+
+const CONVERSATION_MESSAGE_FIELDS = `
+  id
+  companyId
+  conversationId
+  senderActorInstanceId
+  senderActorId
+  senderAgentId
+  senderUserId
+  text
+  createdAt
+`;
+
+export const LIST_CONVERSATIONS_QUERY = `
+  query ListConversations($first: Int, $after: String) {
+    conversations(first: $first, after: $after) {
+      edges {
+        cursor
+        node {
+${CONVERSATION_FIELDS}
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+`;
+
+export const LIST_CONVERSATION_MESSAGES_QUERY = `
+  query ListConversationMessages($conversationId: ID!, $first: Int, $after: String) {
+    conversationMessages(conversationId: $conversationId, first: $first, after: $after) {
+      edges {
+        cursor
+        node {
+${CONVERSATION_MESSAGE_FIELDS}
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+`;
+
+export const CREATE_CONVERSATION_MUTATION = `
+  mutation CreateConversation($agentIds: [ID!]!) {
+    createConversation(agentIds: $agentIds) {
+${CONVERSATION_FIELDS}
+    }
+  }
+`;
+
+export const ADD_CONVERSATION_AGENTS_MUTATION = `
+  mutation AddConversationAgents($conversationId: ID!, $agentIds: [ID!]!) {
+    addConversationAgents(conversationId: $conversationId, agentIds: $agentIds) {
+${CONVERSATION_FIELDS}
+    }
+  }
+`;
+
+export const SEND_CONVERSATION_MESSAGE_MUTATION = `
+  mutation SendConversationMessage($conversationId: ID!, $text: String!) {
+    sendConversationMessage(conversationId: $conversationId, text: $text) {
+${CONVERSATION_MESSAGE_FIELDS}
+    }
+  }
+`;
+
 export const ANSWER_AGENT_QUESTION_MUTATION = `
   mutation AnswerAgentQuestion($id: String!, $answerText: String, $status: String) {
     answerAgentQuestion(id: $id, answerText: $answerText, status: $status) {
