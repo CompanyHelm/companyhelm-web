@@ -11629,6 +11629,7 @@ function App() {
             onTabChange={(tab: "open" | "completed" | "dismissed") => setBrowserPath(getQuestionsPath({ tab }))}
             onAnswerDraftChange={handleQuestionAnswerDraftChange}
             onAnswerQuestion={handleAnswerQuestion}
+            onOpenThread={(agentId: string, threadId: string) => navigateToChatsConversation({ agentId, threadId })}
           />
         ) : null}
 

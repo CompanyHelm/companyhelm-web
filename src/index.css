@@ -5672,7 +5672,15 @@ button:disabled {
   min-width: 0;
 }
 
+.question-card-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
 .question-card-question {
+  flex: 1 1 auto;
   margin-bottom: 0.45rem;
 }
 
@@ -5775,7 +5783,9 @@ button:disabled {
 
 .question-answer-input-shell {
   display: grid;
-  gap: 0.45rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: 0.5rem;
 }
 
 .question-answer-input {
@@ -5790,17 +5800,19 @@ button:disabled {
   background: rgba(255, 255, 255, 0.94);
 }
 
+.question-answer-submit-btn {
+  align-self: stretch;
+  width: 2.5rem;
+  height: auto;
+  border: 1px solid rgba(26, 32, 38, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.94);
+}
+
 .question-answer-input:focus {
   outline: none;
   border-color: color-mix(in srgb, var(--action) 60%, black);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--action) 18%, transparent);
-}
-
-.question-answer-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.35rem;
-  flex-wrap: wrap;
 }
 
 .question-response-panel {
@@ -5838,6 +5850,15 @@ button:disabled {
 
   .question-card-header {
     gap: 0.5rem;
+  }
+
+  .question-answer-input-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .question-answer-submit-btn {
+    justify-self: end;
+    min-height: 2.5rem;
   }
 }
 

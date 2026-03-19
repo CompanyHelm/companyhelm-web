@@ -22,6 +22,8 @@ function renderQuestionsPageMarkup(overrides: Record<string, unknown> = {}) {
       questions: [
         {
           id: "question-1",
+          agentId: "agent-1",
+          threadId: "thread-1",
           questionText: "How should we roll out this feature?",
           agentName: "Planner Agent",
           threadTitle: "Launch planning",
@@ -52,6 +54,7 @@ function renderQuestionsPageMarkup(overrides: Record<string, unknown> = {}) {
       onTabChange: () => {},
       onAnswerDraftChange: () => {},
       onAnswerQuestion: () => {},
+      onOpenThread: () => {},
       dismissAnswerText: "user didnt' respond to question",
       ...overrides,
     }),
@@ -69,6 +72,7 @@ test("QuestionsPage renders tabs and open-question actions", () => {
   assert.match(markup, />Planner Agent</);
   assert.match(markup, />Launch planning</);
   assert.match(markup, />Status: <span>Open</);
+  assert.match(markup, /Open thread/);
   assert.match(markup, /Send custom answer/);
   assert.match(markup, /Dismiss question/);
   assert.match(markup, /Recommended/);
@@ -143,6 +147,8 @@ test("QuestionsPage does not show the empty state when loading failed", () => {
 test("QuestionsPage sends canned responses directly from option and dismiss buttons", () => {
   assert.match(questionsPageSource, /onClick=\{\(\) => onAnswerQuestion\(question\.id, option\.text \|\| "", "completed"\)\}/);
   assert.match(questionsPageSource, /onClick=\{\(\) => onAnswerQuestion\(question\.id, dismissAnswerText, "dismissed"\)\}/);
+  assert.match(questionsPageSource, /onClick=\{\(\) => onOpenThread\(agentId, threadId\)\}/);
+  assert.match(questionsPageSource, /className="chat-card-icon-btn question-answer-submit-btn"/);
 });
 
 test("App supports tab deep links and status-aware question responses", () => {
@@ -152,5 +158,6 @@ test("App supports tab deep links and status-aware question responses", () => {
   assert.match(appSource, /const answerText = String\(\(answerOverride \?\? answerDraftByQuestionId\?\.\[normalizedQuestionId\]\) \|\| ""\)\.trim\(\);/);
   assert.match(appSource, /const normalizedStatus = String\(status \|\| "completed"\)\.trim\(\)\.toLowerCase\(\);/);
   assert.match(appSource, /status: normalizedStatus,/);
+  assert.match(appSource, /onOpenThread=\{\(agentId: string, threadId: string\) => navigateToChatsConversation\(\{ agentId, threadId \}\)\}/);
   assert.doesNotMatch(appSource, /LIST_AGENT_QUESTIONS_QUERY,\s*\{\s*companyId: selectedCompanyId,\s*status: "open"/);
 });

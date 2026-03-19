@@ -52,6 +52,16 @@ function CloseIcon() {
   );
 }
 
+function ChatIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M7 18.5 3.5 21v-4.5A7.5 7.5 0 0 1 11 9h5a4.5 4.5 0 0 1 0 9H7z" />
+      <path d="M8 13h8" />
+      <path d="M8 16h5" />
+    </svg>
+  );
+}
+
 function getQuestionTabLabel(tabId: string = "") {
   return QUESTION_TABS.find((tab) => tab.id === tabId)?.label || "Open";
 }
@@ -68,6 +78,7 @@ export function QuestionsPage({
   onTabChange,
   onAnswerDraftChange,
   onAnswerQuestion,
+  onOpenThread,
 }: any) {
   const pageActions = useMemo(() => (
     <span className="chat-card-meta">{questionCountLabel}</span>
@@ -113,14 +124,29 @@ export function QuestionsPage({
               const isOpen = resolvedStatus === "open";
               const answerText = String(question?.answerText || "").trim();
               const responseLabel = resolvedStatus === "dismissed" ? "Dismiss reason" : "Answer";
+              const threadId = String(question?.threadId || "").trim();
+              const agentId = String(question?.agentId || "").trim();
 
               return (
                 <li key={question.id} className="chat-card question-card">
                   <div className="question-card-header">
                     <div className="chat-card-main question-card-main">
-                      <p className="chat-card-title question-card-question">
-                        <strong>{trimmedQuestionText}</strong>
-                      </p>
+                      <div className="question-card-title-row">
+                        <p className="chat-card-title question-card-question">
+                          <strong>{trimmedQuestionText}</strong>
+                        </p>
+                        {threadId ? (
+                          <button
+                            type="button"
+                            className="chat-card-icon-btn"
+                            onClick={() => onOpenThread(agentId, threadId)}
+                            aria-label="Open thread"
+                            title="Open thread"
+                          >
+                            <ChatIcon />
+                          </button>
+                        ) : null}
+                      </div>
                       <p className="chat-card-meta">Agent: <span>{question?.agentName || "Unknown agent"}</span></p>
                       <p className="chat-card-meta">Thread: <span>{question?.threadTitle || "Untitled thread"}</span></p>
                       <p className="chat-card-meta">Status: <span>{getQuestionTabLabel(resolvedStatus)}</span></p>
@@ -185,26 +211,24 @@ export function QuestionsPage({
 
                         <div className="question-answer-form">
                           <div className="question-answer-input-shell">
-                        <textarea
-                          className="question-answer-input"
-                          value={answerDraft}
-                          onChange={(event: any) => onAnswerDraftChange(question.id, event.target.value)}
-                          placeholder="Write the answer to send back to the agent."
+                            <textarea
+                              className="question-answer-input"
+                              value={answerDraft}
+                              onChange={(event: any) => onAnswerDraftChange(question.id, event.target.value)}
+                              placeholder="Write the answer to send back to the agent."
                               disabled={isAnswering}
                               rows={4}
                             />
-                            <div className="question-answer-actions">
-                              <button
-                                type="button"
-                                className="chat-card-icon-btn"
-                                onClick={() => onAnswerQuestion(question.id, null, "completed")}
-                                disabled={isAnswering || !String(answerDraft || "").trim()}
-                                aria-label={isAnswering ? "Sending answer..." : "Send custom answer"}
-                                title={isAnswering ? "Sending answer..." : "Send custom answer"}
-                              >
-                                <SendIcon />
-                              </button>
-                            </div>
+                            <button
+                              type="button"
+                              className="chat-card-icon-btn question-answer-submit-btn"
+                              onClick={() => onAnswerQuestion(question.id, null, "completed")}
+                              disabled={isAnswering || !String(answerDraft || "").trim()}
+                              aria-label={isAnswering ? "Sending answer..." : "Send custom answer"}
+                              title={isAnswering ? "Sending answer..." : "Send custom answer"}
+                            >
+                              <SendIcon />
+                            </button>
                           </div>
                         </div>
                       </>
