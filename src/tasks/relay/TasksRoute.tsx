@@ -19,16 +19,6 @@ const {
   useRelayEnvironment,
 } = ReactRelay as any;
 
-const tokenUsageFields = graphql`
-  fragment TasksRoute_tokenUsage on TokenUsageBreakdown {
-    inputTokens
-    cachedInputTokens
-    outputTokens
-    reasoningOutputTokens
-    totalTokens
-  }
-`;
-
 const tasksRouteTaskFragment = graphql`
   fragment TasksRoute_task on Task @relay(plural: true) {
     id
@@ -68,7 +58,11 @@ const tasksRouteTaskFragment = graphql`
       createdAt
       updatedAt
       tokenUsage {
-        ...TasksRoute_tokenUsage
+        inputTokens
+        cachedInputTokens
+        outputTokens
+        reasoningOutputTokens
+        totalTokens
       }
     }
     activeRun {
@@ -84,7 +78,11 @@ const tasksRouteTaskFragment = graphql`
       createdAt
       updatedAt
       tokenUsage {
-        ...TasksRoute_tokenUsage
+        inputTokens
+        cachedInputTokens
+        outputTokens
+        reasoningOutputTokens
+        totalTokens
       }
     }
     runningThreadId
@@ -101,14 +99,26 @@ const tasksRouteTaskFragment = graphql`
       createdAt
       updatedAt
       tokenUsage {
-        ...TasksRoute_tokenUsage
+        inputTokens
+        cachedInputTokens
+        outputTokens
+        reasoningOutputTokens
+        totalTokens
       }
     }
     tokenUsage {
-      ...TasksRoute_tokenUsage
+      inputTokens
+      cachedInputTokens
+      outputTokens
+      reasoningOutputTokens
+      totalTokens
     }
     aggregateTokenUsage {
-      ...TasksRoute_tokenUsage
+      inputTokens
+      cachedInputTokens
+      outputTokens
+      reasoningOutputTokens
+      totalTokens
     }
     dependencyTaskIds
     comments {

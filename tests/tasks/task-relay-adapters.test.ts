@@ -4,6 +4,7 @@ import {
   toTaskRouteViewModel,
   shouldRefetchTaskRoute,
 } from "../../src/tasks/relay/adapters.ts";
+import tasksRouteTaskFragment from "../../src/tasks/relay/__generated__/TasksRoute_task.graphql.ts";
 
 test("toTaskRouteViewModel adapts Relay task route data into legacy TasksPage props", () => {
   const viewModel = toTaskRouteViewModel({
@@ -158,6 +159,23 @@ test("toTaskRouteViewModel adapts Relay task route data into legacy TasksPage pr
   assert.equal(viewModel.taskOptions[1]?.parentTaskId, "task-1");
   assert.equal(viewModel.actors[0]?.email, "jane@example.com");
   assert.equal(viewModel.agents[0]?.name, "Build Agent");
+});
+
+test("TasksRoute task fragment reads token usage scalars directly", () => {
+  const topLevelTokenUsageField = (tasksRouteTaskFragment as any).selections.find(
+    (selection: any) => selection?.name === "tokenUsage",
+  );
+  const latestRunTokenUsageField = (tasksRouteTaskFragment as any).selections
+    .find((selection: any) => selection?.name === "latestRun")
+    ?.selections?.find((selection: any) => selection?.name === "tokenUsage");
+
+  for (const field of [topLevelTokenUsageField, latestRunTokenUsageField]) {
+    assert.ok(field);
+    assert.deepEqual(
+      field.selections.map((selection: any) => selection.name),
+      ["inputTokens", "cachedInputTokens", "outputTokens", "reasoningOutputTokens", "totalTokens"],
+    );
+  }
 });
 
 test("shouldRefetchTaskRoute returns true for membership-changing task updates", () => {

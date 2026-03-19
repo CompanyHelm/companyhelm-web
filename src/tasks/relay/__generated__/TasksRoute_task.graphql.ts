@@ -26,13 +26,21 @@ export type TasksRoute_task$data = ReadonlyArray<{
     readonly taskId: string;
     readonly threadId: string | null | undefined;
     readonly tokenUsage: {
-      readonly " $fragmentSpreads": FragmentRefs<"TasksRoute_tokenUsage">;
+      readonly cachedInputTokens: number | null | undefined;
+      readonly inputTokens: number | null | undefined;
+      readonly outputTokens: number | null | undefined;
+      readonly reasoningOutputTokens: number | null | undefined;
+      readonly totalTokens: number | null | undefined;
     };
     readonly triggeredByActorId: string | null | undefined;
     readonly updatedAt: string;
   } | null | undefined;
   readonly aggregateTokenUsage: {
-    readonly " $fragmentSpreads": FragmentRefs<"TasksRoute_tokenUsage">;
+    readonly cachedInputTokens: number | null | undefined;
+    readonly inputTokens: number | null | undefined;
+    readonly outputTokens: number | null | undefined;
+    readonly reasoningOutputTokens: number | null | undefined;
+    readonly totalTokens: number | null | undefined;
   };
   readonly assigneeActor: {
     readonly agentId: string | null | undefined;
@@ -81,7 +89,11 @@ export type TasksRoute_task$data = ReadonlyArray<{
     readonly taskId: string;
     readonly threadId: string | null | undefined;
     readonly tokenUsage: {
-      readonly " $fragmentSpreads": FragmentRefs<"TasksRoute_tokenUsage">;
+      readonly cachedInputTokens: number | null | undefined;
+      readonly inputTokens: number | null | undefined;
+      readonly outputTokens: number | null | undefined;
+      readonly reasoningOutputTokens: number | null | undefined;
+      readonly totalTokens: number | null | undefined;
     };
     readonly triggeredByActorId: string | null | undefined;
     readonly updatedAt: string;
@@ -100,14 +112,22 @@ export type TasksRoute_task$data = ReadonlyArray<{
     readonly taskId: string;
     readonly threadId: string | null | undefined;
     readonly tokenUsage: {
-      readonly " $fragmentSpreads": FragmentRefs<"TasksRoute_tokenUsage">;
+      readonly cachedInputTokens: number | null | undefined;
+      readonly inputTokens: number | null | undefined;
+      readonly outputTokens: number | null | undefined;
+      readonly reasoningOutputTokens: number | null | undefined;
+      readonly totalTokens: number | null | undefined;
     };
     readonly triggeredByActorId: string | null | undefined;
     readonly updatedAt: string;
   }>;
   readonly status: TaskStatus;
   readonly tokenUsage: {
-    readonly " $fragmentSpreads": FragmentRefs<"TasksRoute_tokenUsage">;
+    readonly cachedInputTokens: number | null | undefined;
+    readonly inputTokens: number | null | undefined;
+    readonly outputTokens: number | null | undefined;
+    readonly reasoningOutputTokens: number | null | undefined;
+    readonly totalTokens: number | null | undefined;
   };
   readonly updatedAt: string;
   readonly " $fragmentType": "TasksRoute_task";
@@ -194,9 +214,39 @@ v6 = {
 },
 v7 = [
   {
+    "alias": null,
     "args": null,
-    "kind": "FragmentSpread",
-    "name": "TasksRoute_tokenUsage"
+    "kind": "ScalarField",
+    "name": "inputTokens",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "cachedInputTokens",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "outputTokens",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "reasoningOutputTokens",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "totalTokens",
+    "storageKey": null
   }
 ],
 v8 = {
