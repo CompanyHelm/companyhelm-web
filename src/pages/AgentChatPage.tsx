@@ -172,20 +172,81 @@ function formatTokenCount(value: any) {
   return normalizedValue === null ? "N/A" : String(normalizedValue);
 }
 
-function buildContextUsageTooltip(session: any) {
-  const contextUsage = session?.contextUsage || {};
-  const used = normalizeTokenCount(contextUsage.totalTokens);
-  const max = normalizeTokenCount(session?.modelContextWindow);
-  const remaining = used === null || max === null ? null : Math.max(0, max - used);
-  return [
-    `Used: ${formatTokenCount(used)}`,
-    `Max: ${formatTokenCount(max)}`,
-    `Remaining: ${remaining === null ? "N/A" : remaining}`,
-    `Input: ${formatTokenCount(contextUsage.inputTokens)}`,
-    `Cached input: ${formatTokenCount(contextUsage.cachedInputTokens)}`,
-    `Output: ${formatTokenCount(contextUsage.outputTokens)}`,
-    `Reasoning: ${formatTokenCount(contextUsage.reasoningOutputTokens)}`,
-  ].join("\n");
+function formatCompactTokenCount(value: any) {
+  const normalizedValue = normalizeTokenCount(value);
+  if (normalizedValue === null) {
+    return "N/A";
+  }
+  if (normalizedValue < 1000) {
+    return String(normalizedValue);
+  }
+
+  const compactUnits = [
+    { threshold: 1_000_000_000, suffix: "B" },
+    { threshold: 1_000_000, suffix: "M" },
+    { threshold: 1_000, suffix: "k" },
+  ];
+  const matchedUnit = compactUnits.find((unit) => normalizedValue >= unit.threshold);
+  if (!matchedUnit) {
+    return String(normalizedValue);
+  }
+
+  const compactValue = normalizedValue / matchedUnit.threshold;
+  const formattedValue = compactValue >= 100 ? compactValue.toFixed(0) : compactValue.toFixed(1);
+  return `${formattedValue.replace(/\.0$/, "")}${matchedUnit.suffix}`;
+}
+
+function getUsageBadgeFillRatio(used: any, max: any, tokenTotal: any) {
+  const normalizedUsed = normalizeTokenCount(used);
+  const normalizedMax = normalizeTokenCount(max);
+  const normalizedTokenTotal = normalizeTokenCount(tokenTotal);
+  if (normalizedUsed !== null && normalizedMax !== null && normalizedMax > 0) {
+    return Math.max(0, Math.min(1, normalizedUsed / normalizedMax));
+  }
+  return normalizedTokenTotal !== null ? 1 : 0;
+}
+
+function buildUsageBadgeLines({
+  used,
+  max,
+  tokenTotal,
+  includeContext = true,
+}: any) {
+  const lines = [];
+  if (includeContext && (used !== null || max !== null)) {
+    lines.push(`${formatCompactTokenCount(used)}/${formatCompactTokenCount(max)} context`);
+  }
+  if (tokenTotal !== null || !includeContext) {
+    lines.push(`Tokens used ${formatCompactTokenCount(tokenTotal)}`);
+  }
+  return lines;
+}
+
+function UsageCircleBadge({
+  used = null,
+  max = null,
+  tokenTotal = null,
+  includeContext = true,
+  className = "",
+}: any) {
+  const tooltipLines = buildUsageBadgeLines({ used, max, tokenTotal, includeContext });
+  const ariaLabel = tooltipLines.join(". ");
+  const fillRatio = getUsageBadgeFillRatio(used, max, tokenTotal);
+  const badgeClassName = className ? `chat-usage-badge ${className}` : "chat-usage-badge";
+  if (tooltipLines.length === 0) {
+    return null;
+  }
+
+  return (
+    <span className={badgeClassName} aria-label={ariaLabel}>
+      <span className="chat-usage-badge-fill" style={{ transform: `scaleY(${fillRatio})` }} />
+      <span className="chat-usage-badge-tooltip" role="tooltip">
+        {tooltipLines.map((line) => (
+          <span key={line}>{line}</span>
+        ))}
+      </span>
+    </span>
+  );
 }
 
 function normalizeChatListStatusFilter(value: any) {
@@ -281,27 +342,6 @@ function SidebarChatSessionItem({
           <p className="chat-card-title chat-sidebar-chat-title">
             <strong>{session?.title || "Untitled chat"}</strong>
           </p>
-          {(normalizeTokenCount(session?.modelContextWindow) ?? 0) > 0 ? (
-            <span
-              className="chat-context-meter"
-              aria-label={`Context ${formatTokenCount(session?.contextUsage?.totalTokens)} / ${formatTokenCount(session?.modelContextWindow)}`}
-              title={buildContextUsageTooltip(session)}
-            >
-              <span
-                className="chat-context-meter-fill"
-                style={{
-                  transform: `scaleY(${Math.max(
-                    0,
-                    Math.min(
-                      1,
-                      (normalizeTokenCount(session?.contextUsage?.totalTokens) ?? 0)
-                        / Math.max(1, normalizeTokenCount(session?.modelContextWindow) ?? 0),
-                    ),
-                  )})`,
-                }}
-              />
-            </span>
-          ) : null}
           {statusBadge ? <div className="chat-card-status">{statusBadge}</div> : null}
         </div>
         {isArchivedSession || isArchivingSession ? (
@@ -539,14 +579,8 @@ export function AgentChatPage({
   const sessionTokenTotal = normalizeTokenCount(session?.tokenUsage?.totalTokens);
   const sessionContextTotal = normalizeTokenCount(session?.contextUsage?.totalTokens);
   const sessionContextWindow = normalizeTokenCount(session?.modelContextWindow);
-  const showSessionUsageSummary = Boolean(
-    session
-    && (
-      session?.tokenUsage !== undefined
-      || session?.contextUsage !== undefined
-      || session?.modelContextWindow !== undefined
-    ),
-  );
+  const showSessionUsageSummary =
+    sessionTokenTotal !== null || sessionContextTotal !== null || sessionContextWindow !== null;
 
   const isMobileViewport = useMemo(() => matchesMediaQuery(MOBILE_MEDIA_QUERY), []);
   const pageActionVisibility = useMemo(
@@ -1206,12 +1240,6 @@ export function AgentChatPage({
         {isSessionPending ? (
           <p className="empty-hint">Thread is pending. Messages sent now will queue until it is ready.</p>
         ) : null}
-        {showSessionUsageSummary ? (
-          <div className="chat-thread-usage-summary">
-            <span className="chat-thread-usage-text">Tokens {formatTokenCount(sessionTokenTotal)}</span>
-            <span className="chat-thread-usage-text">Context {formatTokenCount(sessionContextTotal)} / {formatTokenCount(sessionContextWindow)}</span>
-          </div>
-        ) : null}
         {hasRouteNotFoundMessage ? <p className="empty-hint">{normalizedRouteNotFoundMessage}</p> : null}
         {!hasRouteNotFoundMessage && !agent ? <p className="empty-hint">Agent not found.</p> : null}
         {!hasRouteNotFoundMessage && agent && !session && hasKnownChatsForAgent ? (
@@ -1287,7 +1315,11 @@ export function AgentChatPage({
                           />
                         ) : null}
                         {turn?.tokenUsage?.totalTokens !== undefined ? (
-                          <span className="chat-turn-token-usage">Tokens {formatTokenCount(turn?.tokenUsage?.totalTokens)}</span>
+                          <UsageCircleBadge
+                            className="chat-turn-token-usage"
+                            tokenTotal={turn?.tokenUsage?.totalTokens}
+                            includeContext={false}
+                          />
                         ) : null}
                         <span>{formatTimestamp(turn.createdAt)}</span>
                       </div>
@@ -1846,29 +1878,47 @@ export function AgentChatPage({
                     >
                       <span className="chat-stop-icon" aria-hidden="true" />
                     </button>
+                    {showSessionUsageSummary ? (
+                      <UsageCircleBadge
+                        className="chat-composer-usage-badge"
+                        used={sessionContextTotal}
+                        max={sessionContextWindow}
+                        tokenTotal={sessionTokenTotal}
+                      />
+                    ) : null}
                   </>
                 ) : (
-                  <button
-                    type="submit"
-                    className="chat-composer-send-btn"
-                    disabled={!canSendMessages || !chatDraftMessage.trim() || isSendingChatMessage || isInterruptingChatTurn}
-                    aria-label={isSendingChatMessage ? "Sending message..." : "Send message"}
-                    title={isSendingChatMessage ? "Sending message..." : "Send message"}
-                  >
-                    {isSendingChatMessage ? (
-                      <span className="chat-turn-spinner chat-item-spinner" aria-hidden="true" />
-                    ) : (
-                      <svg
-                        className="chat-composer-send-icon"
-                        viewBox="0 0 24 24"
-                        aria-hidden="true"
-                        focusable="false"
-                      >
-                        <path d="M3 11 21 3 13 21 11 13 3 11z" />
-                        <path d="m11 13 10-10" />
-                      </svg>
-                    )}
-                  </button>
+                  <>
+                    {showSessionUsageSummary ? (
+                      <UsageCircleBadge
+                        className="chat-composer-usage-badge"
+                        used={sessionContextTotal}
+                        max={sessionContextWindow}
+                        tokenTotal={sessionTokenTotal}
+                      />
+                    ) : null}
+                    <button
+                      type="submit"
+                      className="chat-composer-send-btn"
+                      disabled={!canSendMessages || !chatDraftMessage.trim() || isSendingChatMessage || isInterruptingChatTurn}
+                      aria-label={isSendingChatMessage ? "Sending message..." : "Send message"}
+                      title={isSendingChatMessage ? "Sending message..." : "Send message"}
+                    >
+                      {isSendingChatMessage ? (
+                        <span className="chat-turn-spinner chat-item-spinner" aria-hidden="true" />
+                      ) : (
+                        <svg
+                          className="chat-composer-send-icon"
+                          viewBox="0 0 24 24"
+                          aria-hidden="true"
+                          focusable="false"
+                        >
+                          <path d="M3 11 21 3 13 21 11 13 3 11z" />
+                          <path d="m11 13 10-10" />
+                        </svg>
+                      )}
+                    </button>
+                  </>
                 )}
               </div>
             </div>

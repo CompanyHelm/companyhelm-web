@@ -158,7 +158,7 @@ test("AgentChatPage shows pending thread copy while the thread is still provisio
   assert.match(markup, /pending/);
 });
 
-test("AgentChatPage shows thread token and context summaries plus per-turn token usage", () => {
+test("AgentChatPage renders compact usage badge hover copy for thread and turn usage", () => {
   const markup = renderAgentChatPageMarkup({
     session: {
       id: "thread-usage",
@@ -214,12 +214,14 @@ test("AgentChatPage shows thread token and context summaries plus per-turn token
     ],
   });
 
-  assert.match(markup, /Tokens 900/);
-  assert.match(markup, /Context 385 \/ 200000/);
-  assert.match(markup, /Tokens 180/);
+  assert.match(markup, /chat-composer-usage-badge/);
+  assert.doesNotMatch(markup, /chat-context-meter/);
+  assert.match(markup, /385\/200k context/);
+  assert.match(markup, /Tokens used 900/);
+  assert.match(markup, /Tokens used 180/);
 });
 
-test("AgentChatPage shows N\\/A for unknown token usage values", () => {
+test("AgentChatPage shows N\\/A for turn usage when token totals are unknown", () => {
   const markup = renderAgentChatPageMarkup({
     session: {
       id: "thread-usage-na",
@@ -246,8 +248,7 @@ test("AgentChatPage shows N\\/A for unknown token usage values", () => {
     ],
   });
 
-  assert.match(markup, /Tokens N\/A/);
-  assert.match(markup, /Context N\/A \/ N\/A/);
+  assert.match(markup, /Tokens used N\/A/);
 });
 
 test("AgentChatPage shows archived chats as read-only and hides the composer", () => {
