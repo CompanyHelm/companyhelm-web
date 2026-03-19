@@ -7,6 +7,7 @@ import { ChatSessionRunningBadge } from "../components/ChatSessionRunningBadge.t
 import { ThreadTaskSummary } from "../components/ThreadTaskSummary.tsx";
 import { isChatSessionRunning } from "../utils/chat.ts";
 import { ArchivedChatSelection } from "../utils/archivedChatSelection.ts";
+import { resolveAgentApiDocsUrl } from "../utils/agent-api.ts";
 import { formatRunnerLabel, formatTimestamp } from "../utils/formatting.ts";
 import { normalizeUniqueStringList } from "../utils/normalization.ts";
 
@@ -379,6 +380,7 @@ export function AgentChatsPage({
     () => visibleArchivedChats.map((session: any) => ArchivedChatSelection.getKey(session.agentId, session.sessionId)),
     [visibleArchivedChats],
   );
+  const agentApiDocsUrl = useMemo(() => resolveAgentApiDocsUrl(), []);
   const archivedSelectionSummary = useMemo(
     () => ArchivedChatSelection.getSummary(selectedArchivedChatKeys, visibleArchivedChatKeys),
     [selectedArchivedChatKeys, visibleArchivedChatKeys],
@@ -668,7 +670,7 @@ export function AgentChatsPage({
                   <span className="agent-detail-hero-runner-value">{agentSummary.assignedRunnerLabel}</span>
                 </div>
 
-                <div className="role-detail-stats">
+                <div className="role-detail-stats agent-detail-overview-stats">
                   <div className="role-detail-stat">
                     <p className="role-detail-stat-value">{agentSummary.modelLabel}</p>
                     <p className="role-detail-stat-label">Model</p>
@@ -684,6 +686,27 @@ export function AgentChatsPage({
                   <div className="role-detail-stat">
                     <p className="role-detail-stat-value">{agentSummary.chatCount}</p>
                     <p className="role-detail-stat-label">Chats</p>
+                  </div>
+                  <div className="role-detail-stat role-detail-stat-action">
+                    <div className="agent-detail-api-card-copy">
+                      <p className="role-detail-stat-value">API</p>
+                      <p className="role-detail-stat-label">Swagger docs</p>
+                      <p className="agent-detail-api-card-hint">
+                        Inspect endpoints, auth, and schemas in Swagger UI.
+                      </p>
+                    </div>
+                    <a
+                      className="agent-detail-api-link"
+                      href={agentApiDocsUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Open Swagger UI
+                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path d="M7 17L17 7" />
+                        <path d="M9 7h8v8" />
+                      </svg>
+                    </a>
                   </div>
                 </div>
               </section>

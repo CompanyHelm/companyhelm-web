@@ -132,6 +132,10 @@ test("AgentChatsPage overview renders inline editor and assignment sections", ()
   assert.match(markup, />Effective Skills</);
   assert.match(markup, />Effective MCP Servers</);
   assert.match(markup, />Configuration</);
+  assert.match(markup, />API</);
+  assert.match(markup, />Swagger docs</);
+  assert.match(markup, /href="[^"]*\/agent\/v1\/docs"/);
+  assert.match(markup, />Open Swagger UI</);
   assert.match(markup, />Save agent</);
   assert.doesNotMatch(markup, /Back to agents/);
 });
