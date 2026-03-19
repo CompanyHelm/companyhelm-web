@@ -282,6 +282,8 @@ import {
   getActorPath,
   getOrgPath,
   getTaskPath,
+  getQuestionsPath,
+  getQuestionsTabFromPathname,
   getSettingsPath,
   getSettingsTabFromPathname,
   getSkillsRouteFromPathname,
@@ -387,7 +389,7 @@ import { ActorPage } from "./pages/ActorPage.tsx";
 // --- Module-level mutable state (shared by adapter functions and executeGraphQL) ---
 const companyApiThreadMetadataById = new Map<any, any>();
 const companyApiRunnerMetadataById = new Map<any, any>();
-const DISMISSED_QUESTION_ANSWER = "user didnt' respond to question";
+const DISMISSED_QUESTION_ANSWER = "User did not respond to the question.";
 
 export function shouldSuppressChatsRouteMissingAgentWarning({
   activePage,
@@ -2833,7 +2835,7 @@ async function executeGraphQL(query: any, variables: any = {}) {
   if (query === LIST_AGENT_QUESTIONS_QUERY) {
     const requestedStatus = resolveLegacyId(variables?.status).toLowerCase();
     const normalizedStatus =
-      requestedStatus === "open" || requestedStatus === "completed" || requestedStatus === "cancelled"
+      requestedStatus === "open" || requestedStatus === "completed" || requestedStatus === "dismissed"
         ? requestedStatus
         : null;
     const data = await executeRawGraphQL(COMPANY_API_LIST_AGENT_QUESTIONS_QUERY, {
@@ -3365,6 +3367,7 @@ async function executeGraphQL(query: any, variables: any = {}) {
       companyId: resolveLegacyId(variables?.companyId),
       id: resolveLegacyId(variables?.id),
       answerText: String(variables?.answerText || ""),
+      status: resolveLegacyId(variables?.status) || "completed",
     });
     const payload = data?.answerAgentQuestion;
     return {
@@ -3441,6 +3444,7 @@ function App() {
   const [skillsRoute, setSkillsRoute] = useState<any>(() => getSkillsRouteFromPathname());
   const [rolesRoute, setRolesRoute] = useState<any>(() => getRolesRouteFromPathname());
   const [tasksRoute, setTasksRoute] = useState<any>(() => getTasksRouteFromPathname());
+  const [questionsTab, setQuestionsTab] = useState<any>(() => getQuestionsTabFromPathname());
   const [settingsTab, setSettingsTab] = useState<any>(() => getSettingsTabFromPathname());
   const [actorsRoute, setActorsRoute] = useState<any>(() => getActorsRouteFromPathname());
   const [gitSkillPackagesRoute, setGitSkillPackagesRoute] = useState<any>(
@@ -4996,7 +5000,6 @@ function App() {
       setIsLoadingQuestions(true);
       const data = await executeGraphQL(LIST_AGENT_QUESTIONS_QUERY, {
         companyId: selectedCompanyId,
-        status: "open",
         first: 200,
       });
       const nextQuestions = Array.isArray(data?.agentQuestions) ? data.agentQuestions : [];
@@ -6826,6 +6829,7 @@ function App() {
       setSkillsRoute(getSkillsRouteFromPathname());
       setRolesRoute(getRolesRouteFromPathname());
       setTasksRoute(getTasksRouteFromPathname());
+      setQuestionsTab(getQuestionsTabFromPathname());
       setSettingsTab(getSettingsTabFromPathname());
       setActorsRoute(getActorsRouteFromPathname());
       setGitSkillPackagesRoute(getGitSkillPackagesRouteFromPathname());
@@ -8732,13 +8736,14 @@ function App() {
     }));
   }
 
-  async function handleAnswerQuestion(questionId: any, answerOverride: any = null) {
+  async function handleAnswerQuestion(questionId: any, answerOverride: any = null, status: any = "completed") {
     const normalizedQuestionId = String(questionId || "").trim();
     if (!selectedCompanyId || !normalizedQuestionId) {
       return;
     }
 
     const answerText = String((answerOverride ?? answerDraftByQuestionId?.[normalizedQuestionId]) || "").trim();
+    const normalizedStatus = String(status || "completed").trim().toLowerCase();
     if (!answerText) {
       setQuestionError("Answer text is required.");
       return;
@@ -8751,6 +8756,7 @@ function App() {
         companyId: selectedCompanyId,
         id: normalizedQuestionId,
         answerText,
+        status: normalizedStatus,
       });
       const payload = data?.answerAgentQuestion;
       if (!payload?.ok) {
@@ -11125,17 +11131,41 @@ function App() {
     return `${approvals.length} approvals`;
   }, [approvals.length]);
 
-  const questionCountLabel = useMemo(() => {
-    if (questions.length === 0) {
-      return "No open questions";
-    }
-    if (questions.length === 1) {
-      return "1 open question";
-    }
-    return `${questions.length} open questions`;
-  }, [questions.length]);
+  const questionsByStatus = useMemo(() => {
+    const groupedQuestions = {
+      open: [],
+      completed: [],
+      dismissed: [],
+    } as Record<"open" | "completed" | "dismissed", any[]>;
 
-  const openQuestionCount = questions.length;
+    questions.forEach((question: any) => {
+      const normalizedStatus = String(question?.status || "").trim().toLowerCase();
+      if (normalizedStatus === "completed" || normalizedStatus === "dismissed") {
+        groupedQuestions[normalizedStatus].push(question);
+        return;
+      }
+      groupedQuestions.open.push(question);
+    });
+
+    return groupedQuestions;
+  }, [questions]);
+
+  const visibleQuestions = useMemo(
+    () => questionsByStatus[questionsTab] || [],
+    [questionsByStatus, questionsTab],
+  );
+
+  const questionCountLabel = useMemo(() => {
+    if (visibleQuestions.length === 0) {
+      return `No ${questionsTab} questions`;
+    }
+    if (visibleQuestions.length === 1) {
+      return `1 ${questionsTab} question`;
+    }
+    return `${visibleQuestions.length} ${questionsTab} questions`;
+  }, [questionsTab, visibleQuestions.length]);
+
+  const openQuestionCount = questionsByStatus.open.length;
 
   const runnerCountLabel = useMemo(() => {
     if (agentRunners.length === 0) {
@@ -11588,13 +11618,15 @@ function App() {
 
         {selectedCompanyId && activePage === "questions" ? (
           <QuestionsPage
-            questions={questions}
+            activeTab={questionsTab}
+            questions={visibleQuestions}
             isLoadingQuestions={isLoadingQuestions}
             questionError={questionError}
             answeringQuestionId={answeringQuestionId}
             answerDraftByQuestionId={answerDraftByQuestionId}
             questionCountLabel={questionCountLabel}
             dismissAnswerText={DISMISSED_QUESTION_ANSWER}
+            onTabChange={(tab: "open" | "completed" | "dismissed") => setBrowserPath(getQuestionsPath({ tab }))}
             onAnswerDraftChange={handleQuestionAnswerDraftChange}
             onAnswerQuestion={handleAnswerQuestion}
           />

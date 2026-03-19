@@ -141,8 +141,8 @@ type AgentQuestionOption {
 }
 
 enum AgentQuestionStatus {
-  cancelled
   completed
+  dismissed
   open
 }
 
@@ -486,7 +486,7 @@ type Mutation {
   addSkillToRole(roleId: ID!, skillId: ID!): RoleMutationPayload!
   addSkillToSkillGroup(skillGroupId: ID!, skillId: ID!): SkillGroupMutationPayload!
   addTaskDependency(dependencyTaskId: ID!, taskId: ID!): TaskMutationPayload!
-  answerAgentQuestion(answerText: String!, id: ID!): AgentQuestionMutationPayload!
+  answerAgentQuestion(answerText: String!, id: ID!, status: AgentQuestionStatus): AgentQuestionMutationPayload!
   approveApproval(id: ID!): ApprovalMutationPayload!
   archiveThread(threadId: ID!): Thread!
   batchDeleteTasks(ids: [ID!]!): BatchDeleteTasksPayload!

@@ -1750,13 +1750,13 @@
         "interfaces": null,
         "enumValues": [
           {
-            "name": "cancelled",
+            "name": "completed",
             "description": null,
             "isDeprecated": false,
             "deprecationReason": null
           },
           {
-            "name": "completed",
+            "name": "dismissed",
             "description": null,
             "isDeprecated": false,
             "deprecationReason": null
@@ -5307,6 +5307,18 @@
                     "name": "ID",
                     "ofType": null
                   }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "status",
+                "description": null,
+                "type": {
+                  "kind": "ENUM",
+                  "name": "AgentQuestionStatus",
+                  "ofType": null
                 },
                 "defaultValue": null,
                 "isDeprecated": false,

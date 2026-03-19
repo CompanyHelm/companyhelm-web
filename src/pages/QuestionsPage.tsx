@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { Page } from "../components/Page.tsx";
 import { useSetPageActions } from "../components/PageActionsContext.tsx";
 
@@ -28,6 +28,24 @@ function sortQuestionOptions(options: any[] = []) {
   });
 }
 
+function SendIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M3 11 21 3 13 21 11 13 3 11z" />
+      <path d="m11 13 10-10" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M18 6 6 18" />
+      <path d="m6 6 12 12" />
+    </svg>
+  );
+}
+
 export function QuestionsPage({
   questions,
   isLoadingQuestions,
@@ -39,10 +57,19 @@ export function QuestionsPage({
   onAnswerDraftChange,
   onAnswerQuestion,
 }: any) {
+  const answerInputByQuestionIdRef = useRef<Record<string, HTMLTextAreaElement | null>>({});
   const pageActions = useMemo(() => (
     <span className="chat-card-meta">{questionCountLabel}</span>
   ), [questionCountLabel]);
   useSetPageActions(pageActions);
+
+  function handleQuestionCardClick(questionId: string, event: any) {
+    const target = event?.target;
+    if (target instanceof Element && target.closest("button, textarea")) {
+      return;
+    }
+    answerInputByQuestionIdRef.current[String(questionId || "")]?.focus();
+  }
 
   return (
     <Page><div className="page-stack">
@@ -60,47 +87,35 @@ export function QuestionsPage({
               const answerDraft = String(answerDraftByQuestionId?.[question.id] || "");
               const sortedOptions = sortQuestionOptions(Array.isArray(question?.options) ? question.options : []);
               const isAnswering = answeringQuestionId === question.id;
+              const trimmedQuestionText = String(question?.questionText || "").trim() || "Untitled question";
 
               return (
-                <li key={question.id} className="chat-card question-card">
-                  <div className="chat-card-main">
-                    <p className="chat-card-title">
-                      <strong>{String(question?.questionText || "").trim() || "Untitled question"}</strong>
-                    </p>
-                    <p className="chat-card-meta">Agent: <span>{question?.agentName || "Unknown agent"}</span></p>
-                    <p className="chat-card-meta">Thread: <span>{question?.threadTitle || "Untitled thread"}</span></p>
+                <li
+                  key={question.id}
+                  className="chat-card question-card"
+                  onClick={(event: any) => handleQuestionCardClick(question.id, event)}
+                >
+                  <div className="question-card-header">
+                    <div className="chat-card-main question-card-main">
+                      <p className="chat-card-title question-card-question">
+                        <strong>{trimmedQuestionText}</strong>
+                      </p>
+                      <p className="chat-card-meta">Agent: <span>{question?.agentName || "Unknown agent"}</span></p>
+                      <p className="chat-card-meta">Thread: <span>{question?.threadTitle || "Untitled thread"}</span></p>
+                    </div>
+                    <button
+                      type="button"
+                      className="chat-card-icon-btn chat-card-icon-btn-danger"
+                      onClick={() => onAnswerQuestion(question.id, dismissAnswerText, "dismissed")}
+                      disabled={isAnswering}
+                      aria-label={isAnswering ? "Updating question..." : "Dismiss question"}
+                      title={isAnswering ? "Updating question..." : "Dismiss question"}
+                    >
+                      <CloseIcon />
+                    </button>
                   </div>
 
                   <div className="question-card-body">
-                    <div className="question-answer-form">
-                      <textarea
-                        className="question-answer-input"
-                        value={answerDraft}
-                        onChange={(event: any) => onAnswerDraftChange(question.id, event.target.value)}
-                        placeholder="Write the answer to send back to the agent."
-                        disabled={isAnswering}
-                        rows={4}
-                      />
-                      <div className="question-answer-actions">
-                        <button
-                          type="button"
-                          className="secondary-btn"
-                          onClick={() => onAnswerQuestion(question.id, dismissAnswerText)}
-                          disabled={isAnswering}
-                        >
-                          Dismiss
-                        </button>
-                        <button
-                          type="button"
-                          className="secondary-btn"
-                          onClick={() => onAnswerQuestion(question.id)}
-                          disabled={isAnswering || !String(answerDraft || "").trim()}
-                        >
-                          {isAnswering ? "Sending..." : "Send custom answer"}
-                        </button>
-                      </div>
-                    </div>
-
                     {sortedOptions.length > 0 ? (
                       <ul className="question-option-list">
                         {sortedOptions.map((option: any) => (
@@ -114,16 +129,46 @@ export function QuestionsPage({
                             </div>
                             <button
                               type="button"
-                              className="secondary-btn"
-                              onClick={() => onAnswerQuestion(question.id, option.text || "")}
+                              className="chat-card-icon-btn"
+                              onClick={() => onAnswerQuestion(question.id, option.text || "", "completed")}
                               disabled={isAnswering}
+                              aria-label={isAnswering ? "Sending answer..." : `Send answer: ${option.text || ""}`}
+                              title={isAnswering ? "Sending answer..." : "Send answer"}
                             >
-                              Send answer
+                              <SendIcon />
                             </button>
                           </li>
                         ))}
                       </ul>
                     ) : null}
+
+                    <div className="question-answer-form">
+                      <div className="question-answer-input-shell">
+                        <textarea
+                          className="question-answer-input"
+                          ref={(element) => {
+                            answerInputByQuestionIdRef.current[String(question.id || "")] = element;
+                          }}
+                          value={answerDraft}
+                          onChange={(event: any) => onAnswerDraftChange(question.id, event.target.value)}
+                          placeholder="Write the answer to send back to the agent."
+                          disabled={isAnswering}
+                          rows={4}
+                        />
+                        <div className="question-answer-actions">
+                          <button
+                            type="button"
+                            className="chat-card-icon-btn"
+                            onClick={() => onAnswerQuestion(question.id, null, "completed")}
+                            disabled={isAnswering || !String(answerDraft || "").trim()}
+                            aria-label={isAnswering ? "Sending answer..." : "Send custom answer"}
+                            title={isAnswering ? "Sending answer..." : "Send custom answer"}
+                          >
+                            <SendIcon />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </li>
               );
