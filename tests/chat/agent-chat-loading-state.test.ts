@@ -214,7 +214,8 @@ test("AgentChatPage renders compact usage badge hover copy for thread and turn u
     ],
   });
 
-  assert.match(markup, /chat-composer-usage-badge/);
+  assert.match(markup, /chat-transcript-usage-badge/);
+  assert.doesNotMatch(markup, /chat-composer-usage-badge/);
   assert.doesNotMatch(markup, /chat-context-meter/);
   assert.match(markup, /385\/200k context/);
   assert.match(markup, /Tokens used 900/);

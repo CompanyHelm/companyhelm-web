@@ -228,18 +228,42 @@ function UsageCircleBadge({
   tokenTotal = null,
   includeContext = true,
   className = "",
+  variant = "circle",
 }: any) {
   const tooltipLines = buildUsageBadgeLines({ used, max, tokenTotal, includeContext });
   const ariaLabel = tooltipLines.join(". ");
   const fillRatio = getUsageBadgeFillRatio(used, max, tokenTotal);
-  const badgeClassName = className ? `chat-usage-badge ${className}` : "chat-usage-badge";
+  const badgeClassName = className
+    ? `chat-usage-badge chat-usage-badge-${variant} ${className}`
+    : `chat-usage-badge chat-usage-badge-${variant}`;
   if (tooltipLines.length === 0) {
     return null;
   }
 
   return (
     <span className={badgeClassName} aria-label={ariaLabel}>
-      <span className="chat-usage-badge-fill" style={{ transform: `scaleY(${fillRatio})` }} />
+      {variant === "semi" ? (
+        <svg
+          className="chat-usage-badge-gauge"
+          viewBox="0 0 24 14"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path
+            className="chat-usage-badge-track"
+            d="M3 11a9 9 0 0 1 18 0"
+            pathLength="100"
+          />
+          <path
+            className="chat-usage-badge-progress"
+            d="M3 11a9 9 0 0 1 18 0"
+            pathLength="100"
+            style={{ strokeDasharray: `${Math.max(0, Math.min(100, fillRatio * 100))} 100` }}
+          />
+        </svg>
+      ) : (
+        <span className="chat-usage-badge-fill" style={{ transform: `scaleY(${fillRatio})` }} />
+      )}
       <span className="chat-usage-badge-tooltip" role="tooltip">
         {tooltipLines.map((line) => (
           <span key={line}>{line}</span>
@@ -581,6 +605,11 @@ export function AgentChatPage({
   const sessionContextWindow = normalizeTokenCount(session?.modelContextWindow);
   const showSessionUsageSummary =
     sessionTokenTotal !== null || sessionContextTotal !== null || sessionContextWindow !== null;
+  const showTranscriptPane =
+    showTranscriptLoadingState
+    || showTranscriptEmptyState
+    || (isSessionArchived && !hasTranscriptContent)
+    || hasTranscriptContent;
 
   const isMobileViewport = useMemo(() => matchesMediaQuery(MOBILE_MEDIA_QUERY), []);
   const pageActionVisibility = useMemo(
@@ -1245,52 +1274,63 @@ export function AgentChatPage({
         {!hasRouteNotFoundMessage && agent && !session && hasKnownChatsForAgent ? (
           <p className="empty-hint">Chat not found.</p>
         ) : null}
-        {showTranscriptLoadingState ? (
-          <div className="chat-transcript-state chat-transcript-state-loading" role="status" aria-live="polite">
-            <span className="chat-turn-spinner chat-transcript-state-spinner" aria-hidden="true" />
-            <p className="chat-transcript-state-title">Loading messages...</p>
-          </div>
-        ) : null}
-        {showTranscriptEmptyState ? (
-          <div className="chat-transcript-state chat-transcript-state-empty">
-            <p className="chat-transcript-state-title">No messages yet. Start with one of these prompts.</p>
-            <div className="chat-empty-prompt-list">
-              {CHAT_EMPTY_STATE_PROMPTS.map((prompt) => (
-                <button
-                  key={prompt}
-                  type="button"
-                  className="secondary-btn chat-empty-prompt-btn"
-                  onClick={() =>
-                    applyChatPromptSuggestion({
-                      prompt,
-                      onChatDraftMessageChange,
-                      inputRef: chatMessageInputRef,
-                    })}
-                  disabled={!canInteractWithSession}
-                >
-                  {prompt}
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : null}
-        {isSessionArchived && !hasTranscriptContent ? (
-          <p className="empty-hint">No transcript history was preserved for this archived chat.</p>
-        ) : null}
-        {hasTranscriptContent ? (
-          <div
-            ref={transcriptScrollRef}
-            className="chat-transcript-scroll"
-            onScroll={handleTranscriptScroll}
-          >
-            {isShowingPartialTranscript ? (
-              <p className="chat-transcript-hint">
-                Showing latest {visibleMessageTotal} of {totalMessageCount} messages. Scroll up to load older
-                messages.
-              </p>
+        {showTranscriptPane ? (
+          <div className="chat-transcript-pane">
+            {showSessionUsageSummary ? (
+              <UsageCircleBadge
+                className="chat-transcript-usage-badge"
+                used={sessionContextTotal}
+                max={sessionContextWindow}
+                tokenTotal={sessionTokenTotal}
+                variant="semi"
+              />
             ) : null}
-            {orderedTurns.length > 0 ? (
-              <ul className="chat-message-list">
+            {showTranscriptLoadingState ? (
+              <div className="chat-transcript-state chat-transcript-state-loading" role="status" aria-live="polite">
+                <span className="chat-turn-spinner chat-transcript-state-spinner" aria-hidden="true" />
+                <p className="chat-transcript-state-title">Loading messages...</p>
+              </div>
+            ) : null}
+            {showTranscriptEmptyState ? (
+              <div className="chat-transcript-state chat-transcript-state-empty">
+                <p className="chat-transcript-state-title">No messages yet. Start with one of these prompts.</p>
+                <div className="chat-empty-prompt-list">
+                  {CHAT_EMPTY_STATE_PROMPTS.map((prompt) => (
+                    <button
+                      key={prompt}
+                      type="button"
+                      className="secondary-btn chat-empty-prompt-btn"
+                      onClick={() =>
+                        applyChatPromptSuggestion({
+                          prompt,
+                          onChatDraftMessageChange,
+                          inputRef: chatMessageInputRef,
+                        })}
+                      disabled={!canInteractWithSession}
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            {isSessionArchived && !hasTranscriptContent ? (
+              <p className="empty-hint">No transcript history was preserved for this archived chat.</p>
+            ) : null}
+            {hasTranscriptContent ? (
+              <div
+                ref={transcriptScrollRef}
+                className={`chat-transcript-scroll${showSessionUsageSummary ? " chat-transcript-scroll-with-usage" : ""}`}
+                onScroll={handleTranscriptScroll}
+              >
+                {isShowingPartialTranscript ? (
+                  <p className="chat-transcript-hint">
+                    Showing latest {visibleMessageTotal} of {totalMessageCount} messages. Scroll up to load older
+                    messages.
+                  </p>
+                ) : null}
+                {orderedTurns.length > 0 ? (
+                  <ul className="chat-message-list">
                 {visibleTurns.flatMap((turn: any) => {
                   const normalizedTurnStatus = String(turn?.status || "").trim().toLowerCase();
                   const turnStatus = normalizedTurnStatus === "running"
@@ -1435,7 +1475,9 @@ export function AgentChatPage({
 
                   return elements;
                 })}
-              </ul>
+                  </ul>
+                ) : null}
+              </div>
             ) : null}
           </div>
         ) : null}
@@ -1878,47 +1920,29 @@ export function AgentChatPage({
                     >
                       <span className="chat-stop-icon" aria-hidden="true" />
                     </button>
-                    {showSessionUsageSummary ? (
-                      <UsageCircleBadge
-                        className="chat-composer-usage-badge"
-                        used={sessionContextTotal}
-                        max={sessionContextWindow}
-                        tokenTotal={sessionTokenTotal}
-                      />
-                    ) : null}
                   </>
                 ) : (
-                  <>
-                    {showSessionUsageSummary ? (
-                      <UsageCircleBadge
-                        className="chat-composer-usage-badge"
-                        used={sessionContextTotal}
-                        max={sessionContextWindow}
-                        tokenTotal={sessionTokenTotal}
-                      />
-                    ) : null}
-                    <button
-                      type="submit"
-                      className="chat-composer-send-btn"
-                      disabled={!canSendMessages || !chatDraftMessage.trim() || isSendingChatMessage || isInterruptingChatTurn}
-                      aria-label={isSendingChatMessage ? "Sending message..." : "Send message"}
-                      title={isSendingChatMessage ? "Sending message..." : "Send message"}
-                    >
-                      {isSendingChatMessage ? (
-                        <span className="chat-turn-spinner chat-item-spinner" aria-hidden="true" />
-                      ) : (
-                        <svg
-                          className="chat-composer-send-icon"
-                          viewBox="0 0 24 24"
-                          aria-hidden="true"
-                          focusable="false"
-                        >
-                          <path d="M3 11 21 3 13 21 11 13 3 11z" />
-                          <path d="m11 13 10-10" />
-                        </svg>
-                      )}
-                    </button>
-                  </>
+                  <button
+                    type="submit"
+                    className="chat-composer-send-btn"
+                    disabled={!canSendMessages || !chatDraftMessage.trim() || isSendingChatMessage || isInterruptingChatTurn}
+                    aria-label={isSendingChatMessage ? "Sending message..." : "Send message"}
+                    title={isSendingChatMessage ? "Sending message..." : "Send message"}
+                  >
+                    {isSendingChatMessage ? (
+                      <span className="chat-turn-spinner chat-item-spinner" aria-hidden="true" />
+                    ) : (
+                      <svg
+                        className="chat-composer-send-icon"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                        focusable="false"
+                      >
+                        <path d="M3 11 21 3 13 21 11 13 3 11z" />
+                        <path d="m11 13 10-10" />
+                      </svg>
+                    )}
+                  </button>
                 )}
               </div>
             </div>
