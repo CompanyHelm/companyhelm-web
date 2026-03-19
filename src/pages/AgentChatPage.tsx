@@ -273,6 +273,29 @@ function UsageCircleBadge({
   );
 }
 
+function UsageTextLabel({
+  tokenTotal = null,
+  className = "",
+}: any) {
+  const tooltipLines = buildUsageBadgeLines({ tokenTotal, includeContext: false });
+  if (tooltipLines.length === 0) {
+    return null;
+  }
+
+  const labelClassName = className ? `chat-usage-text-label ${className}` : "chat-usage-text-label";
+
+  return (
+    <span className={labelClassName} aria-label={tooltipLines.join(". ")}>
+      <span>{formatCompactTokenCount(tokenTotal)}</span>
+      <span className="chat-usage-badge-tooltip" role="tooltip">
+        {tooltipLines.map((line) => (
+          <span key={line}>{line}</span>
+        ))}
+      </span>
+    </span>
+  );
+}
+
 function normalizeChatListStatusFilter(value: any) {
   return String(value || "").trim().toLowerCase() === "archived" ? "archived" : "active";
 }
@@ -1282,7 +1305,6 @@ export function AgentChatPage({
                 used={sessionContextTotal}
                 max={sessionContextWindow}
                 tokenTotal={sessionTokenTotal}
-                variant="semi"
               />
             ) : null}
             {showTranscriptLoadingState ? (
@@ -1355,10 +1377,9 @@ export function AgentChatPage({
                           />
                         ) : null}
                         {turn?.tokenUsage?.totalTokens !== undefined ? (
-                          <UsageCircleBadge
+                          <UsageTextLabel
                             className="chat-turn-token-usage"
                             tokenTotal={turn?.tokenUsage?.totalTokens}
-                            includeContext={false}
                           />
                         ) : null}
                         <span>{formatTimestamp(turn.createdAt)}</span>

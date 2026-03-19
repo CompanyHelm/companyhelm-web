@@ -2562,7 +2562,21 @@ button:disabled {
   position: absolute;
   top: 0.35rem;
   right: 0.4rem;
+  width: 0.88rem;
+  height: 0.88rem;
   z-index: 4;
+}
+
+.chat-transcript-usage-badge .chat-usage-badge-tooltip {
+  top: calc(100% + 0.35rem);
+  right: 0;
+  left: auto;
+  bottom: auto;
+  transform: translate(0, -0.2rem);
+}
+
+.chat-transcript-usage-badge:hover .chat-usage-badge-tooltip {
+  transform: translate(0, 0);
 }
 
 .chat-transcript-scroll-with-usage {
@@ -2611,9 +2625,22 @@ button:disabled {
   gap: 0.5rem;
 }
 
+.chat-usage-text-label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  min-width: 0;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.76rem;
+  line-height: 1;
+  color: var(--ink-1);
+  white-space: nowrap;
+}
+
 .chat-turn-token-usage {
-  width: 0.7rem;
-  height: 0.7rem;
+  width: auto;
+  height: auto;
 }
 
 .chat-turn-separator-row::before,
