@@ -35,6 +35,7 @@ export function QuestionsPage({
   answeringQuestionId,
   answerDraftByQuestionId,
   questionCountLabel,
+  dismissAnswerText,
   onAnswerDraftChange,
   onAnswerQuestion,
 }: any) {
@@ -71,6 +72,35 @@ export function QuestionsPage({
                   </div>
 
                   <div className="question-card-body">
+                    <div className="question-answer-form">
+                      <textarea
+                        className="question-answer-input"
+                        value={answerDraft}
+                        onChange={(event: any) => onAnswerDraftChange(question.id, event.target.value)}
+                        placeholder="Write the answer to send back to the agent."
+                        disabled={isAnswering}
+                        rows={4}
+                      />
+                      <div className="question-answer-actions">
+                        <button
+                          type="button"
+                          className="secondary-btn"
+                          onClick={() => onAnswerQuestion(question.id, dismissAnswerText)}
+                          disabled={isAnswering}
+                        >
+                          Dismiss
+                        </button>
+                        <button
+                          type="button"
+                          className="secondary-btn"
+                          onClick={() => onAnswerQuestion(question.id)}
+                          disabled={isAnswering || !String(answerDraft || "").trim()}
+                        >
+                          {isAnswering ? "Sending..." : "Send custom answer"}
+                        </button>
+                      </div>
+                    </div>
+
                     {sortedOptions.length > 0 ? (
                       <ul className="question-option-list">
                         {sortedOptions.map((option: any) => (
@@ -85,36 +115,15 @@ export function QuestionsPage({
                             <button
                               type="button"
                               className="secondary-btn"
-                              onClick={() => onAnswerDraftChange(question.id, option.text || "")}
+                              onClick={() => onAnswerQuestion(question.id, option.text || "")}
                               disabled={isAnswering}
                             >
-                              Use answer
+                              Send answer
                             </button>
                           </li>
                         ))}
                       </ul>
                     ) : null}
-
-                    <div className="question-answer-form">
-                      <textarea
-                        className="question-answer-input"
-                        value={answerDraft}
-                        onChange={(event: any) => onAnswerDraftChange(question.id, event.target.value)}
-                        placeholder="Write the answer to send back to the agent."
-                        disabled={isAnswering}
-                        rows={4}
-                      />
-                      <div className="question-answer-actions">
-                        <button
-                          type="button"
-                          className="secondary-btn"
-                          onClick={() => onAnswerQuestion(question.id)}
-                          disabled={isAnswering || !String(answerDraft || "").trim()}
-                        >
-                          {isAnswering ? "Sending..." : "Send answer"}
-                        </button>
-                      </div>
-                    </div>
                   </div>
                 </li>
               );
