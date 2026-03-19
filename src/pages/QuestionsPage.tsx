@@ -1,6 +1,12 @@
-import { useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { Page } from "../components/Page.tsx";
 import { useSetPageActions } from "../components/PageActionsContext.tsx";
+
+const QUESTION_TABS = [
+  { id: "open", label: "Open" },
+  { id: "completed", label: "Completed" },
+  { id: "dismissed", label: "Dismissed" },
+] as const;
 
 const OPTION_RANK_ORDER = {
   excellent: 5,
@@ -46,7 +52,12 @@ function CloseIcon() {
   );
 }
 
+function getQuestionTabLabel(tabId: string = "") {
+  return QUESTION_TABS.find((tab) => tab.id === tabId)?.label || "Open";
+}
+
 export function QuestionsPage({
+  activeTab,
   questions,
   isLoadingQuestions,
   questionError,
@@ -54,31 +65,38 @@ export function QuestionsPage({
   answerDraftByQuestionId,
   questionCountLabel,
   dismissAnswerText,
+  onTabChange,
   onAnswerDraftChange,
   onAnswerQuestion,
 }: any) {
-  const answerInputByQuestionIdRef = useRef<Record<string, HTMLTextAreaElement | null>>({});
   const pageActions = useMemo(() => (
     <span className="chat-card-meta">{questionCountLabel}</span>
   ), [questionCountLabel]);
   useSetPageActions(pageActions);
 
-  function handleQuestionCardClick(questionId: string, event: any) {
-    const target = event?.target;
-    if (target instanceof Element && target.closest("button, textarea")) {
-      return;
-    }
-    answerInputByQuestionIdRef.current[String(questionId || "")]?.focus();
-  }
-
   return (
     <Page><div className="page-stack">
       <section className="panel list-panel">
+        <div className="task-view-tabs" role="tablist" aria-label="Question views">
+          {QUESTION_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab.id}
+              className={`task-view-tab${activeTab === tab.id ? " task-view-tab-active" : ""}`}
+              onClick={() => onTabChange(tab.id)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
         <p className="chat-card-meta">{questionCountLabel}</p>
         {questionError ? <p className="error-banner">{questionError}</p> : null}
         {isLoadingQuestions ? <p className="empty-hint">Loading questions...</p> : null}
         {!isLoadingQuestions && !questionError && questions.length === 0 ? (
-          <p className="empty-hint">No open questions.</p>
+          <p className="empty-hint">No {activeTab} questions.</p>
         ) : null}
 
         {questions.length > 0 ? (
@@ -88,13 +106,16 @@ export function QuestionsPage({
               const sortedOptions = sortQuestionOptions(Array.isArray(question?.options) ? question.options : []);
               const isAnswering = answeringQuestionId === question.id;
               const trimmedQuestionText = String(question?.questionText || "").trim() || "Untitled question";
+              const normalizedStatus = String(question?.status || "").trim().toLowerCase();
+              const resolvedStatus = normalizedStatus === "completed" || normalizedStatus === "dismissed"
+                ? normalizedStatus
+                : "open";
+              const isOpen = resolvedStatus === "open";
+              const answerText = String(question?.answerText || "").trim();
+              const responseLabel = resolvedStatus === "dismissed" ? "Dismiss reason" : "Answer";
 
               return (
-                <li
-                  key={question.id}
-                  className="chat-card question-card"
-                  onClick={(event: any) => handleQuestionCardClick(question.id, event)}
-                >
+                <li key={question.id} className="chat-card question-card">
                   <div className="question-card-header">
                     <div className="chat-card-main question-card-main">
                       <p className="chat-card-title question-card-question">
@@ -102,73 +123,99 @@ export function QuestionsPage({
                       </p>
                       <p className="chat-card-meta">Agent: <span>{question?.agentName || "Unknown agent"}</span></p>
                       <p className="chat-card-meta">Thread: <span>{question?.threadTitle || "Untitled thread"}</span></p>
+                      <p className="chat-card-meta">Status: <span>{getQuestionTabLabel(resolvedStatus)}</span></p>
                     </div>
-                    <button
-                      type="button"
-                      className="chat-card-icon-btn chat-card-icon-btn-danger"
-                      onClick={() => onAnswerQuestion(question.id, dismissAnswerText, "dismissed")}
-                      disabled={isAnswering}
-                      aria-label={isAnswering ? "Updating question..." : "Dismiss question"}
-                      title={isAnswering ? "Updating question..." : "Dismiss question"}
-                    >
-                      <CloseIcon />
-                    </button>
+                    {isOpen ? (
+                      <button
+                        type="button"
+                        className="chat-card-icon-btn chat-card-icon-btn-danger"
+                        onClick={() => onAnswerQuestion(question.id, dismissAnswerText, "dismissed")}
+                        disabled={isAnswering}
+                        aria-label={isAnswering ? "Updating question..." : "Dismiss question"}
+                        title={isAnswering ? "Updating question..." : "Dismiss question"}
+                      >
+                        <CloseIcon />
+                      </button>
+                    ) : null}
                   </div>
 
                   <div className="question-card-body">
-                    {sortedOptions.length > 0 ? (
-                      <ul className="question-option-list">
-                        {sortedOptions.map((option: any) => (
-                          <li key={option.id} className="question-option-row">
+                    {isOpen ? (
+                      <>
+                        {sortedOptions.length > 0 ? (
+                          <ul className="question-option-list">
+                            {sortedOptions.map((option: any) => (
+                          <li
+                            key={option.id}
+                            className="question-option-row"
+                            onClick={() => onAnswerQuestion(question.id, option.text || "", "completed")}
+                            onKeyDown={(event: any) => {
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                onAnswerQuestion(question.id, option.text || "", "completed");
+                              }
+                            }}
+                            role="button"
+                            tabIndex={isAnswering ? -1 : 0}
+                          >
                             <div className="question-option-copy">
                               <p className="question-option-text">{option.text || "-"}</p>
                               <div className="question-option-meta">
                                 {option.rank ? <span className="question-option-rank">{option.rank}</span> : null}
                                 {option.isRecommended ? <span className="question-option-recommended">Recommended</span> : null}
-                              </div>
-                            </div>
-                            <button
+                                  </div>
+                                </div>
+                                <button
                               type="button"
                               className="chat-card-icon-btn"
-                              onClick={() => onAnswerQuestion(question.id, option.text || "", "completed")}
+                              onClick={(event: any) => {
+                                event.stopPropagation();
+                                onAnswerQuestion(question.id, option.text || "", "completed");
+                              }}
                               disabled={isAnswering}
                               aria-label={isAnswering ? "Sending answer..." : `Send answer: ${option.text || ""}`}
                               title={isAnswering ? "Sending answer..." : "Send answer"}
-                            >
-                              <SendIcon />
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : null}
+                                >
+                                  <SendIcon />
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
 
-                    <div className="question-answer-form">
-                      <div className="question-answer-input-shell">
+                        <div className="question-answer-form">
+                          <div className="question-answer-input-shell">
                         <textarea
                           className="question-answer-input"
-                          ref={(element) => {
-                            answerInputByQuestionIdRef.current[String(question.id || "")] = element;
-                          }}
                           value={answerDraft}
                           onChange={(event: any) => onAnswerDraftChange(question.id, event.target.value)}
                           placeholder="Write the answer to send back to the agent."
-                          disabled={isAnswering}
-                          rows={4}
-                        />
-                        <div className="question-answer-actions">
-                          <button
-                            type="button"
-                            className="chat-card-icon-btn"
-                            onClick={() => onAnswerQuestion(question.id, null, "completed")}
-                            disabled={isAnswering || !String(answerDraft || "").trim()}
-                            aria-label={isAnswering ? "Sending answer..." : "Send custom answer"}
-                            title={isAnswering ? "Sending answer..." : "Send custom answer"}
-                          >
-                            <SendIcon />
-                          </button>
+                              disabled={isAnswering}
+                              rows={4}
+                            />
+                            <div className="question-answer-actions">
+                              <button
+                                type="button"
+                                className="chat-card-icon-btn"
+                                onClick={() => onAnswerQuestion(question.id, null, "completed")}
+                                disabled={isAnswering || !String(answerDraft || "").trim()}
+                                aria-label={isAnswering ? "Sending answer..." : "Send custom answer"}
+                                title={isAnswering ? "Sending answer..." : "Send custom answer"}
+                              >
+                                <SendIcon />
+                              </button>
+                            </div>
+                          </div>
                         </div>
+                      </>
+                    ) : (
+                      <div className="question-response-panel">
+                        <p className="question-response-label">{responseLabel}</p>
+                        <p className="question-response-text">
+                          {answerText || `No ${getQuestionTabLabel(resolvedStatus).toLowerCase()} response recorded.`}
+                        </p>
                       </div>
-                    </div>
+                    )}
                   </div>
                 </li>
               );
