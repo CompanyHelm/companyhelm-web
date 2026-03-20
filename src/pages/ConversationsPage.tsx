@@ -126,7 +126,7 @@ export function ConversationsPage({
   }
 
   return (
-    <Page className="page-container-full page-shell-chat-layout conversations-page-shell">
+    <Page className="page-container-full conversations-page-shell">
       <ConversationCreateModal
         isOpen={isCreateModalOpen}
         currentUserLabel={currentUserLabel}

@@ -8095,8 +8095,10 @@ button:disabled {
 
 .conversations-page-shell {
   max-width: none;
-  height: 100dvh;
-  min-height: 100dvh;
+  display: grid;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .conversations-page-shell .chat-page-stack-with-sidebar .chat-page-main-layout {
@@ -8107,6 +8109,7 @@ button:disabled {
 .conversations-workspace {
   height: 100%;
   min-height: 0;
+  overflow: hidden;
 }
 
 .conversations-layout {

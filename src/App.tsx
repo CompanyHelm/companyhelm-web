@@ -4494,7 +4494,10 @@ function App() {
   const isChatsConversationView = activePage === "chats" && Boolean(chatAgentId) && Boolean(resolvedChatSessionId);
   const isAgentConversationView =
     activePage === "agents" && agentsRoute.view === "chat" && Boolean(resolvedChatSessionId);
-  const isChatConversationRoute = isChatsConversationView || isAgentConversationView;
+  const isChatConversationRoute =
+    isChatsConversationView
+    || isAgentConversationView
+    || activePage === "conversations";
   const shouldHideChatsOverviewBreadcrumbs = activePage === "chats" && !chatAgentId && !resolvedChatSessionId;
   const shouldSuppressChatsRouteWarning = useMemo(
     () =>
