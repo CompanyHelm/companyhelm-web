@@ -69,11 +69,13 @@ function renderConversationsPageMarkup(overrides: Record<string, unknown> = {}) 
       isCreatingConversation: false,
       isAddingConversationAgents: false,
       isSendingConversationMessage: false,
+      isDeletingConversation: false,
       error: "",
       onOpenConversation: () => {},
       onCreateConversation: async () => {},
       onAddAgents: async () => {},
       onSendMessage: async () => {},
+      onDeleteConversation: async () => {},
       ...overrides,
     }),
   );
@@ -90,6 +92,7 @@ test("ConversationsPage renders list, participants, transcript, and composer", (
   assert.match(markup, />Planner Agent</);
   assert.match(markup, />Add agents</);
   assert.match(markup, />Conversation</);
+  assert.match(markup, /Delete conversation/);
   assert.match(markup, /Messages are stored canonically, then delivered to the other participants\./);
   assert.match(markup, /Message the conversation\.\.\./);
   assert.equal(markup.indexOf("hello team") < markup.indexOf("latest reply"), true);
@@ -122,6 +125,8 @@ test("ConversationsPage source keeps creation, add-agents, and send actions on t
   assert.match(conversationsPageSource, /await onCreateConversation\(agentIds\);/);
   assert.match(conversationsPageSource, /onSubmit={onAddAgents}/);
   assert.match(conversationsPageSource, /await onSendMessage\(normalizedDraft\);/);
+  assert.match(conversationsPageSource, /onDeleteConversation/);
+  assert.match(conversationsPageSource, /Delete conversation/);
 });
 
 test("App wires the conversations page to data loaders and mutations", () => {
@@ -129,6 +134,7 @@ test("App wires the conversations page to data loaders and mutations", () => {
   assert.match(appSource, /const data = await executeGraphQL\(LIST_CONVERSATIONS_QUERY, \{\s*first: 100,\s*\}\);/);
   assert.match(appSource, /const data = await executeGraphQL\(LIST_CONVERSATION_MESSAGES_QUERY, \{/);
   assert.match(appSource, /await executeGraphQL\(CREATE_CONVERSATION_MUTATION, \{/);
+  assert.match(appSource, /await executeGraphQL\(DELETE_CONVERSATION_MUTATION, \{/);
   assert.match(appSource, /await executeGraphQL\(ADD_CONVERSATION_AGENTS_MUTATION, \{/);
   assert.match(appSource, /await executeGraphQL\(SEND_CONVERSATION_MESSAGE_MUTATION, \{/);
   assert.match(appSource, /<ConversationsPage/);

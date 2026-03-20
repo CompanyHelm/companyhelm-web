@@ -8244,6 +8244,15 @@ button:disabled {
   padding: 0.62rem 0.88rem;
 }
 
+.conversation-delete-btn {
+  color: #b42318;
+}
+
+.conversation-delete-btn:hover:not(:disabled) {
+  background: rgba(180, 35, 24, 0.1);
+  color: #7a271a;
+}
+
 .conversation-chat-participant-strip {
   display: flex;
   flex-wrap: wrap;

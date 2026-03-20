@@ -48,11 +48,13 @@ export function ConversationsPage({
   isCreatingConversation,
   isAddingConversationAgents,
   isSendingConversationMessage,
+  isDeletingConversation,
   error,
   onOpenConversation,
   onCreateConversation,
   onAddAgents,
   onSendMessage,
+  onDeleteConversation,
 }: any) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [messageDraft, setMessageDraft] = useState("");
@@ -170,6 +172,23 @@ export function ConversationsPage({
                     <h2 className="chat-minimal-header-title">
                       {formatConversationListLabel(selectedConversation, currentUserId)}
                     </h2>
+                  </div>
+                  <div className="chat-minimal-header-actions">
+                    <button
+                      type="button"
+                      className="chat-minimal-header-icon-btn conversation-delete-btn"
+                      onClick={() => void onDeleteConversation()}
+                      disabled={isDeletingConversation}
+                      aria-label={isDeletingConversation ? "Deleting conversation" : "Delete conversation"}
+                      title={isDeletingConversation ? "Deleting..." : "Delete conversation"}
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path
+                          d="M9 3.75h6a1.5 1.5 0 0 1 1.5 1.5v.75h3a.75.75 0 0 1 0 1.5h-1.06l-.72 11.42A2.25 2.25 0 0 1 15.47 21H8.53a2.25 2.25 0 0 1-2.25-2.08L5.56 7.5H4.5a.75.75 0 0 1 0-1.5h3v-.75A1.5 1.5 0 0 1 9 3.75Zm6 2.25v-.75h-6V6h6Zm-6.72 1.5.71 11.33a.75.75 0 0 0 .75.67h5.52a.75.75 0 0 0 .75-.67l.71-11.33H8.28Zm2.47 2.25a.75.75 0 0 1 .75.75v5.25a.75.75 0 0 1-1.5 0V10.5a.75.75 0 0 1 .75-.75Zm3.5 0a.75.75 0 0 1 .75.75v5.25a.75.75 0 0 1-1.5 0V10.5a.75.75 0 0 1 .75-.75Z"
+                          fill="currentColor"
+                        />
+                      </svg>
+                    </button>
                   </div>
                 </header>
 

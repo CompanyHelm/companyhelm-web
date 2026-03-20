@@ -65,6 +65,7 @@ import {
   CREATE_CONVERSATION_MUTATION,
   ADD_CONVERSATION_AGENTS_MUTATION,
   SEND_CONVERSATION_MESSAGE_MUTATION,
+  DELETE_CONVERSATION_MUTATION,
   APPROVE_APPROVAL_MUTATION,
   REJECT_APPROVAL_MUTATION,
   DELETE_APPROVAL_MUTATION,
@@ -2981,6 +2982,17 @@ async function executeGraphQL(query: any, variables: any = {}) {
     };
   }
 
+  if (query === DELETE_CONVERSATION_MUTATION) {
+    const data = await executeRawGraphQL(DELETE_CONVERSATION_MUTATION, {
+      conversationId: resolveLegacyId(variables?.conversationId),
+    });
+    return {
+      deleteConversation: {
+        deletedConversationId: resolveLegacyId(data?.deleteConversation?.deletedConversationId) || null,
+      },
+    };
+  }
+
   if (query === DELETE_GITHUB_INSTALLATION_MUTATION) {
     const data = await executeRawGraphQL(COMPANY_API_DELETE_GITHUB_INSTALLATION_MUTATION, {
       companyId: resolveLegacyId(variables?.companyId),
@@ -3710,6 +3722,7 @@ function App() {
   const [isCreatingConversation, setIsCreatingConversation] = useState<any>(false);
   const [isAddingConversationAgents, setIsAddingConversationAgents] = useState<any>(false);
   const [isSendingConversationMessage, setIsSendingConversationMessage] = useState<any>(false);
+  const [isDeletingConversation, setIsDeletingConversation] = useState<any>(false);
   const [deletingMcpServerId, setDeletingMcpServerId] = useState<any>(null);
   const [deletingRunnerId, setDeletingRunnerId] = useState<any>(null);
   const [regeneratingRunnerId, setRegeneratingRunnerId] = useState<any>(null);
@@ -9076,6 +9089,28 @@ function App() {
     }
   }
 
+  async function handleDeleteConversation() {
+    const normalizedConversationId = String(conversationsRoute?.conversationId || "").trim();
+    if (!normalizedConversationId) {
+      return;
+    }
+
+    try {
+      setConversationError("");
+      setIsDeletingConversation(true);
+      await executeGraphQL(DELETE_CONVERSATION_MUTATION, {
+        conversationId: normalizedConversationId,
+      });
+      setBrowserPath(getConversationsPath());
+      setConversationMessages([]);
+      await loadConversations();
+    } catch (error: any) {
+      setConversationError(error?.message || "Failed to delete conversation.");
+    } finally {
+      setIsDeletingConversation(false);
+    }
+  }
+
   async function handleApproveApproval(approvalId: any) {
     const normalizedApprovalId = String(approvalId || "").trim();
     if (!selectedCompanyId || !normalizedApprovalId) {
@@ -11954,11 +11989,13 @@ function App() {
             isCreatingConversation={isCreatingConversation}
             isAddingConversationAgents={isAddingConversationAgents}
             isSendingConversationMessage={isSendingConversationMessage}
+            isDeletingConversation={isDeletingConversation}
             error={conversationError}
             onOpenConversation={(conversationId: string) => setBrowserPath(getConversationsPath({ conversationId }))}
             onCreateConversation={handleCreateConversation}
             onAddAgents={handleAddConversationAgents}
             onSendMessage={handleSendConversationMessage}
+            onDeleteConversation={handleDeleteConversation}
           />
         ) : null}
 

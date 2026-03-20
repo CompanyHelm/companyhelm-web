@@ -1289,6 +1289,14 @@ ${CONVERSATION_MESSAGE_FIELDS}
   }
 `;
 
+export const DELETE_CONVERSATION_MUTATION = `
+  mutation DeleteConversation($conversationId: ID!) {
+    deleteConversation(conversationId: $conversationId) {
+      deletedConversationId
+    }
+  }
+`;
+
 export const ANSWER_AGENT_QUESTION_MUTATION = `
   mutation AnswerAgentQuestion($id: String!, $answerText: String, $status: String) {
     answerAgentQuestion(id: $id, answerText: $answerText, status: $status) {
