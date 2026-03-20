@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Page } from "../components/Page.tsx";
 import { useSetPageActions } from "../components/PageActionsContext.tsx";
 import { ConversationCreateModal } from "../components/ConversationCreateModal.tsx";
-import { ConversationParticipantsEditor } from "../components/ConversationParticipantsEditor.tsx";
+import { ConversationParticipantsModal } from "../components/ConversationParticipantsModal.tsx";
 import { formatTimestamp, toSortableTimestamp } from "../utils/formatting.ts";
 
 function formatParticipantLabel(participant: any, currentUserId: string) {
@@ -57,8 +57,11 @@ export function ConversationsPage({
   onDeleteConversation,
 }: any) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isParticipantsModalOpen, setIsParticipantsModalOpen] = useState(false);
+  const [isOptionsMenuOpen, setIsOptionsMenuOpen] = useState(false);
   const [messageDraft, setMessageDraft] = useState("");
   const transcriptScrollRef = useRef<HTMLDivElement | null>(null);
+  const conversationOptionsRef = useRef<HTMLDivElement | null>(null);
   const currentUserId = String(currentUser?.id || "").trim();
   const currentUserLabel = String(currentUser?.firstName || "").trim()
     || String(currentUser?.email || "").trim()
@@ -86,7 +89,24 @@ export function ConversationsPage({
 
   useEffect(() => {
     setMessageDraft("");
+    setIsParticipantsModalOpen(false);
+    setIsOptionsMenuOpen(false);
   }, [selectedConversationId]);
+
+  useEffect(() => {
+    if (!isOptionsMenuOpen) {
+      return undefined;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!conversationOptionsRef.current?.contains(event.target as Node)) {
+        setIsOptionsMenuOpen(false);
+      }
+    };
+
+    window.addEventListener("mousedown", handlePointerDown);
+    return () => window.removeEventListener("mousedown", handlePointerDown);
+  }, [isOptionsMenuOpen]);
 
   useEffect(() => {
     const transcriptNode = transcriptScrollRef.current;
@@ -116,6 +136,17 @@ export function ConversationsPage({
         onSubmit={async (agentIds) => {
           await onCreateConversation(agentIds);
           setIsCreateModalOpen(false);
+        }}
+      />
+      <ConversationParticipantsModal
+        isOpen={isParticipantsModalOpen}
+        onClose={() => setIsParticipantsModalOpen(false)}
+        participants={selectedConversation?.participants || []}
+        availableAgents={agents}
+        isSubmitting={isAddingConversationAgents}
+        onSubmit={async (agentIds) => {
+          await onAddAgents(agentIds);
+          setIsParticipantsModalOpen(false);
         }}
       />
 
@@ -148,11 +179,29 @@ export function ConversationsPage({
                       }
                     }}
                   >
-                    <div className="chat-card-main">
+                    <div className="chat-card-main conversation-sidebar-card-main">
                       <p className="chat-card-title conversation-sidebar-participants">
                         <strong>{formatConversationListLabel(conversation, currentUserId)}</strong>
                       </p>
                     </div>
+                    <button
+                      type="button"
+                      className="conversation-list-delete-btn"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void onDeleteConversation(conversationId);
+                      }}
+                      disabled={isDeletingConversation}
+                      aria-label="Delete conversation from list"
+                      title="Delete conversation"
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path
+                          d="M9 3.75h6a1.5 1.5 0 0 1 1.5 1.5v.75h3a.75.75 0 0 1 0 1.5h-1.06l-.72 11.42A2.25 2.25 0 0 1 15.47 21H8.53a2.25 2.25 0 0 1-2.25-2.08L5.56 7.5H4.5a.75.75 0 0 1 0-1.5h3v-.75A1.5 1.5 0 0 1 9 3.75Zm6 2.25v-.75h-6V6h6Zm-6.72 1.5.71 11.33a.75.75 0 0 0 .75.67h5.52a.75.75 0 0 0 .75-.67l.71-11.33H8.28Zm2.47 2.25a.75.75 0 0 1 .75.75v5.25a.75.75 0 0 1-1.5 0V10.5a.75.75 0 0 1 .75-.75Zm3.5 0a.75.75 0 0 1 .75.75v5.25a.75.75 0 0 1-1.5 0V10.5a.75.75 0 0 1 .75-.75Z"
+                          fill="currentColor"
+                        />
+                      </svg>
+                    </button>
                   </li>
                 );
               })}
@@ -174,21 +223,49 @@ export function ConversationsPage({
                     </h2>
                   </div>
                   <div className="chat-minimal-header-actions">
-                    <button
-                      type="button"
-                      className="chat-minimal-header-icon-btn conversation-delete-btn"
-                      onClick={() => void onDeleteConversation()}
-                      disabled={isDeletingConversation}
-                      aria-label={isDeletingConversation ? "Deleting conversation" : "Delete conversation"}
-                      title={isDeletingConversation ? "Deleting..." : "Delete conversation"}
-                    >
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path
-                          d="M9 3.75h6a1.5 1.5 0 0 1 1.5 1.5v.75h3a.75.75 0 0 1 0 1.5h-1.06l-.72 11.42A2.25 2.25 0 0 1 15.47 21H8.53a2.25 2.25 0 0 1-2.25-2.08L5.56 7.5H4.5a.75.75 0 0 1 0-1.5h3v-.75A1.5 1.5 0 0 1 9 3.75Zm6 2.25v-.75h-6V6h6Zm-6.72 1.5.71 11.33a.75.75 0 0 0 .75.67h5.52a.75.75 0 0 0 .75-.67l.71-11.33H8.28Zm2.47 2.25a.75.75 0 0 1 .75.75v5.25a.75.75 0 0 1-1.5 0V10.5a.75.75 0 0 1 .75-.75Zm3.5 0a.75.75 0 0 1 .75.75v5.25a.75.75 0 0 1-1.5 0V10.5a.75.75 0 0 1 .75-.75Z"
-                          fill="currentColor"
-                        />
-                      </svg>
-                    </button>
+                    <div className="conversation-options-anchor" ref={conversationOptionsRef}>
+                      <button
+                        type="button"
+                        className="chat-minimal-header-icon-btn"
+                        onClick={() => setIsOptionsMenuOpen((open) => !open)}
+                        aria-haspopup="menu"
+                        aria-expanded={isOptionsMenuOpen}
+                        aria-label="Conversation options"
+                        title="Conversation options"
+                      >
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path
+                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065Z"
+                          />
+                          <path d="M12 15.75A3.75 3.75 0 1 0 12 8.25a3.75 3.75 0 0 0 0 7.5Z" />
+                        </svg>
+                      </button>
+                      {isOptionsMenuOpen ? (
+                        <div className="conversation-options-menu" role="menu" aria-label="Conversation options menu">
+                          <button
+                            type="button"
+                            className="conversation-options-item"
+                            onClick={() => {
+                              setIsOptionsMenuOpen(false);
+                              setIsParticipantsModalOpen(true);
+                            }}
+                          >
+                            Add participants
+                          </button>
+                          <button
+                            type="button"
+                            className="conversation-options-item conversation-options-item-danger"
+                            onClick={() => {
+                              setIsOptionsMenuOpen(false);
+                              void onDeleteConversation();
+                            }}
+                            disabled={isDeletingConversation}
+                          >
+                            {isDeletingConversation ? "Deleting..." : "Delete conversation"}
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
                 </header>
 
@@ -206,13 +283,6 @@ export function ConversationsPage({
                     </span>
                   ))}
                 </div>
-
-                <ConversationParticipantsEditor
-                  participants={selectedConversation?.participants || []}
-                  availableAgents={agents}
-                  isSubmitting={isAddingConversationAgents}
-                  onSubmit={onAddAgents}
-                />
 
                 <div className="chat-transcript-pane">
                   {isLoadingMessages ? (

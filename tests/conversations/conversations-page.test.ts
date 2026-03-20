@@ -90,9 +90,9 @@ test("ConversationsPage renders list, participants, transcript, and composer", (
   assert.match(markup, />latest reply</);
   assert.match(markup, />You</);
   assert.match(markup, />Planner Agent</);
-  assert.match(markup, />Add agents</);
   assert.match(markup, />Conversation</);
-  assert.match(markup, /Delete conversation/);
+  assert.match(markup, /Conversation options/);
+  assert.match(markup, /Delete conversation from list/);
   assert.match(markup, /Messages are stored canonically, then delivered to the other participants\./);
   assert.match(markup, /Message the conversation\.\.\./);
   assert.equal(markup.indexOf("hello team") < markup.indexOf("latest reply"), true);
@@ -115,18 +115,20 @@ test("ConversationsPage renders empty selection and loading states", () => {
   assert.match(loadingMarkup, /Loading messages\.\.\./);
 });
 
-test("ConversationsPage source keeps creation, add-agents, and send actions on the dedicated page", () => {
+test("ConversationsPage source keeps creation, modal-based participant edits, and send actions on the dedicated page", () => {
   assert.match(conversationsPageSource, /<ConversationCreateModal/);
-  assert.match(conversationsPageSource, /<ConversationParticipantsEditor/);
+  assert.match(conversationsPageSource, /<ConversationParticipantsModal/);
   assert.match(conversationsPageSource, /New conversation/);
   assert.match(conversationsPageSource, /orderedMessages/);
   assert.match(conversationsPageSource, /transcriptScrollRef/);
   assert.match(conversationsPageSource, /onOpenConversation\(conversationId\)/);
   assert.match(conversationsPageSource, /await onCreateConversation\(agentIds\);/);
-  assert.match(conversationsPageSource, /onSubmit={onAddAgents}/);
+  assert.match(conversationsPageSource, /setIsParticipantsModalOpen\(true\)/);
+  assert.match(conversationsPageSource, /await onAddAgents\(agentIds\);/);
   assert.match(conversationsPageSource, /await onSendMessage\(normalizedDraft\);/);
   assert.match(conversationsPageSource, /onDeleteConversation/);
-  assert.match(conversationsPageSource, /Delete conversation/);
+  assert.match(conversationsPageSource, /Conversation options/);
+  assert.match(conversationsPageSource, /Delete conversation from list/);
 });
 
 test("App wires the conversations page to data loaders and mutations", () => {

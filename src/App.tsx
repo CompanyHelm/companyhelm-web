@@ -9089,8 +9089,8 @@ function App() {
     }
   }
 
-  async function handleDeleteConversation() {
-    const normalizedConversationId = String(conversationsRoute?.conversationId || "").trim();
+  async function handleDeleteConversation(conversationId?: string) {
+    const normalizedConversationId = String(conversationId || conversationsRoute?.conversationId || "").trim();
     if (!normalizedConversationId) {
       return;
     }
@@ -9101,8 +9101,10 @@ function App() {
       await executeGraphQL(DELETE_CONVERSATION_MUTATION, {
         conversationId: normalizedConversationId,
       });
-      setBrowserPath(getConversationsPath());
-      setConversationMessages([]);
+      if (normalizedConversationId === String(conversationsRoute?.conversationId || "").trim()) {
+        setBrowserPath(getConversationsPath());
+        setConversationMessages([]);
+      }
       await loadConversations();
     } catch (error: any) {
       setConversationError(error?.message || "Failed to delete conversation.");
