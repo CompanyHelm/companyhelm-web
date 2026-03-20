@@ -1177,6 +1177,8 @@ export const LIST_AGENT_QUESTIONS_QUERY = `
       agentId
       threadId
       questionText
+      decisionType
+      priority
       status
       answerText
       createdAt
@@ -3382,6 +3384,8 @@ export const COMPANY_API_LIST_AGENT_QUESTIONS_QUERY = `
       agentId
       threadId
       questionText
+      decisionType
+      priority
       status
       answerText
       createdAt
