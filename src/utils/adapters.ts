@@ -333,19 +333,10 @@ export function toLegacyThreadPayload(thread: LooseRecord | null | undefined, {
   const nowIso = new Date().toISOString();
   const currentMetadata: LooseRecord = companyApiThreadMetadataById.get(threadId) || {};
   const overrideRecord = toRecord(metadataOverride);
-  const threadCurrentModelRecord = toRecord(threadRecord.currentModel);
 
-  const resolvedCurrentModelId = resolveLegacyId(
-    overrideRecord.currentModelId,
-    toRecord(overrideRecord.currentModel).id,
-    threadCurrentModelRecord.id,
-    currentMetadata.currentModelId,
-  ) || null;
   const resolvedCurrentModelName = resolveLegacyId(
     overrideRecord.currentModelName,
-    toRecord(overrideRecord.currentModel).name,
     threadRecord.currentModelName,
-    threadCurrentModelRecord.name,
     currentMetadata.currentModelName,
   ) || null;
   const resolvedCurrentReasoningLevel = resolveLegacyId(
@@ -405,7 +396,6 @@ export function toLegacyThreadPayload(thread: LooseRecord | null | undefined, {
       currentMetadata.status,
     ),
     runnerId: resolveLegacyId(overrideRecord.runnerId, currentMetadata.runnerId) || null,
-    currentModelId: resolvedCurrentModelId,
     currentModelName: resolvedCurrentModelName,
     currentReasoningLevel: resolvedCurrentReasoningLevel,
     additionalModelInstructions: resolvedAdditionalModelInstructions,
@@ -429,7 +419,6 @@ export function toLegacyThreadPayload(thread: LooseRecord | null | undefined, {
     title: nextMetadata.title,
     status: nextMetadata.status,
     errorMessage: nextMetadata.errorMessage,
-    currentModelId: nextMetadata.currentModelId,
     currentModelName: nextMetadata.currentModelName,
     currentReasoningLevel: nextMetadata.currentReasoningLevel,
     additionalModelInstructions: nextMetadata.additionalModelInstructions,

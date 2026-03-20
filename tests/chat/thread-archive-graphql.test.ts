@@ -30,4 +30,6 @@ test("thread archive GraphQL documents expose archive and direct thread lookup",
   assert.match(COMPANY_API_ARCHIVE_THREAD_MUTATION, /archiveThread\(threadId: \$threadId\)/);
   assert.match(COMPANY_API_THREAD_QUERY, /thread\(id: \$threadId\)/);
   assert.match(COMPANY_API_THREAD_QUERY, /archivedAt/);
+  assert.match(COMPANY_API_THREAD_QUERY, /currentModelName/);
+  assert.doesNotMatch(COMPANY_API_THREAD_QUERY, /currentModel\s*\{/);
 });

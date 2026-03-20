@@ -2123,7 +2123,6 @@ export const DELETE_AGENT_THREAD_MUTATION = `
         archivedAt
         status
         errorMessage
-        currentModelId
         currentModelName
         currentReasoningLevel
         createdAt
@@ -2149,7 +2148,6 @@ export const ARCHIVE_AGENT_THREAD_MUTATION = `
         archivedAt
         status
         errorMessage
-        currentModelId
         currentModelName
         currentReasoningLevel
         createdAt
@@ -2313,10 +2311,7 @@ export const AGENT_THREADS_SUBSCRIPTION = `
           agent {
             id
           }
-          currentModel {
-            id
-            name
-          }
+          currentModelName
         }
       }
     }
@@ -4236,10 +4231,7 @@ export const COMPANY_API_LIST_AGENTS_WITH_THREADS_CONNECTION_QUERY = `
                 agent {
                   id
                 }
-                currentModel {
-                  id
-                  name
-                }
+                currentModelName
               }
             }
           }
@@ -4501,10 +4493,7 @@ export const COMPANY_API_LIST_THREADS_CONNECTION_QUERY = `
           agent {
             id
           }
-          currentModel {
-            id
-            name
-          }
+          currentModelName
         }
       }
       pageInfo {
@@ -4539,10 +4528,7 @@ export const COMPANY_API_CREATE_THREAD_MUTATION = `
       agent {
         id
       }
-      currentModel {
-        id
-        name
-      }
+      currentModelName
     }
   }
 `;
@@ -4563,10 +4549,7 @@ export const COMPANY_API_UPDATE_THREAD_TITLE_MUTATION = `
       agent {
         id
       }
-      currentModel {
-        id
-        name
-      }
+      currentModelName
     }
   }
 `;
@@ -4607,10 +4590,7 @@ export const COMPANY_API_ARCHIVE_THREAD_MUTATION = `
       agent {
         id
       }
-      currentModel {
-        id
-        name
-      }
+      currentModelName
     }
   }
 `;
@@ -4653,10 +4633,7 @@ export const COMPANY_API_THREAD_QUERY = `
       agent {
         id
       }
-      currentModel {
-        id
-        name
-      }
+      currentModelName
     }
   }
 `;
