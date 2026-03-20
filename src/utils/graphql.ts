@@ -1297,6 +1297,23 @@ export const DELETE_CONVERSATION_MUTATION = `
   }
 `;
 
+export const CONVERSATION_MESSAGES_SUBSCRIPTION = `
+  subscription ConversationMessagesUpdated($conversationId: ID!, $first: Int = 100, $after: String) {
+    conversationMessagesUpdated(conversationId: $conversationId, first: $first, after: $after) {
+      edges {
+        cursor
+        node {
+${CONVERSATION_MESSAGE_FIELDS}
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+`;
+
 export const ANSWER_AGENT_QUESTION_MUTATION = `
   mutation AnswerAgentQuestion($id: String!, $answerText: String, $status: String) {
     answerAgentQuestion(id: $id, answerText: $answerText, status: $status) {

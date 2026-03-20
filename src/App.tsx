@@ -66,6 +66,7 @@ import {
   ADD_CONVERSATION_AGENTS_MUTATION,
   SEND_CONVERSATION_MESSAGE_MUTATION,
   DELETE_CONVERSATION_MUTATION,
+  CONVERSATION_MESSAGES_SUBSCRIPTION,
   APPROVE_APPROVAL_MUTATION,
   REJECT_APPROVAL_MUTATION,
   DELETE_APPROVAL_MUTATION,
@@ -1238,6 +1239,15 @@ function toConversationMessagePayload(message: any) {
     text: String(message?.text || "").trim(),
     createdAt: resolveLegacyId(message?.createdAt),
   };
+}
+
+function toConversationMessagesFromConnection(connection: any) {
+  return Array.isArray(connection?.edges)
+    ? connection.edges
+        .map((edge: any) => edge?.node)
+        .filter(Boolean)
+        .map((message: any) => toConversationMessagePayload(message))
+    : [];
 }
 
 function normalizeQuestionOptionRating(value: any) {
@@ -2936,12 +2946,7 @@ async function executeGraphQL(query: any, variables: any = {}) {
       after: resolveLegacyId(variables?.after) || null,
     });
     return {
-      messages: Array.isArray(data?.conversationMessages?.edges)
-        ? data.conversationMessages.edges
-            .map((edge: any) => edge?.node)
-            .filter(Boolean)
-            .map((message: any) => toConversationMessagePayload(message))
-        : [],
+      messages: toConversationMessagesFromConnection(data?.conversationMessages),
       pageInfo: {
         hasNextPage: Boolean(data?.conversationMessages?.pageInfo?.hasNextPage),
         endCursor: resolveLegacyId(data?.conversationMessages?.pageInfo?.endCursor) || null,
@@ -5231,6 +5236,22 @@ function App() {
     }
   }, [conversationsRoute?.conversationId, selectedCompanyId]);
 
+  const handleConversationMessagesSubscriptionData = useCallback((payload: any) => {
+    const connection = payload?.conversationMessagesUpdated;
+    if (!connection) {
+      return;
+    }
+
+    setConversationMessages(toConversationMessagesFromConnection(connection));
+    setConversationError("");
+    setIsLoadingConversationMessages(false);
+    void loadConversations();
+  }, [loadConversations]);
+
+  const handleConversationMessagesSubscriptionError = useCallback((error: any) => {
+    setConversationError(error?.message || "Failed to subscribe to conversation messages.");
+  }, []);
+
   const loadMcpServers = useCallback(async () => {
     if (!selectedCompanyId) {
       setMcpServerError("");
@@ -6083,6 +6104,24 @@ function App() {
         : undefined,
     onData: handleAgentQueuedMessagesSubscriptionData,
     onError: handleAgentChatSubscriptionError,
+  });
+
+  useGraphQLSubscription({
+    enabled: Boolean(
+      selectedCompanyId
+      && shouldLoadConversationData
+      && String(conversationsRoute?.conversationId || "").trim(),
+    ),
+    query: CONVERSATION_MESSAGES_SUBSCRIPTION,
+    variables:
+      selectedCompanyId && String(conversationsRoute?.conversationId || "").trim()
+        ? {
+            conversationId: String(conversationsRoute?.conversationId || "").trim(),
+            first: 100,
+          }
+        : undefined,
+    onData: handleConversationMessagesSubscriptionData,
+    onError: handleConversationMessagesSubscriptionError,
   });
 
   useGraphQLSubscription({

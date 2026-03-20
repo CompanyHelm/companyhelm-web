@@ -121,6 +121,8 @@ test("ConversationsPage source keeps creation, modal-based participant edits, an
   assert.match(conversationsPageSource, /New conversation/);
   assert.match(conversationsPageSource, /orderedMessages/);
   assert.match(conversationsPageSource, /transcriptScrollRef/);
+  assert.match(conversationsPageSource, /conversations-workspace/);
+  assert.match(conversationsPageSource, /conversation-transcript-scroll/);
   assert.match(conversationsPageSource, /onOpenConversation\(conversationId\)/);
   assert.match(conversationsPageSource, /await onCreateConversation\(agentIds\);/);
   assert.match(conversationsPageSource, /setIsParticipantsModalOpen\(true\)/);
@@ -139,5 +141,7 @@ test("App wires the conversations page to data loaders and mutations", () => {
   assert.match(appSource, /await executeGraphQL\(DELETE_CONVERSATION_MUTATION, \{/);
   assert.match(appSource, /await executeGraphQL\(ADD_CONVERSATION_AGENTS_MUTATION, \{/);
   assert.match(appSource, /await executeGraphQL\(SEND_CONVERSATION_MESSAGE_MUTATION, \{/);
+  assert.match(appSource, /CONVERSATION_MESSAGES_SUBSCRIPTION/);
+  assert.match(appSource, /handleConversationMessagesSubscriptionData/);
   assert.match(appSource, /<ConversationsPage/);
 });

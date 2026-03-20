@@ -150,7 +150,7 @@ export function ConversationsPage({
         }}
       />
 
-      <div className="chat-page-stack chat-page-stack-with-sidebar">
+      <div className="chat-page-stack chat-page-stack-with-sidebar conversations-workspace">
         <div className="chat-page-main-layout">
           <aside className="panel list-panel chat-sidebar-panel conversations-sidebar">
             <div className="chat-sidebar-toolbar">
@@ -284,7 +284,7 @@ export function ConversationsPage({
                   ))}
                 </div>
 
-                <div className="chat-transcript-pane">
+                <div className="chat-transcript-pane conversation-transcript-pane">
                   {isLoadingMessages ? (
                     <div className="chat-transcript-state chat-transcript-state-loading" role="status" aria-live="polite">
                       <p className="chat-transcript-state-title">Loading messages...</p>
@@ -298,7 +298,7 @@ export function ConversationsPage({
                     </div>
                   ) : null}
                   {orderedMessages.length > 0 ? (
-                    <div ref={transcriptScrollRef} className="chat-transcript-scroll">
+                    <div ref={transcriptScrollRef} className="chat-transcript-scroll conversation-transcript-scroll">
                       <ul className="chat-message-list conversation-chat-message-list" role="list" aria-label="Conversation transcript">
                         {orderedMessages.map((message: any) => {
                           const isUserMessage = isCurrentUserMessage(
