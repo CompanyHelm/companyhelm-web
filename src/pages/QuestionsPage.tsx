@@ -77,6 +77,31 @@ function getQuestionTabLabel(tabId: string = "") {
   return QUESTION_TABS.find((tab) => tab.id === tabId)?.label || "Open";
 }
 
+function getDecisionTypeLabel(decisionType: string = "") {
+  const normalizedDecisionType = String(decisionType || "").trim().toLowerCase();
+  if (normalizedDecisionType === "approval") {
+    return "Approval required";
+  }
+  if (normalizedDecisionType === "direction") {
+    return "Direction needed";
+  }
+  return "Clarification";
+}
+
+function getPriorityLabel(priority: string = "") {
+  const normalizedPriority = String(priority || "").trim().toLowerCase();
+  if (normalizedPriority === "critical") {
+    return "Critical priority";
+  }
+  if (normalizedPriority === "high") {
+    return "High priority";
+  }
+  if (normalizedPriority === "low") {
+    return "Low priority";
+  }
+  return "Normal priority";
+}
+
 export function QuestionsPage({
   activeTab,
   questions,
@@ -128,6 +153,8 @@ export function QuestionsPage({
               const sortedOptions = sortQuestionOptions(Array.isArray(question?.options) ? question.options : []);
               const isAnswering = answeringQuestionId === question.id;
               const trimmedQuestionText = String(question?.questionText || "").trim() || "Untitled question";
+              const decisionType = String(question?.decisionType || "").trim().toLowerCase() || "clarification";
+              const priority = String(question?.priority || "").trim().toLowerCase() || "normal";
               const normalizedStatus = String(question?.status || "").trim().toLowerCase();
               const resolvedStatus = normalizedStatus === "completed" || normalizedStatus === "dismissed"
                 ? normalizedStatus
@@ -160,6 +187,13 @@ export function QuestionsPage({
                       </div>
                       <p className="chat-card-meta">Agent: <span>{question?.agentName || "Unknown agent"}</span></p>
                       <p className="chat-card-meta">Thread: <span>{question?.threadTitle || "Untitled thread"}</span></p>
+                      <div className="inline-selection-list">
+                        <span className="tag-pill">{getDecisionTypeLabel(decisionType)}</span>
+                        <span className="tag-pill">{getPriorityLabel(priority)}</span>
+                      </div>
+                      {decisionType === "approval" ? (
+                        <p className="chat-card-meta">This question needs an explicit human decision before the agent proceeds.</p>
+                      ) : null}
                       <p className="chat-card-meta">Status: <span>{getQuestionTabLabel(resolvedStatus)}</span></p>
                     </div>
                     {isOpen ? (

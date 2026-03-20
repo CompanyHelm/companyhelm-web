@@ -11,6 +11,8 @@ test("question GraphQL documents expose list and answer operations", () => {
   assert.match(LIST_AGENT_QUESTIONS_QUERY, /query ListAgentQuestions/);
   assert.match(LIST_AGENT_QUESTIONS_QUERY, /agentQuestions\(status: \$status, first: \$first\)/);
   assert.match(LIST_AGENT_QUESTIONS_QUERY, /questionText/);
+  assert.match(LIST_AGENT_QUESTIONS_QUERY, /decisionType/);
+  assert.match(LIST_AGENT_QUESTIONS_QUERY, /priority/);
   assert.match(LIST_AGENT_QUESTIONS_QUERY, /threadTitle/);
   assert.match(LIST_AGENT_QUESTIONS_QUERY, /options \{/);
   assert.match(LIST_AGENT_QUESTIONS_QUERY, /rating/);

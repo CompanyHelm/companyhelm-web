@@ -25,6 +25,8 @@ function renderQuestionsPageMarkup(overrides: Record<string, unknown> = {}) {
           agentId: "agent-1",
           threadId: "thread-1",
           questionText: "How should we roll out this feature?",
+          decisionType: "approval",
+          priority: "critical",
           agentName: "Planner Agent",
           threadTitle: "Launch planning",
           status: "open",
@@ -71,6 +73,9 @@ test("QuestionsPage renders tabs and open-question actions", () => {
   assert.match(markup, />How should we roll out this feature\?</);
   assert.match(markup, />Planner Agent</);
   assert.match(markup, />Launch planning</);
+  assert.match(markup, />Approval required</);
+  assert.match(markup, />Critical priority</);
+  assert.match(markup, /This question needs an explicit human decision before the agent proceeds\./);
   assert.match(markup, />Status: <span>Open</);
   assert.match(markup, /Open thread/);
   assert.match(markup, /Send custom answer/);
@@ -90,6 +95,8 @@ test("QuestionsPage renders completed questions as read-only history", () => {
       {
         id: "question-1",
         questionText: "How should we roll out this feature?",
+        decisionType: "approval",
+        priority: "high",
         agentName: "Planner Agent",
         threadTitle: "Launch planning",
         status: "completed",
@@ -101,6 +108,8 @@ test("QuestionsPage renders completed questions as read-only history", () => {
   });
 
   assert.match(markup, />1 completed question</);
+  assert.match(markup, />Approval required</);
+  assert.match(markup, />High priority</);
   assert.match(markup, />Status: <span>Completed</);
   assert.match(markup, />Answer</);
   assert.match(markup, />Start with the beta cohort</);
@@ -151,6 +160,7 @@ test("QuestionsPage sends canned responses directly from option and dismiss butt
   assert.match(questionsPageSource, /onClick=\{\(\) => onAnswerQuestion\(question\.id, null, "open"\)\}/);
   assert.match(questionsPageSource, /onClick=\{\(\) => onOpenThread\(agentId, threadId\)\}/);
   assert.match(questionsPageSource, /className="chat-card-icon-btn question-answer-submit-btn"/);
+  assert.match(questionsPageSource, /This question needs an explicit human decision before the agent proceeds\./);
 });
 
 test("App supports tab deep links and status-aware question responses", () => {
@@ -162,6 +172,8 @@ test("App supports tab deep links and status-aware question responses", () => {
   assert.match(appSource, /if \(normalizedStatus !== "open" && !answerText\)/);
   assert.match(appSource, /answerText: normalizedStatus === "open" \? null : answerText,/);
   assert.match(appSource, /status: normalizedStatus,/);
+  assert.match(appSource, /decisionType: String\(question\?\.decisionType \|\| ""\)\.trim\(\) \|\| "clarification"/);
+  assert.match(appSource, /priority: String\(question\?\.priority \|\| ""\)\.trim\(\) \|\| "normal"/);
   assert.match(appSource, /onOpenThread=\{\(agentId: string, threadId: string\) => navigateToChatsConversation\(\{ agentId, threadId \}\)\}/);
   assert.doesNotMatch(appSource, /LIST_AGENT_QUESTIONS_QUERY,\s*\{\s*companyId: selectedCompanyId,\s*status: "open"/);
 });

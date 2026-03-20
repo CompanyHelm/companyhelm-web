@@ -1184,6 +1184,8 @@ function toQuestionPayload(question: any) {
     agentId: resolveLegacyId(question?.agent?.id, question?.agentId),
     threadId: resolveLegacyId(question?.thread?.id, question?.threadId),
     questionText: String(question?.questionText || "").trim(),
+    decisionType: String(question?.decisionType || "").trim() || "clarification",
+    priority: String(question?.priority || "").trim() || "normal",
     status: resolveLegacyId(question?.status) || "open",
     answerText: String(question?.answerText || "").trim() || null,
     createdAt: resolveLegacyId(question?.createdAt),
