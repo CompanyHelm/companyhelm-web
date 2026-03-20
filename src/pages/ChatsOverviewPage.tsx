@@ -199,7 +199,7 @@ export function ChatsOverviewPage({
                       const isArchivingChat = archivingChatSessionKey === chatSessionKey || isArchivingSession;
                       const isDeletingChat = deletingChatSessionKey === chatSessionKey || isDeletingSession;
                       const sessionModelLabel =
-                        String(chatSession?.currentModelName || chatSession?.currentModelId || "").trim() || "n/a";
+                        String(chatSession?.currentModelName || "").trim() || "n/a";
                       const reasoningLabel = String(chatSession?.currentReasoningLevel || "").trim() || "n/a";
                       const statusBadge = isRunning ? (
                         <ChatSessionRunningBadge />

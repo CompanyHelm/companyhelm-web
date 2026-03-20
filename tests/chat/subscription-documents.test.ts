@@ -17,7 +17,8 @@ test("agent runners subscription includes company selection for company-scoped f
 test("agent threads subscription selects agent/model and omits company", () => {
   assert.doesNotMatch(AGENT_THREADS_SUBSCRIPTION, /company\s*\{/);
   assert.match(AGENT_THREADS_SUBSCRIPTION, /agent\s*\{\s*id\s*\}/);
-  assert.match(AGENT_THREADS_SUBSCRIPTION, /currentModel\s*\{\s*id\s*name\s*\}/);
+  assert.match(AGENT_THREADS_SUBSCRIPTION, /currentModelName/);
+  assert.doesNotMatch(AGENT_THREADS_SUBSCRIPTION, /currentModel\s*\{/);
 });
 
 test("agent turns subscription selects thread and agent ids while omitting company", () => {

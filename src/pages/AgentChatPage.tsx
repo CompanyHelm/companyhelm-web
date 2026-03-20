@@ -1674,7 +1674,7 @@ export function AgentChatPage({
           <div className="chat-settings-info">
             <p className="chat-settings-info-row">
               <span className="chat-settings-info-label">Model</span>
-              <span>{session?.currentModelName || session?.currentModelId || "n/a"}</span>
+              <span>{session?.currentModelName || "n/a"}</span>
             </p>
             <p className="chat-settings-info-row">
               <span className="chat-settings-info-label">Reasoning</span>

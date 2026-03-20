@@ -845,7 +845,7 @@ export function AgentChatsPage({
                         : isArchivingChat
                           ? "Archiving..."
                           : "Archive chat";
-                      const modelLabel = String(session?.currentModelName || session?.currentModelId || "").trim() || "n/a";
+                      const modelLabel = String(session?.currentModelName || "").trim() || "n/a";
                       const reasoningLabel = String(session?.currentReasoningLevel || "").trim() || "n/a";
                       return (
                         <div

@@ -356,7 +356,11 @@ export function ConversationsPage({
                     rows={3}
                     disabled={isSendingConversationMessage}
                     onKeyDown={(event) => {
-                      if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+                      if (
+                        event.key === "Enter"
+                        && !event.shiftKey
+                        && !Boolean((event.nativeEvent as { isComposing?: boolean }).isComposing)
+                      ) {
                         event.preventDefault();
                         void handleSendMessage();
                       }

@@ -1459,17 +1459,9 @@ function toLegacyThreadPayload(thread: any, {
     thread?.status,
     currentMetadata.status,
   );
-  const resolvedCurrentModelId = resolveLegacyId(
-    metadataOverride?.currentModelId,
-    metadataOverride?.currentModel?.id,
-    thread?.currentModel?.id,
-    currentMetadata.currentModelId,
-  ) || null;
   const resolvedCurrentModelName = resolveLegacyId(
     metadataOverride?.currentModelName,
-    metadataOverride?.currentModel?.name,
     thread?.currentModelName,
-    thread?.currentModel?.name,
     currentMetadata.currentModelName,
   ) || null;
   const resolvedCurrentReasoningLevel = resolveLegacyId(
@@ -1554,7 +1546,6 @@ function toLegacyThreadPayload(thread: any, {
     title: resolvedTitle,
     status: resolvedStatus,
     runnerId: resolveLegacyId(metadataOverride?.runnerId, currentMetadata.runnerId) || null,
-    currentModelId: resolvedCurrentModelId,
     currentModelName: resolvedCurrentModelName,
     currentReasoningLevel: resolvedCurrentReasoningLevel,
     additionalModelInstructions: resolvedAdditionalModelInstructions,
@@ -1580,7 +1571,6 @@ function toLegacyThreadPayload(thread: any, {
     title: nextMetadata.title,
     status: nextMetadata.status,
     errorMessage: nextMetadata.errorMessage,
-    currentModelId: nextMetadata.currentModelId,
     currentModelName: nextMetadata.currentModelName,
     currentReasoningLevel: nextMetadata.currentReasoningLevel,
     additionalModelInstructions: nextMetadata.additionalModelInstructions,
@@ -4157,7 +4147,6 @@ function App() {
       runnerId: resolveLegacyId(metadata.runnerId) || null,
       title: resolveLegacyId(metadata.title) || "",
       status: resolveLegacyId(metadata.status),
-      currentModelId: resolveLegacyId(metadata.currentModelId) || null,
       currentModelName: resolveLegacyId(metadata.currentModelName) || null,
       currentReasoningLevel: resolveLegacyId(metadata.currentReasoningLevel) || null,
       additionalModelInstructions:
