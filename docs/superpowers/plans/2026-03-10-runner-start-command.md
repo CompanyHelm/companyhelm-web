@@ -78,7 +78,7 @@ Run:
 
 ```bash
 LEGACY_PATTERN='companyhelm --'"secret"
-rg -n "$LEGACY_PATTERN" /workspace/frontend /workspace/companyhelm-cli /workspace/companyhelm-agent-cli /workspace/companyhelm-api /workspace/companyhelm-common
+rg -n "$LEGACY_PATTERN" /workspace/frontend /workspace/companyhelm-cli /workspace/companyhelm-api /workspace/companyhelm-common
 ```
 
 Expected: no matches
